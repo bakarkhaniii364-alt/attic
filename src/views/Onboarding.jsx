@@ -153,15 +153,7 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
         <Heart size={30} fill="currentColor" />
       </div>
 
-      {/* back button */}
-      {onBack && (
-        <button
-          onClick={() => { playAudio('click', sfx); onBack(); }}
-          className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20 font-bold text-sm text-[var(--text-main)] opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1"
-        >
-          <ArrowLeft size={16} /> back
-        </button>
-      )}
+      {/* back button removed, using RetroWindow onClose */}
 
       {inviteCode && (
         <div className="relative z-10 mb-4 retro-border retro-bg-accent retro-shadow-dark px-4 py-2 text-center animate-in fade-in duration-300">
@@ -169,7 +161,7 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
         </div>
       )}
 
-      <RetroWindow title={windowTitles[mode]} className="w-full max-w-sm relative z-10 animate-in fade-in zoom-in-95 duration-300">
+      <RetroWindow title={windowTitles[mode]} className="w-full max-w-sm relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
         {/* ── SIGN UP ── */}
         {mode === 'signup' && (
           <form onSubmit={handleSignUp} className="flex flex-col gap-4 py-2">
@@ -308,31 +300,40 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
   // On mount, check if user already has a room, or create one
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.rpc('get_my_room');
-      if (data && data.invite_code) {
-        setInviteCode(data.invite_code);
-        if (data.is_paired) {
-          onPaired(data.id);
-          return;
-        }
-      } else {
-        // Create a new room with a random invite code
-        const code = generateCode();
-        const { error: err } = await supabase.from('rooms').insert({
-          invite_code: code,
-          creator_id: session.user.id,
-        });
-        if (err) {
-          console.error('Failed to create room:', err);
-          // Retry with different code
-          const code2 = generateCode();
-          await supabase.from('rooms').insert({ invite_code: code2, creator_id: session.user.id });
-          setInviteCode(code2);
+      try {
+        const { data, error: roomErr } = await supabase.rpc('get_my_room');
+        if (roomErr) throw roomErr;
+
+        if (data && data.invite_code) {
+          setInviteCode(data.invite_code);
+          if (data.is_paired) {
+            onPaired(data.id);
+            return;
+          }
         } else {
-          setInviteCode(code);
+          // Create a new room with a random invite code
+          const code = generateCode();
+          const { error: err } = await supabase.from('rooms').insert({
+            invite_code: code,
+            creator_id: session.user.id,
+          });
+          if (err) {
+            console.error('Failed to create room:', err);
+            // Retry with different code
+            const code2 = generateCode();
+            const { error: err2 } = await supabase.from('rooms').insert({ invite_code: code2, creator_id: session.user.id });
+            if (err2) throw err2;
+            setInviteCode(code2);
+          } else {
+            setInviteCode(code);
+          }
         }
+      } catch (err) {
+        console.error("Setup error:", err);
+        setError("Failed to setup room. Did you run auth_schema.sql in Supabase?");
+      } finally {
+        setCreating(false);
       }
-      setCreating(false);
     })();
   }, []);
 
@@ -415,15 +416,9 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
         <Sparkles size={36} />
       </div>
 
-      {/* logout */}
-      <button
-        onClick={() => { playAudio('click', sfx); onLogout(); }}
-        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 font-bold text-[10px] text-[var(--text-main)] opacity-30 hover:opacity-70 transition-opacity retro-border px-2 py-1"
-      >
-        sign out
-      </button>
+      {/* logout button removed, using RetroWindow onClose */}
 
-      <RetroWindow title="the_handshake.exe" className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-300">
+      <RetroWindow title="the_handshake.exe" className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
         <div className="flex flex-col items-center text-center py-2 gap-5">
           {/* header */}
           <div>
