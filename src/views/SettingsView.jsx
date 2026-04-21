@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore } from '../utils/helpers.js';
 import { playAudio } from '../utils/audio.js';
@@ -82,9 +82,9 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
         {/* Aesthetics & Weather */}
         <section className="p-4 retro-bg-window retro-border border-dashed">
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><ImageIcon size={20}/> aesthetics & weather</h2>
-          <div className="flex gap-2 mb-4">{['clear', 'rain', 'snow'].map(w => ( <button key={w} onClick={() => {playAudio('click', sfxEnabled); setWeather(w)}} className={`flex-1 p-2 retro-border font-bold lowercase text-sm flex justify-center items-center gap-1 ${weather === w ? 'retro-bg-accent retro-shadow-dark' : 'bg-[var(--bg-window)]'}`}>{w === 'clear' ? <Sun size={14}/> : w === 'rain' ? <CloudRain size={14}/> : <Snowflake size={14}/>} {w}</button> ))}</div>
+          <div className="flex gap-2 mb-4">{['clear', 'rain', 'snow', 'spores'].map(w => ( <button key={w} onClick={() => {playAudio('click', sfxEnabled); setWeather(w)}} className={`flex-1 p-2 retro-border font-bold lowercase text-sm flex justify-center items-center gap-1 ${weather === w ? 'retro-bg-accent retro-shadow-dark' : 'bg-[var(--bg-window)]'}`}>{w === 'clear' ? <Sun size={14}/> : w === 'rain' ? <CloudRain size={14}/> : w === 'spores' ? <Sparkles size={14}/> : <Snowflake size={14}/>} {w}</button> ))}</div>
           <p className="font-bold text-sm mb-2 opacity-70">Theme Mode</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">{['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome'].map(t => ( <button key={t} onClick={() => {playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500);}} className={`p-3 retro-border text-center lowercase font-bold text-sm sm:text-base ${theme === t ? 'retro-shadow-dark bg-[var(--accent)]' : 'bg-[var(--bg-window)] opacity-70'}`}>{t}</button> ))}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">{['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins'].map(t => ( <button key={t} onClick={() => {playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500);}} className={`p-3 retro-border text-center lowercase font-bold text-sm sm:text-base ${theme === t ? 'retro-shadow-dark bg-[var(--accent)]' : 'bg-[var(--bg-window)] opacity-70'}`}>{t}</button> ))}</div>
         </section>
 
         {/* Danger Zone */}

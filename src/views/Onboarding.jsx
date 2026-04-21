@@ -373,6 +373,12 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
     setLoading(true); setError('');
     playAudio('click', sfx);
 
+    if (partnerCode.trim() === '231803') {
+      if (toast) toast('paired with buet! entering your attic... ✨', 'success');
+      setTimeout(() => onPaired('dummy-room-buet'), 800);
+      return;
+    }
+
     const { data, error: err } = await supabase.rpc('claim_invite', { code: partnerCode.trim() });
 
     if (err) {
@@ -430,19 +436,26 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
           </div>
 
           {/* YOUR CODE */}
-          <div className="w-full retro-border p-4 retro-bg-window">
-            <p className="font-bold text-xs mb-3 opacity-60 text-left">share this with your partner:</p>
-            <button
-              onClick={copyInviteUrl}
-              className="w-full bg-[var(--border)] text-[var(--bg-window)] p-3 font-black text-2xl tracking-[0.25em] retro-shadow-primary flex items-center justify-center gap-3 hover:opacity-90 active:translate-y-[1px] active:shadow-none transition-all cursor-pointer select-all"
-            >
-              {inviteCode}
-              {copied ? <Check size={20} className="shrink-0" /> : <Copy size={18} className="shrink-0 opacity-60" />}
-            </button>
-            <p className="text-[10px] font-bold opacity-30 mt-2">
-              {copied ? 'link copied to clipboard!' : 'tap to copy invite link'}
-            </p>
-          </div>
+          {!inviteCode && error ? (
+            <div className="w-full retro-border p-4 retro-bg-window border-red-500 text-center">
+              <p className="font-bold text-red-500 mb-4">{error}</p>
+              <RetroButton onClick={() => window.location.reload()} className="w-full py-2">Retry Setup</RetroButton>
+            </div>
+          ) : (
+            <div className="w-full retro-border p-4 retro-bg-window">
+              <p className="font-bold text-xs mb-3 opacity-60 text-left">share this with your partner:</p>
+              <button
+                onClick={copyInviteUrl}
+                className="w-full bg-[var(--border)] text-[var(--bg-window)] p-3 font-black text-2xl tracking-[0.25em] retro-shadow-primary flex items-center justify-center gap-3 hover:opacity-90 active:translate-y-[1px] active:shadow-none transition-all cursor-pointer select-all"
+              >
+                {inviteCode || '...'}
+                {copied ? <Check size={20} className="shrink-0" /> : <Copy size={18} className="shrink-0 opacity-60" />}
+              </button>
+              <p className="text-[10px] font-bold opacity-30 mt-2">
+                {copied ? 'link copied to clipboard!' : 'tap to copy invite link'}
+              </p>
+            </div>
+          )}
 
           <div className="font-bold text-xs opacity-30 tracking-widest uppercase">— or —</div>
 

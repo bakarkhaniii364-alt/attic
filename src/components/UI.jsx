@@ -43,8 +43,8 @@ export function WeatherOverlay({ weather }) {
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
       {particles.map((_, i) => (
-        <div key={i} className="absolute" style={{ left: `${Math.random() * 100}%`, top: `-${Math.random() * 20}px`, animation: `${weather} ${Math.random() * 2 + (weather==='rain'?1:3)}s linear infinite`, animationDelay: `${Math.random() * 2}s` }}>
-          {weather === 'rain' ? <div className="w-[2px] h-6 bg-blue-400 opacity-50 rounded-full" /> : <Snowflake size={16} className="text-white opacity-80" />}
+        <div key={i} className="absolute" style={{ left: `${Math.random() * 100}%`, top: weather === 'spores' ? '100vh' : `-${Math.random() * 20}px`, animation: `${weather} ${Math.random() * 2 + (weather==='rain'?1:3)}s linear infinite`, animationDelay: `${Math.random() * 2}s` }}>
+          {weather === 'rain' ? <div className="w-[2px] h-6 bg-blue-400 opacity-50 rounded-full" /> : weather === 'spores' ? <div className="w-1.5 h-1.5 bg-red-500 rounded-full opacity-60" style={{ filter: 'blur(1px)' }} /> : <Snowflake size={16} className="text-white opacity-80" />}
         </div>
       ))}
     </div>

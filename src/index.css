@@ -59,6 +59,14 @@
   --text-on-primary: #141414; --text-on-secondary: #141414; --text-on-accent: #e0e0e0;
 }
 
+/* ── HAWKINS ── */
+[data-theme="hawkins"] {
+  --bg-main: #0B0A0C; --bg-pattern: #170912; --bg-window: #130a10;
+  --border: #4A192C; --primary: #D01111; --primary-hover: #A00B0B;
+  --secondary: #8B1A2A; --accent: #230810; --text-main: #e8d0d5;
+  --text-on-primary: #ffffff; --text-on-secondary: #ffffff; --text-on-accent: #e8d0d5;
+}
+
 body { font-family: 'Space Mono', monospace; background-color: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; overflow-x: hidden; transition: background-color 0.3s, color 0.3s; }
 .bg-pattern-grid { background-image: linear-gradient(var(--bg-pattern) 2px, transparent 2px), linear-gradient(90deg, var(--bg-pattern) 2px, transparent 2px); background-size: 40px 40px; }
 ::-webkit-scrollbar { width: 12px; } ::-webkit-scrollbar-track { background: var(--bg-window); border-left: 2px solid var(--border); } ::-webkit-scrollbar-thumb { background: var(--primary); border: 2px solid var(--border); }
@@ -83,6 +91,7 @@ body { font-family: 'Space Mono', monospace; background-color: var(--bg-main); c
 @keyframes typing-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 @keyframes rain { 0% { transform: translateY(-100px); } 100% { transform: translateY(100vh); } }
 @keyframes snow { 0% { transform: translateY(-100px) rotate(0deg); } 100% { transform: translateY(100vh) rotate(360deg); } }
+@keyframes spores { 0% { transform: translateY(100vh) translateX(-20px); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translateY(-100px) translateX(20px); opacity: 0; } }
 @keyframes fallOff { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(200px) rotate(45deg); opacity: 0; } }
 .animate-fall { animation: fallOff 1.5s forwards; }
 
