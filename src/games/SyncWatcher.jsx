@@ -22,6 +22,8 @@ export function SyncWatcher({ config, onBack, sfx }) {
     const wrapperRef = useRef(null);
     const [loadError, setLoadError] = useState(null);
     const [ready, setReady] = useState(false);
+    const [loadingTimeout, setLoadingTimeout] = useState(false);
+    const [debugOpen, setDebugOpen] = useState(false);
 
     useEffect(() => {
         // Mock partner connection
@@ -61,7 +63,22 @@ export function SyncWatcher({ config, onBack, sfx }) {
     const handleLoadUrl = () => {
         if (!inputUrl) return;
         playAudio('click', sfx);
-        setUrl(inputUrl);
+        // Normalize YouTube URLs to embed format to improve embedding reliability
+        let newUrl = inputUrl.trim();
+        try {
+            const ytMatch = newUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})(?:&|$)/);
+            if (!ytMatch) {
+                const short = newUrl.match(/youtu\.be\/([0-9A-Za-z_-]{11})/);
+                if (short) ytMatch = short;
+            }
+            if (ytMatch && ytMatch[1]) {
+                const id = ytMatch[1];
+                // prefer embed URL
+                newUrl = `https://www.youtube.com/embed/${id}`;
+                console.log('SyncWatcher: transformed YouTube URL to embed', newUrl);
+            }
+        } catch (e) { /* ignore */ }
+        setUrl(newUrl);
         setPlaying(false);
         setPlayed(0);
         setLoadError(null);
@@ -136,19 +153,25 @@ export function SyncWatcher({ config, onBack, sfx }) {
                                 volume={volume}
                                 onProgress={handleProgress}
                                 onDuration={handleDuration}
-                                onReady={() => { setReady(true); setLoadError(null); }}
-                                onError={(e) => {
-                                    console.error('ReactPlayer Error:', e);
-                                    setLoadError('Could not load video. This may be due to the video being private, deleted, or not allowing embedding. If on localhost, YouTube videos may be blocked by browser security policies.');
-                                }}
+                                                                onReady={() => { setReady(true); setLoadError(null); setLoadingTimeout(false); }}
+                                                                onError={(e) => {
+                                                                        console.error('ReactPlayer Error:', e);
+                                                                        try {
+                                                                            const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
+                                                                            setLoadError(`Could not load video: ${msg}`);
+                                                                        } catch (_err) {
+                                                                            setLoadError('Could not load video (unknown error).');
+                                                                        }
+                                                                        setLoadingTimeout(false);
+                                                                }}
                                 width="100%"
                                 height="100%"
                                 style={{ position: 'absolute', top: 0, left: 0 }}
                                 config={{
                                     youtube: {
-                                        playerVars: { modestbranding: 1, rel: 0, controls: 0, origin: window.location.origin }
+                                        playerVars: { modestbranding: 1, rel: 0, controls: 1, playsinline: 1, origin: window.location.origin }
                                     },
-                                    file: { attributes: { controls: false } }
+                                    file: { attributes: { controls: true, playsInline: true } }
                                 }}
                             />
                         </div>
@@ -162,6 +185,31 @@ export function SyncWatcher({ config, onBack, sfx }) {
                             ))}
                         </div>
                     </div>
+
+                                        {/* Loading / diagnostic overlay */}
+                                        {!ready && !loadError && (
+                                                <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                                                        <div className="text-white/90 text-center">
+                                                                <div className="animate-pulse mb-2">Loading video…</div>
+                                                                <div className="text-xs opacity-70">If this takes long, the video may not allow embedding or the URL is invalid.</div>
+                                                        </div>
+                                                </div>
+                                        )}
+
+                                        {loadError && (
+                                                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 text-white p-4 text-center">
+                                                    <div>
+                                                        <p className="font-bold text-lg mb-2">Could not load video</p>
+                                                        <p className="text-sm opacity-70 mb-3">{loadError}</p>
+                                                        <p className="text-xs opacity-50 mb-3">Try a direct .mp4 link, a different YouTube URL, or check browser console for details.</p>
+                                                        <button onClick={() => { setLoadError(null); setReady(false); setLoadingTimeout(true); setTimeout(() => setLoadingTimeout(true), 500); }} className="px-3 py-2 retro-border bg-[var(--bg-window)] text-[var(--text-main)]">Retry</button>
+                                                        <button onClick={() => setDebugOpen(!debugOpen)} className="ml-2 px-3 py-2 retro-border bg-[var(--bg-window)] text-[var(--text-main)]">Toggle Debug</button>
+                                                        {debugOpen && (
+                                                            <pre className="mt-3 text-xs text-left max-h-40 overflow-auto bg-black/60 p-2 rounded">{JSON.stringify({ url, ready, loadError, playerRef: !!playerRef.current }, null, 2)}</pre>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                        )}
 
                     <div className="bg-[var(--bg-window)] border-t border-[var(--border)] p-2 sm:p-4 shrink-0 flex flex-col gap-2 z-20">
 
