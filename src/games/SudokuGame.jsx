@@ -74,7 +74,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     const usePencil = forceNotes || tool === 'pencil';
 
     if (tool === 'eraser') {
-      newBoard[r][c].val = null; newBoard[r][c].notes = [];
+      newBoard[r][c].val = null; newBoard[r][c].notes = []; newBoard[r][c].error = false;
       setBoard(newBoard); return;
     }
 
@@ -88,7 +88,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     }
 
     if (num === solution[r][c]) {
-      newBoard[r][c].val = num; newBoard[r][c].fixed = true; newBoard[r][c].notes = [];
+      newBoard[r][c].val = num; newBoard[r][c].fixed = true; newBoard[r][c].notes = []; newBoard[r][c].error = false;
       setBoard(newBoard);
       checkWin(newBoard);
       // Clear notes in same row/col/box
@@ -99,13 +99,12 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       const boxR = Math.floor(r / 3) * 3, boxC = Math.floor(c / 3) * 3;
       for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) newBoard[boxR + i][boxC + j].notes = newBoard[boxR + i][boxC + j].notes.filter(n => n !== num);
     } else {
+      // Persist incorrect entry so user must erase or replace it; mark as error
       setMistakes(m => m + 1);
       setMistakesOverlay(true); setTimeout(() => setMistakesOverlay(false), 300);
+      newBoard[r][c].val = num;
       newBoard[r][c].error = true;
       setBoard(newBoard);
-      setTimeout(() => {
-        setBoard(b => { const b2 = b.map(row => row.map(cell => ({ ...cell }))); b2[r][c].error = false; return b2; });
-      }, 800);
     }
   }, [selected, paused, gameOverOverlay, board, solution, tool, sfx]);
 
@@ -126,7 +125,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         const [r, c] = selected;
         if (board[r][c]?.fixed) return;
         playAudio('click', sfx);
-        setBoard(b => { const b2 = b.map(row => row.map(cell => ({ ...cell }))); b2[r][c].val = null; b2[r][c].notes = []; return b2; });
+        setBoard(b => { const b2 = b.map(row => row.map(cell => ({ ...cell }))); b2[r][c].val = null; b2[r][c].notes = []; b2[r][c].error = false; return b2; });
       } else if (e.key === 'ArrowUp' && selected) { setSelected([Math.max(0, selected[0] - 1), selected[1]]); }
       else if (e.key === 'ArrowDown' && selected) { setSelected([Math.min(8, selected[0] + 1), selected[1]]); }
       else if (e.key === 'ArrowLeft' && selected) { setSelected([selected[0], Math.max(0, selected[1] - 1)]); }
