@@ -1,0 +1,1226 @@
+// ==========================================
+// 1. IMPORTS, CONSTANTS & HOOKS
+// ==========================================
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  X, Heart, MessageSquare, Phone, Grid, 
+  Image as ImageIcon, Mic, Send, Star, Gamepad2, 
+  Settings as SettingsIcon, User, Trash2, Camera, RefreshCw,
+  Bell, Paperclip, Video, Search, Play, Pause, File, Sparkles, Key, LogOut, Check,
+  MoreVertical, Reply, Edit2, Smile, Ban, ChevronLeft, ChevronRight, Download,
+  Cloud, Mail, ListTodo, Calendar as CalendarIcon, Clock, Lock, Volume2, Hand,
+  PenTool, Eraser, PaintBucket, Palette, Brush, Unlock, Square, Circle, Minus,
+  Trophy, CloudRain, Snowflake, Sun, Music, Zap, Type, Share2, Undo2
+} from 'lucide-react';
+
+function useLocalStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
+    try { const item = window.localStorage.getItem(key); return item ? JSON.parse(item) : initialValue; } 
+    catch (error) { return initialValue; }
+  });
+  useEffect(() => { window.localStorage.setItem(key, JSON.stringify(storedValue)); }, [key, storedValue]);
+  return [storedValue, setStoredValue];
+}
+
+const INITIAL_CHAT = [
+  { id: 1, sender: 'partner', type: 'text', text: 'good morning! ❤️', time: '09:00 AM', status: 'read' },
+  { id: 2, sender: 'me', type: 'text', text: 'morning! want to play some games?', time: '09:05 AM', reactions: ['🥰'], status: 'read' }
+];
+
+const PICTIONARY_CATEGORIES = {
+  animals: ['CAT', 'DOG', 'ELEPHANT', 'FISH', 'BIRD', 'SNAKE', 'RABBIT', 'MOUSE'],
+  objects: ['CUP', 'HOUSE', 'CAR', 'CLOCK', 'COMPUTER', 'KEYBOARD', 'CHAIR', 'PHONE'],
+  hard: ['MOUNTAIN', 'BASEBALL', 'BICYCLE', 'ASTRONAUT', 'HOSPITAL', 'VACUUM', 'PYRAMID']
+};
+
+const WORDS_FALLBACK = { easy: ["LOVE", "CUTE", "HUGS"], medium: ["SWEET", "HEART", "SMILE"], hard: ["CARING", "LOVING", "GENTLE"] };
+const MEMORY_EMOJIS = { easy: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'], medium: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐯','🦁'], hard: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐯','🦁','🐮','🐷'] };
+const INITIAL_CHESS_BOARD = [ 'bR','bN','bB','bQ','bK','bB','bN','bR', 'bP','bP','bP','bP','bP','bP','bP','bP', ...Array(32).fill(null), 'wP','wP','wP','wP','wP','wP','wP','wP', 'wR','wN','wB','wQ','wK','wB','wN','wR' ];
+const CHESS_PIECE_MAP = { 'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙', 'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟' };
+
+function playAudio(type, enabled) {
+  if (!enabled) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext; if (!AudioCtx) return;
+    const ctx = new AudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination); const now = ctx.currentTime;
+    if (type === 'click') { osc.type = 'square'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.05); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1); osc.start(now); osc.stop(now + 0.1); } 
+    else if (type === 'send') { osc.type = 'sine'; osc.frequency.setValueAtTime(500, now); osc.frequency.setValueAtTime(800, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); } 
+    else if (type === 'receive') { osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(1200, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
+    else if (type === 'win') { osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.setValueAtTime(600, now+0.1); osc.frequency.setValueAtTime(800, now+0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.001, now+0.5); osc.start(now); osc.stop(now+0.5); }
+  } catch (e) {}
+}
+
+let lofiCtx = null;
+function toggleLoFi(play) {
+  if (play) {
+    if(!lofiCtx) lofiCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(lofiCtx.state === 'suspended') lofiCtx.resume();
+    const playNote = () => {
+      if(!lofiCtx) return;
+      const osc = lofiCtx.createOscillator(); const gain = lofiCtx.createGain();
+      osc.connect(gain); gain.connect(lofiCtx.destination);
+      const notes = [261.63, 293.66, 329.63, 392.00, 440.00]; 
+      osc.frequency.value = notes[Math.floor(Math.random() * notes.length)] / 2; osc.type = 'sine';
+      gain.gain.setValueAtTime(0, lofiCtx.currentTime); gain.gain.linearRampToValueAtTime(0.05, lofiCtx.currentTime + 1); gain.gain.linearRampToValueAtTime(0, lofiCtx.currentTime + 3);
+      osc.start(lofiCtx.currentTime); osc.stop(lofiCtx.currentTime + 3);
+      setTimeout(playNote, Math.random() * 2000 + 1000);
+    }; playNote();
+  } else { if(lofiCtx) { lofiCtx.close(); lofiCtx = null; } }
+}
+
+function hexToRgba(hex) { let c = hex.substring(1).split(''); if(c.length===3) c= [c[0], c[0], c[1], c[1], c[2], c[2]]; c= '0x'+c.join(''); return [(c>>16)&255, (c>>8)&255, c&255, 255]; }
+function floodFill(canvas, startX, startY, fillColorHex) {
+  const ctx = canvas.getContext('2d'); const w = canvas.width, h = canvas.height; if (w === 0 || h === 0) return;
+  const imageData = ctx.getImageData(0, 0, w, h); const data = imageData.data;
+  const [fR, fG, fB, fA] = hexToRgba(fillColorHex); const startPos = (startY * w + startX) * 4;
+  const sR = data[startPos], sG = data[startPos+1], sB = data[startPos+2], sA = data[startPos+3];
+  if (sR === fR && sG === fG && sB === fB && sA === fA) return;
+  const matchStartColor = (pos) => data[pos] === sR && data[pos+1] === sG && data[pos+2] === sB && data[pos+3] === sA;
+  const colorPixel = (pos) => { data[pos] = fR; data[pos+1] = fG; data[pos+2] = fB; data[pos+3] = fA; };
+  const stack = [[startX, startY]];
+  while (stack.length) {
+    const [cx, cy] = stack.pop(); let currY = cy; let pos = (currY * w + cx) * 4;
+    while (currY >= 0 && matchStartColor(pos)) { currY--; pos -= w * 4; } currY++; pos += w * 4;
+    let reachLeft = false, reachRight = false;
+    while (currY < h && matchStartColor(pos)) {
+      colorPixel(pos);
+      if (cx > 0) { if (matchStartColor(pos - 4)) { if (!reachLeft) { stack.push([cx - 1, currY]); reachLeft = true; } } else if (reachLeft) reachLeft = false; }
+      if (cx < w - 1) { if (matchStartColor(pos + 4)) { if (!reachRight) { stack.push([cx + 1, currY]); reachRight = true; } } else if (reachRight) reachRight = false; }
+      currY++; pos += w * 4;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+async function fetchDynamicWord(length, fallbackList) {
+  try { const res = await fetch(`https://api.datamuse.com/words?sp=${'?'.repeat(length)}&max=100`); if(res.ok) { const data = await res.json(); const valid = data.map(d=>d.word.toUpperCase()).filter(w => /^[A-Z]+$/.test(w)); if(valid.length > 0) return valid[Math.floor(Math.random() * valid.length)]; } } catch (e) {}
+  return fallbackList[Math.floor(Math.random() * fallbackList.length)];
+}
+
+function getScore(scores, game) {
+  if (!scores) return 0;
+  let val = scores[game];
+  if (typeof val === 'object' && val !== null) { val = val.me !== undefined ? val.me : (val.wins !== undefined ? val.wins : 0); }
+  return Number(val) || 0;
+}
+
+// ==========================================
+// 2. GLOBAL THEMES & CSS
+// ==========================================
+const globalStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+  :root { --bg-main: #ffe8d6; --bg-pattern: #f2d5c4; --bg-window: #fffdf9; --border: #5c3a21; --primary: #ffb6b9; --primary-hover: #ff8a8f; --secondary: #a3c4f3; --accent: #f9e2af; --text-main: #5c3a21; }
+  [data-theme="matcha"] { --bg-main: #e8eedf; --bg-pattern: #d0dbc3; --bg-window: #f9faf7; --border: #2d4a22; --primary: #b5c99a; --primary-hover: #97b476; --secondary: #f4d06f; --accent: #ffb6b9; --text-main: #2d4a22; }
+  [data-theme="midnight"] { --bg-main: #1a1a2e; --bg-pattern: #16213e; --bg-window: #0f3460; --border: #e94560; --primary: #e94560; --primary-hover: #ff6b84; --secondary: #4a4e69; --accent: #f9a03f; --text-main: #fffdf9; }
+  body { font-family: 'Space Mono', monospace; background-color: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; overflow-x: hidden; transition: background-color 0.3s, color 0.3s; }
+  .bg-pattern-grid { background-image: linear-gradient(var(--bg-pattern) 2px, transparent 2px), linear-gradient(90deg, var(--bg-pattern) 2px, transparent 2px); background-size: 40px 40px; }
+  ::-webkit-scrollbar { width: 12px; } ::-webkit-scrollbar-track { background: var(--bg-window); border-left: 2px solid var(--border); } ::-webkit-scrollbar-thumb { background: var(--primary); border: 2px solid var(--border); }
+  .retro-border { border: 2px solid var(--border); } .retro-border-t { border-top: 2px solid var(--border); } .retro-border-b { border-bottom: 2px solid var(--border); } .retro-border-l { border-left: 2px solid var(--border); } .retro-border-r { border-right: 2px solid var(--border); }
+  .retro-shadow-dark { box-shadow: 4px 4px 0px 0px var(--border); } .retro-shadow-primary { box-shadow: 4px 4px 0px 0px var(--primary); }
+  .retro-bg-window { background-color: var(--bg-window); } .retro-bg-primary { background-color: var(--primary); } .retro-bg-secondary { background-color: var(--secondary); } .retro-bg-accent { background-color: var(--accent); }
+  @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
+  .animate-float { animation: float 6s ease-in-out infinite; }
+  @keyframes pulse-fast { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); color: red; } } .animate-pulse-fast { animation: pulse-fast 1s infinite; }
+  @keyframes shake { 0%, 100% { transform: translate(0,0) rotate(0deg); } 20% { transform: translate(-5px, 5px) rotate(-2deg); } 40% { transform: translate(5px, -5px) rotate(2deg); } 60% { transform: translate(-5px, -5px) rotate(-2deg); } 80% { transform: translate(5px, 5px) rotate(2deg); } }
+  .animate-shake { animation: shake 0.4s ease-in-out; }
+  .typing-dot { animation: typing-dot 1.4s infinite ease-in-out both; } .typing-dot:nth-child(1) { animation-delay: -0.32s; } .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes typing-dot { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+  @keyframes rain { 0% { transform: translateY(-100px); } 100% { transform: translateY(100vh); } }
+  @keyframes snow { 0% { transform: translateY(-100px) rotate(0deg); } 100% { transform: translateY(100vh) rotate(360deg); } }
+  @keyframes fallOff { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(200px) rotate(45deg); opacity: 0; } }
+  .animate-fall { animation: fallOff 1.5s forwards; }
+`;
+
+function WeatherOverlay({ weather }) {
+  if (weather === 'clear') return null;
+  const particles = Array.from({ length: 30 });
+  return (
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      {particles.map((_, i) => (
+        <div key={i} className="absolute" style={{ left: `${Math.random() * 100}%`, top: `-${Math.random() * 20}px`, animation: `${weather} ${Math.random() * 2 + (weather==='rain'?1:3)}s linear infinite`, animationDelay: `${Math.random() * 2}s` }}>
+          {weather === 'rain' ? <div className="w-[2px] h-6 bg-blue-400 opacity-50 rounded-full" /> : <Snowflake size={16} className="text-white opacity-80" />}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Confetti({ active }) {
+  if (!active) return null;
+  const pieces = Array.from({ length: 60 }); const colors = ['#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a'];
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
+      {pieces.map((_, i) => ( <div key={i} className="absolute w-3 h-3 animate-float" style={{ left: `${Math.random() * 100}%`, top: '-20px', backgroundColor: colors[Math.floor(Math.random() * colors.length)], animation: `rain ${Math.random() * 2 + 2}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`, animationDelay: `${Math.random() * 0.5}s`, transform: `rotate(${Math.random() * 360}deg)` }} /> ))}
+    </div>
+  )
+}
+
+// ==========================================
+// 3. REUSABLE UI COMPONENTS
+// ==========================================
+function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick }) {
+  return (
+    <div className={`retro-bg-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-200 ${className}`}>
+      <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2 flex-shrink-0">
+        <div className={`flex gap-2 items-center text-[var(--text-main)] ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
+          <div className="flex flex-col gap-[2px] w-4"><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div></div>
+          <span className="font-bold lowercase text-sm flex items-center gap-2">{title} {onTitleClick && <span className="text-[10px] bg-[var(--bg-window)] retro-border px-1 opacity-70">info</span>}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {headerActions}
+          {onClose && <button onClick={onClose} className="retro-bg-primary retro-border w-6 h-6 flex items-center justify-center hover:opacity-80 active:translate-y-[1px] active:shadow-none retro-shadow-dark text-[var(--border)] ml-2"><X size={14} strokeWidth={3} /></button>}
+        </div>
+      </div>
+      <div className={`flex-1 overflow-y-auto flex flex-col text-[var(--text-main)] ${noPadding ? '' : 'p-4'}`}>{children}</div>
+    </div>
+  );
+}
+
+function RetroButton({ children, onClick, variant = 'primary', className = "", disabled=false, type="button", onMouseDown, onMouseUp, onMouseLeave, onTouchStart, onTouchEnd }) {
+  const variants = { primary: "retro-bg-primary retro-shadow-dark", secondary: "retro-bg-secondary retro-shadow-dark", white: "retro-bg-window retro-shadow-primary", accent: "retro-bg-accent retro-shadow-dark", disabled: "bg-gray-300 text-gray-500 retro-shadow-dark cursor-not-allowed" };
+  return <button type={type} onClick={onClick} onMouseDown={onMouseDown} onMouseUp={onMouseUp} onMouseLeave={onMouseLeave} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} disabled={disabled} className={`retro-border font-bold lowercase transition-all text-[var(--text-main)] ${disabled ? variants.disabled : variants[variant]} ${disabled ? '' : 'active:translate-y-[2px] active:shadow-none hover:-translate-y-1'} ${className}`}>{children}</button>;
+}
+
+function AppIcon({ icon, label, color, onClick, badge }) {
+  return (
+    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={onClick}>
+      <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border flex items-center justify-center retro-shadow-dark transition-all group-hover:-translate-y-2 relative text-[var(--border)]" style={{ backgroundColor: color }}>
+        {icon} {badge && <div className="absolute -top-3 -right-3 bg-[var(--border)] text-[var(--bg-window)] w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 border-[var(--bg-window)]">{badge}</div>}
+      </div>
+      <span className="font-bold retro-bg-window px-2 retro-border text-sm group-hover:bg-[var(--accent)] transition-colors">{label}</span>
+    </div>
+  );
+}
+
+function ShareOutcomeOverlay({ gameName, stats, resultImage, onClose, onShareToChat, sfx }) {
+  const handleChatShare = () => {
+    playAudio('send', sfx);
+    const statString = Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(' | ');
+    const msg = `🎮 *Played ${gameName}*\n_${statString}_`;
+    onShareToChat(msg, resultImage); onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[var(--bg-main)] p-4 sm:p-8 retro-border retro-shadow-dark max-w-sm w-full flex flex-col items-center animate-in zoom-in-50">
+         <div className="bg-white p-4 retro-border retro-shadow-dark w-full mb-6 rotate-2 transform origin-bottom-left">
+            <h2 className="font-bold text-2xl mb-2 text-center text-[var(--primary)] uppercase">{gameName}</h2>
+            {resultImage && <img src={resultImage} alt="Game Result" className="w-full aspect-square object-cover retro-border mb-4" />}
+            <div className="space-y-2 border-t-2 border-dashed border-[var(--border)] pt-2 mt-2">
+              {Object.entries(stats).map(([key, val]) => ( <div key={key} className="flex justify-between text-sm font-bold opacity-80"><span>{String(key)}:</span><span>{String(val)}</span></div> ))}
+            </div>
+         </div>
+         <div className="flex flex-col w-full gap-3">
+           <RetroButton onClick={handleChatShare} className="py-3 flex justify-center items-center gap-2"><MessageSquare size={16}/> Send to Chat</RetroButton>
+           <RetroButton variant="secondary" onClick={() => {playAudio('click', sfx); alert('Screenshot saved to device!');}} className="py-3 flex justify-center items-center gap-2"><Download size={16}/> Save Screenshot</RetroButton>
+           <RetroButton variant="white" onClick={onClose} className="py-2">Close</RetroButton>
+         </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 4. ONBOARDING & DASHBOARD
+// ==========================================
+function LandingView({ onLogin, onSignup, sfx }) {
+  const hr = new Date().getHours(); const greeting = hr < 12 ? "good morning! ☀️" : hr < 18 ? "good afternoon! ☁️" : "late night vibes 🌙";
+  return (
+    <div className="flex flex-col items-center justify-center relative w-full h-full min-h-[80vh]">
+      <div className="absolute top-10 left-[10%] text-[var(--primary)] animate-float"><Cloud size={80} fill="currentColor" opacity={0.8}/></div>
+      <div className="absolute top-20 right-[20%] text-[var(--secondary)] animate-float-delayed"><Cloud size={100} fill="currentColor" opacity={0.8}/></div>
+      <div className="absolute bottom-20 left-[20%] text-[var(--accent)] animate-float"><Mail size={60} fill="currentColor" /></div>
+      <div className="absolute bottom-32 right-[10%] text-[var(--primary)] animate-float-delayed"><Heart size={50} fill="currentColor" /></div>
+      <RetroWindow title="system_boot.exe" className="w-full max-w-lg text-center z-10 relative">
+        <div className="p-8 flex flex-col items-center">
+          <div className="w-24 h-24 rounded-full retro-bg-accent retro-border flex items-center justify-center mb-6 retro-shadow-dark"><Heart size={40} className="text-[var(--text-main)] animate-pulse-slow" fill="currentColor" /></div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 lowercase tracking-tighter">our space</h1>
+          <div className="mb-8 font-bold opacity-80 h-12 flex items-center justify-center"><p className="typing-effect overflow-hidden whitespace-nowrap border-r-2 border-[var(--border)] pr-2 text-sm sm:text-lg">{greeting}</p></div>
+          <div className="flex flex-col sm:flex-row w-full gap-4 justify-center">
+            <RetroButton onClick={() => { playAudio('click', sfx); onSignup(); }} variant="primary" className="px-8 py-4 text-lg w-full sm:w-auto flex-1 flex justify-center items-center gap-2">start journey <Sparkles size={18}/></RetroButton>
+            <RetroButton onClick={() => { playAudio('click', sfx); onLogin(); }} variant="white" className="px-8 py-4 text-lg w-full sm:w-auto flex-1 flex justify-center items-center gap-2">log in <Key size={18}/></RetroButton>
+          </div>
+        </div>
+        <style>{` .typing-effect { animation: typing 3s steps(30, end) infinite alternate, blink .75s step-end infinite; } @keyframes typing { 0%, 20% { width: 0 } 80%, 100% { width: 100% } } @keyframes blink { 50% { border-color: transparent } } `}</style>
+      </RetroWindow>
+    </div>
+  )
+}
+
+function AuthView({ type, setType, setProfile, onBack, onComplete, sfx }) {
+  const [name, setName] = useState('');
+  const handleSubmit = (e) => { e.preventDefault(); playAudio('click', sfx); setProfile({ name: name || (type === 'login' ? 'ExistingUser' : 'NewUser'), emoji: '😊', petName: 'Peanut' }); onComplete(type === 'signup'); };
+  return (
+    <RetroWindow title={type === 'login' ? "secure_login.sys" : "new_account.sys"} onClose={onBack} className="w-full max-w-sm relative z-10">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
+        <div className="text-center mb-4"><div className="w-16 h-16 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-2 retro-shadow-dark"><User size={24} /></div><h2 className="font-bold text-xl">{type === 'login' ? 'Welcome Back!' : 'Hello there!'}</h2></div>
+        <div className="flex flex-col gap-1"><label className="text-sm font-bold opacity-70">display name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="What should we call you?" className="p-3 retro-border retro-bg-window focus:outline-none" /></div>
+        <div className="flex flex-col gap-1"><label className="text-sm font-bold opacity-70">password</label><input type="password" required placeholder="••••••••" className="p-3 retro-border retro-bg-window focus:outline-none" /></div>
+        <RetroButton type="submit" variant="primary" className="py-3 mt-4 text-lg">{type === 'login' ? 'access space' : 'continue'}</RetroButton>
+        <p className="text-center text-xs mt-4 opacity-70">{type === 'login' ? "Don't have a space? " : "Already coupled up? "} <span className="font-bold underline cursor-pointer hover:text-[var(--primary)]" onClick={() => { playAudio('click', sfx); setType(type === 'login' ? 'signup' : 'login'); }}>{type === 'login' ? 'Sign up' : 'Log in'}</span></p>
+      </form>
+    </RetroWindow>
+  );
+}
+
+function HandshakeView({ partnerCode, onComplete, onBack, sfx }) {
+  const [inputCode, setInputCode] = useState(''); const [connecting, setConnecting] = useState(false);
+  const handleConnect = (e) => { e.preventDefault(); if(!inputCode) return; playAudio('click', sfx); setConnecting(true); setTimeout(() => { setConnecting(false); onComplete(); }, 2000); };
+  if (connecting) return <RetroWindow title="pairing_protocol.exe" className="w-full max-w-md z-10 flex flex-col items-center justify-center p-8 text-center h-64" onClose={onBack}><div className="w-16 h-16 retro-bg-primary retro-border retro-shadow-dark flex items-center justify-center animate-spin mb-4"><Sparkles size={24} /></div><h2 className="text-xl font-bold mb-2">verifying connection...</h2></RetroWindow>;
+  return (
+    <RetroWindow title="partner_pairing.exe" onClose={onBack} className="w-full max-w-md z-10">
+      <div className="flex flex-col items-center text-center py-4 gap-6">
+        <div><h2 className="font-bold text-2xl mb-2">The Handshake 🤝</h2><p className="opacity-80 text-sm">To create a private space, link your accounts.</p></div>
+        <div className="w-full retro-border p-4 retro-bg-window border-dashed"><p className="font-bold text-sm mb-2 opacity-70">1. send partner this code:</p><div className="bg-[var(--border)] text-[var(--bg-window)] p-3 font-bold text-2xl tracking-[0.2em] retro-shadow-primary select-all">{partnerCode}</div></div>
+        <div className="font-bold opacity-50">- OR -</div>
+        <form onSubmit={handleConnect} className="w-full retro-border p-4 retro-bg-accent retro-shadow-dark flex flex-col gap-3"><p className="font-bold text-sm opacity-70 text-left">2. enter partner's code:</p><div className="flex gap-2"><input type="text" value={inputCode} onChange={(e) => setInputCode(e.target.value.toUpperCase())} placeholder="XXXX-XXX" className="flex-1 p-3 retro-border bg-white focus:outline-none font-bold tracking-widest uppercase" /><RetroButton type="submit" variant="white" className="px-6" disabled={!inputCode}>connect</RetroButton></div></form>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake }) {
+  const [mood, setMood] = useLocalStorage('my_mood', '😊'); const [petHappy, setPetHappy] = useLocalStorage('pet_happy', 60); const [pokeActive, setPokeActive] = useState(false);
+  const hr = new Date().getHours(); const isSleeping = hr < 6 || hr > 22; const petFace = isSleeping ? 'Zzz' : petHappy > 70 ? '🐶' : petHappy > 30 ? '🐕' : '🥺';
+  const handlePoke = () => { playAudio('click', sfx); setPokeActive(true); setTriggerShake(true); setTimeout(() => setPokeActive(false), 2000); };
+  const nav = (v) => { playAudio('click', sfx); setView(v); };
+  const unreadDoodles = doodles.filter(d => d.sender === 'partner' && !d.isRead);
+
+  return (
+    <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8">
+      {unreadDoodles.length > 0 && (
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+          <div className="animate-in zoom-in-50 spin-in-6 duration-500 cursor-pointer hover:scale-110 transition-transform flex flex-col items-center" onClick={() => onOpenDoodle(unreadDoodles[0])}>
+             <div className="relative"><Mail size={120} className="text-[#fffdf9] drop-shadow-2xl" fill="var(--primary)" /><div className="absolute inset-0 flex items-center justify-center animate-pulse"><Heart size={40} className="text-white" fill="white"/></div></div>
+             <div className="text-center font-bold text-[var(--text-main)] mt-6 bg-[var(--accent)] retro-border retro-shadow-dark px-6 py-2 text-lg">You have a new doodle!</div>
+             <p className="text-white font-bold mt-2 animate-pulse">Click to open</p>
+          </div>
+        </div>
+      )}
+      <RetroWindow title="welcome.exe" className="md:col-span-8 h-auto min-h-[12rem]">
+        <div className="flex flex-col h-full justify-between gap-4">
+          <div className="flex justify-between items-start"><div><h1 className="text-2xl sm:text-3xl font-bold mb-1">hi {profile.name}! {profile.emoji}</h1><p className="text-sm sm:text-base">partner is <span className="retro-bg-secondary px-2 py-0.5 retro-border text-xs sm:text-sm inline-block rotate-2">online</span></p></div><button onClick={handlePoke} className={`p-2 retro-border rounded-full flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary scale-90' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button></div>
+          {pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>}
+        </div>
+      </RetroWindow>
+
+      <RetroWindow title={`${profile.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
+        <div className="flex flex-col items-center text-center h-full justify-between">
+          <div className={`text-6xl sm:text-7xl mt-4 cursor-pointer hover:scale-110 transition-transform select-none ${isSleeping ? 'opacity-70' : 'animate-bounce'}`} onClick={() => { if(!isSleeping){ playAudio('click', sfx); setPetHappy(Math.min(100, petHappy + 10)); } }} title={isSleeping ? "Shh, pet is sleeping" : "Click to pet!"}>{petFace}</div>
+          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-white w-full relative"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{width: `${petHappy}%`}}></div></div></div>
+          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); setPetHappy(Math.min(100, petHappy + 20));}}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); setPetHappy(Math.min(100, petHappy + 10));}}>Pet</RetroButton></div>
+        </div>
+      </RetroWindow>
+
+      <RetroWindow title="status.sys" className="md:col-span-4 h-auto">
+        <div className="text-center flex flex-col h-full justify-center"><p className="mb-2 font-bold text-xs opacity-70">my mood</p><div className="flex flex-wrap gap-2 justify-center">{['😊', '😴', '🥺', '😡'].map(m => (<button key={m} onClick={() => {playAudio('click', sfx); setMood(m);}} className={`text-xl w-8 h-8 rounded-full retro-border flex items-center justify-center transition-transform hover:scale-110 ${mood === m ? 'retro-bg-accent retro-shadow-dark' : 'retro-bg-window'}`}>{m}</button>))}</div></div>
+      </RetroWindow>
+
+      <RetroWindow title="stats.sys" className="md:col-span-8 h-auto">
+         <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2">
+            <p>TicTacToe Wins: {getScore(scores, 'tictactoe')}</p>
+            <p>Pictionary Guessed: {getScore(scores, 'pictionary')}</p>
+            <p>Memory Pairs: {getScore(scores, 'memory')}</p>
+            <p>Wordles Solved: {getScore(scores, 'wordle')}</p>
+         </div>
+      </RetroWindow>
+
+      <RetroWindow title="applications" className="md:col-span-12">
+        <div className="flex flex-wrap justify-center gap-6 sm:gap-8 py-4">
+          <AppIcon icon={<MessageSquare size={28} />} label="chat" color="var(--primary)" onClick={()=>nav('chat')} badge="1" />
+          <AppIcon icon={<Gamepad2 size={28} />} label="games" color="var(--secondary)" onClick={()=>nav('activities')} />
+          <AppIcon icon={<Brush size={28} />} label="doodle" color="#ffb6b9" onClick={()=>nav('doodle')} />
+          <AppIcon icon={<Type size={28} />} label="poetry" color="#f9e2af" onClick={()=>nav('poetry')} />
+          <AppIcon icon={<Clock size={28} />} label="capsule" color="#b5c99a" onClick={()=>nav('capsule')} />
+          <AppIcon icon={<ListTodo size={28} />} label="lists" color="#a3c4f3" onClick={()=>nav('lists')} />
+          <AppIcon icon={<CalendarIcon size={28} />} label="calendar" color="#f9e2af" onClick={()=>nav('calendar')} />
+          <AppIcon icon={<ImageIcon size={28} />} label="album" color="#fffdf9" onClick={()=>nav('scrapbook')} />
+          <AppIcon icon={<SettingsIcon size={28} />} label="settings" color="var(--accent)" onClick={()=>nav('settings')} />
+        </div>
+      </RetroWindow>
+    </div>
+  );
+}
+
+// ==========================================
+// 5. APPS & MINI-GAMES
+// ==========================================
+function SettingsView({ onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores }) {
+  return (
+    <RetroWindow title="control_panel.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
+      <div className="space-y-6">
+        <section className="p-4 retro-bg-window retro-border border-dashed">
+          <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><User size={20}/> user profile</h2>
+          <div className="flex gap-4 items-center mb-4"><div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl cursor-pointer hover:bg-opacity-80">{profile.emoji}</div>
+          <div className="flex-1 space-y-2">
+            <div><label className="block text-sm font-bold mb-1">display name</label><input type="text" value={profile.name} onChange={(e) => setProfile({...profile, name: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
+            <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={profile.petName} onChange={(e) => setProfile({...profile, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
+          </div>
+          </div>
+          <div className="flex justify-between pt-4 border-t border-dashed border-[var(--border)] items-center">
+             <div className="flex items-center gap-2"><button onClick={() => {playAudio('click', true); setSfxEnabled(!sfxEnabled)}} className={`w-12 h-6 rounded-full retro-border relative transition-colors ${sfxEnabled ? 'retro-bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white retro-border rounded-full absolute top-0 transition-transform ${sfxEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div></button><span className="font-bold text-sm"><Volume2 size={16} className="inline mr-1"/> UI Sounds</span></div>
+             <RetroButton onClick={onLogout} variant="secondary" className="px-6 py-2 flex items-center gap-2"><LogOut size={16}/> Log Out</RetroButton>
+          </div>
+        </section>
+        <section className="p-4 retro-bg-window retro-border border-dashed">
+           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Trophy size={20}/> local achievements</h2>
+           <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className={`p-2 retro-border ${getScore(scores, 'tictactoe') > 0 ? 'retro-bg-primary' : 'bg-gray-100 opacity-50 grayscale'}`}>⭐ First Win</div>
+              <div className={`p-2 retro-border ${getScore(scores, 'pictionary') > 0 ? 'retro-bg-secondary' : 'bg-gray-100 opacity-50 grayscale'}`}>🎨 Artist</div>
+              <div className={`p-2 retro-border ${getScore(scores, 'wordle') > 0 ? 'retro-bg-accent' : 'bg-gray-100 opacity-50 grayscale'}`}>📚 Wordsmith</div>
+           </div>
+        </section>
+        <section className="p-4 retro-bg-window retro-border border-dashed">
+          <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><ImageIcon size={20}/> aesthetics & weather</h2>
+          <div className="flex gap-2 mb-4">{['clear', 'rain', 'snow'].map(w => ( <button key={w} onClick={() => {playAudio('click', sfxEnabled); setWeather(w)}} className={`flex-1 p-2 retro-border font-bold lowercase text-sm flex justify-center items-center gap-1 ${weather === w ? 'retro-bg-accent retro-shadow-dark' : 'bg-white'}`}>{w === 'clear' ? <Sun size={14}/> : w === 'rain' ? <CloudRain size={14}/> : <Snowflake size={14}/>} {w}</button> ))}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">{['default', 'matcha', 'midnight'].map(t => ( <button key={t} onClick={() => {playAudio('click', sfxEnabled); setTheme(t)}} className={`p-4 retro-border text-center lowercase font-bold ${theme === t ? 'retro-shadow-dark bg-[var(--accent)]' : 'bg-gray-100'}`}>{t}</button> ))}</div>
+        </section>
+        <section className="p-4 bg-red-100 retro-border border-red-400 mt-auto">
+          <h2 className="font-bold text-xl text-red-600 mb-2 flex items-center gap-2"><Trash2 size={20}/> danger zone</h2><p className="text-sm text-red-800 mb-4">This action cannot be undone.</p><button onClick={onDelete} className="bg-red-500 text-white font-bold py-2 px-4 retro-border retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2"><Trash2 size={16}/> disconnect & delete</button>
+        </section>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function DoodleViewer({ doodle, onClose, onRedoodle, profileName, sfx }) {
+  const handleDownload = () => { playAudio('click', sfx); const a = document.createElement('a'); a.href = doodle.img; a.download = `doodle_from_partner_${Date.now()}.png`; a.click(); };
+  return (
+    <RetroWindow title="received_doodle.msg" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
+       <div className="flex-1 bg-[#fdfbf7] p-6 sm:p-8 flex flex-col retro-border shadow-inner relative overflow-y-auto">
+          <div className="border-b-2 border-dashed border-[var(--border)] pb-4 mb-6 flex flex-col gap-2">
+             <div className="flex justify-between items-end"><span className="font-bold text-lg sm:text-xl text-[var(--primary)]">From: <span className="text-[var(--text-main)]">Partner ❤️</span></span><span className="text-xs opacity-50">{new Date(doodle.id).toLocaleDateString()}</span></div>
+             <div className="font-bold text-lg sm:text-xl text-[var(--secondary)]">To: <span className="text-[var(--text-main)]">{profileName || 'Me'} ✨</span></div>
+          </div>
+          <div className="flex-1 flex items-center justify-center bg-white retro-border retro-shadow-dark p-2 mb-6 min-h-[300px]"><img src={doodle.img} alt="Doodle from partner" className="max-w-full max-h-full object-contain" /></div>
+          <p className="text-center italic opacity-50 text-sm mb-6">* Saved automatically to your Scrapbook *</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-auto">
+             <RetroButton variant="secondary" onClick={handleDownload} className="px-6 py-3 flex items-center justify-center gap-2"><Download size={18}/> Save to Device</RetroButton>
+             <RetroButton variant="primary" onClick={() => onRedoodle(doodle)} className="px-6 py-3 flex items-center justify-center gap-2"><Brush size={18}/> Redoodle</RetroButton>
+          </div>
+       </div>
+    </RetroWindow>
+  );
+}
+
+function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapbook, sfx }) {
+  const canvasRef = useRef(null); const [isDrawing, setIsDrawing] = useState(false); const [tool, setTool] = useState('pen'); const [color, setColor] = useState('#5c3a21'); const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const startPosRef = useRef({ x: 0, y: 0 }); const snapshotRef = useRef(null); const snapshotHistory = useRef([]);
+  
+  const initCanvas = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const rect = canvas.getBoundingClientRect(); if (rect.width === 0 || rect.height === 0) return;
+    const ctx = canvas.getContext('2d'); const imgData = canvas.dataset.initialized === 'true' && canvas.width > 0 && canvas.height > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+    canvas.width = rect.width; canvas.height = rect.height;
+    if (initialDoodle && !canvas.dataset.initialized) { const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); snapshotHistory.current=[canvas.toDataURL()]; }; img.src = initialDoodle.img; canvas.dataset.initialized = 'true'; } 
+    else if (imgData) { ctx.putImageData(imgData, 0, 0); } 
+    else { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); canvas.dataset.initialized = 'true'; snapshotHistory.current=[canvas.toDataURL()]; }
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  };
+  useEffect(() => { initCanvas(); window.addEventListener('resize', initCanvas); return () => window.removeEventListener('resize', initCanvas); }, [initialDoodle]);
+
+  const getCoords = (e) => { const canvas = canvasRef.current; const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; };
+
+  const handlePointerDown = (e) => {
+    const canvas = canvasRef.current; if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+    const { x, y } = getCoords(e);
+    if (tool.startsWith('stamp_')) { const ctx = canvas.getContext('2d'); ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(tool.split('_')[1], x, y); setHasUnsavedChanges(true); snapshotHistory.current.push(canvas.toDataURL()); return; }
+    if (tool === 'fill') { floodFill(canvas, Math.floor(x), Math.floor(y), color); setHasUnsavedChanges(true); snapshotHistory.current.push(canvas.toDataURL()); return; }
+    setIsDrawing(true); setHasUnsavedChanges(true); startPosRef.current = { x, y }; const ctx = canvas.getContext('2d');
+    if (['rect', 'circle', 'line'].includes(tool)) { snapshotRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height); } else { ctx.beginPath(); ctx.moveTo(x, y); }
+  };
+  const handlePointerMove = (e) => {
+    if (!isDrawing || tool === 'fill' || tool.startsWith('stamp_')) return;
+    const { x, y } = getCoords(e); const canvas = canvasRef.current; const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; ctx.lineWidth = tool === 'eraser' ? 24 : 4;
+    if (['rect', 'circle', 'line'].includes(tool)) {
+      if (snapshotRef.current) ctx.putImageData(snapshotRef.current, 0, 0);
+      let startX = startPosRef.current.x; let startY = startPosRef.current.y; let width = x - startX; let height = y - startY;
+      if (e.shiftKey) { const maxDist = Math.max(Math.abs(width), Math.abs(height)); width = width < 0 ? -maxDist : maxDist; height = height < 0 ? -maxDist : maxDist; }
+      if (e.altKey) { startX = startX - width; startY = startY - height; width = width * 2; height = height * 2; }
+      ctx.beginPath();
+      if (tool === 'rect') { ctx.rect(startX, startY, width, height); } else if (tool === 'circle') { const rx = Math.abs(width / 2); const ry = Math.abs(height / 2); const cx = startX + width / 2; const cy = startY + height / 2; ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI); } else if (tool === 'line') { let lx = x; let ly = y; if (e.shiftKey) { const angle = Math.atan2(y - startPosRef.current.y, x - startPosRef.current.x); const snapped = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4); const dist = Math.hypot(y - startPosRef.current.y, x - startPosRef.current.x); lx = startPosRef.current.x + dist * Math.cos(snapped); ly = startPosRef.current.y + dist * Math.sin(snapped); } if (e.altKey) { const dx = lx - startPosRef.current.x; const dy = ly - startPosRef.current.y; ctx.moveTo(startPosRef.current.x - dx, startPosRef.current.y - dy); } else { ctx.moveTo(startPosRef.current.x, startPosRef.current.y); } ctx.lineTo(lx, ly); }
+      ctx.stroke();
+    } else { ctx.lineTo(x, y); ctx.stroke(); }
+  };
+  const handlePointerUp = () => { if(isDrawing){ setIsDrawing(false); snapshotRef.current = null; snapshotHistory.current.push(canvasRef.current.toDataURL()); } };
+  const clearCanvas = () => { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); setHasUnsavedChanges(true); snapshotHistory.current=[canvas.toDataURL()]; };
+  const handleSend = () => { playAudio('send', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); onSendDoodle({img: dataUrl, history: snapshotHistory.current}); setHasUnsavedChanges(false); onClose(); };
+  const handleSaveScrapbook = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); onSaveToScrapbook(dataUrl); alert('Saved to Scrapbook!'); };
+  const handleDownload = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); const a = document.createElement('a'); a.href = dataUrl; a.download = `doodle_${Date.now()}.png`; a.click(); };
+  const toolBtnClass = (t) => `p-2 rounded-md transition-colors ${tool === t ? 'bg-white retro-shadow-dark retro-border' : 'opacity-70 hover:bg-black/10'}`;
+
+  return (
+    <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+      <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none">
+        <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
+        {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'scale-125 ring-2 ring-offset-1 ring-[var(--border)]' : ''}`} style={{backgroundColor: c}} /> ))}
+        <div className="ml-auto flex-shrink-0"><RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs flex items-center gap-1"><Trash2 size={12}/> Clear</RetroButton></div>
+      </div>
+      <div className="flex-1 bg-white relative touch-none cursor-crosshair">
+        <canvas ref={canvasRef} onMouseDown={handlePointerDown} onMouseMove={handlePointerMove} onMouseUp={handlePointerUp} onMouseLeave={handlePointerUp} onTouchStart={handlePointerDown} onTouchMove={handlePointerMove} onTouchEnd={handlePointerUp} className="absolute inset-0 w-full h-full" />
+      </div>
+      <div className="p-3 retro-bg-window retro-border-t flex flex-wrap gap-2 justify-between">
+        <div className="flex gap-2"><RetroButton variant="secondary" onClick={handleDownload} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2"><Download size={14}/> Device</RetroButton><RetroButton variant="white" onClick={handleSaveScrapbook} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2"><ImageIcon size={14}/> Album</RetroButton></div>
+        <RetroButton variant="primary" onClick={handleSend} className="px-6 py-2 text-sm sm:text-base flex items-center gap-2">Send <Send size={16}/></RetroButton>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function PoetryApp({ onClose, sfx }) {
+  const initialWords = ['love', 'you', 'are', 'my', 'sun', 'star', 'forever', 'always', 'cute', 'sweet', 'the', 'is', 'a', 'to', 'we', 'us', 'happy', 'today', 'smiles', 'kisses'];
+  const [words, setWords] = useLocalStorage('poetry_words', initialWords.map((w,i)=>({id:i, text:w, x: 20 + (i%5)*70, y: 20 + Math.floor(i/5)*50})));
+  const [dragging, setDragging] = useState(null);
+  const handlePointerDown = (e, id) => { e.preventDefault(); setDragging(id); e.target.setPointerCapture(e.pointerId); };
+  const handlePointerMove = (e) => { if (dragging === null) return; setWords(words.map(w => w.id === dragging ? { ...w, x: w.x + e.movementX, y: w.y + e.movementY } : w)); };
+  const handlePointerUp = (e) => { if (dragging !== null) { playAudio('click', sfx); setDragging(null); e.target.releasePointerCapture(e.pointerId); } };
+  return (
+    <RetroWindow title="poetry_fridge.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+      <div className="p-4 bg-gray-200 border-b-2 retro-border font-bold flex justify-between"><h2 className="flex items-center gap-2"><Type size={20}/> Magnetic Poetry</h2></div>
+      <div className="flex-1 relative bg-gray-100 overflow-hidden touch-none" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+        {words.map(w => ( <div key={w.id} onPointerDown={(e) => handlePointerDown(e, w.id)} style={{ left: w.x, top: w.y, zIndex: dragging === w.id ? 10 : 1 }} className={`absolute px-3 py-1 bg-white retro-border cursor-grab select-none font-bold text-sm ${dragging === w.id ? 'retro-shadow-primary scale-110' : 'retro-shadow-dark'}`}>{w.text}</div> ))}
+      </div>
+    </RetroWindow>
+  );
+}
+
+function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
+  const [activeTab, setActiveTab] = useState('inbox'); const [newLetter, setNewLetter] = useState(''); const [unlockMins, setUnlockMins] = useState('1'); const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const handleSend = () => { if (!newLetter.trim()) return; playAudio('send', sfx); setLetters([...letters, { id: Date.now(), sender: 'me', text: newLetter, unlockDate: Date.now() + parseInt(unlockMins) * 60000 }]); setNewLetter(''); setActiveTab('inbox'); };
+  const getTimeLeft = (unlockDate) => { const diff = unlockDate - now; if (diff <= 0) return 'Unlocked!'; return `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`; };
+
+  return (
+    <RetroWindow title="time_capsule.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+      <div className="flex border-b-2 retro-border"><button onClick={() => {playAudio('click', sfx); setActiveTab('inbox')}} className={`flex-1 py-3 font-bold ${activeTab === 'inbox' ? 'retro-bg-primary' : 'retro-bg-window opacity-70'}`}>Locked Inbox</button><button onClick={() => {playAudio('click', sfx); setActiveTab('write')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'write' ? 'retro-bg-secondary' : 'retro-bg-window opacity-70'}`}>Write Letter</button></div>
+      {activeTab === 'write' ? (
+        <div className="flex-1 p-4 bg-[var(--bg-main)] flex flex-col gap-4">
+           <textarea value={newLetter} onChange={e=>setNewLetter(e.target.value)} placeholder="Write a future letter to your partner..." className="flex-1 p-4 retro-border retro-bg-window focus:outline-none resize-none" />
+           <div className="flex gap-4 items-end"><div className="flex-1"><label className="font-bold text-sm block mb-1">Unlock in (minutes for testing):</label><select value={unlockMins} onChange={e=>setUnlockMins(e.target.value)} className="w-full p-2 retro-border retro-bg-window"><option value="1">1 Minute</option><option value="5">5 Minutes</option><option value="60">1 Hour</option></select></div><RetroButton onClick={handleSend} className="px-8 py-2">Lock & Send</RetroButton></div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-main)] space-y-4">
+           {letters.length === 0 && <p className="text-center opacity-50 mt-10">No letters yet.</p>}
+           {letters.map(l => { const isLocked = l.unlockDate > now; return ( <div key={l.id} className={`p-4 retro-border retro-shadow-dark flex flex-col ${isLocked ? 'retro-bg-window' : 'retro-bg-accent'}`}><div className="flex justify-between font-bold mb-2 border-b border-dashed border-[var(--border)] pb-2"><span>From: {l.sender === 'me' ? 'You' : 'Partner'}</span><span className="flex items-center gap-1">{isLocked ? <><Lock size={14}/> {getTimeLeft(l.unlockDate)}</> : <><Unlock size={14}/> Unlocked</>}</span></div>{isLocked ? <div className="py-4 text-center opacity-50 text-sm italic">This letter is sealed until the unlock date.</div> : <div className="py-2 whitespace-pre-wrap">{l.text}</div>}</div> ) })}
+        </div>
+      )}
+    </RetroWindow>
+  );
+}
+
+function ListsApp({ onClose, sfx }) {
+  const [activeTab, setActiveTab] = useState('bucket'); const [items, setItems] = useLocalStorage('shared_lists', [ { id: 1, type: 'bucket', text: 'Visit Japan', done: false }, { id: 2, type: 'bucket', text: 'Bake a cake together', done: true }, { id: 3, type: 'watch', text: 'Spirited Away', done: false } ]); const [newItem, setNewItem] = useState('');
+  const handleAdd = (e) => { e.preventDefault(); if (!newItem.trim()) return; playAudio('click', sfx); setItems([...items, { id: Date.now(), type: activeTab, text: newItem, done: false }]); setNewItem(''); };
+  const toggleDone = (id) => { playAudio('click', sfx); setItems(items.map(i => i.id === id ? {...i, done: !i.done} : i)); };
+  const deleteItem = (id) => { playAudio('click', sfx); setItems(items.filter(i => i.id !== id)); };
+  const currentItems = items.filter(i => i.type === activeTab);
+  return (
+    <RetroWindow title="shared_lists.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+      <div className="flex border-b-2 retro-border"><button onClick={() => {playAudio('click', sfx); setActiveTab('bucket')}} className={`flex-1 py-3 font-bold ${activeTab === 'bucket' ? 'retro-bg-primary' : 'retro-bg-window opacity-70'}`}>Bucket List</button><button onClick={() => {playAudio('click', sfx); setActiveTab('watch')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'watch' ? 'retro-bg-secondary' : 'retro-bg-window opacity-70'}`}>Watchlist</button></div>
+      <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-main)]"><div className="space-y-3">{currentItems.map(item => ( <div key={item.id} className="flex items-center gap-3 p-3 retro-bg-window retro-border retro-shadow-dark"><button onClick={() => toggleDone(item.id)} className={`w-6 h-6 retro-border flex items-center justify-center ${item.done ? 'retro-bg-accent' : 'bg-white'}`}>{item.done && <Check size={14}/>}</button><span className={`flex-1 font-bold ${item.done ? 'line-through opacity-50' : ''}`}>{item.text}</span><button onClick={() => deleteItem(item.id)} className="p-2 hover:bg-red-100 rounded-full text-red-500"><Trash2 size={16}/></button></div> ))}</div></div>
+      <form onSubmit={handleAdd} className="p-3 retro-bg-window retro-border-t flex gap-2"><input type="text" value={newItem} onChange={e=>setNewItem(e.target.value)} placeholder={`Add to ${activeTab === 'bucket' ? 'bucket list' : 'watchlist'}...`} className="flex-1 p-2 retro-border focus:outline-none" /><RetroButton type="submit" className="px-4"><Send size={18}/></RetroButton></form>
+    </RetroWindow>
+  );
+}
+
+function CalendarApp({ onClose, sfx }) {
+  const days = Array.from({length: 30}, (_, i) => i + 1); const [memos, setMemos] = useLocalStorage('calendar_memos', {}); const [selectedDay, setSelectedDay] = useState(null); const [memoText, setMemoText] = useState('');
+  const openMemo = (d) => { playAudio('click', sfx); setSelectedDay(d); setMemoText(memos[d] || ''); };
+  const saveMemo = () => { playAudio('click', sfx); setMemos({...memos, [selectedDay]: memoText}); setSelectedDay(null); };
+  return (
+    <RetroWindow title="calendar.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative">
+      <div className="flex justify-between items-center mb-6"><button className="p-2 retro-border retro-bg-window"><ChevronLeft/></button><h2 className="text-2xl font-bold uppercase">October 2026</h2><button className="p-2 retro-border retro-bg-window"><ChevronRight/></button></div>
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 text-center font-bold text-xs sm:text-sm">{['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(d => <div key={d}>{d}</div>)}</div>
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 flex-1">
+        <div className="retro-border bg-gray-100 opacity-50"></div><div className="retro-border bg-gray-100 opacity-50"></div><div className="retro-border bg-gray-100 opacity-50"></div>
+        {days.map(d => ( <div key={d} onClick={() => openMemo(d)} className={`retro-border p-1 sm:p-2 flex flex-col cursor-pointer ${memos[d] ? 'retro-bg-secondary retro-shadow-dark' : 'retro-bg-window hover:bg-[var(--accent)]'}`}><span className="font-bold text-sm">{d}</span>{memos[d] && <div className="w-full h-1 bg-[var(--primary)] mt-auto rounded-full"></div>}</div> ))}
+      </div>
+      {selectedDay && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-10"><div className="retro-bg-accent retro-border retro-shadow-dark p-4 w-full max-w-sm"><h3 className="font-bold mb-2">Memo for Oct {selectedDay}</h3><textarea value={memoText} onChange={(e)=>setMemoText(e.target.value)} className="w-full h-32 p-2 retro-border focus:outline-none resize-none mb-4" placeholder="Date ideas, reminders..."/><div className="flex justify-end gap-2"><RetroButton variant="white" onClick={()=>setSelectedDay(null)} className="px-4 py-2">Cancel</RetroButton><RetroButton onClick={saveMemo} className="px-4 py-2">Save Memo</RetroButton></div></div></div>
+      )}
+    </RetroWindow>
+  );
+}
+
+function ScrapbookApp({ onClose, images, sfx }) {
+  const [page, setPage] = useState(1); const visibleImages = images.slice(0, page * 6);
+  return (
+    <RetroWindow title="memories.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+      <div className="p-4 bg-[var(--bg-main)] border-b-2 retro-border flex items-center justify-between"><h2 className="font-bold text-xl"><ImageIcon className="inline mr-2"/> Photo Grid</h2><RetroButton className="px-4 py-2 text-xs flex items-center gap-2"><Camera size={14}/> Upload</RetroButton></div>
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col bg-[var(--bg-window)]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">{visibleImages.map((url, i) => <img key={i} src={url} alt="memory" loading="lazy" className="aspect-square object-cover retro-border retro-shadow-dark w-full" />)}</div>
+        {visibleImages.length < images.length && <RetroButton onClick={() => {playAudio('click', sfx); setPage(p=>p+1)}} variant="white" className="mx-auto py-2 px-6">Load More</RetroButton>}
+      </div>
+    </RetroWindow>
+  );
+}
+
+// ==========================================
+// 8. CHAT VIEW
+// ==========================================
+const globalAudioRef = { current: null };
+function VoiceMessagePlayer({ duration, audioUrl }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(audioUrl ? new Audio(audioUrl) : null);
+
+  useEffect(() => { const audio = audioRef.current; if (audio) audio.onended = () => setIsPlaying(false); const stopHandler = () => { if (globalAudioRef.current !== audioRef.current) setIsPlaying(false); }; window.addEventListener('stopAudio', stopHandler); return () => { if (audio) { audio.pause(); audio.src = ''; } window.removeEventListener('stopAudio', stopHandler); }; }, [audioUrl]);
+  const togglePlay = () => { if (!audioRef.current) return; if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); } else { if (globalAudioRef.current && globalAudioRef.current !== audioRef.current) { globalAudioRef.current.pause(); window.dispatchEvent(new Event('stopAudio')); } audioRef.current.play().catch(e=>console.log(e)); globalAudioRef.current = audioRef.current; setIsPlaying(true); } };
+
+  return (
+    <div className="flex items-center gap-3 bg-white/50 p-2 rounded-lg retro-border">
+      <button onClick={togglePlay} className="w-8 h-8 rounded-full retro-bg-accent retro-border flex items-center justify-center hover:scale-105">{isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}</button>
+      <div className="flex-1 h-2 bg-black/10 rounded-full w-20 sm:w-24 relative overflow-hidden"><div className={`absolute top-0 left-0 h-full bg-[var(--text-main)] w-1/3 rounded-full ${isPlaying ? 'animate-pulse bg-[var(--primary)] w-full transition-all duration-1000' : ''}`}></div></div>
+      <span className="text-xs font-bold">{duration}</span>
+    </div>
+  );
+}
+
+function formatMessage(text) {
+  if (!text) return null; const parts = text.split(/(\*.*?\*|_.*?_)/g);
+  return parts.map((part, i) => { if (part.startsWith('*') && part.endsWith('*')) return <strong key={i}>{part.slice(1, -1)}</strong>; if (part.startsWith('_') && part.endsWith('_')) return <em key={i}>{part.slice(1, -1)}</em>; return part; });
+}
+
+function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, profileName }) {
+  if (currentIndex === null || !images[currentIndex]) return null; const currentImage = images[currentIndex];
+  return (
+    <div className="fixed inset-0 z-[100] bg-[var(--bg-main)]/90 backdrop-blur-sm flex items-center justify-center p-4">
+      <RetroWindow title={`viewing: ${currentImage.text || 'attachment.jpg'}`} onClose={onClose} className="w-full max-w-3xl h-full max-h-[90vh] flex flex-col" noPadding>
+        <div className="flex-1 flex flex-col items-center justify-center p-4 relative bg-[var(--bg-window)] overflow-hidden">
+          <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full retro-border text-sm font-bold shadow-sm z-10">{currentImage.sender === 'me' ? profileName : 'Partner'}</div>
+          <img src={currentImage.url} alt="full resolution" className="max-w-full max-h-full object-contain retro-border retro-shadow-dark" />
+          {images.length > 1 && ( <><button onClick={onPrev} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark rounded-full hover:scale-110 active:translate-y-1"><ChevronLeft size={24} /></button><button onClick={onNext} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark rounded-full hover:scale-110 active:translate-y-1"><ChevronRight size={24} /></button></> )}
+          <div className="absolute bottom-4 flex gap-4 z-10"><RetroButton variant="primary" className="px-4 py-2 flex items-center gap-2"><Heart size={16}/> React</RetroButton><RetroButton variant="secondary" className="px-4 py-2 flex items-center gap-2"><Download size={16}/> Save</RetroButton></div>
+        </div>
+      </RetroWindow>
+    </div>
+  );
+}
+
+function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory }) {
+  const [input, setInput] = useState(''); const [showDetails, setShowDetails] = useState(false); const [calling, setCalling] = useState(null); 
+  const [isRecording, setIsRecording] = useState(false); const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null); const audioChunksRef = useRef([]); const recordingTimerRef = useRef(null); const recordingStartTimeRef = useRef(0);
+  const [replyingTo, setReplyingTo] = useState(null); const [editingMsgId, setEditingMsgId] = useState(null); const [activeOptions, setActiveOptions] = useState(null); const [searchQuery, setSearchQuery] = useState('');
+  const [isTyping, setIsTyping] = useState(false); const [partnerTyping, setPartnerTyping] = useState(false);
+  const [viewingImageId, setViewingImageId] = useState(null);
+  const messagesEndRef = useRef(null); const fileInputRef = useRef(null);
+
+  useEffect(() => { if (!calling && !activeOptions && searchQuery === '' && !viewingImageId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, calling, showDetails, activeOptions, searchQuery, viewingImageId, partnerTyping]);
+
+  useEffect(() => {
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    if (lastMsg && lastMsg.sender === 'me' && lastMsg.status !== 'read') {
+      const deliverTimer = setTimeout(() => { setChatHistory(prev => prev.map(m => m.id === lastMsg.id ? { ...m, status: 'delivered' } : m)); }, 1000);
+      const readTimer = setTimeout(() => { setChatHistory(prev => prev.map(m => m.id === lastMsg.id ? { ...m, status: 'read' } : m)); setPartnerTyping(true); }, 2500);
+      const replyText = "Haha okay! 💖"; const typingDelay = replyText.length * 100;
+      const replyTimer = setTimeout(() => { playAudio('receive', sfx); setPartnerTyping(false); setChatHistory(prev => [...prev, { id: Date.now(), sender: 'partner', type: 'text', text: replyText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'read' }]); }, 2500 + typingDelay);
+      return () => { clearTimeout(deliverTimer); clearTimeout(readTimer); clearTimeout(replyTimer); };
+    }
+  }, [chatHistory, sfx, setChatHistory]);
+
+  const handleInputChange = (e) => { setInput(e.target.value); if (!isTyping) setIsTyping(true); };
+  useEffect(() => { const timer = setTimeout(() => setIsTyping(false), 1500); return () => clearTimeout(timer); }, [input]);
+
+  const handleSend = (e) => {
+    e.preventDefault(); if (!input.trim()) return; playAudio('send', sfx);
+    if (editingMsgId) { setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); setEditingMsgId(null); } 
+    else { setChatHistory([...chatHistory, { id: Date.now(), sender: 'me', type: 'text', text: input, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); }
+    setInput(''); setReplyingTo(null); setActiveOptions(null);
+  };
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const mediaRecorder = new MediaRecorder(stream); mediaRecorderRef.current = mediaRecorder; audioChunksRef.current = [];
+      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); const audioUrl = URL.createObjectURL(audioBlob); const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+        if (durationSecs >= 1) { playAudio('send', sfx); const mins = Math.floor(durationSecs / 60); const secs = durationSecs % 60; const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`; setChatHistory(prev => [...prev, { id: Date.now(), sender: 'me', type: 'voice', duration: durationStr, audioUrl: audioUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); }
+        setReplyingTo(null); stream.getTracks().forEach(track => track.stop()); 
+      }; mediaRecorder.start(); setIsRecording(true); recordingStartTimeRef.current = Date.now(); setRecordingTime(0); recordingTimerRef.current = setInterval(() => { setRecordingTime(prev => prev + 1); }, 1000);
+    } catch (err) { alert("Microphone access denied."); }
+  };
+  const stopRecording = () => { if (!isRecording || !mediaRecorderRef.current) return; setIsRecording(false); clearInterval(recordingTimerRef.current); mediaRecorderRef.current.stop(); };
+
+  const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { playAudio('send', sfx); const mockUrl = URL.createObjectURL(file); setChatHistory([...chatHistory, { id: Date.now(), sender: 'me', type: 'image', url: mockUrl, text: file.name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); setReplyingTo(null); } };
+  const handleDelete = (id) => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === id ? { ...m, isDeleted: true, text: null, url: null, duration: null, audioUrl: null } : m)); setActiveOptions(null); };
+  const handleReact = (id, emoji) => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === id) { const reactions = m.reactions || []; return { ...m, reactions: reactions.includes(emoji) ? reactions.filter(e => e !== emoji) : [...reactions, emoji] }; } return m; })); setActiveOptions(null); };
+  const handleEdit = (msg) => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setReplyingTo(null); setActiveOptions(null); };
+  const handleReply = (msg) => { playAudio('click', sfx); setReplyingTo(msg); setEditingMsgId(null); setActiveOptions(null); };
+
+  const imageMessages = chatHistory.filter(m => m.type === 'image' && !m.isDeleted);
+  const currentImageIndex = imageMessages.findIndex(m => m.id === viewingImageId);
+  const headerActions = (<div className="flex gap-2"><button onClick={() => {playAudio('click', sfx); setCalling('audio')}} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18}/></button><button onClick={() => {playAudio('click', sfx); setCalling('video')}} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18}/></button></div>);
+  const filteredMessages = chatHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
+
+  return (
+    <>
+      <ImageViewerOverlay images={imageMessages} currentIndex={currentImageIndex >= 0 ? currentImageIndex : null} onClose={() => setViewingImageId(null)} onNext={() => setViewingImageId(imageMessages[(currentImageIndex + 1) % imageMessages.length].id)} onPrev={() => setViewingImageId(imageMessages[(currentImageIndex - 1 + imageMessages.length) % imageMessages.length].id)} profileName={profile.name || 'You'} />
+      <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => {playAudio('click', sfx); setShowDetails(!showDetails)}} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
+        <div className="flex flex-1 h-full overflow-hidden relative">
+          {calling && (
+            <div className="absolute inset-0 z-20 retro-bg-main flex flex-col items-center justify-center gap-6 animate-in fade-in"><div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full retro-bg-accent retro-border flex items-center justify-center retro-shadow-dark animate-pulse">{calling === 'video' ? <Video size={48} /> : <Phone size={48} />}</div><div className="text-center"><h2 className="text-xl sm:text-2xl font-bold">Calling Partner...</h2><p className="opacity-70 mt-2 text-sm sm:text-base">establishing P2P connection</p></div><RetroButton onClick={() => {playAudio('click', sfx); setCalling(null)}} className="bg-red-400 text-white px-8">End Call</RetroButton></div>
+          )}
+
+          <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col retro-bg-window relative">
+              <div className="text-center text-xs font-bold opacity-50 mb-6 retro-border-b inline-block mx-auto pb-1 mt-2">-- connection secured --</div>
+              {filteredMessages.map((msg, index) => {
+                const isMe = msg.sender === 'me'; const prevMsg = filteredMessages[index - 1]; const nextMsg = filteredMessages[index + 1]; const isGroupStart = !prevMsg || prevMsg.sender !== msg.sender; const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender; const marginClass = isGroupEnd ? "mb-6" : "mb-1";
+                return (
+                  <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
+                    <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
+                      {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">☕</div>}</div>}
+                      {isMe && !msg.isDeleted && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => {playAudio('click',sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id)}} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100"/></button></div>)}
+                      <div className={`p-3 retro-border text-sm leading-relaxed relative ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isMe ? 'retro-bg-primary retro-shadow-dark' : 'retro-bg-window retro-shadow-dark'} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
+                        {msg.replyTo && !msg.isDeleted && (<div className="bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2 text-xs rounded-r-md"><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === 'me' ? profile.name || 'You' : 'Partner'}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}
+                        {msg.isDeleted ? (<span className="flex items-center gap-2"><Ban size={14}/> this message was deleted</span>) : ( <>{msg.type === 'text' && <span>{formatMessage(msg.text)}</span>} {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} />} {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => {playAudio('click',sfx); setViewingImageId(msg.id)}} className="w-32 h-32 sm:w-48 sm:h-48 object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity" />{msg.text && <span className="italic">{msg.text}</span>}</div>)}</> )}
+                        {msg.isEdited && !msg.isDeleted && <span className="text-[10px] opacity-50 ml-2 italic">(edited)</span>}
+                        {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && (<div className={`absolute -bottom-3 ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
+                      </div>
+                      {!isMe && !msg.isDeleted && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2 flex items-center justify-center relative"><button onClick={() => {playAudio('click',sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id)}} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100"/></button></div>)}
+                      {activeOptions === msg.id && (
+                        <div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-32 py-1`}>
+                          <button onClick={() => handleReply(msg)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14}/> Reply</button>
+                          <div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14}/> <span onClick={() => handleReact(msg.id, '❤️')} className="cursor-pointer hover:scale-125 transition-transform">❤️</span><span onClick={() => handleReact(msg.id, '😂')} className="cursor-pointer hover:scale-125 transition-transform">😂</span></div>
+                          {isMe && msg.type === 'text' && <button onClick={() => handleEdit(msg)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14}/> Edit</button>}
+                          {isMe && <button onClick={() => handleDelete(msg.id)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14}/> Delete</button>}
+                        </div>
+                      )}
+                    </div>
+                    {isGroupEnd && ( <div className="flex items-center gap-1 mt-1 justify-end px-2"><span className="text-[10px] opacity-70 font-bold">{msg.time}</span>{isMe && msg.status && ( <div className="flex -space-x-1.5 ml-1"><Check size={12} className={msg.status==='read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />{(msg.status === 'delivered' || msg.status === 'read') && <Check size={12} className={msg.status==='read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />}</div> )}</div> )}
+                  </div>
+                );
+              })}
+              {partnerTyping && (
+                 <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative mb-2"><div className="w-8 flex-shrink-0"><div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">☕</div></div><div className="p-3 px-4 retro-border text-sm retro-bg-window retro-shadow-dark rounded-r-xl rounded-tl-xl rounded-bl-sm flex gap-1"><span className="w-2 h-2 bg-[var(--text-main)] rounded-full typing-dot"></span><span className="w-2 h-2 bg-[var(--text-main)] rounded-full typing-dot"></span><span className="w-2 h-2 bg-[var(--text-main)] rounded-full typing-dot"></span></div></div>
+              )}
+              <div ref={messagesEndRef} className="h-4" />
+            </div>
+            <div className="flex flex-col retro-bg-accent retro-border-t">
+              {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1"/>Replying to {replyingTo.sender === 'me' ? profile.name || 'You' : 'Partner'}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => {playAudio('click', sfx); setReplyingTo(null)}} className="p-1 hover:bg-black/10 rounded-full"><X size={14}/></button></div>)}
+              {editingMsgId && (<div className="p-2 bg-[#a3c4f3]/30 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><span className="font-bold"><Edit2 size={14} className="inline mr-1"/> Editing Message</span><button onClick={() => { playAudio('click', sfx); setEditingMsgId(null); setInput(''); }} className="p-1 hover:bg-black/10 rounded-full"><X size={14}/></button></div>)}
+              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*, audio/*, video/*" />
+                <button type="button" onClick={() => {playAudio('click', sfx); fileInputRef.current?.click()}} className="p-2 retro-bg-window retro-border hover:bg-gray-100 transition-colors" title="Attach Media"><Paperclip size={18} /></button>
+                <div className="flex-1 relative flex items-center">
+                  <input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} placeholder="type a message... (*bold* _italic_)" disabled={isRecording} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} />
+                </div>
+                {!input.trim() && !editingMsgId ? (
+                  <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Hold to Record Voice Memo"><Mic size={18} className={isRecording ? 'animate-bounce' : ''}/></button>
+                ) : ( <RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton> )}
+              </form>
+            </div>
+          </div>
+          {showDetails && (
+            <div className="flex flex-col w-full md:w-1/3 retro-bg-main overflow-y-auto relative border-l-2 retro-border">
+              <button onClick={() => {playAudio('click', sfx); setShowDetails(false)}} className="md:hidden absolute top-4 right-4 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark z-10 rounded-full"><X size={16} /></button>
+              <div className="p-4 flex flex-col gap-6 mt-12 md:mt-0">
+                <div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Search size={16}/> Search Logs</h3><div className="flex bg-[var(--bg-window)] retro-border p-2"><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="filter messages..." className="bg-transparent outline-none w-full text-sm font-bold" />{searchQuery && <button onClick={() => setSearchQuery('')}><X size={14} className="opacity-50"/></button>}</div></div>
+                <div>
+                  <h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><ImageIcon size={16}/> Shared Media</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => {playAudio('click', sfx); setViewingImageId(m.id)}} className="aspect-square retro-border retro-shadow-dark bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.url})`}}></div>)))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </RetroWindow>
+    </>
+  );
+}
+
+// ==========================================
+// 11. ACTIVITIES & GAMES ROUTER
+// ==========================================
+function GameCard({ title, desc, color, onClick }) {
+  return (
+    <div onClick={onClick} className="retro-border retro-bg-window retro-shadow-dark p-4 cursor-pointer hover:-translate-y-1 transition-transform flex flex-col h-auto min-h-[8rem] sm:min-h-[10rem] group">
+      <div className="w-8 h-8 retro-border mb-2 retro-shadow-dark group-hover:scale-110 transition-transform flex-shrink-0" style={{backgroundColor: color}}></div>
+      <h3 className="font-bold text-lg sm:text-xl">{title}</h3><p className="text-xs sm:text-sm opacity-80 mt-1">{desc}</p>
+    </div>
+  );
+}
+
+function GameSetupWindow({ game, onStart, onBack, sfx }) {
+  const [mode, setMode] = useState(game.id === 'tictactoe' ? '1v1_local' : 'competitive');
+  const [diff, setDiff] = useState('medium');
+  const [category, setCategory] = useState('animals');
+
+  const clickStart = () => { playAudio('click', sfx); onStart({ mode, diff, category }); }
+  const noDiff = game.id === 'quiz'; 
+  const noCoop = game.id === 'pictionary' || game.id === 'tictactoe' || game.id === 'chess'; 
+
+  return (
+    <RetroWindow title={`${game.id}_setup.exe`} className="w-full max-w-md h-auto max-h-[calc(100dvh-4rem)]" onClose={onBack}>
+      <div className="flex flex-col gap-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-center border-b-2 border-dashed border-[var(--border)] pb-4">{game.title}</h2>
+        {game.id === 'pictionary' && (
+          <div><label className="font-bold opacity-70 block mb-2 text-sm sm:text-base">Word Category</label><div className="flex flex-col gap-2"><RetroButton variant={category === 'animals' ? 'primary' : 'white'} className="py-2" onClick={() => {playAudio('click',sfx); setCategory('animals')}}>Animals</RetroButton><RetroButton variant={category === 'objects' ? 'primary' : 'white'} className="py-2" onClick={() => {playAudio('click',sfx); setCategory('objects')}}>Household Objects</RetroButton><RetroButton variant={category === 'hard' ? 'primary' : 'white'} className="py-2" onClick={() => {playAudio('click',sfx); setCategory('hard')}}>Hard Mode</RetroButton></div></div>
+        )}
+        {game.id === 'tictactoe' && (
+           <div><label className="font-bold opacity-70 block mb-2 text-sm sm:text-base">Select Mode</label><div className="flex gap-2 mb-4"><RetroButton variant={mode === '1v1_local' ? 'primary' : 'white'} className="flex-1 py-2 sm:py-3 text-sm" onClick={() => {playAudio('click',sfx); setMode('1v1_local')}}>1v1 Local</RetroButton><RetroButton variant={mode === 'vs_ai' ? 'secondary' : 'white'} className="flex-1 py-2 sm:py-3 text-sm" onClick={() => {playAudio('click',sfx); setMode('vs_ai')}}>VS AI</RetroButton><RetroButton variant={mode === 'memory' ? 'accent' : 'white'} className="flex-1 py-2 sm:py-3 text-sm" onClick={() => {playAudio('click',sfx); setMode('memory')}}>Memory</RetroButton></div>
+            {mode === 'vs_ai' && ( <div><label className="font-bold opacity-70 block mb-2 text-sm sm:text-base">AI Difficulty</label><div className="flex gap-2"><RetroButton variant={diff === 'easy' ? 'accent' : 'white'} className="flex-1 py-2 text-xs sm:text-sm" onClick={() => {playAudio('click',sfx); setDiff('easy')}}>Easy</RetroButton><RetroButton variant={diff === 'medium' ? 'accent' : 'white'} className="flex-1 py-2 text-xs sm:text-sm" onClick={() => {playAudio('click',sfx); setDiff('medium')}}>Medium</RetroButton><RetroButton variant={diff === 'hard' ? 'accent' : 'white'} className="flex-1 py-2 text-xs sm:text-sm" onClick={() => {playAudio('click',sfx); setDiff('hard')}}>Unbeatable</RetroButton></div></div> )}
+          </div>
+        )}
+        {!noCoop && game.id !== 'tictactoe' && (
+          <div><label className="font-bold opacity-70 block mb-2 text-sm sm:text-base">Select Mode</label><div className="flex gap-2"><RetroButton variant={mode === 'competitive' ? 'primary' : 'white'} className="flex-1 py-2 sm:py-3 text-sm sm:text-base" onClick={() => {playAudio('click',sfx); setMode('competitive')}}>Competitive</RetroButton>{game.id !== 'chess' && <RetroButton variant={mode === 'coop' ? 'secondary' : 'white'} className="flex-1 py-2 sm:py-3 text-sm sm:text-base" onClick={() => {playAudio('click',sfx); setMode('coop')}}>Co-op</RetroButton>}</div></div>
+        )}
+        {!noDiff && game.id !== 'pictionary' && game.id !== 'tictactoe' && (
+          <div><label className="font-bold opacity-70 block mb-2 text-sm sm:text-base">Select Difficulty</label><div className="flex gap-2">{['easy', 'medium', 'hard'].map(d => ( <RetroButton key={d} variant={diff === d ? 'accent' : 'white'} className="flex-1 py-2 text-xs sm:text-sm" onClick={() => {playAudio('click',sfx); setDiff(d)}}>{d}</RetroButton> ))}</div></div>
+        )}
+        <RetroButton className="mt-4 py-3 sm:py-4 text-base sm:text-lg" onClick={clickStart}>Initialize <Play size={16} className="inline ml-2"/></RetroButton>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat }) {
+  const [gameState, setGameState] = useState('prep'); 
+  const [turn, setTurn] = useState(1);
+  const [word, setWord] = useState('LOADING');
+  const [guess, setGuess] = useState('');
+  const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const [tool, setTool] = useState('pen'); 
+  const [color, setColor] = useState('#000000');
+  const [brushSize, setBrushSize] = useState(4);
+  const [undoStack, setUndoStack] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [finalImage, setFinalImage] = useState(null);
+
+  const startRound = () => { playAudio('click', sfx); const words = PICTIONARY_CATEGORIES[config.category] || PICTIONARY_CATEGORIES.animals; setWord(words[Math.floor(Math.random() * words.length)]); setTimeLeft(60); setGameState('drawing'); setUndoStack([]); };
+
+  useEffect(() => { let timer; if (gameState === 'guessing' || gameState === 'drawing') { timer = setInterval(() => { setTimeLeft(prev => { if (prev <= 1) { clearInterval(timer); setGameState('lost'); return 0; } return prev - 1; }); }, 1000); } return () => clearInterval(timer); }, [gameState]);
+
+  const updateCanvasResolution = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const rect = canvas.getBoundingClientRect(); if (rect.width === 0) return;
+    const ctx = canvas.getContext('2d');
+    if (!canvas.dataset.initialized) { canvas.width = rect.width; canvas.height = rect.height; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); canvas.dataset.initialized = 'true'; saveStateToUndo(); }
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  };
+  useEffect(() => { if (gameState === 'drawing') updateCanvasResolution(); }, [gameState]);
+
+  const saveStateToUndo = () => { const canvas = canvasRef.current; if (!canvas) return; setUndoStack(prev => [...prev, canvas.toDataURL()]); };
+  const handleUndo = () => {
+    playAudio('click', sfx); if (undoStack.length <= 1) return; 
+    const newStack = [...undoStack]; newStack.pop(); const previousState = newStack[newStack.length - 1];
+    const canvas = canvasRef.current; const ctx = canvas.getContext('2d');
+    const img = new Image(); img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img, 0, 0); }; img.src = previousState;
+    setUndoStack(newStack);
+  };
+
+  const getCoords = (e) => { const canvas = canvasRef.current; const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; };
+
+  const handlePointerDown = (e) => { if (gameState !== 'drawing') return; isDrawingRef.current = true; const { x, y } = getCoords(e); const ctx = canvasRef.current.getContext('2d'); ctx.beginPath(); ctx.moveTo(x, y); };
+  const handlePointerMove = (e) => { if (!isDrawingRef.current || gameState !== 'drawing') return; const { x, y } = getCoords(e); const ctx = canvasRef.current.getContext('2d'); ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; ctx.lineWidth = tool === 'eraser' ? brushSize * 4 : brushSize; ctx.lineTo(x, y); ctx.stroke(); };
+  const handlePointerUp = () => { if(isDrawingRef.current) { isDrawingRef.current = false; saveStateToUndo(); } };
+  const handleClear = () => { if (window.confirm("Are you sure you want to clear the entire canvas?")) { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); saveStateToUndo(); } };
+
+  const submitGuess = (e) => { e.preventDefault(); if (guess.toUpperCase() === word.toUpperCase()) { onWin(); setGameState('won'); setFinalImage(canvasRef.current.toDataURL()); setScores(p => ({ ...p, pictionary: getScore(p, 'pictionary') + 1 })); } else { playAudio('click', sfx); alert('Incorrect guess!'); } setGuess(''); };
+
+  if (gameState === 'won' || gameState === 'lost') { return ( <ShareOutcomeOverlay gameName="Pictionary" stats={{ Result: gameState === 'won' ? 'Victory!' : 'Time Up', Word: word, "Time Left": `${timeLeft}s` }} resultImage={finalImage} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} /> ); }
+
+  if (gameState === 'prep') {
+    return (
+      <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack}>
+        <div className="flex flex-col items-center justify-center h-full text-center p-4"><Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/><h2 className="text-2xl font-bold mb-4">Player {turn}'s Turn to Draw!</h2><div className="w-full mb-6"><p className="font-bold opacity-70 mb-2 text-sm">You selected: {config.category}</p></div><RetroButton className="w-full py-4 text-lg" onClick={startRound}>View Secret Word</RetroButton></div>
+      </RetroWindow>
+    );
+  }
+
+  return (
+    <RetroWindow title="pictionary.exe" className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" onClose={onBack} noPadding>
+      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold">
+         <span className={timeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {timeLeft}s</span>
+         {gameState === 'drawing' ? ( <RetroButton variant="white" onClick={() => {setGameState('guessing'); setFinalImage(canvasRef.current.toDataURL());}} className="px-4 py-1 text-xs">Hand to Guesser</RetroButton> ) : <span>Guessing Phase!</span>}
+      </div>
+      {gameState === 'drawing' && (
+        <div className="p-2 retro-bg-accent retro-border-b flex flex-wrap gap-2 items-center select-none">
+          <button onClick={() => setTool('pen')} className={`p-2 rounded-md ${tool === 'pen' ? 'bg-white retro-border' : 'opacity-70'}`}><PenTool size={18}/></button>
+          <button onClick={() => setTool('eraser')} className={`p-2 rounded-md ${tool === 'eraser' ? 'bg-white retro-border' : 'opacity-70'}`}><Eraser size={18}/></button>
+          <div className="flex items-center gap-1 mx-2 bg-white/50 px-2 py-1 rounded retro-border"><div className="w-2 h-2 bg-black rounded-full"></div><input type="range" min="1" max="20" value={brushSize} onChange={e=>setBrushSize(e.target.value)} className="w-16" /><div className="w-4 h-4 bg-black rounded-full"></div></div>
+          {['#000000', '#ff0000', '#0000ff', '#00ff00', '#ffb6b9', '#f9e2af'].map(c => ( <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-5 h-5 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'scale-125 ring-2' : ''}`} style={{backgroundColor: c}} /> ))}
+          <div className="ml-auto flex gap-2"><button onClick={handleUndo} disabled={undoStack.length <= 1} className="p-2 bg-white retro-border rounded-md hover:bg-gray-100 disabled:opacity-50"><Undo2 size={14}/></button><button onClick={handleClear} className="p-2 bg-white text-red-500 retro-border rounded-md hover:bg-red-50"><Trash2 size={14}/></button></div>
+        </div>
+      )}
+      <div className="flex-1 bg-white relative touch-none cursor-crosshair">
+        <canvas ref={canvasRef} onMouseDown={handlePointerDown} onMouseMove={handlePointerMove} onMouseUp={handlePointerUp} onMouseLeave={handlePointerUp} onTouchStart={handlePointerDown} onTouchMove={handlePointerMove} onTouchEnd={handlePointerUp} className="absolute inset-0 w-full h-full" />
+        {gameState === 'guessing' && <div className="absolute inset-0 z-10"></div>}
+      </div>
+      {gameState === 'drawing' ? ( <div className="p-3 retro-bg-window retro-border-t text-center font-bold">Draw: <span className="text-[var(--primary)] text-xl tracking-widest">{word}</span></div> ) : (
+        <div className="p-3 retro-bg-window retro-border-t flex flex-col gap-3">
+          <div className="flex justify-between items-center px-1"><span className="font-bold text-sm sm:text-base">Word: <span className="tracking-[0.5em] text-[var(--primary)] text-lg">{word.split('').map(()=>'_').join('')}</span></span><span className="text-xs sm:text-sm opacity-70">({word.length} letters)</span></div>
+          <form onSubmit={submitGuess} className="flex gap-2"><input type="text" value={guess} onChange={e=>setGuess(e.target.value)} placeholder="Type guess..." className="flex-1 p-2 sm:p-3 retro-border focus:outline-none uppercase font-bold" /><RetroButton type="submit" className="px-4 sm:px-6">Guess</RetroButton></form>
+        </div>
+      )}
+    </RetroWindow>
+  );
+}
+
+function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat }) {
+  const [board, setBoard] = useState(Array(9).fill(null));
+  const [xIsNext, setXIsNext] = useState(true);
+  const [gameOverOverlay, setGameOverOverlay] = useState(false);
+  const [p1Wins, setP1Wins] = useState(0); const [p2Wins, setP2Wins] = useState(0);
+  const [pieceQueue, setPieceQueue] = useState([]); const [winLine, setWinLine] = useState(null); 
+
+  const calculateWinner = (squares) => {
+    const lines = [ [0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6] ];
+    for (let i = 0; i < lines.length; i++) { const [a, b, c] = lines[i]; if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return { player: squares[a], line: lines[i] }; }
+    return null;
+  };
+  const winData = calculateWinner(board); const isDraw = !winData && !board.includes(null);
+
+  useEffect(() => {
+    if (winData) {
+      setWinLine(winData.line);
+      if (winData.player === 'X') setP1Wins(w=>w+1); else setP2Wins(w=>w+1);
+      setTimeout(() => setGameOverOverlay(true), 1500); 
+      if (winData.player === 'X') { onWin(); setScores(p => ({ ...p, tictactoe: getScore(p, 'tictactoe') + 1 })); }
+    } else if (isDraw) { setTimeout(() => setGameOverOverlay(true), 1000); }
+  }, [winData, isDraw]);
+
+  const minimax = (currBoard, depth, isMaximizing) => {
+    const res = calculateWinner(currBoard);
+    if (res?.player === 'O') return 10 - depth;
+    if (res?.player === 'X') return depth - 10;
+    if (!currBoard.includes(null)) return 0;
+    if (isMaximizing) { let bestScore = -Infinity; for (let i = 0; i < 9; i++) { if (!currBoard[i]) { currBoard[i] = 'O'; let score = minimax(currBoard, depth + 1, false); currBoard[i] = null; bestScore = Math.max(score, bestScore); } } return bestScore; } 
+    else { let bestScore = Infinity; for (let i = 0; i < 9; i++) { if (!currBoard[i]) { currBoard[i] = 'X'; let score = minimax(currBoard, depth + 1, true); currBoard[i] = null; bestScore = Math.min(score, bestScore); } } return bestScore; }
+  };
+
+  const makeAIMove = (currentBoard) => {
+    const empty = currentBoard.map((v, i) => v === null ? i : null).filter(v => v !== null); if (empty.length === 0) return null;
+    if (config.diff === 'easy') return empty[Math.floor(Math.random() * empty.length)];
+    if (config.diff === 'medium' && Math.random() > 0.5) return empty[Math.floor(Math.random() * empty.length)];
+    let bestScore = -Infinity; let move;
+    for (let i = 0; i < 9; i++) { if (!currentBoard[i]) { currentBoard[i] = 'O'; let score = minimax(currentBoard, 0, false); currentBoard[i] = null; if (score > bestScore) { bestScore = score; move = i; } } }
+    return move;
+  };
+
+  useEffect(() => {
+    if (config.mode === 'vs_ai' && !xIsNext && !winData && !isDraw) { const timer = setTimeout(() => { const aiMove = makeAIMove([...board]); if (aiMove !== null) handlePlacePiece(aiMove, 'O'); }, 600); return () => clearTimeout(timer); }
+  }, [xIsNext, board, winData, isDraw, config]);
+
+  const handlePlacePiece = (i, player) => {
+    playAudio('click', sfx); let newBoard = [...board]; let newQueue = [...pieceQueue];
+    if (config.mode === 'memory') {
+      const playerPieces = newQueue.filter(p => p.player === player);
+      if (playerPieces.length >= 3) { const oldest = newQueue.find(p => p.player === player); newBoard[oldest.index] = null; newQueue = newQueue.filter(p => p !== oldest); }
+      newQueue.push({ player, index: i }); setPieceQueue(newQueue);
+    }
+    newBoard[i] = player; setBoard(newBoard); setXIsNext(player === 'O');
+  };
+
+  const handleClick = (i) => { if (board[i] || winData || (config.mode === 'vs_ai' && !xIsNext)) return; handlePlacePiece(i, xIsNext ? 'X' : 'O'); };
+  const resetRound = () => { playAudio('click', sfx); setBoard(Array(9).fill(null)); setXIsNext(true); setGameOverOverlay(false); setWinLine(null); setPieceQueue([]); };
+
+  if (gameOverOverlay) {
+    return ( <ShareOutcomeOverlay gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Result: winData ? `${winData.player} Won!` : 'Draw', "Score (X vs O)": `${p1Wins} - ${p2Wins}` }} onClose={() => {resetRound(); onBack();}} onShareToChat={onShareToChat} sfx={sfx} /> );
+  }
+
+  const renderWinLine = () => {
+    if (!winLine) return null; const [a, b, c] = winLine; let style = {};
+    if (a === 0 && c === 2) style = { top: '16%', left: '5%', width: '90%', height: '8px' }; else if (a === 3 && c === 5) style = { top: '50%', left: '5%', width: '90%', height: '8px', transform: 'translateY(-50%)' }; else if (a === 6 && c === 8) style = { bottom: '16%', left: '5%', width: '90%', height: '8px' }; else if (a === 0 && c === 6) style = { left: '16%', top: '5%', height: '90%', width: '8px' }; else if (a === 1 && c === 7) style = { left: '50%', top: '5%', height: '90%', width: '8px', transform: 'translateX(-50%)' }; else if (a === 2 && c === 8) style = { right: '16%', top: '5%', height: '90%', width: '8px' }; else if (a === 0 && c === 8) style = { top: '50%', left: '-10%', width: '120%', height: '8px', transform: 'rotate(45deg)' }; else if (a === 2 && c === 6) style = { top: '50%', left: '-10%', width: '120%', height: '8px', transform: 'rotate(-45deg)' }; 
+    return <div className="absolute bg-[var(--primary)] retro-border shadow-[0_0_15px_var(--primary)] z-10 pointer-events-none rounded-full" style={style}></div>;
+  };
+
+  const oppName = config.mode === '1v1_local' || config.mode === 'memory' ? 'P2 (O)' : 'AI (O)';
+
+  return (
+    <RetroWindow title={`tictactoe_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack}>
+      <div className="flex flex-col items-center pb-8 pt-4">
+        <div className="flex w-full justify-between px-8 mb-4 font-bold text-lg"><span className="text-[var(--primary-hover)]">P1 (X): {p1Wins}</span><span className="text-[var(--secondary)]">{oppName}: {p2Wins}</span></div>
+        <div className={`mb-6 font-bold text-sm sm:text-lg px-6 py-2 retro-border retro-shadow-dark text-center w-3/4 max-w-xs ${!winData && !isDraw ? (xIsNext ? 'retro-bg-primary' : 'retro-bg-secondary') : 'retro-bg-accent'}`}>{winData ? `Winner: ${winData.player}!` : isDraw ? "Draw!" : config.mode === 'vs_ai' ? (xIsNext ? 'Your Turn (X)' : 'AI is thinking...') : `Player ${xIsNext ? '1 (X)' : '2 (O)'}'s Turn`}</div>
+        <div className="relative">
+          <div className="grid grid-cols-3 gap-2 bg-[var(--border)] p-2 retro-border retro-shadow-dark relative z-0">
+            {board.map((cell, i) => {
+              let isFading = false;
+              if (config.mode === 'memory' && cell) { const playerPieces = pieceQueue.filter(p => p.player === cell); if (playerPieces.length === 3 && playerPieces[0].index === i) isFading = true; }
+              return ( <button key={i} onClick={() => handleClick(i)} className={`w-20 h-20 sm:w-24 sm:h-24 retro-bg-window flex items-center justify-center text-4xl font-bold transition-colors ${isFading && !winData ? 'animate-pulse opacity-30' : ''} ${isDraw ? 'animate-fall' : ''}`}><span className={cell === 'X' ? 'text-[var(--primary-hover)]' : 'text-[var(--secondary)]'}>{cell}</span></button> )
+            })}
+          </div>
+          {renderWinLine()}
+        </div>
+        <RetroButton className="mt-8 px-6 py-3" onClick={resetRound}><RefreshCw size={16} className="inline mr-2" /> force restart</RetroButton>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function MemoryGame({ config, setScores, onBack, sfx, onWin }) {
+  const [cards, setCards] = useState([]); const [flipped, setFlipped] = useState([]); const [solved, setSolved] = useState([]); const [disabled, setDisabled] = useState(false); const [turn, setTurn] = useState(1); const [p1Score, setP1Score] = useState(0); const [p2Score, setP2Score] = useState(0);
+  useEffect(() => { shuffleCards(); }, [config.diff]);
+  const shuffleCards = () => { const emojis = MEMORY_EMOJIS[config.diff]; const shuffled = [...emojis, ...emojis].sort(() => Math.random() - 0.5).map((emoji, id) => ({ id, emoji })); setCards(shuffled); setFlipped([]); setSolved([]); setTurn(1); setP1Score(0); setP2Score(0); };
+  const handleCardClick = (index) => {
+    if (disabled || flipped.includes(index) || solved.includes(index)) return; playAudio('click', sfx);
+    const newFlipped = [...flipped, index]; setFlipped(newFlipped);
+    if (newFlipped.length === 2) {
+      setDisabled(true); const match = cards[newFlipped[0]].emoji === cards[newFlipped[1]].emoji;
+      setTimeout(() => {
+        if (match) {
+          const newSolved = [...solved, ...newFlipped]; setSolved(newSolved);
+          if (config.mode === 'competitive') { turn === 1 ? setP1Score(p=>p+1) : setP2Score(p=>p+1); }
+          if (newSolved.length === cards.length) { setScores(p => ({ ...p, memory: getScore(p, 'memory') + 1 })); onWin(); }
+        } else { if (config.mode === 'competitive') setTurn(turn === 1 ? 2 : 1); }
+        setFlipped([]); setDisabled(false);
+      }, 1000);
+    }
+  };
+  const gridCols = config.diff === 'easy' ? 'grid-cols-4' : config.diff === 'medium' ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-4 sm:grid-cols-6';
+  return (
+    <RetroWindow title={`memory_${config.mode}.exe`} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[750px]" onClose={onBack}>
+      <div className="flex flex-col items-center pb-8 pt-4">
+        {config.mode === 'competitive' ? ( <div className="flex w-full justify-between px-2 sm:px-8 mb-6 font-bold text-xs sm:text-base"><div className={`p-2 retro-border transition-all ${turn === 1 ? 'retro-bg-primary retro-shadow-dark scale-110' : 'opacity-50'}`}>P1 Score: {p1Score}</div><div className={`p-2 retro-border transition-all ${turn === 2 ? 'retro-bg-secondary retro-shadow-dark scale-110' : 'opacity-50'}`}>P2 Score: {p2Score}</div></div> ) : ( solved.length === cards.length && <div className="mb-4 font-bold text-lg sm:text-xl retro-bg-accent px-4 py-2 retro-border retro-shadow-dark animate-bounce">Co-op Victory!</div> )}
+        <div className={`grid ${gridCols} gap-2 sm:gap-3`}>{cards.map((card, i) => { const isFlipped = flipped.includes(i) || solved.includes(i); return <div key={i} onClick={() => handleCardClick(i)} className={`w-14 h-16 sm:w-20 sm:h-24 retro-border flex items-center justify-center text-2xl sm:text-3xl cursor-pointer transition-all duration-300 transform preserve-3d ${isFlipped ? 'retro-bg-window rotate-y-180 retro-shadow-primary' : 'retro-bg-secondary retro-shadow-dark'}`}>{isFlipped ? card.emoji : <Star size={20} className="text-[var(--border)] opacity-30"/>}</div>; })}</div>
+        <RetroButton className="mt-8 px-6 sm:px-8 py-3 text-sm sm:text-base" onClick={() => {playAudio('click', sfx); shuffleCards()}}><RefreshCw size={16} className="inline mr-2" /> restart</RetroButton>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function WordleClone({ config, setScores, onBack, sfx, onWin }) {
+  const [targetWord, setTargetWord] = useState("LOAD"); const [guesses, setGuesses] = useState([]); const [currentGuess, setCurrentGuess] = useState(""); const [gameOver, setGameOver] = useState(false); const [turn, setTurn] = useState(1);
+  const wordLen = config.diff === 'easy' ? 4 : config.diff === 'medium' ? 5 : 6;
+  useEffect(() => { let isMounted = true; setGuesses(Array(6).fill("")); setCurrentGuess(""); setGameOver(false); setTurn(1); fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { if (isMounted) setTargetWord(w) }); return () => { isMounted = false; }; }, [config.diff, wordLen]);
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (gameOver) return;
+      if (e.key === 'Enter') {
+        if (currentGuess.length === wordLen) {
+          playAudio('click', sfx); const newGuesses = [...guesses]; const emptyIndex = newGuesses.findIndex(g => g === ""); newGuesses[emptyIndex] = currentGuess; setGuesses(newGuesses); setCurrentGuess("");
+          if (currentGuess === targetWord) { setGameOver(true); setScores(p => ({ ...p, wordle: getScore(p, 'wordle') + 1 })); onWin(); } else if (emptyIndex === 5) { setGameOver(true); } else { if (config.mode === 'competitive') setTurn(turn === 1 ? 2 : 1); }
+        }
+      } else if (e.key === 'Backspace') setCurrentGuess(p => p.slice(0, -1)); else if (/^[A-Za-z]$/.test(e.key) && currentGuess.length < wordLen) setCurrentGuess(p => (p + e.key).toUpperCase());
+    }; window.addEventListener('keydown', handleKeyDown); return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentGuess, gameOver, guesses, targetWord, wordLen, config.mode, turn, setScores, onWin, sfx]);
+  return (
+    <RetroWindow title={`retro_word_${config.mode}.exe`} className="w-full max-w-sm h-[calc(100dvh-4rem)] max-h-[750px]" onClose={onBack}>
+      <div className="flex flex-col items-center pb-8 pt-4">
+        {config.mode === 'competitive' && !gameOver && ( <div className={`mb-4 font-bold text-sm sm:text-base px-6 py-2 retro-border retro-shadow-dark ${turn === 1 ? 'retro-bg-primary' : 'retro-bg-secondary'}`}>Player {turn}'s Guess</div> )}
+        <div className="grid grid-rows-6 gap-2">
+          {guesses.map((guess, i) => {
+            const isCurrentRow = guesses.findIndex(g => g === "") === i; const wordToDisplay = isCurrentRow ? currentGuess.padEnd(wordLen, " ") : guess.padEnd(wordLen, " ");
+            return ( <div key={i} className="grid gap-1 sm:gap-2" style={{ gridTemplateColumns: `repeat(${wordLen}, minmax(0, 1fr))` }}>{wordToDisplay.split('').map((char, j) => { let bgColor = "retro-bg-window"; if (guess !== "") { if (char === targetWord[j]) bgColor = "bg-[#b5c99a]"; else if (targetWord.includes(char)) bgColor = "bg-[#f4d06f]"; else bgColor = "bg-gray-300 opacity-50"; } return <div key={j} className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center font-bold text-lg sm:text-xl retro-border ${bgColor} ${isCurrentRow && char !== ' ' ? 'retro-shadow-primary' : ''}`}>{char}</div>; })}</div> );
+          })}
+        </div>
+        {gameOver && <div className="mt-6 font-bold text-sm sm:text-md retro-bg-accent px-4 py-2 retro-border retro-shadow-dark text-center">{guesses.includes(targetWord) ? "Got it!" : `Game Over. Word was ${targetWord}`}</div>}
+      </div>
+    </RetroWindow>
+  );
+}
+
+function Sudoku({ config, setScores, onBack, sfx, onWin }) {
+  const [board, setBoard] = useState([]); const [solution, setSolution] = useState([]); const [selected, setSelected] = useState(null); const [p1Score, setP1Score] = useState(0); const [p2Score, setP2Score] = useState(0); const [turn, setTurn] = useState(1);
+  useEffect(() => { initSudoku(); }, [config.diff]);
+  const initSudoku = () => {
+    const base = [ [1,2,3,4,5,6,7,8,9], [4,5,6,7,8,9,1,2,3], [7,8,9,1,2,3,4,5,6], [2,3,1,5,6,4,8,9,7], [5,6,4,8,9,7,2,3,1], [8,9,7,2,3,1,5,6,4], [3,1,2,6,4,5,9,7,8], [6,4,5,9,7,8,3,1,2], [9,7,8,3,1,2,6,4,5] ];
+    const map = [1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5); const full = base.map(r => r.map(c => map[c-1]));
+    const removeCount = config.diff === 'easy' ? 30 : config.diff === 'medium' ? 45 : 55;
+    const indices = Array.from({length: 81}, (_, i) => i).sort(() => Math.random() - 0.5); const flatPuzzle = full.flat().map((v, i) => indices.indexOf(i) < removeCount ? null : v);
+    const puzzle2D = []; for(let r=0; r<9; r++) { const row = []; for(let c=0; c<9; c++) { const val = flatPuzzle[r*9 + c]; row.push({ val, fixed: val !== null, owner: null }); } puzzle2D.push(row); }
+    setSolution(full); setBoard(puzzle2D); setP1Score(0); setP2Score(0); setTurn(1); setSelected(null);
+  };
+  const handleInput = (num) => {
+    if (!selected) return; playAudio('click', sfx); const [r, c] = selected; if (board[r][c].fixed || board[r][c].val !== null) return; 
+    if (num === solution[r][c]) {
+       const newBoard = [...board.map(row => [...row])]; newBoard[r][c] = { val: num, fixed: true, owner: turn }; setBoard(newBoard);
+       if (config.mode === 'competitive') { turn === 1 ? setP1Score(p=>p+1) : setP2Score(p=>p+1); setTurn(turn === 1 ? 2 : 1); }
+    } else { if (config.mode === 'competitive') setTurn(turn === 1 ? 2 : 1); }
+  };
+  return (
+    <RetroWindow title={`sudoku_${config.mode}.exe`} className="w-full max-w-3xl h-[calc(100dvh-4rem)] max-h-[800px]" onClose={onBack}>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-center md:items-start pb-8 pt-4 px-2">
+        <div className="retro-border retro-shadow-dark bg-[var(--border)] p-1 flex-shrink-0 w-full max-w-[280px] sm:max-w-[350px] aspect-square">
+          <div className="w-full h-full grid grid-cols-9 grid-rows-9 gap-[1px] bg-[var(--border)]">
+            {board.map((row, r) => row.map((cell, c) => {
+              const isSelected = selected?.[0] === r && selected?.[1] === c;
+              let borders = "border-[0.5px] border-[var(--border)]/20 "; if (c % 3 === 2 && c !== 8) borders += "border-r-2 border-r-[var(--border)] "; if (r % 3 === 2 && r !== 8) borders += "border-b-2 border-b-[var(--border)] ";
+              let bgColor = isSelected ? 'bg-[var(--accent)]' : cell.owner === 1 ? 'bg-[var(--primary)] opacity-80' : cell.owner === 2 ? 'bg-[var(--secondary)] opacity-80' : 'bg-white';
+              return <div key={`${r}-${c}`} onClick={() => {playAudio('click',sfx); setSelected([r, c])}} className={`flex items-center justify-center text-sm sm:text-lg cursor-pointer ${bgColor} ${borders} ${cell.fixed && !cell.owner ? 'font-bold' : ''}`}>{cell.val || ''}</div>;
+            }))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 flex-1 w-full max-w-[280px] sm:max-w-[300px]">
+          {config.mode === 'competitive' && ( <div className="bg-white retro-border p-2 sm:p-4 text-center border-dashed"><p className="font-bold mb-1 sm:mb-2 text-sm sm:text-base">Race Mode</p><div className="flex justify-between font-bold text-sm sm:text-base"><span className={`px-2 py-1 transition-all ${turn === 1 ? 'retro-bg-primary retro-border retro-shadow-dark scale-110' : 'opacity-50'}`}>P1: {p1Score}</span><span className={`px-2 py-1 transition-all ${turn === 2 ? 'retro-bg-secondary retro-border retro-shadow-dark scale-110' : 'opacity-50'}`}>P2: {p2Score}</span></div></div> )}
+          <div className="grid grid-cols-5 sm:grid-cols-3 gap-1 sm:gap-2">{[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => <RetroButton key={num} variant="white" className="py-2 sm:py-3 text-lg sm:text-xl" onClick={() => handleInput(num)}>{num}</RetroButton>)}</div>
+          <RetroButton variant="action" className="mt-2 py-2 sm:py-3 text-sm sm:text-base" onClick={() => {playAudio('click',sfx); initSudoku()}}>Restart Game</RetroButton>
+        </div>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function ChessEngine({ config, setScores, onBack, sfx, onWin }) {
+  const [board, setBoard] = useState(INITIAL_CHESS_BOARD); const [selectedIdx, setSelectedIdx] = useState(null); const [turn, setTurn] = useState('w');
+  const getPseudoLegalMoves = (b, startIdx) => {
+    const piece = b[startIdx]; if (!piece) return [];
+    const t = piece[0]; const type = piece[1]; const sr = Math.floor(startIdx / 8), sc = startIdx % 8; const moves = [];
+    const addIfValid = (r, c) => { if (r < 0 || r > 7 || c < 0 || c > 7) return false; const tIdx = r * 8 + c; const target = b[tIdx]; if (target && target[0] === t) return false; moves.push(tIdx); return !target; };
+    if (type === 'P') { 
+      const dir = t === 'w' ? -1 : 1; const startRow = t === 'w' ? 6 : 1; 
+      if (!b[(sr+dir)*8 + sc]) { moves.push((sr+dir)*8 + sc); if (sr === startRow && !b[(sr+2*dir)*8 + sc]) moves.push((sr+2*dir)*8 + sc); }
+      if (sc > 0 && b[(sr+dir)*8 + sc-1] && b[(sr+dir)*8 + sc-1][0] !== t) moves.push((sr+dir)*8 + sc-1); if (sc < 7 && b[(sr+dir)*8 + sc+1] && b[(sr+dir)*8 + sc+1][0] !== t) moves.push((sr+dir)*8 + sc+1);
+    } else if (type === 'N') { const jumps = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]; jumps.forEach(([dr, dc]) => addIfValid(sr+dr, sc+dc));
+    } else if (type === 'K') { const steps = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]; steps.forEach(([dr, dc]) => addIfValid(sr+dr, sc+dc));
+    } else { const dirs = []; if (type === 'R' || type === 'Q') dirs.push([-1,0],[1,0],[0,-1],[0,1]); if (type === 'B' || type === 'Q') dirs.push([-1,-1],[-1,1],[1,-1],[1,1]); dirs.forEach(([dr, dc]) => { let r = sr + dr, c = sc + dc; while (addIfValid(r, c)) { r += dr; c += dc; } }); }
+    return moves;
+  };
+  const isKingInCheck = (b, t) => { const kIdx = b.findIndex(p => p === `${t}K`); if (kIdx === -1) return false; const enemy = t === 'w' ? 'b' : 'w'; for (let i = 0; i < 64; i++) { if (b[i] && b[i][0] === enemy) { if (getPseudoLegalMoves(b, i).includes(kIdx)) return true; } } return false; };
+  const isValidMove = (startIdx, endIdx) => { if (config.mode === 'coop') return true; const piece = board[startIdx]; if (!piece || piece[0] !== turn) return false; const pseudoMoves = getPseudoLegalMoves(board, startIdx); if (!pseudoMoves.includes(endIdx)) return false; const newBoard = [...board]; newBoard[endIdx] = newBoard[startIdx]; newBoard[startIdx] = null; if (isKingInCheck(newBoard, turn)) return false; return true; };
+  const handleSquareClick = (idx) => {
+    if (selectedIdx === null) { if (board[idx]) { playAudio('click', sfx); setSelectedIdx(idx); } } 
+    else {
+      if (selectedIdx === idx) { setSelectedIdx(null); return; }
+      if (isValidMove(selectedIdx, idx)) {
+        playAudio('click', sfx); const newBoard = [...board];
+        if (newBoard[idx] && newBoard[idx][1] === 'K') { setScores(p => ({ ...p, chess: getScore(p, 'chess') + 1 })); onWin(); alert(`${turn === 'w' ? 'White' : 'Black'} Wins!`); }
+        newBoard[idx] = newBoard[selectedIdx]; newBoard[selectedIdx] = null; setBoard(newBoard); setTurn(turn === 'w' ? 'b' : 'w');
+      }
+      setSelectedIdx(null);
+    }
+  };
+  return (
+    <RetroWindow title={`chess_engine_${config.mode}.exe`} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" onClose={onBack}>
+      <div className="flex flex-col items-center pb-8 pt-4">
+        <div className="mb-4 text-center">{config.mode === 'coop' ? <p className="font-bold p-2 retro-bg-accent retro-border text-xs sm:text-sm">Sandbox Mode: Free move active.</p> : <p className={`font-bold text-base sm:text-lg px-6 py-2 retro-border retro-shadow-dark ${turn === 'w' ? 'retro-bg-window' : 'bg-gray-800 text-white'}`}>{turn === 'w' ? "White's Turn" : "Black's Turn"}</p>}</div>
+        <div className="retro-border retro-shadow-dark border-4 border-[var(--border)] w-full max-w-[320px] sm:max-w-[400px] aspect-square grid grid-cols-8 grid-rows-8">
+          {board.map((piece, i) => { const isDark = (Math.floor(i / 8) + (i % 8)) % 2 !== 0; const isSelected = selectedIdx === i; return <div key={i} onClick={() => handleSquareClick(i)} className={`flex items-center justify-center text-3xl sm:text-4xl cursor-pointer select-none transition-colors ${isDark ? 'bg-[#c5a880]' : 'bg-[#f0d9b5]'} ${isSelected ? '!bg-[var(--accent)] border-2 border-dashed border-[var(--border)]' : ''}`}>{piece ? CHESS_PIECE_MAP[piece] : ''}</div>; })}
+        </div>
+        <RetroButton className="mt-8 px-6 py-2 text-sm sm:text-base" onClick={() => { playAudio('click', sfx); setBoard(INITIAL_CHESS_BOARD); setTurn('w'); }}>Reset Board</RetroButton>
+      </div>
+    </RetroWindow>
+  );
+}
+
+function CouplesQuiz({ onBack }) { return ( <RetroWindow title="quiz_maker.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack}><div className="flex flex-col items-center justify-center h-full text-center p-4"><Heart size={48} className="text-[var(--primary)] animate-pulse mb-4"/><h2 className="text-2xl font-bold mb-2">Quiz Builder</h2><p className="opacity-80 mb-6">Create 5 questions for your partner to answer about you.</p><RetroButton className="w-full py-4 text-lg">Start Creating</RetroButton></div></RetroWindow>); }
+
+function ActivitiesView({ onClose, scores, setScores, sfx, setConfetti, onShareToChat }) {
+  const [setupGame, setSetupGame] = useState(null); 
+  const [activeConfig, setActiveConfig] = useState(null);
+
+  const handleWin = () => { playAudio('win', sfx); setConfetti(true); setTimeout(() => setConfetti(false), 4000); };
+
+  if (activeConfig) {
+    const props = { config: activeConfig, setScores, onBack: () => setActiveConfig(null), sfx, onWin: handleWin, onShareToChat };
+    if (activeConfig.id === 'pictionary') return <PictionaryGame {...props} />;
+    if (activeConfig.id === 'tictactoe') return <TicTacToe {...props} />;
+    if (activeConfig.id === 'memory') return <MemoryGame {...props} />;
+    if (activeConfig.id === 'wordle') return <WordleClone {...props} />;
+    if (activeConfig.id === 'sudoku') return <Sudoku {...props} />;
+    if (activeConfig.id === 'chess') return <ChessEngine {...props} />; 
+    if (activeConfig.id === 'quiz') return <CouplesQuiz {...props} />;
+  }
+
+  if (setupGame) return <GameSetupWindow game={setupGame} sfx={sfx} onStart={(config) => { setActiveConfig({ id: setupGame.id, ...config }); setSetupGame(null); }} onBack={() => setSetupGame(null)} />;
+
+  const launch = (id, title) => { playAudio('click', sfx); setSetupGame({id, title}); }
+
+  return (
+    <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <GameCard title="Pictionary" desc="Draw and guess the hidden word." color="#ffb6b9" onClick={() => launch('pictionary', 'Pictionary')} />
+        <GameCard title="Tic-Tac-Toe" desc="Classic 3x3. Try Memory Fading mode." color="var(--primary)" onClick={() => launch('tictactoe', 'Tic-Tac-Toe')} />
+        <GameCard title="Memory Match" desc="Flip cards and find pairs." color="var(--secondary)" onClick={() => launch('memory', 'Memory Match')} />
+        <GameCard title="Retro Word" desc="Guess the hidden word." color="var(--accent)" onClick={() => launch('wordle', 'Retro Word')} />
+        <GameCard title="Sudoku" desc="Logic puzzles. Race or Share." color="#ffb6b9" onClick={() => launch('sudoku', 'Sudoku')} />
+        <GameCard title="Chess" desc="Full rules engine. Standard or Sandbox." color="#a3c4f3" onClick={() => launch('chess', 'Chess')} />
+        <GameCard title="Couples Quiz" desc="How well do you know them?" color="#f9e2af" onClick={() => launch('quiz', 'Couples Quiz')} />
+      </div>
+    </RetroWindow>
+  );
+}
+
+// ==========================================
+// 12. MAIN APP COMPONENT & LAUNCHER ROUTING
+// ==========================================
+export default function App() {
+  const [appMode, setAppMode] = useLocalStorage('app_mode', 'landing'); 
+  const [authType, setAuthType] = useState('login'); 
+  const [currentView, setCurrentView] = useState('dashboard'); 
+  
+  const [theme, setTheme] = useLocalStorage('app_theme', 'default');
+  const [weather, setWeather] = useLocalStorage('app_weather', 'clear');
+  const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true);
+  const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊', petName: 'Peanut' });
+  const [scores, setScores] = useLocalStorage('game_scores', { tictactoe: 0, memory: 0, wordle: 0, chess: 0, pictionary: 0 });
+  const myPartnerCode = "X7B9-Q2M"; 
+
+  const [scrapbookImages, setScrapbookImages] = useLocalStorage('scrapbook_imgs', [
+    'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=300&q=80',
+    'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=300&q=80'
+  ]);
+  
+  const [doodles, setDoodles] = useLocalStorage('doodle_inbox', [
+    { id: 999, sender: 'partner', isRead: false, img: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ3aGl0ZSIvPjxwYXRoIGQ9Ik0xMDAgMjAwIFExNTAgMTAwIDIwMCAyMDAgVDIwMCAzMDAgUTI1MCA0MDAgMzAwIDIwMCIgc3Ryb2tlPSJyZWQiIHN0cm9rZS13aWR0aD0iMTAiIGZpbGw9Im5vbmUiLz48dGV4dCB4PSIxMjAiIHk9IjI1MCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyNCIgZmlsbD0iYmxhY2siPmhpIGJlam8hPC90ZXh0Pjwvc3ZnPg=='}
+  ]);
+  const [activeDoodle, setActiveDoodle] = useState(null);
+  const [chatHistory, setChatHistory] = useLocalStorage('chat_history', INITIAL_CHAT);
+
+  const [letters, setLetters] = useLocalStorage('time_capsules', []);
+
+  const [triggerShake, setTriggerShake] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [lofiActive, setLofiActive] = useState(false);
+
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+
+  const handleShareToChat = (text, imgUrl) => {
+    const newMessage = { id: Date.now(), sender: 'me', type: imgUrl ? 'image' : 'text', text: String(text), url: imgUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' };
+    setChatHistory([...chatHistory, newMessage]);
+    alert("Shared to Chat Room successfully!");
+  };
+
+  const handleLogout = () => { playAudio('click', sfxEnabled); setAppMode('landing'); setProfile({ name: '', emoji: '😊', petName: 'Peanut' }); };
+  const handleDeleteAccount = () => { playAudio('click', sfxEnabled); setAppMode('landing'); setProfile({ name: '', emoji: '😊', petName: 'Peanut' }); setScores({ tictactoe: 0, memory: 0, wordle: 0, chess: 0, pictionary: 0 }); setTheme('default'); };
+
+  const handleOpenDoodle = (doodle) => {
+    playAudio('click', sfxEnabled); setActiveDoodle(doodle); setCurrentView('doodleViewer');
+    setDoodles(doodles.map(d => d.id === doodle.id ? { ...d, isRead: true } : d));
+    if (!scrapbookImages.includes(doodle.img)) setScrapbookImages([doodle.img, ...scrapbookImages]);
+  };
+  const handleRedoodle = () => { playAudio('click', sfxEnabled); setCurrentView('doodle'); };
+  const handleSendDoodle = (doodleData) => { setDoodles([...doodles, { id: Date.now(), sender: 'me', isRead: true, img: doodleData.img }]); alert('Doodle sent to partner!'); };
+
+  const nav = (view) => { playAudio('click', sfxEnabled); setCurrentView(view); };
+  const bgClass = theme === 'default' ? 'bg-pattern-grid' : theme === 'matcha' ? 'bg-pattern-dots' : 'bg-pattern-hearts';
+
+  return (
+    <div onAnimationEnd={() => setTriggerShake(false)} className={`min-h-[100dvh] p-4 ${appMode === 'main' ? 'pb-8' : ''} md:p-8 flex flex-col items-center justify-start md:justify-center relative overflow-x-hidden overflow-y-auto transition-colors duration-300 ${bgClass} ${triggerShake ? 'animate-shake' : ''}`}>
+      <style>{globalStyles}</style>
+      <WeatherOverlay weather={weather} />
+      <Confetti active={showConfetti} />
+      
+      {appMode === 'main' && (
+        <div className="fixed bottom-4 left-4 z-50 flex gap-2">
+           <button onClick={() => { playAudio('click', sfxEnabled); toggleLoFi(!lofiActive); setLofiActive(!lofiActive); }} className={`p-3 rounded-full retro-border retro-shadow-dark flex items-center gap-2 font-bold text-xs sm:text-sm transition-colors ${lofiActive ? 'retro-bg-primary' : 'retro-bg-window'}`}>
+             {lofiActive ? <Zap size={16} className="animate-pulse"/> : <Music size={16}/>} {lofiActive ? 'Lo-Fi On' : 'Radio'}
+           </button>
+        </div>
+      )}
+
+      {appMode === 'landing' && <LandingView sfx={sfxEnabled} onLogin={() => { setAuthType('login'); setAppMode('auth'); }} onSignup={() => { setAuthType('signup'); setAppMode('auth'); }} />}
+      {appMode === 'auth' && <AuthView type={authType} setType={setAuthType} setProfile={setProfile} sfx={sfxEnabled} onBack={() => {playAudio('click', sfxEnabled); setAppMode('landing')}} onComplete={(isNew) => setAppMode(isNew ? 'handshake' : 'main')} />}
+      {appMode === 'handshake' && <HandshakeView partnerCode={myPartnerCode} sfx={sfxEnabled} onComplete={() => setAppMode('main')} onBack={() => {playAudio('click', sfxEnabled); setAppMode('auth')}} />}
+      
+      {appMode === 'main' && (
+         <>
+          {currentView === 'dashboard' && <Dashboard setView={nav} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={handleOpenDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} />}
+          {currentView === 'chat' && <ChatView onClose={() => nav('dashboard')} profile={profile} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} />}
+          {currentView === 'activities' && <ActivitiesView onClose={() => nav('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setShowConfetti} onShareToChat={handleShareToChat} />}
+          {currentView === 'doodleViewer' && <DoodleViewer doodle={activeDoodle} onClose={() => { nav('dashboard'); setActiveDoodle(null); }} onRedoodle={handleRedoodle} profileName={profile.name} sfx={sfxEnabled} />}
+          {currentView === 'doodle' && <DoodleApp onClose={() => { nav('dashboard'); setActiveDoodle(null); }} initialDoodle={activeDoodle} onSendDoodle={handleSendDoodle} onSaveToScrapbook={(url) => setScrapbookImages([url, ...scrapbookImages])} sfx={sfxEnabled} />}
+          {currentView === 'poetry' && <PoetryApp onClose={() => nav('dashboard')} sfx={sfxEnabled} />}
+          {currentView === 'capsule' && <TimeCapsuleApp onClose={() => nav('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} />}
+          {currentView === 'lists' && <ListsApp onClose={() => nav('dashboard')} sfx={sfxEnabled} />}
+          {currentView === 'calendar' && <CalendarApp onClose={() => nav('dashboard')} sfx={sfxEnabled} />}
+          {currentView === 'scrapbook' && <ScrapbookApp onClose={() => nav('dashboard')} images={scrapbookImages} sfx={sfxEnabled} />}
+          {currentView === 'settings' && <SettingsView onClose={() => nav('dashboard')} theme={theme} setTheme={setTheme} profile={profile} setProfile={setProfile} onLogout={handleLogout} onDelete={handleDeleteAccount} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} weather={weather} setWeather={setWeather} scores={scores} />}
+         </>
+      )}
+    </div>
+  );
+}
