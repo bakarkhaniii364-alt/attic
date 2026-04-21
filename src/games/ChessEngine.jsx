@@ -194,7 +194,7 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
   }
 
   return (
-    <RetroWindow title={`chess_${config.mode}.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} noPadding>
+    <RetroWindow title={`chess_${config.mode}.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 relative overflow-hidden">
          <div className="w-full h-1 bg-red-400 absolute bottom-0 left-0"><div className="h-full bg-green-400 transition-all" style={{width: `${Math.max(0, Math.min(100, evalPerc))}%`}}></div></div>

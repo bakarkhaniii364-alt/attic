@@ -95,7 +95,7 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
   }
 
   return (
-    <RetroWindow title="2048.exe" className="w-full max-w-lg h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} noPadding>
+    <RetroWindow title="2048.exe" className="w-full max-w-lg h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
         <span>Score: {score}</span><span>Best: {best}</span>
       </div>

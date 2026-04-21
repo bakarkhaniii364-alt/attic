@@ -193,7 +193,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   const cellSize = size === 3 ? 'w-20 h-20 sm:w-24 sm:h-24 text-4xl' : size === 4 ? 'w-16 h-16 sm:w-20 sm:h-20 text-3xl' : 'w-12 h-12 sm:w-16 sm:h-16 text-2xl';
 
   return (
-    <RetroWindow title={`tictactoe_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[750px]" onClose={onBack}>
+    <RetroWindow title={`tictactoe_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[750px]" onClose={onBack} confirmOnClose sfx={sfx}>
       <div className="flex flex-col items-center pb-8 pt-4">
         
         {matchType > 1 && (

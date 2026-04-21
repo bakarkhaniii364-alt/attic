@@ -12,6 +12,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
   const [time, setTime] = useState(0);
   const [paused, setPaused] = useState(false);
   const [tool, setTool] = useState('pen'); // 'pen', 'pencil', 'eraser'
+  const [notesMode, setNotesMode] = useState(false);
   const [mistakes, setMistakes] = useState(0);
   const [mistakesOverlay, setMistakesOverlay] = useState(false);
   const [gameOverOverlay, setGameOverOverlay] = useState(false);
@@ -118,8 +119,12 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         num = parseInt(e.code.slice(5));
       }
 
+      // Use '*' key as notes modifier: press '*' then a number to toggle note
+      if (e.key === '*') { setNotesMode(true); return; }
+
       if (!isNaN(num) && num >= 1 && num <= 9) {
-        handleInput(num, e.shiftKey); // Shift = pencil/notes
+        handleInput(num, notesMode);
+        if (notesMode) setNotesMode(false);
       } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
         if (!selected || !board.length) return;
         const [r, c] = selected;
@@ -133,7 +138,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleInput, selected, board, paused, gameOverOverlay, sfx]);
+  }, [handleInput, selected, board, paused, gameOverOverlay, sfx, notesMode]);
 
   const useHint = () => {
     if (paused) return;
@@ -179,7 +184,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
   const selectedNum = selectedVal !== null ? selectedVal : null;
 
   return (
-    <RetroWindow title={`sudoku_${config.diff}.exe`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} noPadding>
+    <RetroWindow title={`sudoku_${config.diff}.exe`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
 
       {mistakesOverlay && <div className="absolute inset-0 bg-red-500/20 z-[100] pointer-events-none mix-blend-overlay"></div>}
 
@@ -265,9 +270,9 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         {/* Controls */}
         <div className="flex flex-col gap-4 flex-1 w-full max-w-[340px] sm:max-w-[320px]">
 
-          <div className="bg-[var(--bg-window)] retro-border p-3 text-xs font-bold opacity-70 uppercase tracking-widest text-center">
-            shift + number = note · arrows = navigate
-          </div>
+              <div className="bg-[var(--bg-window)] retro-border p-3 text-xs font-bold opacity-70 uppercase tracking-widest text-center">
+                * + number = note · arrows = navigate
+              </div>
 
           {/* Tool Selector */}
           <div className="flex gap-2 bg-[var(--bg-main)] p-1 retro-border shadow-inner">

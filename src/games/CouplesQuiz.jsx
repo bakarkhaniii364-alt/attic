@@ -185,7 +185,7 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
 
   // Common wrapper for answering phases
   const PhaseWrapper = ({ children }) => (
-      <RetroWindow title={`quiz_${view}.exe`} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px] flex flex-col relative" onClose={onBack} noPadding>
+    <RetroWindow title={`quiz_${view}.exe`} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
           {bgImage && <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{backgroundImage: `url(${bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'grayscale(50%)'}}></div>}
           <div className="relative z-10 flex flex-col h-full bg-white/70 backdrop-blur-sm">
              {children}

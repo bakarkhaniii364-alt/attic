@@ -69,13 +69,20 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   };
   const handlePointerUp = () => { if(isDrawing){ setIsDrawing(false); snapshotRef.current = null; snapshotHistory.current.push(canvasRef.current.toDataURL()); } };
   const clearCanvas = () => { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); setHasUnsavedChanges(true); snapshotHistory.current=[canvas.toDataURL()]; };
-  const handleSend = () => { playAudio('send', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); onSendDoodle({img: dataUrl, history: snapshotHistory.current}); setHasUnsavedChanges(false); onClose(); };
+  const [showSentOverlay, setShowSentOverlay] = useState(false);
+  const handleSend = () => {
+    playAudio('send', sfx);
+    const dataUrl = canvasRef.current.toDataURL('image/png');
+    if (onSendDoodle) onSendDoodle({img: dataUrl, history: snapshotHistory.current});
+    setHasUnsavedChanges(false);
+    setShowSentOverlay(true);
+  };
   const handleSaveScrapbook = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); onSaveToScrapbook(dataUrl); alert('Saved to Scrapbook!'); };
   const handleDownload = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); const a = document.createElement('a'); a.href = dataUrl; a.download = `doodle_${Date.now()}.png`; a.click(); };
   const toolBtnClass = (t) => `p-2 rounded-md transition-colors ${tool === t ? 'bg-white retro-shadow-dark retro-border' : 'opacity-70 hover:bg-black/10'}`;
 
   return (
-    <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+    <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose sfx={sfx} noPadding>
       <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none">
         <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
         {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'scale-125 ring-2 ring-offset-1 ring-[var(--border)]' : ''}`} style={{backgroundColor: c}} /> ))}
@@ -88,6 +95,20 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         <div className="flex gap-2"><RetroButton variant="secondary" onClick={handleDownload} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2"><Download size={14}/> Device</RetroButton><RetroButton variant="white" onClick={handleSaveScrapbook} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2"><ImageIcon size={14}/> Album</RetroButton></div>
         <RetroButton variant="primary" onClick={handleSend} className="px-6 py-2 text-sm sm:text-base flex items-center gap-2">Send <Send size={16}/></RetroButton>
       </div>
+      {showSentOverlay && (
+        <div className="fixed inset-0 z-[250] bg-black/60 flex items-center justify-center p-4">
+          <RetroWindow title="doodle_sent.msg" onClose={() => { setShowSentOverlay(false); onClose && onClose(); }} className="w-full max-w-sm" confirmOnClose={false}>
+            <div className="p-4 text-center">
+              <h3 className="font-bold text-lg text-[var(--primary)] mb-2">Doodle Sent</h3>
+              <p className="mb-4 opacity-70">Your doodle has been sent to your partner.</p>
+              <div className="flex gap-2">
+                <RetroButton variant="white" className="flex-1" onClick={() => { playAudio('click', sfx); setShowSentOverlay(false); }}>Close</RetroButton>
+                <RetroButton className="flex-1" onClick={() => { playAudio('click', sfx); setShowSentOverlay(false); onClose && onClose(); }}>Done</RetroButton>
+              </div>
+            </div>
+          </RetroWindow>
+        </div>
+      )}
     </RetroWindow>
   );
 }

@@ -62,9 +62,18 @@ export function Confetti({ active }) {
 }
 
 // ── RetroWindow ──
-export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick }) {
+export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, sfx }) {
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  const handleCloseClick = () => {
+    if (!onClose) return;
+    if (confirmOnClose) return setShowConfirm(true);
+    playAudio('click', sfx);
+    onClose();
+  };
+
   return (
-    <div className={`retro-bg-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-200 ${className}`}>
+    <>
+      <div className={`retro-bg-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-200 ${className}`}>
       <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2 flex-shrink-0">
         <div className={`flex gap-2 items-center text-[var(--text-main)] ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
           <div className="flex flex-col gap-[2px] w-4"><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div></div>
@@ -72,11 +81,15 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
         </div>
         <div className="flex items-center gap-2">
           {headerActions}
-          {onClose && <button onClick={onClose} className="retro-bg-primary retro-border w-6 h-6 flex items-center justify-center hover:opacity-80 active:translate-y-[1px] active:shadow-none retro-shadow-dark ml-2"><X size={14} strokeWidth={3} /></button>}
+          {onClose && <button onClick={handleCloseClick} className="retro-bg-primary retro-border w-6 h-6 flex items-center justify-center hover:opacity-80 active:translate-y-[1px] active:shadow-none retro-shadow-dark ml-2"><X size={14} strokeWidth={3} /></button>}
         </div>
       </div>
       <div className={`flex-1 overflow-y-auto flex flex-col text-[var(--text-main)] ${noPadding ? '' : 'p-4'}`}>{children}</div>
     </div>
+      {showConfirm && (
+        <ConfirmDialog title="Close" message="Close this window? Progress may be lost." onConfirm={() => { playAudio('click', sfx); setShowConfirm(false); onClose && onClose(); }} onCancel={() => setShowConfirm(false)} sfx={sfx} />
+      )}
+    </>
   );
 }
 
@@ -91,7 +104,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
 export function ConfirmDialog({ title, message, onConfirm, onCancel, sfx }) {
   return (
     <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
-      <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm">
+      <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
         <p className="font-bold text-sm mb-6">{message}</p>
         <div className="flex gap-2">
           <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel(); }}>Cancel</RetroButton>

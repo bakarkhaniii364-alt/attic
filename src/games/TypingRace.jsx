@@ -56,7 +56,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
   }
 
   return (
-    <RetroWindow title="typing_race.exe" className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} noPadding>
+    <RetroWindow title="typing_race.exe" className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
         <span><Keyboard size={14} className="inline mr-1"/> WPM: {wpm}</span>
         <span>Accuracy: {accuracy}%</span>

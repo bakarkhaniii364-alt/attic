@@ -110,7 +110,7 @@ export function SyncWatcher({ config, onBack, sfx }) {
     };
 
     return (
-        <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" onClose={onBack} noPadding>
+        <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
             <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 text-sm sm:text-base">
                 <span className="flex items-center gap-2">YouTube Sync <span className={`w-3 h-3 rounded-full ${partnerConnected ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : 'bg-red-400'} border border-black/50`}></span> {partnerConnected ? 'Connected' : 'Waiting...'}</span>
                 {partnerAction && <span className="bg-white/20 px-2 py-1 rounded text-xs animate-pulse">{partnerAction}</span>}

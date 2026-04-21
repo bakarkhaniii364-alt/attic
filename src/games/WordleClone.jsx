@@ -191,7 +191,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
   const currentRowIndex = boardState.findIndex(g => g === "");
 
   return (
-    <RetroWindow title={`retro_word_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} noPadding>
+    <RetroWindow title={`retro_word_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       {perfectWin && <Confetti active={true} />}
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0">

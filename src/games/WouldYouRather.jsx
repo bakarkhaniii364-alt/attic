@@ -42,7 +42,7 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile }) 
   }
 
   return (
-    <RetroWindow title="would_you_rather.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} noPadding>
+    <RetroWindow title="would_you_rather.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
         <span>Q {idx + 1}/{QUESTIONS.length}</span>
         <span className="flex items-center gap-1"><Heart size={14}/> {matchPct}% match</span>

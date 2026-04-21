@@ -166,20 +166,20 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       setTimeout(() => { setFloatingEmojis(p => p.slice(1)); }, 2000);
   };
 
-  if (gameState === 'won' || gameState === 'lost') { 
+    if (gameState === 'won' || gameState === 'lost') { 
       return ( <ShareOutcomeOverlay gameName="Pictionary" stats={{ Result: gameState === 'won' ? 'Victory!' : 'Time Up', Word: word, "Time Left": `${timeLeft}s` }} resultImage={finalImage} onClose={onBack} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> ); 
-  }
+    }
 
   if (gameState === 'prep') {
     return (
-      <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack}>
+      <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
         <div className="flex flex-col items-center justify-center h-full text-center p-4"><Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/><h2 className="text-2xl font-bold mb-4">Player {turn}'s Turn to Draw!</h2><div className="w-full mb-6"><p className="font-bold opacity-70 mb-1 text-sm">Category: {config.category}</p><p className="font-bold opacity-70 text-xs">Timer: {timerLength}s limit.</p></div><RetroButton className="w-full py-4 text-lg" onClick={startRound}>View Secret Word</RetroButton></div>
       </RetroWindow>
     );
   }
 
   return (
-    <RetroWindow title="pictionary.exe" className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} noPadding>
+    <RetroWindow title="pictionary.exe" className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold">
          <span className={timeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {timeLeft}s</span>
          {gameState === 'drawing' ? ( <RetroButton variant="white" onClick={() => {setGameState('guessing'); setFinalImage(canvasRef.current.toDataURL()); setFakeCursor(p=>({...p, show:false}));}} className="px-4 py-1 text-xs">Hand to Guesser</RetroButton> ) : <span>Guessing Phase!</span>}
@@ -203,14 +203,20 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           </div>
         </div>
       )}
-      <div className={`flex-1 bg-white relative touch-none cursor-crosshair ${gridEnabled ? 'pattern-grid-light' : ''} overflow-hidden`}>
+      <div className={`flex-1 bg-white relative touch-none cursor-none ${gridEnabled ? 'pattern-grid-light' : ''} overflow-hidden`} onMouseMove={(e)=>{ const el = e.currentTarget.getBoundingClientRect(); setFakeCursor({ x: e.clientX - el.left, y: e.clientY - el.top, show: fakeCursor.show }); }}>
         <canvas ref={canvasRef} onMouseDown={handlePointerDown} onMouseMove={handlePointerMove} onMouseUp={handlePointerUp} onMouseLeave={handlePointerUp} onTouchStart={handlePointerDown} onTouchMove={handlePointerMove} onTouchEnd={handlePointerUp} className="absolute inset-0 w-full h-full" />
         
         {/* Fake ghost cursor overlay during guessing to mimic networked motion */}
         {gameState === 'guessing' && fakeCursor.show && (
-            <div className="absolute pointer-events-none text-red-500 transition-all duration-150 ease-out" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
-                <PenTool size={20} className="drop-shadow-lg opacity-70" />
-            </div>
+          <div className="absolute pointer-events-none text-red-500 transition-all duration-150 ease-out" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
+            <PenTool size={20} className="drop-shadow-lg opacity-70" />
+          </div>
+        )}
+
+        {gameState === 'drawing' && fakeCursor.show && (
+          <div className="absolute pointer-events-none text-[var(--primary)] transition-all duration-75 ease-out -translate-y-4" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
+            <Brush size={22} className="drop-shadow-lg opacity-90" />
+          </div>
         )}
 
         {/* Floating Emojis */}
