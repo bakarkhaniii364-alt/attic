@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Loader } from 'lucide-react';
 import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
@@ -23,7 +24,10 @@ import { ActivitiesHub } from './games/index.jsx';
    APP CONTENT — the main dashboard / views (post-auth)
    ═══════════════════════════════════════════════════════ */
 function AppContent({ onLogout }) {
-  const [view, setView] = useLocalStorage('current_view', 'dashboard'); 
+  const navigate = useNavigate();
+  const location = useLocation();
+  // We no longer use view from localStorage directly for rendering, we use the URL.
+  // But we can track protected views.
   const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊', petName: '', partnerName: '', anniversary: '' }); 
   const [theme, setTheme] = useLocalStorage('app_theme', 'default');
   const [weather, setWeather] = useState('clear'); 
@@ -47,16 +51,13 @@ function AppContent({ onLogout }) {
   const milestone = !milestoneShown ? getMilestoneToday(profile.anniversary) : null;
   
   // Route guard: if profile not set, redirect to dashboard (it's always dashboard now)
-  const protectedViews = ['settings','chat','doodle','capsule','lists','calendar','scrapbook','activities','pixelart','dreams','dailyq','resume'];
+  const protectedViews = ['/settings','/chat','/doodle','/capsule','/lists','/calendar','/scrapbook','/activities','/pixelart','/dreams','/dailyq','/resume'];
   useEffect(() => {
-    if (protectedViews.includes(view) && !profile.name) {
-      setView('dashboard');
+    const isProtected = protectedViews.some(p => location.pathname.startsWith(p));
+    if (isProtected && !profile.name) {
+      navigate('/');
     }
-    // If somehow the view is 'landing', redirect to dashboard
-    if (view === 'landing' || view === 'login' || view === 'signup' || view === 'handshake') {
-      setView('dashboard');
-    }
-  }, [view, profile.name]);
+  }, [location.pathname, profile.name]);
 
   useEffect(() => { 
     document.documentElement.setAttribute('data-theme', theme); 
@@ -76,7 +77,11 @@ function AppContent({ onLogout }) {
     setConfirmDialog({ title, message, onConfirm: () => { onOk(); setConfirmDialog(null); }, onCancel: () => setConfirmDialog(null) });
   };
 
-  const navigateTo = (v) => { playAudio('click', sfxEnabled); setView(v); };
+  const navigateTo = (v) => { 
+    playAudio('click', sfxEnabled); 
+    if (v === 'dashboard') navigate('/');
+    else navigate(`/${v}`);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -91,34 +96,37 @@ function AppContent({ onLogout }) {
       {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
       <StrayTray radioState={radioState} setRadioState={setRadioState} />
 
-      {view === 'dashboard' && <Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} />}
-      {view === 'settings' && <SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data, including chat history, scores, and settings.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />}
-      
-      {view === 'chat' && <ChatView profile={profile} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} />}
-      
-      {view === 'doodle' && <DoodleApp initialDoodle={replyDoodle} onClose={()=>{setView('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { 
-        const doodleEntry = {id: Date.now(), sender: 'me', ...d};
-        setDoodles(p=>[...p, doodleEntry]); 
-        setSharedImages(p => [...new Set([...p, d.img])]);
-      }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} />
-      }
+      <Routes>
+        <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} />} />
+        <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />} />
+        
+        <Route path="/chat" element={<ChatView profile={profile} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} />} />
+        
+        <Route path="/doodle" element={<DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { 
+          const doodleEntry = {id: Date.now(), sender: 'me', ...d};
+          setDoodles(p=>[...p, doodleEntry]); 
+          setSharedImages(p => [...new Set([...p, d.img])]);
+        }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} />} />
 
-      {view === 'capsule' && <TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} />}
-      {view === 'lists' && <ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />}
-      {view === 'calendar' && <CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />}
-      {view === 'scrapbook' && <ScrapbookApp images={sharedImages} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />}
-      {view === 'pixelart' && <PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} />}
-      {view === 'dreams' && <DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />}
-      {view === 'dailyq' && <DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />}
-      {view === 'resume' && <RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} scores={scores} sfx={sfxEnabled} />}
-      
-      {view === 'activities' && <ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} />}
+        <Route path="/capsule" element={<TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} />} />
+        <Route path="/lists" element={<ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
+        <Route path="/calendar" element={<CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
+        <Route path="/scrapbook" element={<ScrapbookApp images={sharedImages} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
+        <Route path="/pixelart" element={<PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} />} />
+        <Route path="/dreams" element={<DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
+        <Route path="/dailyq" element={<DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
+        <Route path="/resume" element={<RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} scores={scores} sfx={sfxEnabled} />} />
+        
+        <Route path="/activities/*" element={<ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} />} />
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
 
       {milestone && <MilestoneCelebration milestone={milestone} onClose={() => setMilestoneShown(true)} />}
 
       {viewingDoodle && ( 
         <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-           <DoodleViewer doodle={viewingDoodle} onClose={() => { setViewingDoodle(null); setDoodles(p => p.map(d => d.id === viewingDoodle.id ? {...d, isRead: true} : d)); }} profileName={profile.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setDoodles(p => p.map(dd => dd.id === viewingDoodle.id ? {...dd, isRead: true} : dd)); setReplyDoodle(d); setView('doodle'); }} onReplyToChat={(text, img) => { handleShareToChat(text, img); setViewingDoodle(null); setDoodles(p => p.map(dd => dd.id === viewingDoodle.id ? {...dd, isRead: true} : dd)); navigateTo('chat'); }} /> 
+           <DoodleViewer doodle={viewingDoodle} onClose={() => { setViewingDoodle(null); setDoodles(p => p.map(d => d.id === viewingDoodle.id ? {...d, isRead: true} : d)); }} profileName={profile.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setDoodles(p => p.map(dd => dd.id === viewingDoodle.id ? {...dd, isRead: true} : dd)); setReplyDoodle(d); navigateTo('doodle'); }} onReplyToChat={(text, img) => { handleShareToChat(text, img); setViewingDoodle(null); setDoodles(p => p.map(dd => dd.id === viewingDoodle.id ? {...dd, isRead: true} : dd)); navigateTo('chat'); }} /> 
         </div>
       )}
     </div>

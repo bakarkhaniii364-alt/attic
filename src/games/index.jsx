@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Routes, Route, useNavigate, Navigate, useParams } from 'react-router-dom';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { Play } from 'lucide-react';
@@ -204,32 +206,26 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
 
 
 export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile }) {
-  const [setupGame, setSetupGame] = useState(null); 
-  const [activeConfig, setActiveConfig] = useState(null);
+  const [setupGame, setSetupGame] = useLocalStorage('hub_setup', null); 
+  const [activeConfig, setActiveConfig] = useLocalStorage('hub_active', null);
+  const navigate = useNavigate();
 
   const handleWin = () => { playAudio('win', sfx); setConfetti(true); setTimeout(() => setConfetti(false), 4000); };
 
-  if (activeConfig) {
-    const props = { config: activeConfig, setScores, onBack: () => setActiveConfig(null), sfx, onWin: handleWin, onShareToChat, profile };
-    if (activeConfig.id === 'pictionary') return <PictionaryGame {...props} />;
-    if (activeConfig.id === 'tictactoe') return <TicTacToe {...props} />;
-    if (activeConfig.id === 'memory') return <MemoryGame {...props} />;
-    if (activeConfig.id === 'wordle') return <WordleClone {...props} />;
-    if (activeConfig.id === 'sudoku') return <Sudoku {...props} />;
-    if (activeConfig.id === 'chess') return <ChessEngine {...props} />; 
-    if (activeConfig.id === 'quiz') return <CouplesQuiz {...props} />;
-    if (activeConfig.id === '2048') return <Game2048 {...props} />;
-    if (activeConfig.id === 'typing') return <TypingRace {...props} />;
-    if (activeConfig.id === 'wyr') return <WouldYouRather {...props} />;
-    if (activeConfig.id === 'lovelang') return <LoveLanguageQuiz {...props} />;
-    if (activeConfig.id === 'sync') return <SyncWatcher config={activeConfig} onBack={() => setActiveConfig(null)} sfx={sfx} />;
-  }
+  const closeGame = () => {
+    setActiveConfig(null);
+    setSetupGame(null);
+    navigate('/activities');
+  };
 
-  if (setupGame) return <GameSetupWindow game={setupGame} sfx={sfx} onShareToChat={onShareToChat} onStart={(config) => { setActiveConfig({ id: setupGame.id, ...config }); setSetupGame(null); }} onBack={() => setSetupGame(null)} />;
+  const launch = (id, title) => { 
+    playAudio('click', sfx); 
+    navigate(`/activities/${id}`);
+    if(id === 'sync'){ setActiveConfig({ id: 'sync' }); return; } 
+    setSetupGame({id, title}); 
+  };
 
-  const launch = (id, title) => { playAudio('click', sfx); if(id === 'sync'){ setActiveConfig({ id: 'sync' }); return; } setSetupGame({id, title}); }
-
-  return (
+  const HubMenu = () => (
     <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <GameCard title="Pictionary" desc="Draw and guess the hidden word." color="#ffb6b9" onClick={() => launch('pictionary', 'Pictionary')} />
@@ -246,5 +242,49 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         <GameCard title="Sync Watcher" desc="Watch YT together." color="#c1a3ff" onClick={() => launch('sync', 'Sync Watcher')} />
       </div>
     </RetroWindow>
+  );
+
+  const GameRenderer = () => {
+    const { gameId } = useParams();
+
+    if (activeConfig && activeConfig.id === gameId) {
+      const props = { config: activeConfig, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, profile };
+      if (activeConfig.id === 'pictionary') return <PictionaryGame {...props} />;
+      if (activeConfig.id === 'tictactoe') return <TicTacToe {...props} />;
+      if (activeConfig.id === 'memory') return <MemoryGame {...props} />;
+      if (activeConfig.id === 'wordle') return <WordleClone {...props} />;
+      if (activeConfig.id === 'sudoku') return <Sudoku {...props} />;
+      if (activeConfig.id === 'chess') return <ChessEngine {...props} />; 
+      if (activeConfig.id === 'quiz') return <CouplesQuiz {...props} />;
+      if (activeConfig.id === '2048') return <Game2048 {...props} />;
+      if (activeConfig.id === 'typing') return <TypingRace {...props} />;
+      if (activeConfig.id === 'wyr') return <WouldYouRather {...props} />;
+      if (activeConfig.id === 'lovelang') return <LoveLanguageQuiz {...props} />;
+      if (activeConfig.id === 'sync') return <SyncWatcher config={activeConfig} onBack={closeGame} sfx={sfx} />;
+    }
+
+    if (setupGame && setupGame.id === gameId) {
+      return <GameSetupWindow game={setupGame} sfx={sfx} onShareToChat={onShareToChat} onStart={(config) => { setActiveConfig({ id: setupGame.id, ...config }); setSetupGame(null); }} onBack={closeGame} />;
+    }
+
+    // Fallback if they hit a direct link but have no setup/config
+    const fallbackTitles = {
+      'pictionary': 'Pictionary', 'tictactoe': 'Tic-Tac-Toe', 'memory': 'Memory Match', 'wordle': 'Retro Word',
+      'sudoku': 'Sudoku', 'chess': 'Chess', 'quiz': 'Couples Quiz', '2048': '2048', 'typing': 'Typing Race',
+      'wyr': 'Would You Rather', 'lovelang': 'Love Language Quiz'
+    };
+    if (fallbackTitles[gameId]) {
+      setSetupGame({ id: gameId, title: fallbackTitles[gameId] });
+      return null;
+    }
+
+    return <Navigate to="/activities" replace />;
+  };
+
+  return (
+    <Routes>
+      <Route path="/" element={<HubMenu />} />
+      <Route path="/:gameId" element={<GameRenderer />} />
+    </Routes>
   );
 }
