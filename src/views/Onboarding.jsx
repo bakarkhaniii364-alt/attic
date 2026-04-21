@@ -349,12 +349,12 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
     return () => clearInterval(interval);
   }, [creating]);
 
-  const generateCode = () => {
+  function generateCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
     let code = '';
     for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
     return code;
-  };
+  }
 
   const copyInviteUrl = () => {
     const url = `${window.location.origin}?invite=${inviteCode}`;
