@@ -35,7 +35,7 @@ export function DailyQuestion({ onClose, sfx }) {
   };
 
   return (
-    <RetroWindow title="daily_question.exe" onClose={onClose} className="w-full max-w-lg">
+    <RetroWindow title="daily_question.exe" onClose={onClose} className="w-full max-w-lg" confirmOnClose hasUnsavedChanges={() => myAnswer.trim() !== ''} onSaveBeforeClose={() => { submit(); onClose && onClose(); }} sfx={sfx}>
       <div className="flex flex-col items-center gap-4 py-4">
         <MessageCircle size={32} className="text-[var(--primary)]" />
         <h2 className="font-bold text-sm uppercase opacity-50 tracking-widest">Today's Question</h2>

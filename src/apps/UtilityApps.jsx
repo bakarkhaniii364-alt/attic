@@ -77,12 +77,17 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     setHasUnsavedChanges(false);
     setShowSentOverlay(true);
   };
-  const handleSaveScrapbook = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); onSaveToScrapbook(dataUrl); alert('Saved to Scrapbook!'); };
+
+  // Save to album helper used by RetroWindow save action
+  const saveAndClose = () => {
+    handleSaveScrapbook();
+  };
+  const handleSaveScrapbook = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); if (onSaveToScrapbook) onSaveToScrapbook(dataUrl); alert('Saved to Scrapbook!'); };
   const handleDownload = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); const a = document.createElement('a'); a.href = dataUrl; a.download = `doodle_${Date.now()}.png`; a.click(); };
   const toolBtnClass = (t) => `p-2 rounded-md transition-colors ${tool === t ? 'bg-white retro-shadow-dark retro-border' : 'opacity-70 hover:bg-black/10'}`;
 
   return (
-    <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose hasUnsavedChanges={hasUnsavedChanges} onSaveBeforeClose={() => { handleSaveScrapbook(); onClose && onClose(); }} sfx={sfx} noPadding>
       <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none">
         <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
         {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'scale-125 ring-2 ring-offset-1 ring-[var(--border)]' : ''}`} style={{backgroundColor: c}} /> ))}
@@ -180,7 +185,7 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
   }
 
   return (
-    <RetroWindow title="time_capsule.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" noPadding>
+    <RetroWindow title="time_capsule.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" confirmOnClose hasUnsavedChanges={() => newLetter.trim() !== ''} onSaveBeforeClose={() => { handleSend(); onClose && onClose(); }} sfx={sfx} noPadding>
       <div className="flex border-b-2 retro-border shrink-0 z-20 relative"><button onClick={() => {playAudio('click', sfx); setActiveTab('inbox')}} className={`flex-1 py-3 font-bold ${activeTab === 'inbox' ? 'bg-[var(--primary)] text-[var(--bg-window)]' : 'bg-[var(--bg-window)] opacity-70'}`}>Locked Inbox</button><button onClick={() => {playAudio('click', sfx); setActiveTab('write')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'write' ? 'bg-[var(--secondary)] text-[var(--bg-window)]' : 'bg-[var(--bg-window)] opacity-70'}`}>Write Letter</button></div>
       {activeTab === 'write' ? (
         <div className="flex-1 p-4 sm:p-6 bg-[var(--bg-main)] flex flex-col gap-4 overflow-y-auto">

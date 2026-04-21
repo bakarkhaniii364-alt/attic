@@ -20,7 +20,7 @@ export function DreamJournal({ onClose, sfx }) {
   const deleteDream = (id) => { playAudio('click', sfx); setEntries(entries.filter(e => e.id !== id)); };
 
   return (
-    <RetroWindow title="dream_journal.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" noPadding>
+    <RetroWindow title="dream_journal.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" confirmOnClose hasUnsavedChanges={() => newDream.trim() !== '' || interpretation.trim() !== ''} onSaveBeforeClose={() => { addDream(); onClose && onClose(); }} sfx={sfx} noPadding>
       <div className="flex border-b-2 retro-border shrink-0">
         <button onClick={() => setTab('write')} className={`flex-1 py-3 font-bold ${tab === 'write' ? 'retro-bg-primary text-[var(--bg-window)]' : 'retro-bg-window opacity-70'}`}><Moon size={14} className="inline mr-1"/> Write Dream</button>
         <button onClick={() => setTab('journal')} className={`flex-1 py-3 font-bold border-l-2 retro-border ${tab === 'journal' ? 'retro-bg-secondary text-[var(--bg-window)]' : 'retro-bg-window opacity-70'}`}>📖 Journal ({entries.length})</button>

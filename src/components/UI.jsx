@@ -62,11 +62,19 @@ export function Confetti({ active }) {
 }
 
 // ── RetroWindow ──
-export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, sfx }) {
+export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, hasUnsavedChanges = false, onSaveBeforeClose, sfx }) {
   const [showConfirm, setShowConfirm] = React.useState(false);
+  const [confirmType, setConfirmType] = React.useState('simple'); // 'simple' | 'unsaved'
   const handleCloseClick = () => {
     if (!onClose) return;
-    if (confirmOnClose) return setShowConfirm(true);
+    if (confirmOnClose) {
+      if (typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : hasUnsavedChanges) {
+        setConfirmType('unsaved');
+        return setShowConfirm(true);
+      }
+      setConfirmType('simple');
+      return setShowConfirm(true);
+    }
     playAudio('click', sfx);
     onClose();
   };
@@ -87,7 +95,20 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
       <div className={`flex-1 overflow-y-auto flex flex-col text-[var(--text-main)] ${noPadding ? '' : 'p-4'}`}>{children}</div>
     </div>
       {showConfirm && (
-        <ConfirmDialog title="Close" message="Close this window? Progress may be lost." onConfirm={() => { playAudio('click', sfx); setShowConfirm(false); onClose && onClose(); }} onCancel={() => setShowConfirm(false)} sfx={sfx} />
+        <ConfirmDialog
+          title={confirmType === 'unsaved' ? 'Unsaved Changes' : 'Close'}
+          message={confirmType === 'unsaved' ? 'You have unsaved changes. Save before closing?' : 'Close this window? Progress may be lost.'}
+          showSave={confirmType === 'unsaved'}
+          onSave={() => {
+            playAudio('click', sfx);
+            if (onSaveBeforeClose) onSaveBeforeClose();
+            setShowConfirm(false);
+            onClose && onClose();
+          }}
+          onConfirm={() => { playAudio('click', sfx); setShowConfirm(false); onClose && onClose(); }}
+          onCancel={() => setShowConfirm(false)}
+          sfx={sfx}
+        />
       )}
     </>
   );
@@ -101,14 +122,24 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
 }
 
 // ── Confirm Dialog ──
-export function ConfirmDialog({ title, message, onConfirm, onCancel, sfx }) {
+export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx }) {
   return (
     <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
       <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
         <p className="font-bold text-sm mb-6">{message}</p>
         <div className="flex gap-2">
-          <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel(); }}>Cancel</RetroButton>
-          <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm(); }}>Confirm</RetroButton>
+          {showSave ? (
+            <>
+              <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onSave && onSave(); }}>Save & Close</RetroButton>
+              <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm && onConfirm(); }}>Discard</RetroButton>
+              <RetroButton variant="secondary" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>
+            </>
+          ) : (
+            <>
+              <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>
+              <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm && onConfirm(); }}>Confirm</RetroButton>
+            </>
+          )}
         </div>
       </RetroWindow>
     </div>
