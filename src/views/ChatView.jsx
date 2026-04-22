@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Peer from 'peerjs';
 import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
@@ -372,7 +373,7 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
   return (
     <>
       <ImageViewerOverlay images={imageMessages} currentIndex={currentImageIndex >= 0 ? currentImageIndex : null} onClose={() => setViewingImageId(null)} onNext={() => setViewingImageId(imageMessages[(currentImageIndex + 1) % imageMessages.length].id)} onPrev={() => setViewingImageId(imageMessages[(currentImageIndex - 1 + imageMessages.length) % imageMessages.length].id)} profileName={profile.name || 'You'} />
-      <DraggableCallWindow calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} onMicToggle={() => setIsMuted(!isMuted)} onDeafenToggle={() => setIsDeafened(!isDeafened)} onEndCall={handleEndCall} partnerNickname={profile?.partnerNickname || 'Partner'} sfx={sfx} />
+      <DraggableCallWindow calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} onMicToggle={() => setIsMuted(!isMuted)} onDeafenToggle={() => setIsDeafened(!isDeafened)} onEndCall={handleEndCall} partnerNickname={partnerNickname || 'Partner'} sfx={sfx} />
       {incomingCall && (
         <IncomingCallNotification callType={incomingCall.callType} partnerName={incomingCall.fromName} onAccept={() => acceptCall(incomingCall.messageId)} onReject={() => rejectCall(incomingCall.messageId)} ringingAudioRef={ringingIntervalRef} />
       )}
