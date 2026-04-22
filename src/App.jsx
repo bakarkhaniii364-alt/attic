@@ -30,6 +30,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [hasRoom, setHasRoom] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncedRoomId, setSyncedRoomId] = useState(null);
   const navigate = useNavigate();
 
   const checkRoomAndSync = async (userId) => {
@@ -37,7 +38,9 @@ export default function App() {
       const { data: room } = await supabase.rpc('get_my_room');
       const isPaired = !!(room && room.is_paired);
       setHasRoom(isPaired);
-      if (isPaired) {
+      
+      if (isPaired && syncedRoomId !== room.id) {
+        setSyncedRoomId(room.id);
         await initializeRoomSync(room.id);
       }
     } catch (err) {
@@ -49,9 +52,12 @@ export default function App() {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const init = async () => {
       try {
         const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
         const s = data?.session || null;
         setSession(s);
         if (s) {
@@ -61,21 +67,27 @@ export default function App() {
         }
       } catch (err) {
         console.error("Boot error:", err);
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (!mounted) return;
       setSession(s);
-      if (s) checkRoomAndSync(s.user.id);
-      else {
+      if (s) {
+        checkRoomAndSync(s.user.id);
+      } else {
         setHasRoom(false);
+        setSyncedRoomId(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -83,11 +95,13 @@ export default function App() {
     localStorage.clear();
     setSession(null);
     setHasRoom(false);
+    setSyncedRoomId(null);
     navigate('/login');
   };
 
   const handlePaired = async (roomId) => {
     setHasRoom(true);
+    setSyncedRoomId(roomId);
     await initializeRoomSync(roomId);
     navigate('/');
   };
@@ -132,6 +146,7 @@ function AppContent({ onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { userId, partnerId } = useUserContext();
+  
   const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊' }); 
   const [theme, setTheme] = useLocalStorage('app_theme', 'default');
   const [weather, setWeather] = useState('clear'); 
@@ -141,13 +156,13 @@ function AppContent({ onLogout }) {
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
   const [confirmDialog, setConfirmDialog] = useState(null);
 
+  // Sync hooks must be defined BEFORE they are used in variables below
   const [scores, setScores] = useGlobalSync('game_scores', {});
   const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
   const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT);
   const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
   const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
   const [letters, setLetters] = useGlobalSync('shared_letters', []);
-  
   const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
     anniversary: '', 
     petName: 'pet', 
@@ -160,6 +175,7 @@ function AppContent({ onLogout }) {
   const [replyDoodle, setReplyDoodle] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
   
+  // Now coupleData is guaranteed to be defined here
   const milestone = !milestoneShown && userId ? getMilestoneToday(coupleData?.anniversary || profile?.anniversary) : null;
   
   useEffect(() => { 
