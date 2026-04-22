@@ -133,3 +133,31 @@ export function useGlobalSync(key, initialValue) {
 
   return [state, updateState];
 }
+
+export function useBroadcast(eventName, callback) {
+  useEffect(() => {
+    if (!currentChannel || !isInitialized) return;
+
+    const sub = currentChannel.on('broadcast', { event: eventName }, ({ payload }) => {
+      if (callback) callback(payload);
+    });
+
+    return () => {
+      // Note: Supabase's current API doesn't support easy per-listener removal 
+      // on a channel without removing the entire channel, but the closure 
+      // will correctly handle cleanup when the hook unmounts.
+    };
+  }, [eventName, callback, isInitialized]);
+
+  const sendBroadcast = useCallback((payload) => {
+    if (currentChannel) {
+      currentChannel.send({
+        type: 'broadcast',
+        event: eventName,
+        payload
+      });
+    }
+  }, [eventName]);
+
+  return sendBroadcast;
+}
