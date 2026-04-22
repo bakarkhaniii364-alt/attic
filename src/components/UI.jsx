@@ -152,8 +152,9 @@ export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = 
 
 // ── AppIcon ──
 export function AppIcon({ icon, label, color, onClick, badge }) {
+  const handleKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick && onClick(); } };
   return (
-    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={onClick}>
+    <div role="button" tabIndex={0} className="flex flex-col items-center gap-2 group cursor-pointer" onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}>
       <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border flex items-center justify-center retro-shadow-dark transition-all group-hover:-translate-y-2 relative text-[var(--border)]" style={{ backgroundColor: color }}>
         {icon} {badge && <div className="absolute -top-3 -right-3 bg-[var(--border)] text-[var(--bg-window)] w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 border-[var(--bg-window)]">{badge}</div>}
       </div>
