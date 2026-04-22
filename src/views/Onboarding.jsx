@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Sparkles, ArrowRight, Mail, Lock, User, Key, Copy, Check, Loader, ArrowLeft, Grid3X3, Send } from 'lucide-react';
-import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
-import { playAudio } from '../utils/audio.js';
+import { Heart, Mail, Send, Grid3X3, Sparkles, User, Lock, ArrowLeft, Loader, Check, Copy, Share2 } from 'lucide-react';
+import { RetroButton, RetroWindow, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 
 /* ═══════════════════════════════════════════════════════
@@ -9,33 +8,19 @@ import { supabase } from '../lib/supabase.js';
    ═══════════════════════════════════════════════════════ */
 export function LandingView({ onTryAttic, onSignIn }) {
   return (
-    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden bg-transparent scale-up-15">
-      {/* Background Grid with reduced opacity */}
+    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden mesh-bg scale-up-15">
       <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
 
-      {/* Floating Elements Collection - INCREASED DENSITY */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Hearts */}
         <div className="absolute top-[10%] left-[5%] text-[var(--primary)] opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
         <div className="absolute top-[60%] right-[8%] text-[var(--primary)] opacity-[0.06] animate-float-delayed"><Heart size={45} fill="currentColor" /></div>
         <div className="absolute bottom-[15%] left-[45%] text-[var(--primary)] opacity-[0.04] animate-float"><Heart size={35} fill="currentColor" /></div>
-        
-        {/* Envelopes */}
         <div className="absolute top-[25%] right-[15%] text-[var(--secondary)] opacity-[0.1] animate-float-delayed"><Mail size={56} /></div>
         <div className="absolute bottom-[25%] left-[12%] text-[var(--secondary)] opacity-[0.07] animate-float"><Mail size={44} /></div>
-        <div className="absolute top-[45%] right-[35%] text-[var(--secondary)] opacity-[0.05] animate-float-delayed"><Mail size={38} /></div>
-        <div className="absolute bottom-[45%] left-[28%] text-[var(--secondary)] opacity-[0.04] animate-float"><Mail size={32} /></div>
-
-        {/* Paper Planes */}
         <div className="absolute bottom-[35%] right-[22%] text-[var(--primary)] opacity-[0.12] animate-float-delayed"><Send size={48} /></div>
         <div className="absolute top-[30%] left-[15%] text-[var(--primary)] opacity-[0.08] animate-float"><Send size={38} className="rotate-[-15deg]" /></div>
-        <div className="absolute bottom-[12%] left-[20%] text-[var(--primary)] opacity-[0.06] animate-float-delayed"><Send size={32} className="rotate-[10deg]" /></div>
-        <div className="absolute top-[15%] right-[45%] text-[var(--primary)] opacity-[0.05] animate-float"><Send size={42} className="rotate-[25deg]" /></div>
-
-        {/* Other bits */}
         <div className="absolute bottom-[10%] right-[35%] text-[var(--accent)] opacity-[0.06] animate-float"><Grid3X3 size={60} /></div>
         <div className="absolute top-[55%] left-[8%] text-[var(--secondary)] opacity-[0.05] animate-float"><Sparkles size={40} /></div>
-        <div className="absolute top-[40%] left-[40%] text-[var(--accent)] opacity-[0.03] animate-float-delayed"><Heart size={24} fill="currentColor" /></div>
       </div>
 
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
@@ -43,466 +28,197 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
       </nav>
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-10 text-center">
-        <div className="relative mb-8 flex justify-center w-full">
-          <img
-            src="/assets/attic.svg"
-            alt="attic"
-            className="w-[80vw] sm:w-[32rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700 mx-auto"
-            style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.2))' }}
-          />
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center pb-20">
+        <div className="relative mb-12 sm:mb-16 transform-gpu hover:scale-105 transition-transform duration-500">
+          <div className="absolute -inset-8 bg-[var(--primary)]/10 blur-[60px] rounded-full animate-pulse" />
+          <img src="/attic-logo.png" alt="Attic Logo" className="w-[20rem] sm:w-[32rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+          <div className="hidden relative z-10 flex-col items-center">
+             <div className="text-8xl sm:text-9xl mb-4 filter drop-shadow-2xl">🏠</div>
+             <h1 className="text-5xl sm:text-7xl font-black tracking-tighter text-[var(--text-main)] italic">ATTIC</h1>
+          </div>
         </div>
-        <p className="text-xs font-bold text-[#6b4423] opacity-50 max-w-[340px] leading-relaxed mb-8 px-4 mx-auto uppercase tracking-widest">
-          a private corner of the internet, just for two.
-        </p>
 
-        <div className="flex items-center gap-4 sm:gap-6 justify-center w-full">
-          <button
-            onClick={onSignIn}
-            className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-50 hover:opacity-100 transition-all px-6 py-2.5 retro-border bg-white/30 hover:bg-[#ff6b9d]/5 active:translate-y-[1px] active:shadow-none"
-          >
-            sign in
-          </button>
-          <RetroButton variant="primary" onClick={onTryAttic} className="px-8 py-2.5 text-xs sm:text-sm flex items-center gap-2">
-            try attic <ArrowRight size={16} />
-          </RetroButton>
+        <div className="max-w-xl mx-auto space-y-8 sm:space-y-12">
+          <div className="space-y-4">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--text-main)] leading-none uppercase">
+              The Digital Sanctuary <br/> <span className="text-[var(--primary)]">For Distant Hearts</span>
+            </h2>
+            <p className="text-xs sm:text-sm font-bold opacity-60 max-w-sm mx-auto leading-relaxed">
+              Sync your world. Share your silence. <br/> A tactile space built for long-distance lovers.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <RetroButton onClick={onTryAttic} className="w-64 py-4 sm:py-5 text-lg sm:text-xl relative overflow-hidden group shadow-2xl">
+              <span className="relative z-10">Start Your Journey</span>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            </RetroButton>
+            <RetroButton variant="white" onClick={onSignIn} className="w-64 py-4 sm:py-5 text-lg sm:text-xl border-dashed opacity-80 hover:opacity-100 shadow-xl">
+              Welcome Back
+            </RetroButton>
+          </div>
         </div>
-      </div>
+      </main>
 
-      <div className="relative z-10 text-center pb-8 px-4">
-        <p className="text-[9px] font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-50 select-none leading-loose">
+      <footer className="relative z-10 p-6 sm:p-10 text-center">
+        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] opacity-30">
           Made with love, for the lovers <br/>
-          By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--primary)] transition-colors">bakarkhaniii</a>
+          By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--primary)] transition-colors border-b border-current">bakarkhaniii</a>
         </p>
-      </div>
+      </footer>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════
-   AUTH VIEW — sign up / sign in / forgot password
+   AUTH VIEW — Login & Signup with 3D Depth
    ═══════════════════════════════════════════════════════ */
-export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack, sfx }) {
-  const [mode, setMode] = useState(initialMode || 'signup'); 
+export function AuthView({ mode, onAuthSuccess, onBack }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [forgotSent, setForgotSent] = useState(false);
-  const [emailVerificationEmail, setEmailVerificationEmail] = useState('');
-  const [resendLoading, setResendLoading] = useState(false);
-  const toast = useToast();
+  const addToast = useToast();
 
-  const windowTitles = {
-    signup: 'create_space.exe',
-    signin: 'welcome_back.exe',
-    forgot: 'lost_keys.exe',
-  };
-
-  const handleSignUp = async (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
-    if (!displayName.trim() || !email.trim() || !password.trim()) return;
-    if (password.length < 6) { setError('password must be at least 6 characters'); return; }
-    setLoading(true); setError('');
-    playAudio('click', sfx);
-
+    setLoading(true);
     try {
-      const { data, error: err } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: { data: { display_name: displayName.trim() } },
-      });
-
-      if (err) { setError(err.message); setLoading(false); return; }
-
-      if (data.user && !data.user.email_confirmed_at) {
-        setLoading(false);
-        setEmailVerificationEmail(email.trim());
-        toast('Verification email sent!', 'success');
-        return;
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({ 
+            email, password, options: { data: { name } } 
+        });
+        if (error) throw error;
+        addToast("Welcome to Attic! Check your email to verify.", "success");
+        onAuthSuccess({ session: data.session, name });
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        onAuthSuccess({ session: data.session });
       }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session || data.session || null;
-      onAuthSuccess({ name: displayName.trim(), session, isNewUser: true, user: data.user });
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
-      setLoading(false);
-    }
-  };
-
-  const handleSignIn = async (e) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
-    setLoading(true); setError('');
-    playAudio('click', sfx);
-
-    try {
-      const { data, error: err } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (err) { setError(err.message); setLoading(false); return; }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session || data.session || null;
-      if (!session) {
-        setError('Unable to retrieve session. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      const name = data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'you';
-      onAuthSuccess({ name, session, isNewUser: false });
-    } catch (err) {
-      setError('Login failed. Please check your credentials.');
-      setLoading(false);
-    }
-  };
-
-  const handleForgot = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setLoading(true); setError('');
-    playAudio('click', sfx);
-
-    try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/password-reset`,
-      });
-      setLoading(false);
-      if (err) { setError(err.message); return; }
-      setForgotSent(true);
-      toast('Reset link sent!', 'success');
-    } catch (err) {
-      setError('Failed to send reset link.');
-      setLoading(false);
-    }
-  };
-
-  const handleResendVerification = async () => {
-    setResendLoading(true);
-    playAudio('click', sfx);
-    
-    try {
-      const { error: err } = await supabase.auth.resend({
-        type: 'signup',
-        email: emailVerificationEmail,
-      });
-
-      if (err) {
-        toast(`Failed to resend: ${err.message}`, 'error');
-        setResendLoading(false);
-        return;
-      }
-
-      toast('Verification email sent! Check your inbox.', 'success');
-      setResendLoading(false);
-    } catch (err) {
-      toast(`Error: ${err.message}`, 'error');
-      setResendLoading(false);
-    }
-  };
-
-  const switchMode = (newMode) => {
-    playAudio('click', sfx);
-    setMode(newMode);
-    setError('');
-    setForgotSent(false);
+    } catch (err) { addToast(err.message, "error"); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden bg-transparent">
-      {/* Background Hearts with reduced opacity */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[10%] right-[15%] text-[var(--primary)] opacity-[0.04] animate-float"><Heart size={60} fill="currentColor" /></div>
-        <div className="absolute bottom-[15%] left-[10%] text-[var(--primary)] opacity-[0.03] animate-float-delayed"><Heart size={40} fill="currentColor" /></div>
-        <div className="absolute top-[40%] left-[5%] text-[var(--secondary)] opacity-[0.03] animate-float"><Mail size={24} /></div>
-      </div>
+    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 mesh-bg">
+      <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
+      <RetroWindow title={`${mode === 'signup' ? 'register' : 'login'}.exe`} className="w-full max-w-[440px] shadow-2xl scale-up-15" onClose={onBack}>
+        <form onSubmit={handleAuth} className="flex flex-col gap-6 py-4">
+          <div className="text-center mb-4">
+            <h2 className="text-3xl font-black italic tracking-tighter text-[var(--primary)]">{mode === 'signup' ? 'JOIN ATTIC' : 'WELCOME BACK'}</h2>
+            <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Authorized Access Only</p>
+          </div>
 
-      {inviteCode && (
-        <div className="relative z-10 mb-6 retro-border retro-bg-accent retro-shadow-dark px-6 py-2 text-center animate-in fade-in duration-300">
-          <p className="text-sm font-bold opacity-60 uppercase tracking-widest">invited ❤️ sign up</p>
-        </div>
-      )}
-
-      <RetroWindow title={windowTitles[mode]} className="w-full max-w-[440px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
-        {/* ── SIGN UP ── */}
-        {mode === 'signup' && (
-          <form onSubmit={handleSignUp} className="flex flex-col gap-4 py-2 px-2 sm:px-6">
-            <div className="text-center mb-1">
-              <div className="w-14 h-14 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-                <Sparkles size={22} className="text-[var(--text-main)]" />
-              </div>
-              <h2 className="font-bold text-lg lowercase">create your space</h2>
-              <p className="text-[10px] font-bold opacity-40 mt-0.5 uppercase tracking-widest">a private attic for two</p>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><User size={11}/>display name</label>
-                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="name" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={11}/>email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner" />
+          {mode === 'signup' && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase opacity-60 ml-1">Couple Display Name</label>
+              <div className="relative">
+                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+                <input required type="text" placeholder="e.g. Romeo & Juliet" value={name} onChange={e => setName(e.target.value)} className="w-full pl-12 pr-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
               </div>
             </div>
+          )}
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={11}/>password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase opacity-60 ml-1">Email Terminal</label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+              <input required type="email" placeholder="you@love.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
             </div>
+          </div>
 
-            {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
-
-            <RetroButton type="submit" variant="primary" className="py-3 mt-1 text-sm flex justify-center items-center gap-2" disabled={loading}>
-              {loading ? <><Loader size={16} className="animate-spin" /> creating...</> : <>create attic <Sparkles size={14}/></>}
-            </RetroButton>
-
-            <p className="text-center text-xs font-bold opacity-30 mt-0.5">
-              have an account?{' '}
-              <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
-                sign in
-              </span>
-            </p>
-          </form>
-        )}
-
-        {/* ── SIGN IN ── */}
-        {mode === 'signin' && (
-          <form onSubmit={handleSignIn} className="flex flex-col gap-4 py-2 px-2 sm:px-6">
-            <div className="text-center mb-1">
-              <div className="w-14 h-14 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-                <Key size={22} />
-              </div>
-              <h2 className="font-bold text-lg lowercase">welcome back</h2>
-              <p className="text-[10px] font-bold opacity-40 mt-0.5 uppercase tracking-widest">your attic missed you</p>
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase opacity-60 ml-1">Security Key</label>
+            <div className="relative">
+              <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+              <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
             </div>
+          </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={11}/>email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={11}/>password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
-            </div>
+          <RetroButton type="submit" disabled={loading} className="py-5 text-xl mt-4">
+            {loading ? <Loader className="animate-spin" /> : mode === 'signup' ? 'Create Sanctuary' : 'Enter Attic'}
+          </RetroButton>
 
-            <div className="text-right -mt-3">
-              <span className="text-[10px] font-bold opacity-40 underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('forgot')}>
-                forgot password?
-              </span>
-            </div>
-
-            {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
-
-            <RetroButton type="submit" variant="primary" className="py-3 mt-1 text-sm flex justify-center items-center gap-2" disabled={loading}>
-              {loading ? <><Loader size={16} className="animate-spin" /> unlocking...</> : <>unlock <Key size={14}/></>}
-            </RetroButton>
-
-            <p className="text-center text-xs font-bold opacity-30 mt-0.5">
-              no account?{' '}
-              <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signup')}>
-                sign up
-              </span>
-            </p>
-          </form>
-        )}
-
-        {/* ── FORGOT PASSWORD ─── */}
-        {mode === 'forgot' && (
-          <form onSubmit={handleForgot} className="flex flex-col gap-4 py-2 px-2 sm:px-6">
-            <div className="text-center mb-1">
-              <div className="w-14 h-14 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-                <Lock size={22} className="text-[var(--text-main)]" />
-              </div>
-              <h2 className="font-bold text-lg lowercase">lost keys?</h2>
-            </div>
-
-            {forgotSent ? (
-              <div className="retro-border retro-bg-accent p-6 text-center shadow-inner">
-                <Check size={32} className="mx-auto mb-2 text-[var(--primary)]" />
-                <p className="text-xs font-bold uppercase tracking-widest">reset link sent!</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={11}/>email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
-                </div>
-                {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
-                <RetroButton type="submit" variant="primary" className="py-3 text-sm flex justify-center items-center gap-2" disabled={loading}>
-                  {loading ? <><Loader size={16} className="animate-spin" /> sending...</> : <>send link <Mail size={14}/></>}
-                </RetroButton>
-              </>
-            )}
-
-            <p className="text-center text-xs font-bold opacity-30 mt-0.5">
-              remembered?{' '}
-              <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
-                sign in
-              </span>
-            </p>
-          </form>
-        )}
+          <button type="button" onClick={onBack} className="text-[10px] font-bold opacity-40 hover:opacity-100 flex items-center justify-center gap-2 uppercase tracking-widest mt-2">
+            <ArrowLeft size={12} /> Return to landing
+          </button>
+        </form>
       </RetroWindow>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════
-   HANDSHAKE VIEW — pair with your partner
+   HANDSHAKE VIEW — Pairing Couples with Glass Depth
    ═══════════════════════════════════════════════════════ */
-export function HandshakeView({ session, onPaired, onLogout, sfx }) {
-  const [inviteCode, setInviteCode] = useState('');
+export function HandshakeView({ session, onPaired, onLogout }) {
+  const [pairingCode, setPairingCode] = useState('');
   const [partnerCode, setPartnerCode] = useState('');
-  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(true);
-  const [error, setError] = useState('');
-  const toast = useToast();
+  const addToast = useToast();
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { data, error: roomErr } = await supabase.rpc('get_my_room');
-        if (roomErr) throw roomErr;
-
-        if (data && data.invite_code) {
-          setInviteCode(data.invite_code);
-          if (data.is_paired) {
-            onPaired(data.id);
-            return;
-          }
-        } else {
-          let roomCode = null;
-          const maxAttempts = 8;
-          for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            const candidate = generateCode();
-            const { error: err } = await supabase.from('rooms').insert({
-              invite_code: candidate,
-              creator_id: session.user.id,
-            });
-            if (!err) {
-              roomCode = candidate;
-              break;
-            }
-            const duplicateError = err.code === '23505' || err.message?.toLowerCase().includes('duplicate');
-            if (!duplicateError) throw err;
-          }
-          if (!roomCode) throw new Error('Unable to generate unique code.');
-          setInviteCode(roomCode);
+    if (session?.user?.id) {
+      setPairingCode(session.user.id.slice(0, 8).toUpperCase());
+      const checkPairing = setInterval(async () => {
+        const { data } = await supabase.rpc('get_my_room');
+        if (data && data.is_paired) {
+          clearInterval(checkPairing);
+          onPaired(data.id);
         }
-      } catch (err) {
-        console.error("Setup error:", err);
-        setError("Failed to setup room.");
-      } finally {
-        setCreating(false);
-      }
-    })();
-  }, []);
+      }, 3000);
+      return () => clearInterval(checkPairing);
+    }
+  }, [session, onPaired]);
 
-  useEffect(() => {
-    if (creating) return;
-    const interval = setInterval(async () => {
-      const { data } = await supabase.rpc('get_my_room');
-      if (data && data.is_paired) {
-        clearInterval(interval);
-        onPaired(data.id);
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [creating]);
-
-  function generateCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    return code;
-  }
-
-  const copyInviteUrl = () => {
-    const url = `${window.location.origin}?invite=${inviteCode}`;
-    navigator.clipboard.writeText(url).then(() => {
-      playAudio('click', sfx);
-      setCopied(true);
-      if (toast) toast('copied! ❤️', 'success');
-      setTimeout(() => setCopied(false), 2500);
-    });
-  };
-
-  const handleClaimInvite = async (e) => {
+  const handlePair = async (e) => {
     e.preventDefault();
-    if (!partnerCode.trim()) return;
-    setLoading(true); setError('');
-    playAudio('click', sfx);
-
-    if (partnerCode.trim() === '231803') {
-      if (toast) toast('paired! ✨', 'success');
-      setTimeout(() => onPaired('dummy-room-buet'), 800);
-      return;
-    }
-
-    const { data, error: err } = await supabase.rpc('claim_invite', { code: partnerCode.trim() });
-    if (err) { setError('something went wrong.'); setLoading(false); return; }
-    if (data && data.error) { setError(data.message); setLoading(false); return; }
-    if (data && data.success) {
-      if (toast) toast('paired! ✨', 'success');
-      setTimeout(() => onPaired(data.room_id), 800);
-    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.rpc('pair_with_code', { target_code: partnerCode });
+      if (error) throw error;
+      addToast("Pairing request sent!", "success");
+    } catch (err) { addToast(err.message, "error"); }
+    finally { setLoading(false); }
   };
-
-  if (creating) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-transparent relative overflow-hidden">
-        <Loader size={36} className="animate-spin text-[var(--primary)] mb-6 relative z-10" />
-        <p className="font-bold text-xs opacity-40 relative z-10 uppercase tracking-[0.2em]">Setting up...</p>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden bg-transparent">
-      <RetroWindow title="handshake.exe" className="w-full max-w-[440px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
-        <div className="flex flex-col items-center text-center py-6 gap-6 px-2 sm:px-6">
-          <div>
-            <div className="w-14 h-14 rounded-full retro-bg-primary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-              <span className="text-2xl">🤝</span>
-            </div>
-            <h2 className="font-bold text-lg lowercase">the handshake</h2>
+    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 mesh-bg">
+      <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
+      
+      <RetroWindow title="handshake_protocol.exe" className="w-full max-w-[440px] shadow-2xl scale-up-15">
+        <div className="flex flex-col gap-8 py-4">
+          <div className="text-center">
+             <div className="w-16 h-16 bg-[var(--primary)]/10 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Heart size={32} className="text-[var(--primary)]" fill="currentColor" />
+             </div>
+             <h2 className="text-2xl font-black italic tracking-tighter">WAITING FOR CONNECTION</h2>
+             <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Establishing Secure Couple-Sync</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
-            <div className="retro-border p-5 retro-bg-window shadow-inner flex flex-col justify-center">
-              <p className="font-bold text-[9px] mb-3 opacity-30 text-left uppercase tracking-widest">your code:</p>
-              <button
-                onClick={copyInviteUrl}
-                className="w-full bg-[var(--border)] text-[var(--bg-window)] p-4 font-black text-xl tracking-[0.2em] retro-shadow-primary flex items-center justify-center gap-3 hover:opacity-90 active:translate-y-[1px] transition-all cursor-pointer"
-              >
-                {inviteCode || '...'}
-                {copied ? <Check size={20} className="shrink-0" /> : <Copy size={16} className="shrink-0 opacity-30" />}
-              </button>
-            </div>
+          <div className="bg-[var(--accent)]/20 retro-border p-6 text-center space-y-3 relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+             <label className="text-[10px] font-black uppercase opacity-60">Your Unique Pairing ID</label>
+             <div className="text-4xl font-black tracking-tighter text-[var(--primary)] select-all">{pairingCode}</div>
+             <button onClick={() => { navigator.clipboard.writeText(pairingCode); addToast("Code copied!", "success"); }} className="text-[9px] font-black uppercase text-[var(--primary)] hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current">
+                <Copy size={10} /> Copy Code
+             </button>
+          </div>
 
-            <form onSubmit={handleClaimInvite} className="retro-border p-5 retro-bg-accent retro-shadow-dark flex flex-col justify-center">
-              <p className="font-bold text-[9px] mb-3 opacity-30 text-left uppercase tracking-widest">partner's code:</p>
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  value={partnerCode}
-                  onChange={(e) => setPartnerCode(e.target.value.toUpperCase())}
-                  placeholder="XXXXXX"
-                  maxLength={6}
-                  className="w-full p-3 retro-border bg-white focus:outline-none font-black tracking-[0.2em] text-center uppercase text-xl shadow-inner"
-                />
-                <RetroButton type="submit" variant="primary" className="w-full py-3 text-sm" disabled={loading || !partnerCode.trim()}>
-                  {loading ? <Loader size={16} className="animate-spin" /> : 'pair'}
+          <form onSubmit={handlePair} className="space-y-4">
+             <label className="text-[10px] font-black uppercase opacity-60 ml-1">Enter Partner's ID</label>
+             <div className="flex gap-2">
+                <input required type="text" placeholder="XXXXXXX" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase())} className="flex-1 px-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-black text-xl text-center tracking-widest" />
+                <RetroButton type="submit" disabled={loading} className="w-16 h-16 shrink-0">
+                   {loading ? <Loader className="animate-spin" /> : <Check />}
                 </RetroButton>
-              </div>
-            </form>
+             </div>
+          </form>
+
+          <div className="border-t-2 border-dashed border-[var(--border)] pt-6 flex flex-col items-center gap-4">
+             <p className="text-[10px] font-bold opacity-40 uppercase max-w-[240px] text-center italic">Send your ID to your partner. Once they enter it, the Sanctuary will unlock.</p>
+             <RetroButton variant="white" onClick={onLogout} className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100">Terminate Session</RetroButton>
           </div>
         </div>
       </RetroWindow>

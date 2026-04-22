@@ -63,7 +63,8 @@ export function Confetti({ active }) {
 // ── RetroWindow ──
 export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, hasUnsavedChanges = false, onSaveBeforeClose, sfx }) {
   const [showConfirm, setShowConfirm] = React.useState(false);
-  const [confirmType, setConfirmType] = React.useState('simple'); // 'simple' | 'unsaved'
+  const [confirmType, setConfirmType] = React.useState('simple');
+
   const handleCloseClick = () => {
     if (!onClose) return;
     if (confirmOnClose) {
@@ -80,27 +81,31 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   return (
     <>
-      <div className={`retro-bg-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-200 ${className}`}>
-        <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2 flex-shrink-0">
-          <div className={`flex gap-2 items-center text-[var(--text-main)] ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
-            <div className="flex flex-col gap-[2px] w-4"><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div></div>
-            <span className="font-bold lowercase text-sm flex items-center gap-2">{title} {onTitleClick && <span className="text-[10px] bg-[var(--bg-window)] retro-border px-1 opacity-70">info</span>}</span>
+      <div className={`glass-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu hover:shadow-2xl transition-shadow ${className}`}>
+        <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
+          {/* Subtle header sheen */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
+          
+          <div className={`relative z-10 flex gap-2 items-center text-[var(--text-main)] ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
+            <div className="flex flex-col gap-[2px] w-4"><div className="h-[2px] bg-[var(--border)] w-full opacity-40"></div><div className="h-[2px] bg-[var(--border)] w-full opacity-60"></div><div className="h-[2px] bg-[var(--border)] w-full"></div></div>
+            <span className="font-black lowercase text-xs sm:text-sm tracking-tight flex items-center gap-2">{title}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative z-10 flex items-center gap-2">
             {headerActions}
-            {onClose && <button onClick={handleCloseClick} className="retro-bg-primary retro-border w-6 h-6 flex items-center justify-center hover:opacity-80 active:translate-y-[1px] active:shadow-none retro-shadow-dark ml-2"><X size={14} strokeWidth={3} /></button>}
+            {onClose && (
+              <button onClick={handleCloseClick} className="retro-bg-primary retro-border w-7 h-7 flex items-center justify-center hover:scale-110 active:scale-95 transition-all retro-shadow-dark">
+                <X size={16} strokeWidth={3} />
+              </button>
+            )}
           </div>
         </div>
-        <div className={`flex-1 overflow-y-auto flex flex-col text-[var(--text-main)] ${noPadding ? '' : 'p-4'}`}>{children}</div>
+        <div className={`flex-1 overflow-y-auto flex flex-col text-[var(--text-main)] bg-white/40 ${noPadding ? '' : 'p-5 sm:p-6'}`}>{children}</div>
       </div>
       {showConfirm && (
         <ConfirmDialog
           title={confirmType === 'unsaved' ? 'Unsaved Changes' : 'Close'}
           message={confirmType === 'unsaved' ? 'You have unsaved changes. Save before closing?' : 'Close this window? Progress may be lost.'}
           showSave={confirmType === 'unsaved'}
-          // When ConfirmDialog is opened from the window's close button,
-          // the dialog already renders an X in its header. Hide the duplicate
-          // Cancel button for a cleaner, contextual UX.
           showCancel={false}
           onSave={() => {
             playAudio('click', sfx);
@@ -118,10 +123,25 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 }
 
 // ── RetroButton ──
-export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button", onMouseDown, onMouseUp, onMouseLeave, onTouchStart, onTouchEnd }) {
-  const variants = { primary: "retro-bg-primary retro-shadow-dark", secondary: "retro-bg-secondary retro-shadow-dark", white: "retro-bg-window retro-shadow-primary", accent: "retro-bg-accent retro-shadow-dark", disabled: "bg-gray-300 text-gray-500 retro-shadow-dark cursor-not-allowed" };
-  const needsTextOverride = variant === 'white' || variant === 'disabled';
-  return <button type={type} onClick={onClick} onMouseDown={onMouseDown} onMouseUp={onMouseUp} onMouseLeave={onMouseLeave} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} disabled={disabled} className={`retro-border font-bold lowercase transition-all ${needsTextOverride ? 'text-[var(--text-main)]' : ''} ${disabled ? variants.disabled : variants[variant]} ${disabled ? '' : 'active:translate-y-[2px] active:shadow-none hover:-translate-y-1'} ${className}`}>{children}</button>;
+export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) {
+  const variants = { 
+    primary: "retro-bg-primary retro-shadow-dark hover:shadow-primary", 
+    secondary: "retro-bg-secondary retro-shadow-dark hover:shadow-secondary", 
+    white: "retro-bg-window retro-shadow-dark hover:bg-gray-50", 
+    accent: "retro-bg-accent retro-shadow-dark hover:shadow-accent", 
+    disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50" 
+  };
+  
+  return (
+    <button 
+      type={type} 
+      onClick={onClick} 
+      disabled={disabled} 
+      className={`retro-border font-black lowercase transition-all duration-200 transform-gpu flex items-center justify-center gap-2 ${disabled ? variants.disabled : `${variants[variant]} hover:-translate-y-1 hover:translate-x-[-1px] active:translate-y-1 active:translate-x-0 active:shadow-none`} ${className}`}
+    >
+      {children}
+    </button>
+  );
 }
 
 // ── Confirm Dialog ──
@@ -200,7 +220,6 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
           noPadding
         >
           <div id="outcome-card" className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto bg-[var(--bg-window)]">
-            {/* Player header — replaces trophy */}
             <div className="flex items-center justify-center gap-3 pb-3 border-b-2 border-dashed border-[var(--border)]">
               <div className="flex items-center gap-2">
                 {profile?.pfp ? <img src={profile.pfp} alt="" className="w-8 h-8 rounded-full retro-border object-cover" /> : <div className="w-8 h-8 rounded-full retro-border retro-bg-accent flex items-center justify-center text-sm">{profile?.emoji || '😊'}</div>}
@@ -274,14 +293,10 @@ export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
       <div className="relative w-48 h-64 sm:w-64 sm:h-80 bg-[#1a1a1a] rounded-xl border-8 border-[#333] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center overflow-hidden animate-in zoom-in duration-300">
-        {/* Horizontal split line */}
         <div className="absolute w-full h-1 bg-black/40 top-1/2 -translate-y-1/2 z-20 shadow-lg"></div>
-        
         <div className={`relative text-[12rem] sm:text-[16rem] font-black leading-none select-none transition-all duration-500 transform ${isFlipping ? 'scale-y-0 opacity-0' : 'scale-y-100 opacity-100'}`} style={{ color: '#ff3e3e', textShadow: '0 0 30px rgba(255,62,62,0.4)', fontFamily: 'monospace' }}>
           {current === 0 ? 'GO!' : current}
         </div>
-
-        {/* Glossy overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
       </div>
     </div>

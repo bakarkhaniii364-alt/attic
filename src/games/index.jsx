@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, useNavigate, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
@@ -158,7 +158,7 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
                      <option value="5">Best of 5</option>
                  </select>
              </div>
-           </div>
+          </div>
         )}
 
         {game.id === 'memory' && (
@@ -247,8 +247,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       'wyr': 'Would You Rather', 'lovelang': 'Love Language Quiz', 'sync': 'Sync Watcher'
     };
 
-    // Correctly move state update into useEffect
-    useEffect(() => {
+    // Correctly move state update into useEffect to avoid render-time warnings
+    React.useEffect(() => {
       if (gameId === 'sync' && !isActive) {
         setSearchParams({ active: 'true' });
       }
@@ -274,11 +274,11 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       if (gameId === 'typing') return <TypingRace {...props} />;
       if (gameId === 'wyr') return <WouldYouRather {...props} />;
       if (gameId === 'lovelang') return <LoveLanguageQuiz {...props} />;
-      if (gameId === 'sync') return <SyncWatcher config={config} onBack={closeGame} sfx={sfx} userId={userId} />;
+      if (gameId === 'sync') return <SyncWatcher config={config} onBack={closeGame} sfx={sfx} />;
     }
 
     if (fallbackTitles[gameId]) {
-      // Don't show setup for sync if we're waiting for effect
+      // Don't show setup for sync if we're auto-launching via effect
       if (gameId === 'sync') return null;
 
       return (

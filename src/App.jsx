@@ -123,19 +123,19 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
           </div>
 
           <div className="p-4 grid grid-cols-4 gap-3 bg-[var(--bg-window)] border-t-2 retro-border">
-            <button onClick={onMicToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-sm ${isMuted ? 'bg-red-500 text-white' : 'retro-bg-accent hover:-translate-y-1 hover:shadow-md'}`}>
+            <button onClick={onMicToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] ${isMuted ? 'bg-red-500 text-white' : 'retro-bg-accent hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]'}`}>
               {isMuted ? <MicOff size={20}/> : <Mic size={20}/>}
               <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">{isMuted ? 'Unmute' : 'Mute'}</span>
             </button>
-            <button onClick={onDeafenToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-sm ${isDeafened ? 'bg-red-500 text-white' : 'retro-bg-secondary hover:-translate-y-1 hover:shadow-md'}`}>
+            <button onClick={onDeafenToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] ${isDeafened ? 'bg-red-500 text-white' : 'retro-bg-secondary hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]'}`}>
               {isDeafened ? <VolumeX size={20}/> : <Volume2 size={20}/>}
               <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">{isDeafened ? 'Hear' : 'Deafen'}</span>
             </button>
-            <button onClick={onCameraToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-sm ${isCameraOff ? 'bg-red-500 text-white' : 'retro-bg-primary hover:-translate-y-1 hover:shadow-md'}`}>
+            <button onClick={onCameraToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] ${isCameraOff ? 'bg-red-500 text-white' : 'retro-bg-primary hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]'}`}>
               {isCameraOff ? <VideoOff size={20}/> : <Camera size={20}/>}
               <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">Cam</span>
             </button>
-            <button onClick={onEndCall} className="flex flex-col items-center justify-center p-3 retro-border bg-red-600 text-white hover:bg-red-700 transition-all hover:scale-105 shadow-lg">
+            <button onClick={onEndCall} className="flex flex-col items-center justify-center p-3 retro-border bg-red-600 text-white hover:bg-red-700 transition-all hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
               <PhoneOff size={20} className="rotate-[135deg]"/>
               <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">End</span>
             </button>
@@ -476,7 +476,8 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <div className={`min-h-screen w-full bg-pattern-grid flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+      <div className={`min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+        <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
         <WeatherOverlay weather={weather} />
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}

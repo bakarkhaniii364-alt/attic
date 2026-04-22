@@ -1,103 +1,84 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 
+// Global store for the entire room's data
 let globalState = {};
 let isInitialized = false;
 const listeners = new Set();
 let currentRoomId = null;
-let currentChannel = null;
-let updateTimeout = null;
 
+// Notify all React hooks when the global state changes from incoming webhooks
 const notifyListeners = () => {
-  listeners.forEach(l => l());
+  listeners.forEach(listener => listener());
 };
 
-const pushToSupabase = async () => {
-  if (!currentRoomId || !isInitialized) return;
-  
-  try {
-    const stateToPush = JSON.parse(JSON.stringify(globalState));
-    const { error } = await supabase
-      .from('app_state')
-      .upsert({ room_id: currentRoomId, state: stateToPush, last_updated: new Date().toISOString() }, { onConflict: 'room_id' });
-      
-    if (error) console.error("[SYNC] PUSH ERROR:", error.message);
-  } catch (e) {
-    console.error("[SYNC] Serialization error:", e);
-  }
-};
-
-const debouncedPush = (immediate = false) => {
-  if (updateTimeout) clearTimeout(updateTimeout);
-  if (immediate) { pushToSupabase(); return; }
-  updateTimeout = setTimeout(pushToSupabase, 500);
-};
+let currentChannel = null;
 
 export const initializeRoomSync = async (roomId) => {
-  if (currentRoomId === roomId && isInitialized) return;
-
-  if (currentChannel) {
-    supabase.removeChannel(currentChannel);
-  }
+  if (currentRoomId === roomId && isInitialized && currentChannel) return;
+  
+  // 0. Clean up ALL previous channels to avoid subscription collisions
+  try {
+    if (currentChannel) {
+      await supabase.removeChannel(currentChannel);
+    }
+    await supabase.removeAllChannels();
+  } catch (e) { console.warn("Realtime cleanup error", e); }
+  currentChannel = null;
 
   currentRoomId = roomId;
-  console.log(`[SYNC] Initializing room: ${roomId}`);
+  if (!currentRoomId) return;
 
-  // Fetch initial state
-  const { data, error } = await supabase.from('app_state').select('state').eq('room_id', roomId).single();
+  // 1. Fetch initial state from DB
+  const { data, error } = await supabase.from('app_state').select('state').eq('room_id', currentRoomId).single();
   
   if (data && data.state) {
     globalState = data.state;
-    console.log("[SYNC] Loaded state from DB:", Object.keys(globalState));
-  } else if (error && error.code !== 'PGRST116') {
-    console.error(`[SYNC] FETCH ERROR:`, error.message);
+  } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
+    // Row not found, create it
+    globalState = {}; // Reset for new room
+    await supabase.from('app_state').insert({ room_id: currentRoomId, state: globalState });
+  } else {
+    globalState = {}; // Reset for new room
   }
 
   isInitialized = true;
   notifyListeners();
 
-  const channel = supabase.channel(`room_sync_${roomId.slice(0,8)}`);
-  channel.on('postgres_changes', { 
+  // 2. Setup channel and add listeners BEFORE calling subscribe()
+  // Use a unique channel name to avoid collisions
+  const channelName = `sync_room_${currentRoomId}`;
+  currentChannel = supabase.channel(channelName);
+  
+  currentChannel.on('postgres_changes', { 
     event: 'UPDATE', 
     schema: 'public', 
     table: 'app_state', 
-    filter: `room_id=eq.${roomId}` 
+    filter: `room_id=eq.${currentRoomId}` 
   }, (payload) => {
+    // Merge incoming state
     if (payload.new && payload.new.state) {
-        console.log("[SYNC] Received Update from DB");
-        const newState = payload.new.state;
-        const mergedState = { ...globalState };
-
-        Object.keys(newState).forEach(key => {
-            if (Array.isArray(newState[key]) && Array.isArray(globalState[key])) {
-                const existingItems = globalState[key];
-                const newItems = newState[key];
-                if (newItems.length > 0 && newItems[0]?.id) {
-                    const itemMap = new Map(existingItems.map(item => [item.id, item]));
-                    newItems.forEach(item => itemMap.set(item.id, item));
-                    const mergedArray = Array.from(itemMap.values());
-                    if (mergedArray[0]?.timestamp) mergedArray.sort((a, b) => a.timestamp - b.timestamp);
-                    mergedState[key] = key.includes('history') ? mergedArray.slice(-80) : mergedArray;
-                } else {
-                    mergedState[key] = newItems;
-                }
-            } else if (typeof newState[key] === 'object' && newState[key] !== null && typeof globalState[key] === 'object' && globalState[key] !== null) {
-                // Merge objects (like room_profiles) to prevent partners overwriting each other
-                mergedState[key] = { ...globalState[key], ...newState[key] };
-            } else {
-                mergedState[key] = newState[key];
-            }
-        });
-
-        globalState = mergedState;
+        globalState = { ...globalState, ...payload.new.state };
         notifyListeners();
     }
-  }).subscribe();
-  
-  currentChannel = channel;
+  });
+
+  currentChannel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      console.log('[SYNC] Successfully joined room channel:', currentRoomId);
+    }
+  });
+    
+  return () => { 
+    if (currentChannel) {
+      supabase.removeChannel(currentChannel);
+      currentChannel = null;
+    }
+  };
 };
 
 export function useGlobalSync(key, initialValue) {
+  // Read from globalState or local storage fallback
   const getInitial = () => {
     if (globalState[key] !== undefined) return globalState[key];
     try {
@@ -110,57 +91,45 @@ export function useGlobalSync(key, initialValue) {
 
   const [state, setState] = useState(getInitial);
 
+  // When globalState updates externally, update the local React state
   useEffect(() => {
     const handleSync = () => {
-      const globalValue = globalState[key];
-      if (globalValue !== undefined && JSON.stringify(globalValue) !== JSON.stringify(state)) {
-        setState(globalValue);
-        try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(globalValue)); } catch (e) {}
+      if (globalState[key] !== undefined && JSON.stringify(globalState[key]) !== JSON.stringify(state)) {
+        setState(globalState[key]);
+        try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(globalState[key])); } catch (e) {}
+      }
+      else if (globalState[key] === undefined && isInitialized) {
+        // First initialization might not have the key yet
+        updateGlobalState(state);
       }
     };
     listeners.add(handleSync);
+    // Initial flush if ready
     if (isInitialized) handleSync();
-    return () => { listeners.delete(handleSync); };
-  }, [key, state]);
-
-  const updateState = useCallback((value) => {
-    if (!isInitialized) return;
-
-    // Use current global value as base for functional updates to avoid stale state issues
-    const currentGlobal = globalState[key];
-    let valueToStore = value instanceof Function ? value(currentGlobal !== undefined ? currentGlobal : state) : value;
     
-    if (Array.isArray(valueToStore) && Array.isArray(globalState[key])) {
-        if (valueToStore.length > 0 && valueToStore[0]?.id) {
-            const itemMap = new Map(globalState[key].map(i => [i.id, i]));
-            valueToStore.forEach(item => itemMap.set(item.id, item));
-            valueToStore = Array.from(itemMap.values());
-            if (valueToStore[0]?.timestamp) valueToStore.sort((a, b) => a.timestamp - b.timestamp);
-            if (key.includes('history')) valueToStore = valueToStore.slice(-80);
-        }
-    } else if (typeof valueToStore === 'object' && valueToStore !== null && typeof globalState[key] === 'object' && globalState[key] !== null) {
-        // Merge objects to prevent overwriting partner data
-        valueToStore = { ...globalState[key], ...valueToStore };
-    }
-
-    if (JSON.stringify(globalState[key]) === JSON.stringify(valueToStore)) return;
-
-    globalState[key] = valueToStore;
-    setState(valueToStore);
-    try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
-    debouncedPush(key.includes('history') || key.includes('call'));
+    return () => listeners.delete(handleSync);
   }, [key, state]);
+
+  // Update function that pushes to React, LocalStorage, Global Store, and Supabase
+  const updateState = useCallback(async (value) => {
+    const valueToStore = value instanceof Function ? value(state) : value;
+    setState(valueToStore);
+    globalState[key] = valueToStore;
+    try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
+    
+    // Throttle / debounce pushing to database?
+    updateGlobalState(valueToStore);
+  }, [key, state]);
+
+  const updateGlobalState = async (valueToStore) => {
+      if (!currentRoomId || !isInitialized) return;
+      // Copy current global state to push
+      const payload = { ...globalState, [key]: valueToStore };
+      globalState = payload; // Update instantly
+      
+      const { error } = await supabase.from('app_state').update({ state: payload }).eq('room_id', currentRoomId);
+      if (error) console.error("Sync Error:", error);
+  };
 
   return [state, updateState];
-}
-
-export function useBroadcast(event, callback) {
-    const callbackRef = useRef(callback);
-    callbackRef.current = callback;
-    useEffect(() => {
-        if (currentChannel) currentChannel.on('broadcast', { event }, (p) => callbackRef.current?.(p.payload));
-    }, [event]);
-    return useCallback((payload) => {
-        currentChannel?.send({ type: 'broadcast', event, payload });
-    }, []);
 }
