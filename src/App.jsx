@@ -139,6 +139,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
    ═══════════════════════════════════════════════════════ */
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId, partnerId } = useUserContext();
 
   // 1. Auth & Session State
@@ -191,7 +192,6 @@ export default function App() {
     setCalling(null); setIsRinging(false);
   };
 
-  // Peer initialization with Global STUN Servers
   useEffect(() => {
     if (!userId) return;
     const initPeer = () => {
@@ -226,7 +226,6 @@ export default function App() {
     return () => { if (peerRef.current) peerRef.current.destroy(); };
   }, [userId, calling]);
 
-  // Handle incoming call signal from Chat History
   useEffect(() => {
     if (!userId) return;
     const last = chatHistory[chatHistory.length - 1];
@@ -292,7 +291,6 @@ export default function App() {
 
   const rejectCall = (messageId) => { setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m)); setIncomingCall(null); };
 
-  // 4. Room Pairing & Sync logic
   const checkRoomAndSync = async (uid) => {
     try {
       const { data: room } = await supabase.rpc('get_my_room');
@@ -327,15 +325,16 @@ export default function App() {
 
   if (loading) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
 
+  const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
+
   return (
     <ToastProvider>
-      <div className={`min-h-screen w-full bg-pattern-grid flex flex-col items-center p-2 sm:p-4 md:p-8 relative ${triggerShake ? 'animate-shake' : ''}`}>
+      <div className={`min-h-screen w-full bg-pattern-grid flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <WeatherOverlay weather={weather} />
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
 
-        {/* Global Call UI */}
         {incomingCall && (
           <div className="fixed inset-0 z-[6000] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
             <div className="retro-bg-window retro-border retro-shadow-dark max-w-sm w-full p-10 text-center animate-bounce-subtle">
