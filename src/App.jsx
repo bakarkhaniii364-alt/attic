@@ -100,6 +100,9 @@ function AppContent({ onLogout }) {
       {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
       <StrayTray radioState={radioState} setRadioState={setRadioState} />
 
+      {/* Always-available logout: provides escape when overlays block Settings */}
+      <button onClick={handleLogout} title="Logout" className="fixed top-4 right-4 z-[400] retro-bg-window retro-border retro-shadow-dark p-2 rounded-full hover:scale-105">Logout</button>
+
       <Routes>
         <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} />} />
         <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />} />
