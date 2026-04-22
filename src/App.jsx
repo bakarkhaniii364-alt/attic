@@ -19,6 +19,7 @@ import { PixelArtApp } from './apps/PixelArtApp.jsx';
 import { DreamJournal } from './apps/DreamJournal.jsx';
 import { DailyQuestion, useStreaks, getMilestoneToday, MilestoneCelebration, RelationshipResume } from './components/Features.jsx';
 import { ActivitiesHub } from './games/index.jsx';
+import { ResetPasswordView } from './views/ResetPasswordView.jsx';
 
 /* ═══════════════════════════════════════════════════════
    APP CONTENT — the main dashboard / views (post-auth)
@@ -233,6 +234,17 @@ export default function App() {
   };
 
   // ── RENDER ──
+
+  // Check for password reset route before auth gates
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  
+  if (pathname === '/password-reset') {
+    return (
+      <ToastProvider>
+        <ResetPasswordView sfx={true} />
+      </ToastProvider>
+    );
+  }
 
   if (appState === 'loading') {
     return (
