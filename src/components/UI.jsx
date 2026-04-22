@@ -99,6 +99,10 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           title={confirmType === 'unsaved' ? 'Unsaved Changes' : 'Close'}
           message={confirmType === 'unsaved' ? 'You have unsaved changes. Save before closing?' : 'Close this window? Progress may be lost.'}
           showSave={confirmType === 'unsaved'}
+          // When ConfirmDialog is opened from the window's close button,
+          // the dialog already renders an X in its header. Hide the duplicate
+          // Cancel button for a cleaner, contextual UX.
+          showCancel={false}
           onSave={() => {
             playAudio('click', sfx);
             if (onSaveBeforeClose) onSaveBeforeClose();
@@ -122,7 +126,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
 }
 
 // ── Confirm Dialog ──
-export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx }) {
+export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = true }) {
   return (
     <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
       <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
@@ -132,11 +136,11 @@ export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = 
             <>
               <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onSave && onSave(); }}>Save & Close</RetroButton>
               <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm && onConfirm(); }}>Discard</RetroButton>
-              <RetroButton variant="secondary" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>
+              {showCancel && <RetroButton variant="secondary" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>}
             </>
           ) : (
             <>
-              <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>
+              {showCancel && <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>}
               <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm && onConfirm(); }}>Confirm</RetroButton>
             </>
           )}
