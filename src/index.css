@@ -259,6 +259,73 @@ body {
   background-repeat: no-repeat;
   image-rendering: pixelated;
 }
+/* ── Weather & Living Background ── */
+.weather-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Rain */
+.rain-drop {
+  position: absolute;
+  background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 100%);
+  width: 2px;
+  height: 40px;
+  top: -100px;
+  animation: fall linear infinite;
+}
+
+@keyframes fall {
+  to { transform: translateY(110dvh); }
+}
+
+/* Snow */
+.snow-flake {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  top: -10px;
+  animation: snow-fall linear infinite;
+  opacity: 0.8;
+}
+
+@keyframes snow-fall {
+  0% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(25dvh) translateX(15px); }
+  50% { transform: translateY(50dvh) translateX(-15px); }
+  75% { transform: translateY(75dvh) translateX(15px); }
+  100% { transform: translateY(110dvh) translateX(0); }
+}
+
+/* Clouds */
+.cloud-vessel {
+  position: absolute;
+  opacity: 0.3;
+  animation: float-clouds linear infinite;
+  filter: blur(40px);
+}
+
+@keyframes float-clouds {
+  from { transform: translateX(-200px); }
+  to { transform: translateX(110vw); }
+}
+
+/* Stars */
+.star-particle {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); shadow: 0 0 10px white; }
+}
+
 /* 3D Utilities */
 .perspective-1000 { perspective: 1000px; }
 .preserve-3d { transform-style: preserve-3d; }

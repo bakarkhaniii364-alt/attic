@@ -14,6 +14,8 @@ const notifyListeners = () => {
 
 let currentChannel = null;
 
+/* ── E2EE UTILITIES REMOVED (Too buggy for current sync architecture) ── */
+
 export const initializeRoomSync = async (roomId) => {
   if (currentRoomId === roomId && isInitialized && currentChannel) return;
   

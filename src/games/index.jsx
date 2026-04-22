@@ -252,6 +252,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         <GameCard title="Would You Rather" desc="See if you match!" color="#ec4899" onClick={() => launch('wyr')} />
         <GameCard title="Love Language" desc="Discover your love style." color="#f472b6" onClick={() => launch('lovelang')} />
         <GameCard title="Sync Watcher" desc="Watch YT together." color="#c1a3ff" onClick={() => launch('sync')} />
+        <GameCard title="Persistent Canvas" desc="Ongoing shared drawing." color="#4ade80" onClick={() => navigate('/shared-canvas')} />
       </div>
     </RetroWindow>
   );

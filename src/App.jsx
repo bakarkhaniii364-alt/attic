@@ -16,7 +16,7 @@ import { SettingsView } from './views/SettingsView.jsx';
 import { useGlobalSync, initializeRoomSync } from './hooks/useSupabaseSync.js';
 import { supabase } from './lib/supabase.js';
 
-import { DoodleApp, TimeCapsuleApp, ListsApp, CalendarApp, ScrapbookApp, DoodleViewer } from './apps/UtilityApps.jsx';
+import { DoodleApp, PersistentDoodleApp, TimeCapsuleApp, ListsApp, CalendarApp, ScrapbookApp, DoodleViewer } from './apps/UtilityApps.jsx';
 import { PixelArtApp } from './apps/PixelArtApp.jsx';
 import { DreamJournal } from './apps/DreamJournal.jsx';
 import { DailyQuestion, getMilestoneToday, MilestoneCelebration, RelationshipResume } from './components/Features.jsx';
@@ -142,6 +142,50 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Living Background Component ── */
+function LivingBackground({ weather }) {
+  const [elements, setElements] = useState([]);
+
+  useEffect(() => {
+    const newElements = [];
+    if (weather === 'rain') {
+      for (let i = 0; i < 60; i++) {
+        newElements.push({ id: i, left: Math.random() * 100, delay: Math.random() * 2, duration: 0.5 + Math.random() * 0.5 });
+      }
+    } else if (weather === 'snow') {
+      for (let i = 0; i < 40; i++) {
+        newElements.push({ id: i, left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 3, size: 2 + Math.random() * 4 });
+      }
+    } else if (weather === 'clouds') {
+      for (let i = 0; i < 6; i++) {
+        newElements.push({ id: i, top: Math.random() * 100, delay: Math.random() * 20, duration: 30 + Math.random() * 20, size: 200 + Math.random() * 300 });
+      }
+    } else if (weather === 'clear') {
+       for (let i = 0; i < 50; i++) {
+        newElements.push({ id: i, left: Math.random() * 100, top: Math.random() * 100, delay: Math.random() * 5, duration: 2 + Math.random() * 3, size: 1 + Math.random() * 2 });
+      }
+    }
+    setElements(newElements);
+  }, [weather]);
+
+  return (
+    <div className="weather-layer">
+      {weather === 'rain' && elements.map(e => (
+        <div key={e.id} className="rain-drop" style={{ left: `${e.left}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s` }} />
+      ))}
+      {weather === 'snow' && elements.map(e => (
+        <div key={e.id} className="snow-flake" style={{ left: `${e.left}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size }} />
+      ))}
+      {weather === 'clouds' && elements.map(e => (
+        <div key={e.id} className="cloud-vessel bg-white rounded-full" style={{ top: `${e.top}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size / 2 }} />
+      ))}
+      {weather === 'clear' && elements.map(e => (
+        <div key={e.id} className="star-particle shadow-white" style={{ left: `${e.left}%`, top: `${e.top}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size }} />
+      ))}
     </div>
   );
 }
@@ -299,7 +343,9 @@ export default function App() {
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:stun2.l.google.com:19302' },
           { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' }
+          { urls: 'stun:stun4.l.google.com:19302' },
+          // Add your TURN server here for 100% connection reliability
+          // { urls: 'turn:your-turn-server.com', username: 'user', credential: 'password' }
         ] }
       });
       peerRef.current = peer;
@@ -478,6 +524,7 @@ export default function App() {
     <ToastProvider>
       <div className={`min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
+        <LivingBackground weather={weather} />
         <WeatherOverlay weather={weather} />
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
@@ -553,6 +600,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
           <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} /></ProtectedRoute>} />
           <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} /></ProtectedRoute>} />
+          <Route path="/shared-canvas" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
           <Route path="/capsule" element={<ProtectedRoute session={session} hasRoom={hasRoom}><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
           <Route path="/lists" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute session={session} hasRoom={hasRoom}><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />

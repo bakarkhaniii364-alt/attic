@@ -81,7 +81,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   return (
     <>
-      <div className={`glass-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu hover:shadow-2xl transition-shadow ${className}`}>
+      <div className={`glass-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
         <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
           {/* Subtle header sheen */}
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
@@ -125,10 +125,10 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 // ── RetroButton ──
 export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) {
   const variants = { 
-    primary: "retro-bg-primary retro-shadow-dark hover:shadow-primary", 
-    secondary: "retro-bg-secondary retro-shadow-dark hover:shadow-secondary", 
+    primary: "retro-bg-primary retro-shadow-dark", 
+    secondary: "retro-bg-secondary retro-shadow-dark", 
     white: "retro-bg-window retro-shadow-dark hover:bg-gray-50", 
-    accent: "retro-bg-accent retro-shadow-dark hover:shadow-accent", 
+    accent: "retro-bg-accent retro-shadow-dark", 
     disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50" 
   };
   
@@ -137,7 +137,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
       type={type} 
       onClick={onClick} 
       disabled={disabled} 
-      className={`retro-border font-black lowercase transition-all duration-200 transform-gpu flex items-center justify-center gap-2 ${disabled ? variants.disabled : `${variants[variant]} hover:-translate-y-1 hover:translate-x-[-1px] active:translate-y-1 active:translate-x-0 active:shadow-none`} ${className}`}
+      className={`retro-border font-black lowercase transition-all duration-200 transform-gpu flex items-center justify-center gap-2 ${disabled ? variants.disabled : `${variants[variant]} active:translate-y-1 active:translate-x-0 active:shadow-none`} ${className}`}
     >
       {children}
     </button>
@@ -174,7 +174,7 @@ export function AppIcon({ icon, label, color, onClick, badge }) {
   const handleKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick && onClick(); } };
   return (
     <div role="button" tabIndex={0} className="flex flex-col items-center gap-2 group cursor-pointer" onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}>
-      <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border flex items-center justify-center retro-shadow-dark transition-all group-hover:-translate-y-2 relative text-[var(--border)]" style={{ backgroundColor: color }}>
+      <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border flex items-center justify-center retro-shadow-dark relative text-[var(--border)]" style={{ backgroundColor: color }}>
         {icon} {badge && <div className="absolute -top-3 -right-3 bg-[var(--border)] text-[var(--bg-window)] w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 border-[var(--bg-window)]">{badge}</div>}
       </div>
       <span className="font-bold retro-bg-window px-2 retro-border text-sm group-hover:bg-[var(--accent)] transition-colors">{label}</span>

@@ -123,7 +123,8 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
   const recordingStartTimeRef = useRef(0);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
-  const [activeOptions, setActiveOptions] = useState(null);
+   const [activeOptions, setActiveOptions] = useState(null);
+   const [viewLimit, setViewLimit] = useState(50);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewerContext, setViewerContext] = useState({ urls: [], index: 0, isOpen: false });
   const [pendingImages, setPendingImages] = useState([]);
@@ -356,10 +357,19 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col retro-bg-window relative">
               <div className="text-center text-xs font-bold opacity-50 mb-6 retro-border-b inline-block mx-auto pb-1 mt-2">-- connection secured --</div>
-              {filteredMessages.map((msg, index) => {
+              {filteredMessages.length > viewLimit && (
+                <button 
+                  onClick={() => { playAudio('click', sfx); setViewLimit(p => p + 50); }}
+                  className="mx-auto my-4 px-4 py-2 bg-[var(--accent)] retro-border text-xs font-bold uppercase hover:-translate-y-0.5 transition-transform"
+                >
+                  ↑ Load Older Messages ({filteredMessages.length - viewLimit} more)
+                </button>
+              )}
+              {filteredMessages.slice(-viewLimit).map((msg, index) => {
                 const isMe = msg.sender === userId;
-                const prevMsg = filteredMessages[index - 1];
-                const nextMsg = filteredMessages[index + 1];
+                const visibleMsgs = filteredMessages.slice(-viewLimit);
+                const prevMsg = visibleMsgs[index - 1];
+                const nextMsg = visibleMsgs[index + 1];
                 const isGroupStart = !prevMsg || prevMsg.sender !== msg.sender;
                 const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender;
                 const marginClass = isGroupEnd ? "mb-6" : "mb-1";
@@ -372,16 +382,30 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
+                    {isGroupStart && !isMe && !isCallLog && (
+                       <span className="text-[10px] font-black uppercase opacity-40 mb-1 ml-10 tracking-widest">{partnerNickname || 'Partner'}</span>
+                    )}
                     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
                       {!isMe && (
                         <div className="w-8 flex-shrink-0">
                           {isGroupEnd && (
-                            partnerProfile.pfp ? (
+                            partnerProfile && partnerProfile.pfp ? (
                               <img src={partnerProfile.pfp} alt="partner" className="w-8 h-8 retro-border object-cover bg-white" />
                             ) : (
-                              <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
+                              <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile?.emoji || '☕'}</div>
                             )
                           )}
+                        </div>
+                      )}
+                      {isMe && (
+                        <div className="order-last w-8 flex-shrink-0">
+                           {isGroupEnd && (
+                             profile && profile.pfp ? (
+                               <img src={profile.pfp} alt="me" className="w-8 h-8 retro-border object-cover bg-white" />
+                             ) : (
+                               <div className="w-8 h-8 retro-bg-primary retro-border flex items-center justify-center text-sm">{profile?.emoji || '😊'}</div>
+                             )
+                           )}
                         </div>
                       )}
                       {isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
@@ -431,7 +455,28 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (<div className={`absolute ${noBubble ? '-bottom-1' : '-bottom-3'} ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
                       </div>
                       {!isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
-                      {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-40 py-1`}><button onClick={() => { playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14} /> Reply</button><button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14} /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>{(msg.type === 'image' || msg.type === 'image_group') && <button onClick={() => { handleSaveToScrapbook(msg.url || msg.urls[0]); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><ImageIcon size={14} /> Scrapbook</button>}<div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14} /> <span onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('❤️') ? rs.filter(e => e !== '❤️') : [...rs, '❤️'] }; } return m; })); setActiveOptions(null); }} className="cursor-pointer hover:scale-125 transition-transform">❤️</span></div>{isMe && msg.type === 'text' && <button onClick={() => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14} /> Edit</button>}{isMe && <button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14} /> Delete</button>}</div>)}
+                      {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-40 py-1`}><button onClick={() => { playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14} /> Reply</button><button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14} /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>{(msg.type === 'image' || msg.type === 'image_group') && <button onClick={() => { handleSaveToScrapbook(msg.url || msg.urls[0]); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><ImageIcon size={14} /> Scrapbook</button>}<div className="flex items-center gap-1 px-2 py-2 border-b border-[var(--border)] border-dashed bg-black/5">
+                                  {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
+                                    <button 
+                                      key={emoji}
+                                      onClick={() => { 
+                                        playAudio('click', sfx); 
+                                        setChatHistory(chatHistory.map(m => { 
+                                          if (m.id === msg.id) { 
+                                            const rs = m.reactions || []; 
+                                            return { ...m, reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] }; 
+                                          } 
+                                          return m; 
+                                        })); 
+                                        setActiveOptions(null); 
+                                      }} 
+                                      className={`text-lg hover:scale-125 transition-transform p-1 ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] retro-border rounded' : ''}`}
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+{isMe && msg.type === 'text' && <button onClick={() => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14} /> Edit</button>}{isMe && <button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14} /> Delete</button>}</div>)}
                     </div>
                     {msg.isPinned && !msg.isDeleted && <div className={`absolute -top-3 ${isMe ? 'right-4' : 'left-4'} bg-[var(--accent)] rounded-full p-1 border-2 border-[var(--border)] z-10`}><Pin size={12} className="text-white" /></div>}
                     {isGroupEnd && (<div className="flex flex-col items-end gap-1 mt-1 justify-end px-2"><span className="text-[10px] opacity-70 font-bold">{msg.time}</span>{isMe && msg.status && !isCallLog && (<div className="flex items-center gap-1"><div className="flex -space-x-1.5"><Check size={12} className={msg.status === 'read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />{(msg.status === 'delivered' || msg.status === 'read') && <Check size={12} className={msg.status === 'read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />}</div>{msg.status === 'read' && msg.readAt && <span className="text-[8px] font-black opacity-30 uppercase">seen {msg.readAt}</span>}</div>)}</div>)}

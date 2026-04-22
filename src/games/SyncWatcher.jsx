@@ -8,6 +8,7 @@ import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 export function SyncWatcher({ config, onBack, sfx, userId }) {
     // 1. Synced Global State
     const [url, setUrl] = useGlobalSync('sync_watcher_url', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+    const [mode, setMode] = useGlobalSync('sync_watcher_mode', 'video'); // 'video' or 'browser'
     const [playing, setPlaying] = useGlobalSync('sync_watcher_playing', false);
     const [syncedPlayed, setSyncedPlayed] = useGlobalSync('sync_watcher_played', 0);
     const [chatLog, setChatLog] = useGlobalSync('sync_watcher_chat', []);
@@ -144,7 +145,13 @@ export function SyncWatcher({ config, onBack, sfx, userId }) {
     return (
         <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
             <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 text-sm sm:text-base">
-                <span className="flex items-center gap-2">Shared Sync <span className={`w-3 h-3 rounded-full bg-green-400 shadow-[0_0_8px_#4ade80] border border-black/50`}></span> Connected</span>
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-2">Shared Sync <span className={`w-3 h-3 rounded-full bg-green-400 shadow-[0_0_8px_#4ade80] border border-black/50`}></span> Connected</span>
+                  <div className="flex bg-black/20 rounded p-0.5 text-[10px]">
+                    <button onClick={() => setMode('video')} className={`px-2 py-0.5 rounded ${mode === 'video' ? 'bg-white text-black' : ''}`}>VIDEO</button>
+                    <button onClick={() => setMode('browser')} className={`px-2 py-0.5 rounded ${mode === 'browser' ? 'bg-white text-black' : ''}`}>BROWSER</button>
+                  </div>
+                </div>
                 {displayAction() && <span className="bg-white/20 px-2 py-1 rounded text-xs animate-pulse">{displayAction()}</span>}
             </div>
 
@@ -154,37 +161,49 @@ export function SyncWatcher({ config, onBack, sfx, userId }) {
 
                     <div className="flex-1 relative flex items-center justify-center">
                         <div className="absolute inset-0 z-0">
-                            {loadError && (
-                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black text-white/80 text-center p-4">
-                                    <p className="font-bold text-lg mb-2">Could not load video</p>
-                                    <p className="text-sm opacity-70 max-w-xs">{loadError}</p>
-                                    <p className="text-xs opacity-50 mt-4">Try pasting a direct .mp4 link or a different YouTube URL</p>
+                            {mode === 'video' ? (
+                                <>
+                                    {loadError && (
+                                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black text-white/80 text-center p-4">
+                                            <p className="font-bold text-lg mb-2">Could not load video</p>
+                                            <p className="text-sm opacity-70 max-w-xs">{loadError}</p>
+                                            <p className="text-xs opacity-50 mt-4">Try pasting a direct .mp4 link or a different YouTube URL</p>
+                                        </div>
+                                    )}
+                                    <ReactPlayer
+                                        ref={playerRef}
+                                        url={url}
+                                        playing={playing}
+                                        volume={volume}
+                                        onProgress={handleProgress}
+                                        onDuration={handleDuration}
+                                        onReady={() => { 
+                                            console.log('[SYNC] Player is READY');
+                                            setReady(true); 
+                                            setLoadError(null); 
+                                        }}
+                                        onError={(e) => {
+                                            console.error('[SYNC] Player Error:', e);
+                                            setLoadError('Could not load video. Check URL or embedding permissions.');
+                                        }}
+                                        width="100%"
+                                        height="100%"
+                                        style={{ position: 'absolute', top: 0, left: 0 }}
+                                        config={{
+                                            youtube: { playerVars: { modestbranding: 1, rel: 0, controls: 1, playsinline: 1 } },
+                                            file: { attributes: { controls: true, playsInline: true } }
+                                        }}
+                                    />
+                                </>
+                            ) : (
+                                <div className="w-full h-full bg-white flex flex-col">
+                                   <div className="bg-gray-100 p-2 flex gap-2 items-center border-b retro-border">
+                                      <div className="flex-1 bg-white retro-border px-3 py-1 text-xs truncate opacity-60">{url}</div>
+                                      <span className="text-[8px] font-bold opacity-30 uppercase">Shared Viewport</span>
+                                   </div>
+                                   <iframe src={url} className="w-full flex-1 border-none" title="Shared Browser" />
                                 </div>
                             )}
-                            <ReactPlayer
-                                ref={playerRef}
-                                url={url}
-                                playing={playing}
-                                volume={volume}
-                                onProgress={handleProgress}
-                                onDuration={handleDuration}
-                                onReady={() => { 
-                                    console.log('[SYNC] Player is READY');
-                                    setReady(true); 
-                                    setLoadError(null); 
-                                }}
-                                onError={(e) => {
-                                    console.error('[SYNC] Player Error:', e);
-                                    setLoadError('Could not load video. Check URL or embedding permissions.');
-                                }}
-                                width="100%"
-                                height="100%"
-                                style={{ position: 'absolute', top: 0, left: 0 }}
-                                config={{
-                                    youtube: { playerVars: { modestbranding: 1, rel: 0, controls: 1, playsinline: 1 } },
-                                    file: { attributes: { controls: true, playsInline: true } }
-                                }}
-                            />
                         </div>
 
                         {/* Reactions Overlay */}
