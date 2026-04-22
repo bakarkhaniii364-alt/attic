@@ -14,7 +14,8 @@ export function useUserContext() {
   useEffect(() => {
     const getCurrentUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user;
         if (user) {
           setUserId(user.id);
           

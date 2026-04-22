@@ -147,6 +147,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [hasRoom, setHasRoom] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [bootError, setBootError] = useState(null);
   const navigate = useNavigate();
 
   const checkRoomAndSync = async (userId) => {
@@ -159,27 +160,30 @@ export default function App() {
       }
     } catch (err) {
       console.error("Room sync check failed:", err);
+      setHasRoom(false);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // 1. Initial Session Check
-    supabase.auth.getSession().then(({ data }) => {
-      const s = data?.session || null;
-      setSession(s);
-      if (s) {
-        checkRoomAndSync(s.user.id);
-      } else {
+    const init = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const s = data?.session || null;
+        setSession(s);
+        if (s) {
+          await checkRoomAndSync(s.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        setBootError(err.message);
         setLoading(false);
       }
-    }).catch(err => {
-      console.error("Auth session check failed:", err);
-      setLoading(false);
-    });
+    };
+    init();
 
-    // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (s) checkRoomAndSync(s.user.id);
@@ -206,14 +210,23 @@ export default function App() {
     navigate('/');
   };
 
+  if (bootError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50 p-4">
+        <div className="p-6 bg-white retro-border border-red-500 shadow-xl max-w-sm">
+          <h1 className="text-red-500 font-bold mb-2">BOOT ERROR</h1>
+          <p className="text-xs font-bold opacity-70 mb-4">{bootError}</p>
+          <button onClick={() => window.location.reload()} className="w-full py-2 bg-red-500 text-white font-bold">RETRY</button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-main)]">
-        <div className="absolute inset-0 bg-pattern-grid opacity-40" />
-        <div className="relative z-10 flex flex-col items-center">
-          <Loader size={32} className="animate-spin text-[var(--primary)] mb-4" />
-          <p className="font-bold text-sm opacity-40 tracking-widest uppercase">Initializing Attic...</p>
-        </div>
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]">
+        <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p>
       </div>
     );
   }
@@ -221,25 +234,12 @@ export default function App() {
   return (
     <ToastProvider>
       <Routes>
-        {/* Public Routes */}
         <Route path="/login" element={<PublicRoute session={session} hasRoom={hasRoom}><LandingView onTryAttic={() => navigate('/signup')} onSignIn={() => navigate('/signin')} /></PublicRoute>} />
         <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={() => navigate('/')} onBack={() => navigate('/login')} /></PublicRoute>} />
         <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={() => navigate('/')} onBack={() => navigate('/login')} /></PublicRoute>} />
         <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
-
-        {/* Handshake Route (Special Protected) */}
-        <Route path="/handshake" element={
-          <ProtectedRoute session={session} hasRoom={hasRoom}>
-            <HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} />
-          </ProtectedRoute>
-        } />
-
-        {/* Main App Routes (Protected) */}
-        <Route path="/*" element={
-          <ProtectedRoute session={session} hasRoom={hasRoom}>
-            <AppContent onLogout={handleLogout} />
-          </ProtectedRoute>
-        } />
+        <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
+        <Route path="/*" element={<ProtectedRoute session={session} hasRoom={hasRoom}><AppContent onLogout={handleLogout} /></ProtectedRoute>} />
       </Routes>
     </ToastProvider>
   );
