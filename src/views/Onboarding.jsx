@@ -1,56 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Sparkles, ArrowRight, Mail, Lock, User, Key, Copy, Check, Loader, ArrowLeft } from 'lucide-react';
+import { Heart, Sparkles, ArrowRight, Mail, Lock, User, Key, Copy, Check, Loader, ArrowLeft, Grid3X3, Send } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 
 /* ═══════════════════════════════════════════════════════
-   LANDING PAGE — cute & animated with paper airplane
+   LANDING PAGE — cute & animated with floating elements
    ═══════════════════════════════════════════════════════ */
 export function LandingView({ onTryAttic, onSignIn }) {
   return (
     <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent">
-      {/* Background Hearts */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-10 left-5 text-[#ff6b9d] opacity-10 text-4xl animate-pulse">♥</div>
-        <div className="absolute top-32 right-10 text-[#ff6b9d] opacity-8 text-3xl animate-pulse" style={{animationDelay: '1s'}}>♥</div>
-        <div className="absolute bottom-20 left-1/3 text-[#ff6b9d] opacity-5 text-5xl animate-pulse" style={{animationDelay: '2s'}}>♥</div>
+      {/* Background Grid with reduced opacity */}
+      <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
+
+      {/* Floating Elements Collection */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[15%] left-[10%] text-[var(--primary)] opacity-[0.08] animate-float"><Heart size={40} fill="currentColor" /></div>
+        <div className="absolute top-[25%] right-[15%] text-[var(--secondary)] opacity-[0.05] animate-float-delayed"><Mail size={32} /></div>
+        <div className="absolute bottom-[20%] left-[20%] text-[var(--accent)] opacity-[0.05] animate-float"><Grid3X3 size={36} /></div>
+        <div className="absolute bottom-[30%] right-[10%] text-[var(--primary)] opacity-[0.06] animate-float-delayed"><Send size={28} /></div>
+        <div className="absolute top-[60%] left-[5%] text-[var(--secondary)] opacity-[0.04] animate-float"><Sparkles size={24} /></div>
+        <div className="absolute top-[40%] right-[5%] text-[var(--accent)] opacity-[0.04] animate-float-delayed"><Heart size={20} fill="currentColor" /></div>
       </div>
 
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
-        <span className="font-bold text-[11px] tracking-widest uppercase text-[#6b4423] opacity-40 select-none">●●●</span>
-        <span className="font-bold text-[11px] tracking-widest uppercase text-[#6b4423] opacity-20 select-none">attic</span>
+        <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-30 select-none">●●●</span>
+        <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
       </nav>
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-24">
-        <div className="relative mb-10">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-16 text-center">
+        <div className="relative mb-12 flex justify-center w-full">
           <img
             src="/assets/attic.svg"
             alt="attic"
-            className="w-88 sm:w-[35rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700"
-            style={{ filter: 'drop-shadow(5px 5px 0px rgba(255, 107, 157, 0.3))' }}
+            className="w-80 sm:w-[32rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700 mx-auto"
+            style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.2))' }}
           />
         </div>
-        <p className="text-base sm:text-lg font-bold text-[#6b4423] opacity-60 text-center max-w-[440px] leading-relaxed mb-12 px-4">
+        <p className="text-base sm:text-lg font-bold text-[#6b4423] opacity-50 max-w-[420px] leading-relaxed mb-14 px-4 mx-auto">
           a private corner of the internet, just for two.
         </p>
 
-        <div className="flex items-center gap-4 sm:gap-5">
+        <div className="flex items-center gap-4 sm:gap-6 justify-center w-full">
           <button
             onClick={onSignIn}
-            className="font-bold text-sm sm:text-base text-[#6b4423] opacity-60 hover:opacity-100 transition-all px-6 py-3 retro-border bg-white/40 hover:bg-[#ff6b9d]/5 active:translate-y-[1px] active:shadow-none"
+            className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-50 hover:opacity-100 transition-all px-6 py-3 retro-border bg-white/30 hover:bg-[#ff6b9d]/5 active:translate-y-[1px] active:shadow-none"
           >
             sign in
           </button>
-          <RetroButton variant="primary" onClick={onTryAttic} className="px-7 py-3 text-sm sm:text-base flex items-center gap-2">
-            try attic <ArrowRight size={18} />
+          <RetroButton variant="primary" onClick={onTryAttic} className="px-8 py-3 text-xs sm:text-sm flex items-center gap-2">
+            try attic <ArrowRight size={16} />
           </RetroButton>
         </div>
       </div>
 
       <div className="relative z-10 text-center pb-10">
-        <p className="text-[10px] font-bold tracking-[0.4em] uppercase text-[#6b4423] opacity-20 select-none">
-          made with ❤️ for lovers
+        <p className="text-[9px] font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-20 select-none leading-loose">
+          Made with love, for the lovers <br/>
+          By bakarkhaniii
         </p>
       </div>
     </div>
@@ -193,45 +200,44 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden bg-transparent">
-      {/* floating hearts */}
-      <div className="absolute top-[15%] right-[10%] text-[var(--primary)] opacity-[0.05] animate-float pointer-events-none">
-        <Heart size={44} fill="currentColor" />
-      </div>
-      <div className="absolute bottom-[20%] left-[12%] text-[var(--primary)] opacity-[0.03] animate-float-delayed pointer-events-none">
-        <Heart size={33} fill="currentColor" />
+      {/* Background Hearts with reduced opacity */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[10%] right-[15%] text-[var(--primary)] opacity-[0.04] animate-float"><Heart size={60} fill="currentColor" /></div>
+        <div className="absolute bottom-[15%] left-[10%] text-[var(--primary)] opacity-[0.03] animate-float-delayed"><Heart size={40} fill="currentColor" /></div>
+        <div className="absolute top-[40%] left-[5%] text-[var(--secondary)] opacity-[0.03] animate-float"><Mail size={24} /></div>
       </div>
 
       {inviteCode && (
         <div className="relative z-10 mb-8 retro-border retro-bg-accent retro-shadow-dark px-7 py-3 text-center animate-in fade-in duration-300">
-          <p className="text-sm font-bold opacity-70 uppercase tracking-widest">invited ❤️ sign up</p>
+          <p className="text-sm font-bold opacity-60 uppercase tracking-widest">invited ❤️ sign up</p>
         </div>
       )}
 
-      <RetroWindow title={windowTitles[mode]} className="w-full max-w-[600px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
+      <RetroWindow title={windowTitles[mode]} className="w-full max-w-[540px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
         {/* ── SIGN UP ── */}
         {mode === 'signup' && (
-          <form onSubmit={handleSignUp} className="flex flex-col gap-6 py-4 px-4 sm:px-10">
-            <div className="text-center mb-4">
+          <form onSubmit={handleSignUp} className="flex flex-col gap-6 py-4 px-4 sm:px-8">
+            <div className="text-center mb-2">
               <div className="w-16 h-16 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
                 <Sparkles size={24} className="text-[var(--text-main)]" />
               </div>
-              <h2 className="font-bold text-2xl lowercase">create your space</h2>
-              <p className="text-sm font-bold opacity-40 mt-1">a private attic for two</p>
+              <h2 className="font-bold text-xl lowercase">create your space</h2>
+              <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">a private attic for two</p>
             </div>
 
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold opacity-40 uppercase tracking-wider flex items-center gap-1"><User size={13}/>display name</label>
+                <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><User size={12}/>display name</label>
                 <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="name" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold opacity-40 uppercase tracking-wider flex items-center gap-1"><Mail size={13}/>email</label>
+                <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={12}/>email</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold opacity-40 uppercase tracking-wider flex items-center gap-1"><Lock size={13}/>password</label>
+              <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={12}/>password</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
             </div>
 
@@ -241,7 +247,7 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
               {loading ? <><Loader size={18} className="animate-spin" /> creating...</> : <>create attic <Sparkles size={16}/></>}
             </RetroButton>
 
-            <p className="text-center text-sm font-bold opacity-40 mt-1">
+            <p className="text-center text-sm font-bold opacity-30 mt-1">
               have an account?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
                 sign in
@@ -252,21 +258,21 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
         {/* ── SIGN IN ── */}
         {mode === 'signin' && (
-          <form onSubmit={handleSignIn} className="flex flex-col gap-6 py-4 px-4 sm:px-10">
-            <div className="text-center mb-4">
+          <form onSubmit={handleSignIn} className="flex flex-col gap-6 py-4 px-4 sm:px-8">
+            <div className="text-center mb-2">
               <div className="w-16 h-16 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
                 <Key size={24} />
               </div>
-              <h2 className="font-bold text-2xl lowercase">welcome back</h2>
-              <p className="text-sm font-bold opacity-40 mt-1">your attic missed you</p>
+              <h2 className="font-bold text-xl lowercase">welcome back</h2>
+              <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">your attic missed you</p>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold opacity-40 uppercase tracking-wider flex items-center gap-1"><Mail size={13}/>email</label>
+              <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={12}/>email</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold opacity-40 uppercase tracking-wider flex items-center gap-1"><Lock size={13}/>password</label>
+              <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={12}/>password</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
             </div>
 
@@ -282,7 +288,7 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
               {loading ? <><Loader size={18} className="animate-spin" /> unlocking...</> : <>unlock <Key size={16}/></>}
             </RetroButton>
 
-            <p className="text-center text-sm font-bold opacity-40 mt-1">
+            <p className="text-center text-sm font-bold opacity-30 mt-1">
               no account?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signup')}>
                 sign up
@@ -293,23 +299,23 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
         {/* ── FORGOT PASSWORD ── */}
         {mode === 'forgot' && (
-          <form onSubmit={handleForgot} className="flex flex-col gap-6 py-4 px-4 sm:px-10">
-            <div className="text-center mb-4">
+          <form onSubmit={handleForgot} className="flex flex-col gap-6 py-4 px-4 sm:px-8">
+            <div className="text-center mb-2">
               <div className="w-16 h-16 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
                 <Lock size={24} className="text-[var(--text-main)]" />
               </div>
-              <h2 className="font-bold text-2xl lowercase">lost keys?</h2>
+              <h2 className="font-bold text-xl lowercase">lost keys?</h2>
             </div>
 
             {forgotSent ? (
               <div className="retro-border retro-bg-accent p-8 text-center shadow-inner">
                 <Check size={36} className="mx-auto mb-3 text-[var(--primary)]" />
-                <p className="text-base font-bold">reset link sent!</p>
+                <p className="text-base font-bold uppercase tracking-widest">reset link sent!</p>
               </div>
             ) : (
               <>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] font-bold opacity-40 uppercase tracking-wider flex items-center gap-1"><Mail size={13}/>email</label>
+                  <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={12}/>email</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
                 </div>
                 {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
@@ -319,7 +325,7 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
               </>
             )}
 
-            <p className="text-center text-sm font-bold opacity-40 mt-1">
+            <p className="text-center text-sm font-bold opacity-30 mt-1">
               remembered?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
                 sign in
@@ -438,14 +444,14 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-transparent relative overflow-hidden">
         <Loader size={36} className="animate-spin text-[var(--primary)] mb-6 relative z-10" />
-        <p className="font-bold text-sm opacity-40 relative z-10 uppercase tracking-[0.2em]">Setting up...</p>
+        <p className="font-bold text-xs opacity-40 relative z-10 uppercase tracking-[0.2em]">Setting up...</p>
       </div>
     );
   }
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden bg-transparent">
-      <RetroWindow title="handshake.exe" className="w-full max-w-[600px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
+      <RetroWindow title="handshake.exe" className="w-full max-w-[540px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
         <div className="flex flex-col items-center text-center py-8 gap-8 px-4 sm:px-10">
           <div>
             <div className="w-16 h-16 rounded-full retro-bg-primary retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
@@ -456,18 +462,18 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 w-full">
             <div className="retro-border p-6 retro-bg-window shadow-inner flex flex-col justify-center">
-              <p className="font-bold text-[10px] mb-4 opacity-40 text-left uppercase tracking-widest">your code:</p>
+              <p className="font-bold text-[10px] mb-4 opacity-30 text-left uppercase tracking-widest">your code:</p>
               <button
                 onClick={copyInviteUrl}
                 className="w-full bg-[var(--border)] text-[var(--bg-window)] p-5 font-black text-2xl tracking-[0.2em] retro-shadow-primary flex items-center justify-center gap-4 hover:opacity-90 active:translate-y-[1px] transition-all cursor-pointer"
               >
                 {inviteCode || '...'}
-                {copied ? <Check size={24} className="shrink-0" /> : <Copy size={20} className="shrink-0 opacity-40" />}
+                {copied ? <Check size={24} className="shrink-0" /> : <Copy size={20} className="shrink-0 opacity-30" />}
               </button>
             </div>
 
             <form onSubmit={handleClaimInvite} className="retro-border p-6 retro-bg-accent retro-shadow-dark flex flex-col justify-center">
-              <p className="font-bold text-[10px] mb-4 opacity-40 text-left uppercase tracking-widest">partner's code:</p>
+              <p className="font-bold text-[10px] mb-4 opacity-30 text-left uppercase tracking-widest">partner's code:</p>
               <div className="flex flex-col gap-4">
                 <input
                   type="text"
