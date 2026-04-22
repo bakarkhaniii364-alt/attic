@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase.js';
    ═══════════════════════════════════════════════════════ */
 export function LandingView({ onTryAttic, onSignIn }) {
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent scale-up-15">
+    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden bg-transparent scale-up-15">
       {/* Background Grid with reduced opacity */}
       <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
 
@@ -28,34 +28,34 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
       </nav>
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-12 sm:pt-20 text-center">
-        <div className="relative mb-10 flex justify-center w-full">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-10 text-center">
+        <div className="relative mb-8 flex justify-center w-full">
           <img
             src="/assets/attic.svg"
             alt="attic"
-            className="w-[85vw] sm:w-[36rem] object-contain animate-in fade-in slide-in-from-bottom-4 duration-1000 mx-auto"
+            className="w-[80vw] sm:w-[32rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700 mx-auto"
             style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.2))' }}
           />
         </div>
-        <p className="text-xs sm:text-sm font-bold text-[#6b4423] opacity-50 max-w-[360px] leading-relaxed mb-10 px-4 mx-auto uppercase tracking-widest">
+        <p className="text-xs font-bold text-[#6b4423] opacity-50 max-w-[340px] leading-relaxed mb-8 px-4 mx-auto uppercase tracking-widest">
           a private corner of the internet, just for two.
         </p>
 
-        <div className="flex items-center gap-4 sm:gap-6 justify-center w-full mb-12">
+        <div className="flex items-center gap-4 sm:gap-6 justify-center w-full">
           <button
             onClick={onSignIn}
-            className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-50 hover:opacity-100 transition-all px-6 py-3 retro-border bg-white/30 hover:bg-[#ff6b9d]/5 active:translate-y-[1px] active:shadow-none"
+            className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-50 hover:opacity-100 transition-all px-6 py-2.5 retro-border bg-white/30 hover:bg-[#ff6b9d]/5 active:translate-y-[1px] active:shadow-none"
           >
             sign in
           </button>
-          <RetroButton variant="primary" onClick={onTryAttic} className="px-8 py-3 text-xs sm:text-sm flex items-center gap-2">
+          <RetroButton variant="primary" onClick={onTryAttic} className="px-8 py-2.5 text-xs sm:text-sm flex items-center gap-2">
             try attic <ArrowRight size={16} />
           </RetroButton>
         </div>
       </div>
 
-      <div className="relative z-10 text-center pb-10 px-4">
-        <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-50 select-none leading-loose">
+      <div className="relative z-10 text-center pb-8 px-4">
+        <p className="text-[9px] font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-50 select-none leading-loose">
           Made with love, for the lovers <br/>
           By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--primary)] transition-colors">bakarkhaniii</a>
         </p>
