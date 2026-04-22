@@ -199,7 +199,7 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden bg-transparent">
+    <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden bg-transparent">
       {/* Background Hearts with reduced opacity */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[10%] right-[15%] text-[var(--primary)] opacity-[0.04] animate-float"><Heart size={60} fill="currentColor" /></div>
@@ -208,46 +208,46 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
       </div>
 
       {inviteCode && (
-        <div className="relative z-10 mb-8 retro-border retro-bg-accent retro-shadow-dark px-7 py-3 text-center animate-in fade-in duration-300">
+        <div className="relative z-10 mb-6 retro-border retro-bg-accent retro-shadow-dark px-6 py-2 text-center animate-in fade-in duration-300">
           <p className="text-sm font-bold opacity-60 uppercase tracking-widest">invited ❤️ sign up</p>
         </div>
       )}
 
-      <RetroWindow title={windowTitles[mode]} className="w-full max-w-[540px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
+      <RetroWindow title={windowTitles[mode]} className="w-full max-w-[440px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
         {/* ── SIGN UP ── */}
         {mode === 'signup' && (
-          <form onSubmit={handleSignUp} className="flex flex-col gap-6 py-4 px-4 sm:px-8">
-            <div className="text-center mb-2">
-              <div className="w-16 h-16 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
-                <Sparkles size={24} className="text-[var(--text-main)]" />
+          <form onSubmit={handleSignUp} className="flex flex-col gap-4 py-2 px-2 sm:px-6">
+            <div className="text-center mb-1">
+              <div className="w-14 h-14 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
+                <Sparkles size={22} className="text-[var(--text-main)]" />
               </div>
-              <h2 className="font-bold text-xl lowercase">create your space</h2>
-              <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">a private attic for two</p>
+              <h2 className="font-bold text-lg lowercase">create your space</h2>
+              <p className="text-[10px] font-bold opacity-40 mt-0.5 uppercase tracking-widest">a private attic for two</p>
             </div>
 
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><User size={12}/>display name</label>
-                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="name" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><User size={11}/>display name</label>
+                <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="name" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner" />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={12}/>email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={11}/>email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner" />
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={12}/>password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={11}/>password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
             </div>
 
-            {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
+            {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
 
-            <RetroButton type="submit" variant="primary" className="py-4 mt-2 text-base flex justify-center items-center gap-2" disabled={loading}>
-              {loading ? <><Loader size={18} className="animate-spin" /> creating...</> : <>create attic <Sparkles size={16}/></>}
+            <RetroButton type="submit" variant="primary" className="py-3 mt-1 text-sm flex justify-center items-center gap-2" disabled={loading}>
+              {loading ? <><Loader size={16} className="animate-spin" /> creating...</> : <>create attic <Sparkles size={14}/></>}
             </RetroButton>
 
-            <p className="text-center text-sm font-bold opacity-30 mt-1">
+            <p className="text-center text-xs font-bold opacity-30 mt-0.5">
               have an account?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
                 sign in
@@ -258,37 +258,37 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
         {/* ── SIGN IN ── */}
         {mode === 'signin' && (
-          <form onSubmit={handleSignIn} className="flex flex-col gap-6 py-4 px-4 sm:px-8">
-            <div className="text-center mb-2">
-              <div className="w-16 h-16 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
-                <Key size={24} />
+          <form onSubmit={handleSignIn} className="flex flex-col gap-4 py-2 px-2 sm:px-6">
+            <div className="text-center mb-1">
+              <div className="w-14 h-14 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
+                <Key size={22} />
               </div>
-              <h2 className="font-bold text-xl lowercase">welcome back</h2>
-              <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">your attic missed you</p>
+              <h2 className="font-bold text-lg lowercase">welcome back</h2>
+              <p className="text-[10px] font-bold opacity-40 mt-0.5 uppercase tracking-widest">your attic missed you</p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={12}/>email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={11}/>email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={12}/>password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Lock size={11}/>password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
             </div>
 
-            <div className="text-right -mt-4">
-              <span className="text-xs font-bold opacity-40 underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('forgot')}>
+            <div className="text-right -mt-3">
+              <span className="text-[10px] font-bold opacity-40 underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('forgot')}>
                 forgot password?
               </span>
             </div>
 
-            {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
+            {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
 
-            <RetroButton type="submit" variant="primary" className="py-4 mt-2 text-base flex justify-center items-center gap-2" disabled={loading}>
-              {loading ? <><Loader size={18} className="animate-spin" /> unlocking...</> : <>unlock <Key size={16}/></>}
+            <RetroButton type="submit" variant="primary" className="py-3 mt-1 text-sm flex justify-center items-center gap-2" disabled={loading}>
+              {loading ? <><Loader size={16} className="animate-spin" /> unlocking...</> : <>unlock <Key size={14}/></>}
             </RetroButton>
 
-            <p className="text-center text-sm font-bold opacity-30 mt-1">
+            <p className="text-center text-xs font-bold opacity-30 mt-0.5">
               no account?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signup')}>
                 sign up
@@ -297,35 +297,35 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
           </form>
         )}
 
-        {/* ── FORGOT PASSWORD ── */}
+        {/* ── FORGOT PASSWORD ─── */}
         {mode === 'forgot' && (
-          <form onSubmit={handleForgot} className="flex flex-col gap-6 py-4 px-4 sm:px-8">
-            <div className="text-center mb-2">
-              <div className="w-16 h-16 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
-                <Lock size={24} className="text-[var(--text-main)]" />
+          <form onSubmit={handleForgot} className="flex flex-col gap-4 py-2 px-2 sm:px-6">
+            <div className="text-center mb-1">
+              <div className="w-14 h-14 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
+                <Lock size={22} className="text-[var(--text-main)]" />
               </div>
-              <h2 className="font-bold text-xl lowercase">lost keys?</h2>
+              <h2 className="font-bold text-lg lowercase">lost keys?</h2>
             </div>
 
             {forgotSent ? (
-              <div className="retro-border retro-bg-accent p-8 text-center shadow-inner">
-                <Check size={36} className="mx-auto mb-3 text-[var(--primary)]" />
-                <p className="text-base font-bold uppercase tracking-widest">reset link sent!</p>
+              <div className="retro-border retro-bg-accent p-6 text-center shadow-inner">
+                <Check size={32} className="mx-auto mb-2 text-[var(--primary)]" />
+                <p className="text-xs font-bold uppercase tracking-widest">reset link sent!</p>
               </div>
             ) : (
               <>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={12}/>email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner w-full" />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-bold opacity-30 uppercase tracking-wider flex items-center gap-1"><Mail size={11}/>email</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold shadow-inner w-full" />
                 </div>
-                {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
-                <RetroButton type="submit" variant="primary" className="py-4 text-base flex justify-center items-center gap-2" disabled={loading}>
-                  {loading ? <><Loader size={18} className="animate-spin" /> sending...</> : <>send link <Mail size={16}/></>}
+                {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
+                <RetroButton type="submit" variant="primary" className="py-3 text-sm flex justify-center items-center gap-2" disabled={loading}>
+                  {loading ? <><Loader size={16} className="animate-spin" /> sending...</> : <>send link <Mail size={14}/></>}
                 </RetroButton>
               </>
             )}
 
-            <p className="text-center text-sm font-bold opacity-30 mt-1">
+            <p className="text-center text-xs font-bold opacity-30 mt-0.5">
               remembered?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
                 sign in
@@ -451,40 +451,40 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden bg-transparent">
-      <RetroWindow title="handshake.exe" className="w-full max-w-[540px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
-        <div className="flex flex-col items-center text-center py-8 gap-8 px-4 sm:px-10">
+      <RetroWindow title="handshake.exe" className="w-full max-w-[440px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
+        <div className="flex flex-col items-center text-center py-6 gap-6 px-2 sm:px-6">
           <div>
-            <div className="w-16 h-16 rounded-full retro-bg-primary retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
-              <span className="text-3xl">🤝</span>
+            <div className="w-14 h-14 rounded-full retro-bg-primary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
+              <span className="text-2xl">🤝</span>
             </div>
-            <h2 className="font-bold text-2xl lowercase">the handshake</h2>
+            <h2 className="font-bold text-lg lowercase">the handshake</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 w-full">
-            <div className="retro-border p-6 retro-bg-window shadow-inner flex flex-col justify-center">
-              <p className="font-bold text-[10px] mb-4 opacity-30 text-left uppercase tracking-widest">your code:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
+            <div className="retro-border p-5 retro-bg-window shadow-inner flex flex-col justify-center">
+              <p className="font-bold text-[9px] mb-3 opacity-30 text-left uppercase tracking-widest">your code:</p>
               <button
                 onClick={copyInviteUrl}
-                className="w-full bg-[var(--border)] text-[var(--bg-window)] p-5 font-black text-2xl tracking-[0.2em] retro-shadow-primary flex items-center justify-center gap-4 hover:opacity-90 active:translate-y-[1px] transition-all cursor-pointer"
+                className="w-full bg-[var(--border)] text-[var(--bg-window)] p-4 font-black text-xl tracking-[0.2em] retro-shadow-primary flex items-center justify-center gap-3 hover:opacity-90 active:translate-y-[1px] transition-all cursor-pointer"
               >
                 {inviteCode || '...'}
-                {copied ? <Check size={24} className="shrink-0" /> : <Copy size={20} className="shrink-0 opacity-30" />}
+                {copied ? <Check size={20} className="shrink-0" /> : <Copy size={16} className="shrink-0 opacity-30" />}
               </button>
             </div>
 
-            <form onSubmit={handleClaimInvite} className="retro-border p-6 retro-bg-accent retro-shadow-dark flex flex-col justify-center">
-              <p className="font-bold text-[10px] mb-4 opacity-30 text-left uppercase tracking-widest">partner's code:</p>
-              <div className="flex flex-col gap-4">
+            <form onSubmit={handleClaimInvite} className="retro-border p-5 retro-bg-accent retro-shadow-dark flex flex-col justify-center">
+              <p className="font-bold text-[9px] mb-3 opacity-30 text-left uppercase tracking-widest">partner's code:</p>
+              <div className="flex flex-col gap-3">
                 <input
                   type="text"
                   value={partnerCode}
                   onChange={(e) => setPartnerCode(e.target.value.toUpperCase())}
                   placeholder="XXXXXX"
                   maxLength={6}
-                  className="w-full p-4 retro-border bg-white focus:outline-none font-black tracking-[0.2em] text-center uppercase text-2xl shadow-inner"
+                  className="w-full p-3 retro-border bg-white focus:outline-none font-black tracking-[0.2em] text-center uppercase text-xl shadow-inner"
                 />
-                <RetroButton type="submit" variant="primary" className="w-full py-4 text-base" disabled={loading || !partnerCode.trim()}>
-                  {loading ? <Loader size={20} className="animate-spin" /> : 'pair'}
+                <RetroButton type="submit" variant="primary" className="w-full py-3 text-sm" disabled={loading || !partnerCode.trim()}>
+                  {loading ? <Loader size={16} className="animate-spin" /> : 'pair'}
                 </RetroButton>
               </div>
             </form>
