@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
-import { getScore } from '../utils/helpers.js';
+import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
@@ -23,18 +23,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const handlePfpUpload = (e) => { 
     const file = e.target.files[0]; 
     if (file) { 
-      if (file.size > 1024 * 1024) {
-        toast('Image too large! Please use a photo under 1MB.', 'error');
-        return;
-      }
       const reader = new FileReader(); 
-      reader.onloadend = () => { 
+      reader.onloadend = async () => { 
         try {
-          setProfile({...profile, pfp: reader.result}); 
+          const compressed = await compressImage(reader.result, 150, 150, 0.7);
+          setProfile({...profile, pfp: compressed}); 
           playAudio('click', sfxEnabled); 
           toast('Profile photo updated!', 'success'); 
         } catch (err) {
-          toast('Storage full! Try a smaller image.', 'error');
+          console.error("PFP Error:", err);
+          toast('Failed to update photo. Try a different one.', 'error');
         }
       }; 
       reader.readAsDataURL(file); 
