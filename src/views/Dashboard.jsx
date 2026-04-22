@@ -210,11 +210,7 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
               {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 rounded-full retro-border retro-shadow-dark object-cover" /> : <div className="text-4xl">{profile.emoji}</div>}
               <div><h1 className="text-2xl sm:text-3xl font-bold mb-1">hi {profile.name}!</h1><div className="flex items-center gap-2"><p className="text-sm sm:text-base">partner is <span className="retro-bg-secondary px-2 py-0.5 retro-border text-xs sm:text-sm inline-block rotate-2">online</span></p><StreakBadge streak={streak} /></div></div>
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={handlePoke} className={`p-2 retro-border rounded-full flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary scale-90' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button>
-              <button onClick={() => setShowControlPanel(true)} title="Control panel" className="p-2 retro-border rounded-full retro-bg-window hover:-translate-y-1 transition-transform"><SettingsIcon size={18} /></button>
-              <button onClick={onLogout} title="Logout" className="bg-red-600 text-white font-bold py-2 px-3 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform rounded">Log out</button>
-            </div>
+            <button onClick={handlePoke} className={`p-2 retro-border rounded-full flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary scale-90' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button>
           </div>
 
           {showControlPanel ? (
@@ -222,7 +218,13 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
               <SettingsView compact={true} onClose={() => setShowControlPanel(false)} theme={theme} setTheme={setTheme} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={onLogout} onDelete={onDelete} weather={weather} setWeather={setWeather} />
             </div>
           ) : (
-            pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>
+            <>
+              {pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>}
+              <div className="flex flex-wrap gap-3 items-center justify-end pt-2 border-t border-dashed border-[var(--border)]">
+                <button onClick={() => setShowControlPanel(true)} className="bg-[var(--window)] text-[var(--text-main)] font-bold py-2 px-4 retro-border hover:-translate-y-1 transition-transform">Control panel</button>
+                <button onClick={onLogout} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform">Log out</button>
+              </div>
+            </>
           )}
         </div>
       </RetroWindow>

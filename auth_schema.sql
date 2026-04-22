@@ -74,3 +74,38 @@ begin
   );
 end;
 $$ language plpgsql security definer;
+
+-- ── Unpair the current user and refresh the room invite code ──
+create or replace function leave_room(room_uuid uuid)
+returns json as $$
+declare
+  room_row rooms%rowtype;
+  new_code text;
+begin
+  select * into room_row from rooms where id = room_uuid;
+  if not found then
+    return json_build_object('error', 'not_found', 'message', 'room not found');
+  end if;
+
+  if room_row.creator_id <> auth.uid() and room_row.partner_id <> auth.uid() then
+    return json_build_object('error', 'not_allowed', 'message', 'you are not part of this room');
+  end if;
+
+  if room_row.partner_id is null then
+    return json_build_object('error', 'not_paired', 'message', 'this room is already unpaired');
+  end if;
+
+  new_code := upper(substring(md5(random()::text) from 1 for 6));
+  while exists(select 1 from rooms where invite_code = new_code) loop
+    new_code := upper(substring(md5(random()::text) from 1 for 6));
+  end loop;
+
+  if room_row.partner_id = auth.uid() then
+    update rooms set creator_id = auth.uid(), partner_id = null, invite_code = new_code where id = room_uuid;
+  else
+    update rooms set partner_id = null, invite_code = new_code where id = room_uuid;
+  end if;
+
+  return json_build_object('success', true, 'room_id', room_uuid, 'invite_code', new_code);
+end;
+$$ language plpgsql security definer;

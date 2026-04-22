@@ -87,18 +87,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         return;
       }
 
-      // Try preferred RPC first
-      try {
-        const { data: leaveRes, error: leaveErr } = await supabase.rpc('leave_room', { room_uuid: roomId });
-        if (leaveErr) throw leaveErr;
-      } catch (rpcErr) {
-        // Fallback: attempt to clear partner_id on rooms
-        const { error: updErr } = await supabase.from('rooms').update({ partner_id: null }).eq('id', roomId);
-        if (updErr) {
-          console.error('Unpair failed', updErr);
-          toast('Could not unpair via server. Try again later.', 'error');
-          return;
-        }
+      const { data: leaveResult, error: leaveErr } = await supabase.rpc('leave_room', { room_uuid: roomId });
+      if (leaveErr) {
+        console.error('leave_room rpc failed', leaveErr);
+        toast('Could not disconnect right now. Try again later.', 'error');
+        return;
+      }
+
+      if (leaveResult && leaveResult.error) {
+        toast(leaveResult.message || 'Could not disconnect.', 'error');
+        return;
       }
 
       try { window.localStorage.removeItem('attic_room_id'); } catch (e) {}
