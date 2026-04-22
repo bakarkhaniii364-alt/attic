@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, useNavigate, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
