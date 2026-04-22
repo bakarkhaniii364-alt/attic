@@ -197,7 +197,13 @@ export default function App() {
   };
 
   const handleAuthSuccess = async ({ name, session: s, isNewUser }) => {
-    setSession(s);
+    let session = s;
+    if (!session) {
+      const { data } = await supabase.auth.getSession();
+      session = data?.session;
+    }
+
+    setSession(session);
     // Set profile in localStorage for AppContent to pick up
     window.localStorage.setItem('user_profile', JSON.stringify({
       name, emoji: '😊', petName: '', partnerName: '', anniversary: ''
@@ -205,7 +211,7 @@ export default function App() {
     window.localStorage.setItem('current_view', JSON.stringify('dashboard'));
 
     // Check room (and auto-claim invite if exists)
-    await checkRoom(s, inviteCode);
+    await checkRoom(session, inviteCode);
   };
 
   const handlePaired = async (roomId) => {

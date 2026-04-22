@@ -48,12 +48,14 @@ export function LandingView({ onTryAttic, onSignIn }) {
 
       {/* hero */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-12">
-        <h1
-          className="text-7xl sm:text-[9rem] font-black lowercase tracking-tighter text-[var(--text-main)] leading-none mb-6 select-none"
-          style={{ textShadow: '4px 4px 0px var(--accent)' }}
-        >
-          attic
-        </h1>
+        <div className="relative mb-6">
+          <img
+            src="/assets/attic.svg"
+            alt="attic"
+            className="w-96 sm:w-[38rem] object-contain"
+            style={{ filter: 'drop-shadow(4px 4px 0px var(--accent))' }}
+          />
+        </div>
         <p className="text-xs sm:text-sm font-bold text-[var(--text-main)] opacity-50 text-center max-w-[280px] leading-relaxed">
           a private corner of the internet, just for two
         </p>
@@ -102,7 +104,15 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
     });
 
     if (err) { setError(err.message); setLoading(false); return; }
-    onAuthSuccess({ name: displayName.trim(), session: data.session, isNewUser: true });
+
+    const session = data.session || (await supabase.auth.getSession()).data?.session;
+    if (!session) {
+      setError('Unable to sign in after signup. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    onAuthSuccess({ name: displayName.trim(), session, isNewUser: true });
   };
 
   const handleSignIn = async (e) => {
@@ -117,8 +127,16 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
     });
 
     if (err) { setError(err.message); setLoading(false); return; }
+
+    const session = data.session || (await supabase.auth.getSession()).data?.session;
+    if (!session) {
+      setError('Unable to retrieve session after signing in. Please try again.');
+      setLoading(false);
+      return;
+    }
+
     const name = data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'you';
-    onAuthSuccess({ name, session: data.session, isNewUser: false });
+    onAuthSuccess({ name, session, isNewUser: false });
   };
 
   const handleForgot = async (e) => {
@@ -311,22 +329,34 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
             return;
           }
         } else {
-          // Create a new room with a random invite code
-          const code = generateCode();
-          const { error: err } = await supabase.from('rooms').insert({
-            invite_code: code,
-            creator_id: session.user.id,
-          });
-          if (err) {
-            console.error('Failed to create room:', err);
-            // Retry with different code
-            const code2 = generateCode();
-            const { error: err2 } = await supabase.from('rooms').insert({ invite_code: code2, creator_id: session.user.id });
-            if (err2) throw err2;
-            setInviteCode(code2);
-          } else {
-            setInviteCode(code);
+          // Create a new room with a random invite code.
+          // Retry on duplicates until a unique code is stored.
+          let roomCode = null;
+          const maxAttempts = 8;
+
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const candidate = generateCode();
+            const { error: err } = await supabase.from('rooms').insert({
+              invite_code: candidate,
+              creator_id: session.user.id,
+            });
+
+            if (!err) {
+              roomCode = candidate;
+              break;
+            }
+
+            const duplicateError = err.code === '23505' || err.message?.toLowerCase().includes('duplicate');
+            if (!duplicateError) {
+              throw err;
+            }
           }
+
+          if (!roomCode) {
+            throw new Error('Unable to generate a unique invite code. Please try again.');
+          }
+
+          setInviteCode(roomCode);
         }
       } catch (err) {
         console.error("Setup error:", err);
