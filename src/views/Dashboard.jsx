@@ -179,7 +179,8 @@ function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather }) {
+export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData }) {
+  const updatePetHappy = (val) => setCoupleData({ ...coupleData, petHappy: val });
   const [mood, setMood] = useLocalStorage('my_mood', '😊');
   const [petHappy, setPetHappy] = useLocalStorage('pet_happy', 60);
   const [pokeActive, setPokeActive] = useState(false);
