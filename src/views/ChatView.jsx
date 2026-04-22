@@ -380,7 +380,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                 // GROUPING LOGIC
                 const isGroupStart = !prevMsg || prevMsg.sender !== msg.sender;
                 const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender;
-                const marginClass = isGroupEnd ? "mb-6" : "mb-1";
+                const marginClass = isGroupEnd ? "mb-6" : "mb-2";
 
                 if (msg.type === 'call_invite' && msg.status === 'ringing') return null;
                 const isCallLog = msg.type === 'call_invite';
@@ -392,49 +392,61 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
                     {/* Sender Label (only for group start) */}
-                    {isGroupStart && !isMe && (
+                    {isGroupStart && !isMe && !isCallLog && (
                       <div className="flex items-center gap-2 mb-1 ml-11">
                         <span className="text-[10px] font-black uppercase opacity-40 tracking-widest">{senderName}</span>
                       </div>
                     )}
 
-                    <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                      {/* PFP / Avatar */}
-                      <div className="w-9 h-9 flex-shrink-0 flex items-end">
-                        {isGroupEnd ? (
-                          senderPfp ? (
-                            <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-full shadow-sm" />
-                          ) : (
-                            <div className={`w-8 h-8 retro-border flex items-center justify-center text-sm rounded-full shadow-sm ${isMe ? 'retro-bg-primary' : 'retro-bg-secondary'}`}>
-                              {senderEmoji}
-                            </div>
-                          )
-                        ) : <div className="w-8" />}
-                      </div>
+                    <div id={`msg-${msg.id}`} className={`flex items-end gap-3 max-w-[85%] md:max-w-[75%] relative ${isMe ? 'flex-row-reverse self-end' : 'flex-row self-start'}`}>
+                      {/* PFP / Avatar (Only for partner) */}
+                      {!isMe && (
+                        <div className="w-8 h-8 flex-shrink-0 flex items-end">
+                          {isGroupEnd ? (
+                            senderPfp ? (
+                              <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-full shadow-sm" />
+                            ) : (
+                              <div className="w-8 h-8 retro-border flex items-center justify-center text-[10px] rounded-full shadow-sm retro-bg-secondary">
+                                {senderEmoji}
+                              </div>
+                            )
+                          ) : <div className="w-8" />}
+                        </div>
+                      )}
 
-                      {/* Options Button (Hover) */}
+                      {/* Options Button (Inner Side) */}
                       {!msg.isDeleted && !isCallLog && (
-                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center relative ${isMe ? 'pr-1' : 'pl-1'}`}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full">
-                            <MoreVertical size={14} className="opacity-50" />
+                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center order-first ${isMe ? 'order-first mr-1' : 'order-last ml-1'}`}>
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1.5 hover:bg-black/5 rounded-full bg-white/40 backdrop-blur-sm retro-border border-dashed">
+                            <MoreVertical size={12} className="opacity-70" />
                           </button>
                         </div>
                       )}
 
-                      {/* Bubble Content */}
                       <div className={`
-                        relative flex flex-col 
-                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3 retro-border shadow-sm'} 
+                        relative flex flex-col group/bubble
+                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 retro-border retro-shadow-dark'} 
                         ${msg.isDeleted ? 'bg-gray-50 border-gray-200 text-gray-400 italic' : 
                           isCallLog ? 'bg-black/5 border-dashed italic' : 
                           isMe ? (noBubble ? '' : 'retro-bg-primary') : (noBubble ? '' : 'retro-bg-window')}
-                        ${isMe ? `rounded-2xl rounded-tr-none ${isGroupStart ? 'rounded-tr-none' : ''}` : `rounded-2xl rounded-tl-none ${isGroupStart ? 'rounded-tl-none' : ''}`}
+                        ${isMe ? `rounded-2xl rounded-tr-none` : `rounded-2xl rounded-tl-none`}
+                        ${!isGroupStart ? (isMe ? 'rounded-tr-2xl' : 'rounded-tl-2xl') : ''}
                       `}>
                         {/* Reply Preview */}
                         {msg.replyTo && !msg.isDeleted && (
-                          <div className={`border-l-4 border-[var(--border)]/30 bg-black/5 p-2 mb-2 text-xs rounded opacity-80 cursor-pointer hover:bg-black/10 transition-colors`}>
-                            <p className="font-bold mb-0.5">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || 'Partner')}</p>
-                            <p className="truncate italic">{msg.replyTo.text || 'Media'}</p>
+                          <div 
+                            onClick={() => {
+                                const el = document.getElementById(`msg-${msg.replyTo.id}`);
+                                if (el) {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    el.classList.add('animate-shake');
+                                    setTimeout(() => el.classList.remove('animate-shake'), 1000);
+                                }
+                            }}
+                            className={`border-l-4 border-[var(--border)]/40 bg-black/10 p-2 mb-2 text-[10px] rounded-md opacity-90 cursor-pointer hover:bg-black/20 transition-all active:scale-95`}
+                          >
+                            <p className="font-black uppercase tracking-tighter mb-0.5 opacity-60">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || 'Partner')}</p>
+                            <p className="truncate italic font-bold">{msg.replyTo.text || '📸 Media / Attachment'}</p>
                           </div>
                         )}
 
