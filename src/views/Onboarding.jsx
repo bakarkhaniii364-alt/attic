@@ -18,12 +18,6 @@ export function LandingView({ onTryAttic, onSignIn }) {
           95% { opacity: 1; }
           100% { transform: translateX(900px) translateY(0) rotate(20deg); opacity: 0; }
         }
-        @keyframes wiggle-bounce { 
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          25% { transform: translateY(-8px) rotate(-2deg); }
-          75% { transform: translateY(-8px) rotate(2deg); }
-        }
-        .paper-airplane { animation: paper-airplane 8s infinite; font-size: 2rem; position: fixed; }
       `}</style>
 
       {/* Cute background with hearts */}
@@ -34,11 +28,6 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <div className="absolute inset-0 bg-pattern-grid opacity-20" />
         <div className="absolute inset-0 scanlines pointer-events-none opacity-10" />
       </div>
-
-      {/* Paper airplanes flying */}
-      <div className="paper-airplane" style={{top: '10%', left: '5%', animationDelay: '0s'}} aria-hidden>✈️</div>
-      <div className="paper-airplane" style={{top: '30%', left: '2%', animationDelay: '3s'}} aria-hidden>✈️</div>
-      <div className="paper-airplane" style={{top: '60%', left: '8%', animationDelay: '5s'}} aria-hidden>✈️</div>
 
       {/* nav */}
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
@@ -53,7 +42,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
             src="/assets/attic.svg"
             alt="attic"
             className="w-96 sm:w-[38rem] object-contain"
-            style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.4))', animation: 'wiggle-bounce 3s infinite' }}
+            style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.4))' }}
           />
         </div>
         <p className="text-xs sm:text-sm font-bold text-[#6b4423] opacity-70 text-center max-w-[280px] leading-relaxed mb-8">
