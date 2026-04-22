@@ -148,6 +148,41 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
 
+  // ── Gestures ──
+  const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [swipingId, setSwipingId] = useState(null);
+  const longPressTimer = useRef(null);
+
+  const handleTouchStart = (e, msg) => {
+    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    setSwipingId(msg.id);
+    longPressTimer.current = setTimeout(() => {
+      if (Math.abs(swipeOffset) < 10) {
+        playAudio('click', sfx);
+        setActiveOptions(msg.id);
+      }
+    }, 600);
+  };
+
+  const handleTouchMove = (e) => {
+    const diff = e.touches[0].clientX - touchStart.x;
+    if (diff > 10) { // Swipe right to reply
+      setSwipeOffset(Math.min(diff, 60));
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+    }
+  };
+
+  const handleTouchEnd = (msg) => {
+    if (swipeOffset >= 50) {
+      playAudio('click', sfx);
+      setReplyingTo(msg);
+    }
+    setSwipeOffset(0);
+    setSwipingId(null);
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+
   const imageMessages = chatHistory.filter(m => m.type === 'image' && !m.isDeleted);
   const pinnedMessages = chatHistory.filter(m => m.isPinned && !m.isDeleted);
   const callHistory = chatHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
@@ -171,11 +206,16 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
                 const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender;
                 const marginClass = isGroupEnd ? "mb-6" : "mb-1";
                 if (msg.type === 'call_invite' && msg.status === 'ringing') return null;
-                
                 const isCallLog = msg.type === 'call_invite';
 
                 return (
-                  <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
+                  <div key={msg.id} 
+                    onTouchStart={(e) => handleTouchStart(e, msg)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={() => handleTouchEnd(msg)}
+                    style={{ transform: swipingId === msg.id ? `translateX(${swipeOffset}px)` : 'none' }}
+                    className={`flex flex-col relative group message-item ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}
+                  >
                     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
                       {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">☕</div>}</div>}
                       {isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => {playAudio('click',sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id)}} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100"/></button></div>)}
@@ -195,9 +235,10 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
                           </> 
                         )}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (<div className={`absolute -bottom-3 ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
+                        {swipingId === msg.id && swipeOffset > 20 && <div className="swipe-indicator opacity-100 translate-x-[-10px]"><Reply size={20} className="text-[var(--primary)]" /></div>}
                       </div>
                       {!isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2 flex items-center justify-center relative"><button onClick={() => {playAudio('click',sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id)}} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100"/></button></div>)}
-                      {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-32 py-1`}><button onClick={() => {playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14}/> Reply</button><button onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14}/> {msg.isPinned ? 'Unpin' : 'Pin'}</button><div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14}/> <span onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('❤️') ? rs.filter(e => e !== '❤️') : [...rs, '❤️'] }; } return m; })); setActiveOptions(null);}} className="cursor-pointer hover:scale-125 transition-transform">❤️</span></div>{isMe && msg.type === 'text' && <button onClick={() => {playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14}/> Edit</button>}{isMe && <button onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14}/> Delete</button>}</div>)}
+                      {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-32 py-1`}><button onClick={() => {playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14}/> Reply</button><button onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14}/> {msg.isPinned ? 'Unpin' : 'Pin'}</button><div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14}/> <span onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('❤️') ? rs.filter(e => e !== '❤️') : [...rs, '❤️'] }; } return m; })); setActiveOptions(null);}} className="cursor-pointer hover:scale-125 transition-transform">❤️</span><span onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('😂') ? rs.filter(e => e !== '😂') : [...rs, '😂'] }; } return m; })); setActiveOptions(null);}} className="cursor-pointer hover:scale-125 transition-transform">😂</span><span onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('😮') ? rs.filter(e => e !== '😮') : [...rs, '😮'] }; } return m; })); setActiveOptions(null);}} className="cursor-pointer hover:scale-125 transition-transform">😮</span></div>{isMe && msg.type === 'text' && <button onClick={() => {playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14}/> Edit</button>}{isMe && <button onClick={() => {playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null);}} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14}/> Delete</button>}</div>)}
                     </div>
                     {msg.isPinned && !msg.isDeleted && <div className={`absolute -top-3 ${isMe ? 'right-4' : 'left-4'} bg-[var(--accent)] rounded-full p-1 border-2 border-[var(--border)] z-10`}><Pin size={12} className="text-white"/></div>}
                     {isGroupEnd && ( <div className="flex items-center gap-1 mt-1 justify-end px-2"><span className="text-[10px] opacity-70 font-bold">{msg.time}</span>{isMe && msg.status && !isCallLog && ( <div className="flex -space-x-1.5 ml-1"><Check size={12} className={msg.status==='read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />{(msg.status === 'delivered' || msg.status === 'read') && <Check size={12} className={msg.status==='read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />}</div> )}</div> )}
@@ -208,13 +249,13 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
             </div>
             <div className="flex flex-col retro-bg-accent retro-border-t relative">
               {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 z-[100] shadow-2xl animate-in slide-in-from-bottom-2">
-                  <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
+                <div className="absolute bottom-full left-0 z-[100] shadow-2xl animate-in slide-in-from-bottom-2 w-full sm:w-auto">
+                  <EmojiPicker onEmojiClick={onEmojiClick} theme="light" width="100%" height={350} />
                 </div>
               )}
-              {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500"/><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 rounded">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500 rounded">Send</button></div></div>)}
+              {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500"/><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 rounded">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500 rounded">Send</button></div></div>)}
               {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1"/>Replying to {replyingTo.sender === userId ? profile.name || 'You' : 'Partner'}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 rounded-full"><X size={14}/></button></div>)}
-              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" /><button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-bg-window retro-border hover:bg-gray-100 disabled:opacity-50 transition-colors"><Paperclip size={18} /></button><button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 retro-bg-window retro-border transition-colors ${showEmojiPicker ? 'bg-[var(--accent)]' : 'hover:bg-gray-100'}`}><Smile size={18} /></button><div className="flex-1 relative flex items-center"><input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={(e) => setInput(e.target.value)} placeholder="type a message..." disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} /></div>{!input.trim() && !editingMsgId && voicePreview === null ? (<button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`}><Mic size={18} className={isRecording ? 'animate-bounce' : ''}/></button>) : ( <RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton> )}</form>
+              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" /><button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-bg-window retro-border hover:bg-gray-100 transition-colors shrink-0"><Paperclip size={18} /></button><button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 retro-bg-window retro-border transition-colors shrink-0 ${showEmojiPicker ? 'bg-[var(--accent)]' : 'hover:bg-gray-100'}`}><Smile size={18} /></button><div className="flex-1 relative flex items-center"><input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={(e) => setInput(e.target.value)} placeholder="type a message..." disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} /></div>{!input.trim() && !editingMsgId && voicePreview === null ? (<button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`}><Mic size={18} className={isRecording ? 'animate-bounce' : ''}/></button>) : ( <RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton> )}</form>
             </div>
           </div>
           {showDetails && (
