@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 
-export function SettingsView({ onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores, userId }) {
+export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores, userId }) {
   const toast = useToast();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -74,11 +74,46 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
     }
   };
 
-  return (
-    <RetroWindow title="control_panel.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
-      <div className="space-y-6">
-        {/* Profile Section */}
-        <section className="p-4 retro-bg-window retro-border border-dashed">
+  const handleUnpair = async () => {
+    try {
+      const { data: roomData, error: rdErr } = await supabase.rpc('get_my_room');
+      if (rdErr || !roomData) {
+        toast('No paired room found', 'error');
+        return;
+      }
+      const roomId = roomData.id || roomData?.id;
+      if (!roomId) {
+        toast('Could not determine room', 'error');
+        return;
+      }
+
+      // Try preferred RPC first
+      try {
+        const { data: leaveRes, error: leaveErr } = await supabase.rpc('leave_room', { room_uuid: roomId });
+        if (leaveErr) throw leaveErr;
+      } catch (rpcErr) {
+        // Fallback: attempt to clear partner_id on rooms
+        const { error: updErr } = await supabase.from('rooms').update({ partner_id: null }).eq('id', roomId);
+        if (updErr) {
+          console.error('Unpair failed', updErr);
+          toast('Could not unpair via server. Try again later.', 'error');
+          return;
+        }
+      }
+
+      try { window.localStorage.removeItem('attic_room_id'); } catch (e) {}
+      toast('Unpaired. Returning to handshake...', 'success');
+      setTimeout(() => window.location.reload(), 500);
+    } catch (err) {
+      console.error(err);
+      toast('Failed to unpair. Please contact support.', 'error');
+    }
+  };
+
+  const inner = (
+    <div className="space-y-6">
+      {/* Profile Section */}
+      <section className="p-4 retro-bg-window retro-border border-dashed">
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><User size={20}/> user profile</h2>
           <div className="flex gap-4 items-center mb-4">
              <div className="relative group cursor-pointer">
@@ -263,11 +298,24 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">{['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins'].map(t => ( <button key={t} onClick={() => {playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500);}} className={`p-3 retro-border text-center lowercase font-bold text-sm sm:text-base ${theme === t ? 'retro-shadow-dark bg-[var(--accent)]' : 'bg-[var(--bg-window)] opacity-70'}`}>{t}</button> ))}</div>
         </section>
 
-        {/* Danger Zone */}
-        <section className="p-4 bg-red-500/10 retro-border border-red-500/40 mt-auto">
-          <h2 className="font-bold text-xl text-red-500 mb-2 flex items-center gap-2"><Trash2 size={20}/> danger zone</h2><p className="text-sm opacity-70 mb-4">This action cannot be undone.</p><button onClick={onDelete} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2"><Trash2 size={16}/> disconnect & delete</button>
-        </section>
-      </div>
+      {/* Danger Zone */}
+      <section className="p-4 bg-red-500/10 retro-border border-red-500/40 mt-auto">
+        <h2 className="font-bold text-xl text-red-500 mb-2 flex items-center gap-2"><Trash2 size={20}/> danger zone</h2>
+        <p className="text-sm opacity-70 mb-4">Two separate actions: <strong>Unpair</strong> returns you to handshake (keeps shared history). <strong>Delete</strong> clears local data.</p>
+        <div className="flex gap-2">
+          <button onClick={handleUnpair} className="bg-yellow-500 text-white font-bold py-2 px-4 retro-border border-yellow-700 hover:-translate-y-1 transition-transform flex items-center gap-2"><Hand size={16}/> Unpair (disconnect)</button>
+          <button onClick={onDelete} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2"><Trash2 size={16}/> Disconnect & delete</button>
+        </div>
+      </section>
+    </div>
+  );
+
+  if (compact) return inner;
+
+  return (
+    <RetroWindow title="control_panel.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
+      {inner}
     </RetroWindow>
   );
+
 }

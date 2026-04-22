@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3 } from 'lucide-react';
 import { RetroWindow, RetroButton, AppIcon, useToast } from '../components/UI.jsx';
+import { SettingsView } from './SettingsView.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
@@ -179,7 +180,7 @@ function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId }) {
+export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather }) {
   const [mood, setMood] = useLocalStorage('my_mood', '😊');
   const [petHappy, setPetHappy] = useLocalStorage('pet_happy', 60);
   const [pokeActive, setPokeActive] = useState(false);
@@ -189,6 +190,7 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
   const handlePoke = () => { playAudio('click', sfx); setPokeActive(true); setTriggerShake(true); toast('Poke sent to partner!', 'success'); setTimeout(() => setPokeActive(false), 2000); };
   const nav = (v) => setView(v);
   const unreadDoodles = doodles.filter(d => d.sender === 'partner' && !d.isRead);
+  const [showControlPanel, setShowControlPanel] = useState(false);
 
   return (
     <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8">
@@ -208,9 +210,20 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
               {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 rounded-full retro-border retro-shadow-dark object-cover" /> : <div className="text-4xl">{profile.emoji}</div>}
               <div><h1 className="text-2xl sm:text-3xl font-bold mb-1">hi {profile.name}!</h1><div className="flex items-center gap-2"><p className="text-sm sm:text-base">partner is <span className="retro-bg-secondary px-2 py-0.5 retro-border text-xs sm:text-sm inline-block rotate-2">online</span></p><StreakBadge streak={streak} /></div></div>
             </div>
-            <button onClick={handlePoke} className={`p-2 retro-border rounded-full flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary scale-90' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button>
+            <div className="flex items-center gap-3">
+              <button onClick={handlePoke} className={`p-2 retro-border rounded-full flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary scale-90' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button>
+              <button onClick={() => setShowControlPanel(true)} title="Control panel" className="p-2 retro-border rounded-full retro-bg-window hover:-translate-y-1 transition-transform"><SettingsIcon size={18} /></button>
+              <button onClick={onLogout} title="Logout" className="bg-red-600 text-white font-bold py-2 px-3 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform rounded">Log out</button>
+            </div>
           </div>
-          {pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>}
+
+          {showControlPanel ? (
+            <div className="w-full">
+              <SettingsView compact={true} onClose={() => setShowControlPanel(false)} theme={theme} setTheme={setTheme} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={onLogout} onDelete={onDelete} weather={weather} setWeather={setWeather} />
+            </div>
+          ) : (
+            pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>
+          )}
         </div>
       </RetroWindow>
 
