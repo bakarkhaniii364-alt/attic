@@ -65,7 +65,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
 
   return (
     <div
-      className={`fixed z-[5000] retro-bg-window retro-border retro-shadow-dark transition-all duration-500 ease-in-out ${isMinimized ? 'w-56 h-12 overflow-hidden' : 'w-[90vw] sm:w-[400px]'} animate-in zoom-in-95 fade-in`}
+      className={`fixed z-[5000] retro-bg-window retro-border transition-all duration-500 ease-in-out ${isMinimized ? 'w-56 h-12 overflow-hidden' : 'w-[90vw] sm:w-[400px] shadow-lg'} animate-in zoom-in-95 fade-in`}
       style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       onMouseDown={(e) => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
       onTouchStart={(e) => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
@@ -88,7 +88,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
       </div>
 
       {!isMinimized && (
-        <div className="flex flex-col bg-black/10 backdrop-blur-md">
+        <div className="flex flex-col bg-black/5">
           <div className={`w-full aspect-video bg-black relative overflow-hidden flex items-center justify-center`}>
             {isRinging ? (
               <div className="flex flex-col items-center gap-4">
@@ -244,6 +244,26 @@ export default function App() {
   const localStreamRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
+
+  const [notifications, setNotifications] = useState([]);
+  const lastMsgIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!Array.isArray(chatHistory) || chatHistory.length === 0) return;
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    if (lastMsg.sender === partnerId && lastMsg.id !== lastMsgIdRef.current) {
+        lastMsgIdRef.current = lastMsg.id;
+        // Show notification if NOT in chat view
+        if (location.pathname !== '/chat') {
+            const newNotif = { id: lastMsg.id, text: lastMsg.text, type: lastMsg.type };
+            setNotifications(prev => [...prev, newNotif]);
+            playAudio('notif', sfxEnabled);
+            setTimeout(() => {
+                setNotifications(prev => prev.filter(n => n.id !== lastMsg.id));
+            }, 5000);
+        }
+    }
+  }, [chatHistory, partnerId, location.pathname, sfxEnabled]);
 
   const handleEndCall = () => {
     playAudio('click', sfxEnabled);
@@ -453,8 +473,8 @@ export default function App() {
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
 
         {incomingCall && (
-          <div className="fixed inset-0 z-[6000] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-500">
-            <div className="retro-bg-window retro-border retro-shadow-dark max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
+          <div className="fixed inset-0 z-[6000] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
+            <div className="bg-white/95 retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
               <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)]">
                 {incomingCall.type === 'video' ? <Video size={48} className="text-white"/> : <Phone size={48} className="text-white"/>}
               </div>
@@ -491,6 +511,19 @@ export default function App() {
         
         <audio ref={remoteAudioRef} autoPlay style={{display: 'none'}} />
 
+        {/* Floating Notifications */}
+        <div className="fixed bottom-4 left-4 z-[200] flex flex-col gap-2 max-w-sm pointer-events-none">
+            {notifications.map(n => (
+                <div key={n.id} onClick={() => navigate('/chat')} className="bg-white/95 backdrop-blur-md p-3 rounded-lg retro-border shadow-xl animate-in slide-in-from-left-4 pointer-events-auto flex items-center gap-3 cursor-pointer hover:-translate-y-1 transition-transform">
+                    <div className="w-8 h-8 rounded-full retro-bg-accent retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
+                    <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase opacity-40 leading-none mb-1">{partnerName}</p>
+                        <p className="text-xs font-bold line-clamp-1">{n.text || (n.type === 'image' ? '📸 Sent a photo' : n.type === 'voice' ? '🎤 Sent a voice note' : 'New message')}</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+
         <Routes>
           <Route path="/login" element={<PublicRoute session={session} hasRoom={hasRoom}><LandingView onTryAttic={() => navigate('/signup')} onSignIn={() => navigate('/signin')} /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/login')} /></PublicRoute>} />
@@ -498,7 +531,7 @@ export default function App() {
           <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
           <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
-          <Route path="/" element={<ProtectedRoute session={session} hasRoom={hasRoom}><Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute session={session} hasRoom={hasRoom}><Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
           <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} /></ProtectedRoute>} />
           <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} /></ProtectedRoute>} />

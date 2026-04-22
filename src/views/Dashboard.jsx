@@ -197,7 +197,8 @@ function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory }) {
+  const unreadChatCount = (chatHistory || []).filter(m => m.sender === partnerId && m.status !== 'read' && !m.isDeleted).length;
   const updatePetHappy = (val) => setCoupleData({ ...coupleData, petHappy: val });
   const mood = profile.mood || '😊';
   const setMood = (m) => setProfile(prev => ({ ...prev, mood: m }));
@@ -297,7 +298,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title="applications" className="md:col-span-12">
         <div className="flex flex-wrap justify-center gap-6 sm:gap-8 py-4">
-          <AppIcon icon={<MessageSquare size={28} />} label="chat" color="var(--primary)" onClick={()=>nav('chat')} badge="1" />
+          <AppIcon icon={<MessageSquare size={28} />} label="chat" color="var(--primary)" onClick={()=>nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
           <AppIcon icon={<Gamepad2 size={28} />} label="games" color="var(--secondary)" onClick={()=>nav('activities')} />
           <AppIcon icon={<Brush size={28} />} label="doodle" color="var(--primary)" onClick={()=>nav('doodle')} />
           <AppIcon icon={<Grid3x3 size={28} />} label="pixels" color="#a855f7" onClick={()=>nav('pixelart')} />
