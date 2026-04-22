@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { RotateCcw, Trophy } from 'lucide-react';
 
 function createGrid() {
@@ -47,7 +48,7 @@ function isGameOver(grid) {
 function getScore2048(grid) { let s = 0; for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) s += grid[r][c]; return s; }
 const TILE_COLORS = { 0: 'var(--bg-main)', 2: 'var(--bg-window)', 4: 'var(--accent)', 8: 'var(--secondary)', 16: 'var(--primary)', 32: '#f97316', 64: '#ef4444', 128: '#eab308', 256: '#a855f7', 512: '#ec4899', 1024: '#14b8a6', 2048: '#fbbf24' };
 
-export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat, profile }) {
+export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, userId, partnerId }) {
   const [grid, setGrid] = useState(createGrid);
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(() => parseInt(localStorage.getItem('2048_best') || '0'));
@@ -64,9 +65,17 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
     setGrid(newGrid); setScore(newScore);
     if (newScore > best) { setBest(newScore); localStorage.setItem('2048_best', String(newScore)); }
     const has2048 = newGrid.some(r => r.some(c => c >= 2048));
-    if (has2048 && !won) { setWon(true); onWin(); setTimeout(() => setShowOverlay(true), 500); }
+    if (has2048 && !won) { 
+      setWon(true); 
+      onWin(); 
+      // Record win for this user
+      if (userId) {
+        setScores(prev => incrementUserScore(prev, userId, '2048', 1));
+      }
+      setTimeout(() => setShowOverlay(true), 500); 
+    }
     if (isGameOver(newGrid)) { setGameOver(true); setTimeout(() => setShowOverlay(true), 500); }
-  }, [grid, gameOver, won, best, sfx, onWin]);
+  }, [grid, gameOver, won, best, sfx, onWin, userId, setScores]);
 
   useEffect(() => {
     const handleKey = (e) => {

@@ -205,7 +205,7 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
 
 
 
-export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile }) {
+export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId }) {
   const [setupGame, setSetupGame] = useLocalStorage('hub_setup', null); 
   const [activeConfig, setActiveConfig] = useLocalStorage('hub_active', null);
   const navigate = useNavigate();
@@ -248,7 +248,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     const { gameId } = useParams();
 
     if (activeConfig && activeConfig.id === gameId) {
-      const props = { config: activeConfig, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, profile };
+      const props = { config: activeConfig, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, profile, userId, partnerId };
       if (activeConfig.id === 'pictionary') return <PictionaryGame {...props} />;
       if (activeConfig.id === 'tictactoe') return <TicTacToe {...props} />;
       if (activeConfig.id === 'memory') return <MemoryGame {...props} />;
