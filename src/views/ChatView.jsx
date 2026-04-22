@@ -65,20 +65,40 @@ function formatMessage(text) {
 }
 
 function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, profileName, onSaveToScrapbook }) {
-  if (currentIndex === null || !images[currentIndex]) return null; const currentImage = images[currentIndex];
+  if (currentIndex === null || !images || !images[currentIndex]) return null; 
+  const currentUrl = images[currentIndex];
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight') onNext();
+      if (e.key === 'ArrowLeft') onPrev();
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, images]);
+
   return (
-    <div className="fixed inset-0 z-[100] bg-[var(--bg-main)]/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <RetroWindow title={`viewing: ${currentImage.text || 'attachment.jpg'}`} onClose={onClose} className="w-full max-w-3xl h-full max-h-[90vh] flex flex-col" noPadding>
-        <div className="flex-1 flex flex-col items-center justify-center p-4 relative bg-[var(--bg-window)] overflow-hidden">
-          <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full retro-border text-sm font-bold shadow-sm z-10">{currentImage.senderName ? currentImage.senderName : (currentImage.sender === 'me' ? profileName : 'Partner')}</div>
-          <img src={currentImage.url} alt="full resolution" className="max-w-full max-h-full object-contain retro-border retro-shadow-dark" />
-          {images.length > 1 && (<><button onClick={onPrev} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark rounded-full hover:scale-110 active:translate-y-1"><ChevronLeft size={24} /></button><button onClick={onNext} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark rounded-full hover:scale-110 active:translate-y-1"><ChevronRight size={24} /></button></>)}
-          <div className="absolute bottom-4 flex gap-4 z-10">
-            <RetroButton variant="primary" className="px-4 py-2 flex items-center gap-2"><Heart size={16} /> React</RetroButton>
-            <RetroButton variant="secondary" onClick={() => onSaveToScrapbook(currentImage.url)} className="px-4 py-2 flex items-center gap-2"><ImageIcon size={16} /> Save to Scrapbook</RetroButton>
-          </div>
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-4xl h-full flex flex-col items-center justify-center relative" onClick={e => e.stopPropagation()}>
+        <img src={currentUrl} alt="full resolution" className="max-w-full max-h-full object-contain retro-border shadow-2xl bg-black" />
+        
+        {images.length > 1 && (
+          <>
+            <button onClick={onPrev} className="absolute left-0 sm:-left-16 top-1/2 -translate-y-1/2 p-3 text-white hover:scale-110 transition-transform"><ChevronLeft size={48} /></button>
+            <button onClick={onNext} className="absolute right-0 sm:-right-16 top-1/2 -translate-y-1/2 p-3 text-white hover:scale-110 transition-transform"><ChevronRight size={48} /></button>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full font-bold text-sm">
+                {currentIndex + 1} / {images.length}
+            </div>
+          </>
+        )}
+        
+        <button onClick={onClose} className="absolute top-0 right-0 sm:-right-16 p-3 text-white hover:rotate-90 transition-transform"><X size={32} /></button>
+        
+        <div className="absolute bottom-4 flex gap-4">
+            <RetroButton variant="primary" onClick={() => onSaveToScrapbook(currentUrl)} className="px-6 py-2 flex items-center gap-2"><ImageIcon size={18} /> Save to Scrapbook</RetroButton>
         </div>
-      </RetroWindow>
+      </div>
     </div>
   );
 }
@@ -102,7 +122,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [activeOptions, setActiveOptions] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewingImageId, setViewingImageId] = useState(null);
+  const [viewerContext, setViewerContext] = useState({ urls: [], index: 0, isOpen: false });
   const [pendingImages, setPendingImages] = useState([]);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -176,6 +196,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
         replyTo: replyingTo,
         status: 'sent'
       };
+      console.log("[CHAT] Sending text message:", newMsg);
       setChatHistory([...chatHistory, newMsg]);
       setPendingImages([]);
     }
@@ -302,12 +323,12 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                                 <span className="text-[10px] uppercase tracking-widest">{msg.callType === 'video' ? 'Video' : 'Audio'} Call {msg.status}</span>
                               </div>
                             )}
-                            {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => { playAudio('click', sfx); setViewingImageId(msg.id) }} className={`${isPureImage ? 'w-48 h-auto sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity`} />{msg.text && <span className="italic break-words">{msg.text}</span>}</div>)}
+                            {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => { playAudio('click', sfx); setViewerContext({ urls: [msg.url], index: 0, isOpen: true }); }} className={`${isPureImage ? 'w-48 h-auto sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity`} />{msg.text && <span className="italic break-words">{msg.text}</span>}</div>)}
                             {msg.type === 'image_group' && (
                               <div className="flex flex-col gap-2">
                                 <div className={`grid ${msg.urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-1 w-full max-w-sm`}>
                                   {msg.urls.map((u, i) => (
-                                    <img key={i} src={u} onClick={() => { playAudio('click', sfx); setViewingImageId(msg.id); }} className="aspect-square object-cover retro-border cursor-pointer hover:opacity-80" />
+                                    <img key={i} src={u} onClick={() => { playAudio('click', sfx); setViewerContext({ urls: msg.urls, index: i, isOpen: true }); }} className="aspect-square object-cover retro-border cursor-pointer hover:opacity-80" />
                                   ))}
                                 </div>
                                 {msg.text && <span className="italic break-words">{msg.text}</span>}
@@ -377,6 +398,17 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
             </div>
           )}
         </div>
+        {viewerContext.isOpen && (
+          <ImageViewerOverlay 
+            images={viewerContext.urls} 
+            currentIndex={viewerContext.index} 
+            onClose={() => setViewerContext(p => ({ ...p, isOpen: false }))} 
+            onNext={() => setViewerContext(p => ({ ...p, index: (p.index + 1) % p.urls.length }))} 
+            onPrev={() => setViewerContext(p => ({ ...p, index: (p.index - 1 + p.urls.length) % p.urls.length }))} 
+            profileName={profile?.name} 
+            onSaveToScrapbook={(url) => setSharedImages(p => [...new Set([...p, url])])} 
+          />
+        )}
       </RetroWindow>
     </>
   );
