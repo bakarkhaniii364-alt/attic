@@ -158,7 +158,7 @@ export default function App() {
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
 
-  // 3. Calling System (Premium)
+  // 3. Calling System (STUN Connectivity)
   const [calling, setCalling] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
@@ -174,14 +174,34 @@ export default function App() {
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
-  // Peer initialization
+  // Peer initialization with Global STUN Servers
   useEffect(() => {
     if (!userId) return;
-    const peer = new Peer(userId, { debug: 1 });
+    const peer = new Peer(userId, { 
+      debug: 2,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+        ]
+      }
+    });
     peerRef.current = peer;
-    peer.on('call', (call) => { currentCallRef.current = call; });
+    peer.on('call', (call) => { 
+      currentCallRef.current = call; 
+      // Auto-answer logic for better reliability
+      if (calling) {
+         navigator.mediaDevices.getUserMedia({ audio: true, video: calling === 'video' }).then(stream => {
+            call.answer(stream);
+            call.on('stream', (rs) => { if(remoteAudioRef.current) { remoteAudioRef.current.srcObject = rs; remoteAudioRef.current.play(); } });
+         });
+      }
+    });
     return () => { if (peerRef.current) peerRef.current.destroy(); };
-  }, [userId]);
+  }, [userId, calling]);
 
   // Handle incoming call signal from Chat History
   useEffect(() => {
@@ -205,12 +225,6 @@ export default function App() {
     }
   }, [chatHistory, userId, sfxEnabled]);
 
-  useEffect(() => {
-    if (calling) callTimerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
-    else { setCallDuration(0); if (callTimerRef.current) clearInterval(callTimerRef.current); }
-    return () => { if (callTimerRef.current) clearInterval(callTimerRef.current); };
-  }, [calling]);
-
   const initiatePeerCall = async (type) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
@@ -219,14 +233,12 @@ export default function App() {
       currentCallRef.current = call;
       call.on('stream', (remoteStream) => {
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = remoteStream;
+          remoteAudioRef.current.play().catch(e => console.error("Audio block", e));
+        }
       });
     } catch (err) { console.error('Failed call', err); handleEndCall(); }
-  };
-
-  const handleEndCall = () => {
-    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', status: 'ended', time: new Date().toLocaleTimeString() }]);
-    setCalling(null);
   };
 
   const acceptCall = async (messageId) => {
@@ -238,7 +250,10 @@ export default function App() {
         currentCallRef.current.answer(stream);
         currentCallRef.current.on('stream', (remoteStream) => {
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.play().catch(e => console.error("Audio block", e));
+          }
         });
       }
       setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
@@ -247,9 +262,6 @@ export default function App() {
     setIncomingCall(null);
   };
 
-  const rejectCall = (messageId) => { setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m)); setIncomingCall(null); };
-
-  // 4. Room Pairing & Sync logic
   const checkRoomAndSync = async (uid) => {
     try {
       const { data: room } = await supabase.rpc('get_my_room');
@@ -302,8 +314,8 @@ export default function App() {
               <h2 className="text-3xl font-bold mb-2">{incomingCall.fromName}</h2>
               <p className="text-sm opacity-70 font-bold mb-8 uppercase tracking-widest animate-pulse">incoming call...</p>
               <div className="flex gap-6 justify-center">
-                <button onClick={() => rejectCall(incomingCall.messageId)} className="p-6 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-all hover:scale-110 shadow-lg"><PhoneOff size={32} className="rotate-[135deg]"/></button>
-                <button onClick={() => acceptCall(incomingCall.messageId)} className="p-6 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"><Phone size={32}/></button>
+                <button onClick={() => { playAudio('click', sfxEnabled); rejectCall(incomingCall.messageId); }} className="p-6 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-all hover:scale-110 shadow-lg"><PhoneOff size={32} className="rotate-[135deg]"/></button>
+                <button onClick={() => { playAudio('click', sfxEnabled); acceptCall(incomingCall.messageId); }} className="p-6 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"><Phone size={32}/></button>
               </div>
             </div>
           </div>
