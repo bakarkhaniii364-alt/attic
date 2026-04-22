@@ -398,10 +398,19 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                       </div>
                     )}
 
-                    <div id={`msg-${msg.id}`} className={`flex items-end gap-3 max-w-[85%] md:max-w-[75%] relative ${isMe ? 'flex-row-reverse self-end' : 'flex-row self-start'}`}>
+                    <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[95%] md:max-w-[90%] relative ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
+                      {/* Options Button (Left for Me, Right for Partner) */}
+                      {!msg.isDeleted && !isCallLog && (
+                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${isMe ? 'order-first' : 'order-last'}`}>
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1.5 hover:bg-black/5 rounded-full bg-white/40 backdrop-blur-sm retro-border border-dashed">
+                            <MoreVertical size={12} className="opacity-70" />
+                          </button>
+                        </div>
+                      )}
+
                       {/* PFP / Avatar (Only for partner) */}
                       {!isMe && (
-                        <div className="w-8 h-8 flex-shrink-0 flex items-end">
+                        <div className="w-8 h-8 flex-shrink-0 flex items-end order-first">
                           {isGroupEnd ? (
                             senderPfp ? (
                               <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-full shadow-sm" />
@@ -411,15 +420,6 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                               </div>
                             )
                           ) : <div className="w-8" />}
-                        </div>
-                      )}
-
-                      {/* Options Button (Inner Side) */}
-                      {!msg.isDeleted && !isCallLog && (
-                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center order-first ${isMe ? 'order-first mr-1' : 'order-last ml-1'}`}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1.5 hover:bg-black/5 rounded-full bg-white/40 backdrop-blur-sm retro-border border-dashed">
-                            <MoreVertical size={12} className="opacity-70" />
-                          </button>
                         </div>
                       )}
 

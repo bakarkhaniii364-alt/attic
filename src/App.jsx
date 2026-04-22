@@ -200,7 +200,7 @@ export default function App() {
 
   // 1. Auth & Session State
   const [session, setSession] = useState(null);
-  const [hasRoom, setHasRoom] = useState(false);
+  const [hasRoom, setHasRoom] = useLocalStorage('attic_has_room', false);
   const [loading, setLoading] = useState(true);
   const [syncedRoomId, setSyncedRoomId] = useState(null);
 
@@ -254,7 +254,10 @@ export default function App() {
       setRoomProfiles(prev => ({ ...prev, [userId]: profile }));
       console.log(`[SYNC] Local profile pushed for ${profile.name}`);
     }
-  }, [profile, userId, setRoomProfiles, roomProfiles]);
+    if (profile && profile.name) {
+      localStorage.setItem('attic_profile', JSON.stringify(profile));
+    }
+  }, [profile]);
 
   const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
   const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
@@ -476,6 +479,8 @@ export default function App() {
       const { data: room } = await supabase.rpc('get_my_room');
       const isPaired = !!(room && room.is_paired);
       setHasRoom(isPaired);
+      if (isPaired) localStorage.setItem('attic_has_room', 'true');
+      else localStorage.setItem('attic_has_room', 'false');
       if (isPaired && syncedRoomId !== room.id) { 
         setSyncedRoomId(room.id); 
         await initializeRoomSync(room.id); 
