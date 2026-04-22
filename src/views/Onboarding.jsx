@@ -84,6 +84,8 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
+  const [emailVerificationEmail, setEmailVerificationEmail] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
   const toast = useToast();
 
   const windowTitles = {
@@ -115,7 +117,17 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
       return;
     }
 
-    // Pass user data directly to bypass email confirmation flow
+    // Check if email needs verification
+    if (data.user && !data.user.email_confirmed_at) {
+      setLoading(false);
+      setEmailVerificationEmail(email.trim());
+      setEmail('');
+      setPassword('');
+      setDisplayName('');
+      return;
+    }
+
+    // Email is verified or verification not required, proceed to dashboard
     onAuthSuccess({ name: displayName.trim(), session: session || data.session, isNewUser: true, user: data.user });
   };
 
@@ -153,6 +165,30 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
     setLoading(false);
     if (err) { setError(err.message); return; }
     setForgotSent(true);
+  };
+
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    playAudio('click', sfx);
+    
+    try {
+      const { error: err } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailVerificationEmail,
+      });
+
+      if (err) {
+        toast(`Failed to resend: ${err.message}`, 'error');
+        setResendLoading(false);
+        return;
+      }
+
+      toast('Verification email sent! Check your inbox.', 'success');
+      setResendLoading(false);
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+      setResendLoading(false);
+    }
   };
 
   const switchMode = (newMode) => {
@@ -303,6 +339,57 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
           </form>
         )}
       </RetroWindow>
+
+      {/* Email Verification Modal */}
+      {emailVerificationEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <RetroWindow title="verify_email.exe" className="w-full max-w-sm" noPadding>
+            <div className="p-8 flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full retro-bg-secondary flex items-center justify-center">
+                <Mail size={32} className="text-[var(--text-main)]" />
+              </div>
+              <h2 className="text-2xl font-bold">Verify Your Email</h2>
+              <p className="text-sm opacity-70">
+                Click on the verification link sent to <br/>
+                <span className="font-bold text-[var(--primary)]">{emailVerificationEmail}</span>
+              </p>
+              <p className="text-xs opacity-50 bg-blue-50 border border-blue-200 retro-border p-2">
+                The link will redirect you to verify your account
+              </p>
+              
+              <div className="flex flex-col gap-2 w-full pt-2">
+                <RetroButton
+                  onClick={handleResendVerification}
+                  variant="secondary"
+                  disabled={resendLoading}
+                  className="flex justify-center items-center gap-2"
+                >
+                  {resendLoading ? (
+                    <>
+                      <Loader size={14} className="animate-spin" /> resending...
+                    </>
+                  ) : (
+                    <>
+                      resend email <Mail size={14} />
+                    </>
+                  )}
+                </RetroButton>
+
+                <button
+                  onClick={() => {
+                    playAudio('click', sfx);
+                    setEmailVerificationEmail('');
+                    setError('');
+                  }}
+                  className="text-center text-xs font-bold opacity-50 hover:opacity-100 transition-opacity"
+                >
+                  ← go back to sign up
+                </button>
+              </div>
+            </div>
+          </RetroWindow>
+        </div>
+      )}
     </div>
   );
 }
