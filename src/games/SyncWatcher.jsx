@@ -27,12 +27,20 @@ export function SyncWatcher({ config, onBack, sfx }) {
 
     useEffect(() => {
         // Mock partner connection
-        const tm = setTimeout(() => {
+        const saved = (() => {
+            try { return window.localStorage.getItem('sync_watcher_partner') === '1'; } catch (e) { return false; }
+        })();
+        if (saved) {
             setPartnerConnected(true);
-            setChatLog(prev => [...prev, { sender: 'System', text: 'Partner joined the watch party!' }]);
-            playAudio('win', sfx);
-        }, 3000);
-        return () => clearTimeout(tm);
+        } else {
+            const tm = setTimeout(() => {
+                setPartnerConnected(true);
+                try { window.localStorage.setItem('sync_watcher_partner', '1'); } catch (e) {}
+                setChatLog(prev => [...prev, { sender: 'System', text: 'Partner joined the watch party!' }]);
+                playAudio('win', sfx);
+            }, 3000);
+            return () => clearTimeout(tm);
+        }
     }, []);
 
     const handlePlayPause = () => {
@@ -66,7 +74,7 @@ export function SyncWatcher({ config, onBack, sfx }) {
         // Normalize YouTube URLs to embed format to improve embedding reliability
         let newUrl = inputUrl.trim();
         try {
-            const ytMatch = newUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})(?:&|$)/);
+            let ytMatch = newUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})(?:&|$)/);
             if (!ytMatch) {
                 const short = newUrl.match(/youtu\.be\/([0-9A-Za-z_-]{11})/);
                 if (short) ytMatch = short;
@@ -79,6 +87,7 @@ export function SyncWatcher({ config, onBack, sfx }) {
             }
         } catch (e) { /* ignore */ }
         setUrl(newUrl);
+        try { window.localStorage.setItem('sync_watcher_url', newUrl); } catch (e) {}
         setPlaying(false);
         setPlayed(0);
         setLoadError(null);
