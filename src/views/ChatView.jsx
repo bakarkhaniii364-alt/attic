@@ -41,7 +41,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMicToggle, onDeafenToggle, onEndCall, partnerName, sfx }) {
+function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMicToggle, onDeafenToggle, onEndCall, partnerNickname, sfx }) {
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -95,7 +95,7 @@ function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMic
       <div className="bg-[var(--border)] text-[var(--bg-window)] px-3 py-2 flex justify-between items-center font-bold text-sm">
         <span className="flex items-center gap-2">
           {calling === 'video' ? <Video size={16} /> : <Phone size={16} />}
-          {partnerName} - {mins}:{secs.toString().padStart(2, '0')}
+          {partnerNickname} - {mins}:{secs.toString().padStart(2, '0')}
         </span>
         <div className="w-3 h-3 rounded-full bg-green-400 shadow-[0_0_8px_#4ade80] animate-pulse"></div>
       </div>
@@ -107,7 +107,7 @@ function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMic
         </div>
         <div className="text-center">
           <p className="font-bold text-sm">{callDuration === 0 ? 'Ringing...' : 'Connected'}</p>
-          <p className="text-xs opacity-70 mt-1">{partnerName}</p>
+          <p className="text-xs opacity-70 mt-1">{partnerNickname}</p>
         </div>
 
         {/* Controls */}
@@ -293,7 +293,7 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
   return (
     <>
       <ImageViewerOverlay images={imageMessages} currentIndex={currentImageIndex >= 0 ? currentImageIndex : null} onClose={() => setViewingImageId(null)} onNext={() => setViewingImageId(imageMessages[(currentImageIndex + 1) % imageMessages.length].id)} onPrev={() => setViewingImageId(imageMessages[(currentImageIndex - 1 + imageMessages.length) % imageMessages.length].id)} profileName={profile.name || 'You'} />
-      <DraggableCallWindow calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} onMicToggle={() => setIsMuted(!isMuted)} onDeafenToggle={() => setIsDeafened(!isDeafened)} onEndCall={handleEndCall} partnerName="Partner" sfx={sfx} />
+      <DraggableCallWindow calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} onMicToggle={() => setIsMuted(!isMuted)} onDeafenToggle={() => setIsDeafened(!isDeafened)} onEndCall={handleEndCall} partnerNickname={profile?.partnerNickname || 'Partner'} sfx={sfx} />
       <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => {playAudio('click', sfx); setShowDetails(!showDetails)}} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
 

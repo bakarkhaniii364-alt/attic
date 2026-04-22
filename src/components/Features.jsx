@@ -207,7 +207,7 @@ export function RelationshipResume({ onClose, profile, scores, sfx }) {
       <div id="resume-card" className="flex-1 p-6 sm:p-8 bg-[var(--bg-window)] text-[var(--text-main)] overflow-y-auto">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-[var(--primary)] mb-1">Our Story</h1>
-          <p className="text-sm opacity-50 font-bold">{profile?.name || 'You'} & {profile?.partnerName || 'Partner'}</p>
+          <p className="text-sm opacity-50 font-bold">{profile?.name || 'You'} & {profile?.partnerNickname || 'Partner'}</p>
           {anniversary && <p className="text-xs opacity-40 mt-1">Since {new Date(anniversary).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>}
         </div>
         <div className="grid grid-cols-2 gap-3 mb-6">

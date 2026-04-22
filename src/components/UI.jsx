@@ -163,9 +163,9 @@ export function AppIcon({ icon, label, color, onClick, badge }) {
 }
 
 // ── ShareOutcomeOverlay ──
-export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElement, onClose, onShareToChat, onSaveToScrapbook, sfx, onRematch, profile, partnerName }) {
+export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElement, onClose, onShareToChat, onSaveToScrapbook, sfx, onRematch, profile, partnerNickname }) {
   const playerName = profile?.name || 'You';
-  const partner = partnerName || 'Partner';
+  const partner = partnerNickname || 'Partner';
 
   const handleChatShare = () => {
     playAudio('send', sfx);

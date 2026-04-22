@@ -56,7 +56,7 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-bold mb-1">partner's name</label>
-              <input type="text" value={profile.partnerName || ''} onChange={(e) => setProfile({...profile, partnerName: e.target.value})} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
+              <input type="text" value={profile.partnerNickname || ''} onChange={(e) => setProfile({...profile, partnerNickname: e.target.value})} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>

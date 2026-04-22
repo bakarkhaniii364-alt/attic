@@ -170,7 +170,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       "Best (Medium)": formatTimeStr(stats.bestTimeMedium),
       "Best (Hard)": formatTimeStr(stats.bestTimeHard),
     };
-    return <ShareOutcomeOverlay gameName={`Sudoku`} stats={outcomeStats} onClose={() => { initSudoku(); onBack(); }} onRematch={initSudoku} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerName={profile?.partnerName} />;
+    return <ShareOutcomeOverlay gameName={`Sudoku`} stats={outcomeStats} onClose={() => { initSudoku(); onBack(); }} onRematch={initSudoku} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
   }
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;

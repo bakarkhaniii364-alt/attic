@@ -108,7 +108,7 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
       };
       if (config.mode === 'competitive') { stats["Final Score"] = `${p1Score} - ${p2Score}`; stats.Winner = p1Score > p2Score ? 'P1 Wins!' : p2Score > p1Score ? 'P2 Wins!' : 'Draw!'; }
       else { stats.Result = "Team Victory!"; }
-      return <ShareOutcomeOverlay gameName={`Memory Match`} stats={stats} onClose={() => {shuffleCards(); onBack();}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerName={profile?.partnerName} onRematch={shuffleCards} />;
+      return <ShareOutcomeOverlay gameName={`Memory Match`} stats={stats} onClose={() => {shuffleCards(); onBack();}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} onRematch={shuffleCards} />;
   }
 
   const gridCols = config.diff === 'easy' ? 'grid-cols-4' : config.diff === 'medium' ? 'grid-cols-4 sm:grid-cols-6' : 'grid-cols-4 sm:grid-cols-8';

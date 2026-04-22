@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase.js';
  * Manages P2P video/audio calls with persistence across tabs.
  * Uses Supabase realtime as signaling and localStorage for call state.
  */
-export function useCallManager(roomId, userId, partnerName) {
+export function useCallManager(roomId, userId, partnerNickname) {
   const [callActive, setCallActive] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);

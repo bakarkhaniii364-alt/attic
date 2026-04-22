@@ -29,7 +29,7 @@ function AppContent({ onLogout }) {
   const location = useLocation();
   // We no longer use view from localStorage directly for rendering, we use the URL.
   // But we can track protected views.
-  const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊', petName: '', partnerName: '', anniversary: '' }); 
+  const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊', petName: '', partnerNickname: '', anniversary: '' }); 
   const [theme, setTheme] = useLocalStorage('app_theme', 'default');
   const [weather, setWeather] = useState('clear'); 
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
@@ -215,7 +215,7 @@ export default function App() {
     setSession(session);
     // Set profile in localStorage for AppContent to pick up
     window.localStorage.setItem('user_profile', JSON.stringify({
-      name, emoji: '😊', petName: '', partnerName: '', anniversary: ''
+      name, emoji: '😊', petName: '', partnerNickname: '', anniversary: ''
     }));
     window.localStorage.setItem('current_view', JSON.stringify('dashboard'));
 

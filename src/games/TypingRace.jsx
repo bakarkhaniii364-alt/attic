@@ -52,7 +52,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
   const restart = () => { setTyped(''); setStarted(false); setStartTime(null); setEndTime(null); setErrors(0); setShowOverlay(false); inputRef.current?.focus(); };
 
   if (showOverlay) {
-    return <ShareOutcomeOverlay gameName="Typing Race" stats={{ WPM: wpm, Accuracy: `${accuracy}%`, Time: `${((endTime - startTime) / 1000).toFixed(1)}s` }} onClose={() => { restart(); onBack(); }} onRematch={restart} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerName={profile?.partnerName} />;
+    return <ShareOutcomeOverlay gameName="Typing Race" stats={{ WPM: wpm, Accuracy: `${accuracy}%`, Time: `${((endTime - startTime) / 1000).toFixed(1)}s` }} onClose={() => { restart(); onBack(); }} onRematch={restart} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
   }
 
   return (
