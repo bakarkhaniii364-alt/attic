@@ -23,11 +23,19 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const handlePfpUpload = (e) => { 
     const file = e.target.files[0]; 
     if (file) { 
+      if (file.size > 1024 * 1024) {
+        toast('Image too large! Please use a photo under 1MB.', 'error');
+        return;
+      }
       const reader = new FileReader(); 
       reader.onloadend = () => { 
-        setProfile({...profile, pfp: reader.result}); 
-        playAudio('click', sfxEnabled); 
-        toast('Profile photo updated!', 'success'); 
+        try {
+          setProfile({...profile, pfp: reader.result}); 
+          playAudio('click', sfxEnabled); 
+          toast('Profile photo updated!', 'success'); 
+        } catch (err) {
+          toast('Storage full! Try a smaller image.', 'error');
+        }
       }; 
       reader.readAsDataURL(file); 
     } 

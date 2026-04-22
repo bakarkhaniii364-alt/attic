@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Loader } from 'lucide-react';
+import Peer from 'peerjs';
+import { Loader, Phone, Video, PhoneOff } from 'lucide-react';
 import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { useUserContext } from './hooks/useUserContext.js';
@@ -65,7 +66,108 @@ export default function App() {
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
 
-  // 3. Room Pairing & Sync logic
+  // 3. Calling System (Global)
+  const [calling, setCalling] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
+  
+  const peerRef = useRef(null);
+  const currentCallRef = useRef(null);
+  const ringingIntervalRef = useRef(null);
+  const callTimerRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+
+  // Peer initialization
+  useEffect(() => {
+    if (!userId) return;
+    const peer = new Peer(userId, { debug: 1 });
+    peerRef.current = peer;
+    peer.on('call', (call) => {
+      currentCallRef.current = call;
+    });
+    return () => { if (peerRef.current) peerRef.current.destroy(); };
+  }, [userId]);
+
+  // Handle incoming call signal from Chat History
+  useEffect(() => {
+    if (!userId) return;
+    const last = chatHistory[chatHistory.length - 1];
+    if (!last) return;
+    
+    // Auto-detect incoming call
+    if (last.type === 'call_invite' && last.status === 'ringing' && last.sender !== userId) {
+      setIncomingCall({ messageId: last.id, callType: last.callType, fromName: last.senderName || 'Partner' });
+      if (!ringingIntervalRef.current) {
+        ringingIntervalRef.current = setInterval(() => playAudio('receive', sfxEnabled), 900);
+      }
+    }
+    
+    // Handle Accepted
+    if (last.type === 'call_invite' && last.status === 'accepted') {
+      if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+      setIncomingCall(null);
+      if (last.sender === userId && !calling) {
+        setCalling(last.callType);
+        initiatePeerCall(last.callType);
+      }
+    }
+
+    // Handle Ended/Rejected
+    if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'ended' || last.status === 'missed')) {
+      if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+      setIncomingCall(null);
+      setCalling(null);
+      if (currentCallRef.current) { currentCallRef.current.close(); currentCallRef.current = null; }
+      if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
+    }
+  }, [chatHistory, userId, sfxEnabled]);
+
+  const initiatePeerCall = async (type) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+      localStreamRef.current = stream;
+      const call = peerRef.current.call(partnerId, stream);
+      currentCallRef.current = call;
+      call.on('stream', (remoteStream) => {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+      });
+    } catch (err) {
+      console.error('Failed to get local stream', err);
+      handleEndCall();
+    }
+  };
+
+  const handleEndCall = () => {
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', status: 'ended', time: new Date().toLocaleTimeString() }]);
+    setCalling(null);
+  };
+
+  const acceptCall = async (messageId) => {
+    const msg = chatHistory.find(m => m.id === messageId);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: msg?.callType === 'video' });
+      localStreamRef.current = stream;
+      if (currentCallRef.current) {
+        currentCallRef.current.answer(stream);
+        currentCallRef.current.on('stream', (remoteStream) => {
+          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+        });
+      }
+      setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
+      setCalling(msg?.callType || 'audio');
+    } catch (err) { console.error('Failed to accept call', err); }
+    setIncomingCall(null);
+  };
+
+  const rejectCall = (messageId) => {
+    setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m));
+    setIncomingCall(null);
+  };
+
+  // 4. Room Pairing & Sync logic
   const checkRoomAndSync = async (uid) => {
     try {
       const { data: room } = await supabase.rpc('get_my_room');
@@ -109,7 +211,7 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme); 
   }, [theme]);
 
-  // 4. Milestone Calculation (Safe)
+  // 5. Milestone Calculation (Safe)
   const milestone = useMemo(() => {
     if (!milestoneShown && userId && coupleData?.anniversary) {
       return getMilestoneToday(coupleData.anniversary);
@@ -117,7 +219,7 @@ export default function App() {
     return null;
   }, [milestoneShown, userId, coupleData?.anniversary]);
 
-  // 5. Shared Handlers
+  // 6. Shared Handlers
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.clear();
@@ -182,17 +284,47 @@ export default function App() {
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
 
+        {/* Global Call Overlay */}
+        {incomingCall && (
+          <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="retro-bg-window retro-border retro-shadow-dark max-w-sm w-full p-8 text-center animate-bounce-subtle">
+              <div className="w-20 h-20 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-4 animate-pulse">
+                {incomingCall.callType === 'video' ? <Video size={40} /> : <Phone size={40} />}
+              </div>
+              <h2 className="text-2xl font-bold mb-2">{incomingCall.fromName}</h2>
+              <p className="text-sm opacity-70 font-bold mb-6">is calling you...</p>
+              <div className="flex gap-4 justify-center">
+                <button onClick={() => rejectCall(incomingCall.messageId)} className="p-4 bg-red-500 text-white retro-border rounded-full hover:bg-red-600"><PhoneOff size={24} className="rotate-180"/></button>
+                <button onClick={() => acceptCall(incomingCall.messageId)} className="p-4 bg-green-500 text-white retro-border rounded-full hover:bg-green-600"><Phone size={24}/></button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {calling && (
+          <div className="fixed top-4 right-4 z-[999] w-64 retro-bg-window retro-border retro-shadow-dark overflow-hidden">
+            <div className="bg-[var(--border)] text-white px-2 py-1 text-xs font-bold flex justify-between">
+               <span>ON CALL: {coupleData?.partnerNickname || 'Partner'}</span>
+               <button onClick={handleEndCall}><PhoneOff size={12}/></button>
+            </div>
+            {calling === 'video' && (
+              <div className="aspect-video bg-black">
+                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="p-2 flex justify-center gap-2">
+              <button onClick={handleEndCall} className="w-full py-1 bg-red-500 text-white text-[10px] font-bold retro-border">HANG UP</button>
+            </div>
+          </div>
+        )}
+
         <Routes>
-          {/* Public */}
           <Route path="/login" element={<PublicRoute session={session} hasRoom={hasRoom}><LandingView onTryAttic={() => navigate('/signup')} onSignIn={() => navigate('/signin')} /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={() => navigate('/')} onBack={() => navigate('/login')} /></PublicRoute>} />
           <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={() => navigate('/')} onBack={() => navigate('/login')} /></PublicRoute>} />
           <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
-          
-          {/* Handshake */}
           <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
-          {/* Protected Main Views */}
           <Route path="/" element={<ProtectedRoute session={session} hasRoom={hasRoom}><Dashboard setView={navigateTo} profile={profile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={handleDeleteAccount} weather={weather} setWeather={setWeather} /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={handleDeleteAccount} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
           <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerNickname={coupleData?.partnerNickname} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
