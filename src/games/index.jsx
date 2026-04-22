@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
@@ -158,7 +158,7 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
                      <option value="5">Best of 5</option>
                  </select>
              </div>
-          </div>
+           </div>
         )}
 
         {game.id === 'memory' && (
@@ -247,6 +247,13 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       'wyr': 'Would You Rather', 'lovelang': 'Love Language Quiz', 'sync': 'Sync Watcher'
     };
 
+    // Correctly move state update into useEffect
+    useEffect(() => {
+      if (gameId === 'sync' && !isActive) {
+        setSearchParams({ active: 'true' });
+      }
+    }, [gameId, isActive, setSearchParams]);
+
     if (isActive) {
       // Reconstruct config from URL params
       const config = { id: gameId };
@@ -271,11 +278,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     }
 
     if (fallbackTitles[gameId]) {
-      // Bypassing setup screen for Sync Watcher as requested
-      if (gameId === 'sync' && !isActive) {
-        setSearchParams({ active: 'true' });
-        return null; 
-      }
+      // Don't show setup for sync if we're waiting for effect
+      if (gameId === 'sync') return null;
 
       return (
         <GameSetupWindow 
