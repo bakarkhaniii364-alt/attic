@@ -162,23 +162,38 @@ export function SyncWatcher({ config, onBack, sfx }) {
                                 volume={volume}
                                 onProgress={handleProgress}
                                 onDuration={handleDuration}
-                                                                onReady={() => { setReady(true); setLoadError(null); setLoadingTimeout(false); }}
-                                                                onError={(e) => {
-                                                                        console.error('ReactPlayer Error:', e);
-                                                                        try {
-                                                                            const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
-                                                                            setLoadError(`Could not load video: ${msg}`);
-                                                                        } catch (_err) {
-                                                                            setLoadError('Could not load video (unknown error).');
-                                                                        }
-                                                                        setLoadingTimeout(false);
-                                                                }}
+                                onReady={() => { 
+                                    console.log('[SYNC] Player is READY');
+                                    setReady(true); 
+                                    setLoadError(null); 
+                                    setLoadingTimeout(false); 
+                                }}
+                                onStart={() => console.log('[SYNC] Playback STARTED')}
+                                onBuffer={() => console.log('[SYNC] Player is BUFFERING...')}
+                                onBufferEnd={() => console.log('[SYNC] Buffering ENDED')}
+                                onError={(e) => {
+                                    console.error('[SYNC] Player Error:', e);
+                                    try {
+                                        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
+                                        setLoadError(`Could not load video: ${msg}`);
+                                    } catch (_err) {
+                                        setLoadError('Could not load video (unknown error).');
+                                    }
+                                    setLoadingTimeout(false);
+                                }}
                                 width="100%"
                                 height="100%"
                                 style={{ position: 'absolute', top: 0, left: 0 }}
                                 config={{
                                     youtube: {
-                                        playerVars: { modestbranding: 1, rel: 0, controls: 1, playsinline: 1, origin: window.location.origin }
+                                        playerVars: { 
+                                            modestbranding: 1, 
+                                            rel: 0, 
+                                            controls: 1, 
+                                            playsinline: 1, 
+                                            origin: window.location.origin,
+                                            enablejsapi: 1
+                                        }
                                     },
                                     file: { attributes: { controls: true, playsInline: true } }
                                 }}

@@ -271,6 +271,12 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     }
 
     if (fallbackTitles[gameId]) {
+      // Bypassing setup screen for Sync Watcher as requested
+      if (gameId === 'sync' && !isActive) {
+        setSearchParams({ active: 'true' });
+        return null; 
+      }
+
       return (
         <GameSetupWindow 
           game={{ id: gameId, title: fallbackTitles[gameId] }} 

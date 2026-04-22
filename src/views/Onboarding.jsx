@@ -13,25 +13,29 @@ export function LandingView({ onTryAttic, onSignIn }) {
       {/* Background Grid with reduced opacity */}
       <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
 
-      {/* Floating Elements Collection */}
+      {/* Floating Elements Collection - INCREASED DENSITY */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* Hearts */}
-        <div className="absolute top-[15%] left-[10%] text-[var(--primary)] opacity-[0.05] animate-float"><Heart size={60} fill="currentColor" /></div>
-        <div className="absolute bottom-[40%] right-[12%] text-[var(--primary)] opacity-[0.03] animate-float-delayed"><Heart size={30} fill="currentColor" /></div>
+        <div className="absolute top-[10%] left-[5%] text-[var(--primary)] opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
+        <div className="absolute top-[60%] right-[8%] text-[var(--primary)] opacity-[0.06] animate-float-delayed"><Heart size={45} fill="currentColor" /></div>
+        <div className="absolute bottom-[15%] left-[45%] text-[var(--primary)] opacity-[0.04] animate-float"><Heart size={35} fill="currentColor" /></div>
         
         {/* Envelopes */}
-        <div className="absolute top-[25%] right-[15%] text-[var(--secondary)] opacity-[0.04] animate-float-delayed"><Mail size={48} /></div>
-        <div className="absolute bottom-[20%] left-[8%] text-[var(--secondary)] opacity-[0.03] animate-float"><Mail size={36} /></div>
-        <div className="absolute top-[45%] right-[25%] text-[var(--secondary)] opacity-[0.02] animate-float"><Mail size={30} /></div>
+        <div className="absolute top-[25%] right-[15%] text-[var(--secondary)] opacity-[0.1] animate-float-delayed"><Mail size={56} /></div>
+        <div className="absolute bottom-[25%] left-[12%] text-[var(--secondary)] opacity-[0.07] animate-float"><Mail size={44} /></div>
+        <div className="absolute top-[45%] right-[35%] text-[var(--secondary)] opacity-[0.05] animate-float-delayed"><Mail size={38} /></div>
+        <div className="absolute bottom-[45%] left-[28%] text-[var(--secondary)] opacity-[0.04] animate-float"><Mail size={32} /></div>
 
         {/* Paper Planes */}
-        <div className="absolute bottom-[30%] right-[10%] text-[var(--primary)] opacity-[0.05] animate-float-delayed"><Send size={42} /></div>
-        <div className="absolute top-[35%] left-[18%] text-[var(--primary)] opacity-[0.03] animate-float"><Send size={33} className="rotate-[-15deg]" /></div>
-        <div className="absolute bottom-[10%] left-[25%] text-[var(--primary)] opacity-[0.02] animate-float-delayed"><Send size={27} className="rotate-[10deg]" /></div>
+        <div className="absolute bottom-[35%] right-[22%] text-[var(--primary)] opacity-[0.12] animate-float-delayed"><Send size={48} /></div>
+        <div className="absolute top-[30%] left-[15%] text-[var(--primary)] opacity-[0.08] animate-float"><Send size={38} className="rotate-[-15deg]" /></div>
+        <div className="absolute bottom-[12%] left-[20%] text-[var(--primary)] opacity-[0.06] animate-float-delayed"><Send size={32} className="rotate-[10deg]" /></div>
+        <div className="absolute top-[15%] right-[45%] text-[var(--primary)] opacity-[0.05] animate-float"><Send size={42} className="rotate-[25deg]" /></div>
 
         {/* Other bits */}
-        <div className="absolute bottom-[20%] left-[20%] text-[var(--accent)] opacity-[0.03] animate-float"><Grid3X3 size={54} /></div>
-        <div className="absolute top-[60%] left-[5%] text-[var(--secondary)] opacity-[0.02] animate-float"><Sparkles size={36} /></div>
+        <div className="absolute bottom-[10%] right-[35%] text-[var(--accent)] opacity-[0.06] animate-float"><Grid3X3 size={60} /></div>
+        <div className="absolute top-[55%] left-[8%] text-[var(--secondary)] opacity-[0.05] animate-float"><Sparkles size={40} /></div>
+        <div className="absolute top-[40%] left-[40%] text-[var(--accent)] opacity-[0.03] animate-float-delayed"><Heart size={24} fill="currentColor" /></div>
       </div>
 
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
