@@ -104,10 +104,10 @@ function AppContent({ onLogout }) {
         <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} />} />
         <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />} />
         
-        <Route path="/chat" element={<ChatView profile={profile} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} />} />
+        <Route path="/chat" element={<ChatView profile={profile} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} />} />
         
         <Route path="/doodle" element={<DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { 
-          const doodleEntry = {id: Date.now(), sender: 'me', userId: userId, ...d};
+          const doodleEntry = {id: Date.now(), sender: userId, senderName: profile.name, userId: userId, ...d};
           setDoodles(p=>[...p, doodleEntry]); 
           setSharedImages(p => [...new Set([...p, d.img])]);
         }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} />} />

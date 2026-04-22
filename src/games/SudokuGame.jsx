@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { PenTool, Eraser, Lightbulb, Pause, Play, AlertCircle, RefreshCw } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 
-export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook }) {
+export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
   const [board, setBoard] = useState([]);
   const [solution, setSolution] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -52,7 +53,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (currBoard[r][c].val === null) isWin = false;
     if (isWin) {
       playAudio('win', sfx);
-      setScores(p => ({ ...p, sudoku: getScore(p, 'sudoku') + 1 }));
+      setScores(prev => incrementUserScore(prev, userId, 'sudoku', 1));
       onWin();
       setTimeout(() => setGameOverOverlay(true), 1500);
       setStats(p => {

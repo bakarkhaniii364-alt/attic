@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore } from '../utils/helpers.js';
+import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 
-export function SettingsView({ onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores }) {
+export function SettingsView({ onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores, userId }) {
   const toast = useToast();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -247,10 +248,10 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
         <section className="p-4 retro-bg-window retro-border border-dashed">
            <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Trophy size={20}/> local achievements</h2>
            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className={`p-2 retro-border ${getScore(scores, 'tictactoe') > 0 ? 'retro-bg-primary' : 'bg-[var(--bg-main)] opacity-50'}`}>⭐ First Win</div>
-              <div className={`p-2 retro-border ${getScore(scores, 'pictionary') > 0 ? 'retro-bg-secondary' : 'bg-[var(--bg-main)] opacity-50'}`}>🎨 Artist</div>
-              <div className={`p-2 retro-border ${getScore(scores, 'wordle') > 0 ? 'retro-bg-accent' : 'bg-[var(--bg-main)] opacity-50'}`}>📚 Wordsmith</div>
-              <div className={`p-2 retro-border ${getScore(scores, 'sudoku') > 0 ? 'retro-bg-primary' : 'bg-[var(--bg-main)] opacity-50'}`}>🧩 Puzzler</div>
+              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'tictactoe') > 0 ? 'retro-bg-primary' : 'bg-[var(--bg-main)] opacity-50'}`}>⭐ First Win</div>
+              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'pictionary') > 0 ? 'retro-bg-secondary' : 'bg-[var(--bg-main)] opacity-50'}`}>🎨 Artist</div>
+              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'wordle') > 0 ? 'retro-bg-accent' : 'bg-[var(--bg-main)] opacity-50'}`}>📚 Wordsmith</div>
+              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'sudoku') > 0 ? 'retro-bg-primary' : 'bg-[var(--bg-main)] opacity-50'}`}>🧩 Puzzler</div>
            </div>
         </section>
 

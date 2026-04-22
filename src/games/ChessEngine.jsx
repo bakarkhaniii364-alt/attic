@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { Chess } from 'chess.js';
 import { RotateCcw, Flag, Image as ImageIcon, Settings, Clock, Crosshair, ClipboardCopy } from 'lucide-react';
 
@@ -16,7 +17,7 @@ const PUZZLES = [
     "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", // Ruy lopez
 ];
 
-export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook }) {
+export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
   const [chess] = useState(new Chess());
   const [fen, setFen] = useState(chess.fen());
   const [selectedSq, setSelectedSq] = useState(null);
@@ -83,7 +84,7 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
               setSelectedSq(null);
               setValidMoves([]);
               
-              if (chess.isCheckmate()) { playAudio('win', sfx); setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`); setScores(p => ({ ...p, chess: getScore(p, 'chess') + 1 })); onWin(); }
+              if (chess.isCheckmate()) { playAudio('win', sfx); setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`); setScores(prev => incrementUserScore(prev, userId, 'chess', 1)); onWin(); }
               else if (chess.isDraw()) { setGameOverResult("Draw"); }
               else if (chess.isStalemate()) { setGameOverResult("Draw by Stalemate"); }
               

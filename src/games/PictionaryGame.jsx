@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { getScore, calculateLevenshtein, floodFill } from '../utils/helpers.js';
+import { calculateLevenshtein, floodFill } from '../utils/helpers.js';
+import { incrementUserScore, getScoreForUser } from '../utils/userDataHelpers.js';
 import { PICTIONARY_CATEGORIES } from '../constants/data.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
-export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook }) {
+export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId }) {
   const [gameState, setGameState] = useState('prep'); 
   const [turn, setTurn] = useState(1);
+  const [isDrawer, setIsDrawer] = useState(true);
   const [word, setWord] = useState('LOADING');
   const [displayWord, setDisplayWord] = useState([]);
   const [guess, setGuess] = useState('');
@@ -42,6 +44,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     setTimeLeft(timerLength); 
     setGameState('drawing'); 
     setUndoStack([]); 
+    // default: the user who started the round is the drawer
+    setIsDrawer(true);
   };
 
   const handleSkip = () => {
@@ -49,7 +53,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       const newWord = getNewWord();
       setWord(newWord);
       setDisplayWord(newWord.split('').map(() => '_'));
-      setScores(p => ({ ...p, pictionary: Math.max(0, getScore(p, 'pictionary') - 1) }));
+      // Penalize drawer for skip (per-user)
+      setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1));
   };
 
   useEffect(() => { 
@@ -137,7 +142,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           setFinalImage(canvasRef.current.toDataURL()); 
           let pts = 1;
           if (timeLeft >= timerLength - 10) pts = 2; // Speed multiplier
-          setScores(p => ({ ...p, pictionary: getScore(p, 'pictionary') + pts })); 
+        // Award points to the guesser (current user)
+        setScores(prev => incrementUserScore(prev, userId, 'pictionary', pts));
       } else { 
           playAudio('click', sfx); 
           const dist = calculateLevenshtein(guess.toUpperCase(), word.toUpperCase());
@@ -156,7 +162,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     const newDisplay = [...displayWord];
     newDisplay[rnd] = word[rnd];
     setDisplayWord(newDisplay);
-    setScores(p => ({ ...p, pictionary: Math.max(0, getScore(p, 'pictionary') - 1) }));
+    // hint costs the current user a point
+    setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1));
   };
 
   const spawnEmoji = () => {
@@ -173,7 +180,12 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   if (gameState === 'prep') {
     return (
       <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
-        <div className="flex flex-col items-center justify-center h-full text-center p-4"><Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/><h2 className="text-2xl font-bold mb-4">Player {turn}'s Turn to Draw!</h2><div className="w-full mb-6"><p className="font-bold opacity-70 mb-1 text-sm">Category: {config.category}</p><p className="font-bold opacity-70 text-xs">Timer: {timerLength}s limit.</p></div><RetroButton className="w-full py-4 text-lg" onClick={startRound}>View Secret Word</RetroButton></div>
+        <div className="flex flex-col items-center justify-center h-full text-center p-4">
+          <Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/>
+          <h2 className="text-2xl font-bold mb-4">{profile && profile.name ? `You're the Drawer — ${profile.name}` : `Your Turn to Draw`}</h2>
+          <div className="w-full mb-6"><p className="font-bold opacity-70 mb-1 text-sm">Category: {config.category}</p><p className="font-bold opacity-70 text-xs">Timer: {timerLength}s limit.</p></div>
+          <RetroButton className="w-full py-4 text-lg" onClick={startRound}>View Secret Word</RetroButton>
+        </div>
       </RetroWindow>
     );
   }
@@ -182,7 +194,14 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     <RetroWindow title="pictionary.exe" className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold">
          <span className={timeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {timeLeft}s</span>
-         {gameState === 'drawing' ? ( <RetroButton variant="white" onClick={() => {setGameState('guessing'); setFinalImage(canvasRef.current.toDataURL()); setFakeCursor(p=>({...p, show:false}));}} className="px-4 py-1 text-xs">Hand to Guesser</RetroButton> ) : <span>Guessing Phase!</span>}
+         {gameState === 'drawing' ? (
+           <div className="flex items-center gap-2">
+             <span className="text-sm opacity-80">{isDrawer ? 'You are drawing' : (profile?.partnerNickname || 'Partner') + ' is drawing'}</span>
+             <RetroButton variant="white" onClick={() => {setGameState('guessing'); setFinalImage(canvasRef.current.toDataURL()); setFakeCursor(p=>({...p, show:false})); setIsDrawer(false);}} className="px-4 py-1 text-xs">Hand to Guesser</RetroButton>
+           </div>
+         ) : (
+           <span>{isDrawer ? 'Waiting for partner to guess...' : `${profile?.partnerNickname || 'Partner'} is drawing`}</span>
+         )}
       </div>
       {gameState === 'drawing' && (
         <div className="p-2 retro-bg-accent retro-border-b flex flex-wrap gap-2 items-center select-none overflow-x-auto">

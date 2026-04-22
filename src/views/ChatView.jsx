@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 
@@ -31,7 +31,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
     <div className="fixed inset-0 z-[100] bg-[var(--bg-main)]/90 backdrop-blur-sm flex items-center justify-center p-4">
       <RetroWindow title={`viewing: ${currentImage.text || 'attachment.jpg'}`} onClose={onClose} className="w-full max-w-3xl h-full max-h-[90vh] flex flex-col" noPadding>
         <div className="flex-1 flex flex-col items-center justify-center p-4 relative bg-[var(--bg-window)] overflow-hidden">
-          <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full retro-border text-sm font-bold shadow-sm z-10">{currentImage.sender === 'me' ? profileName : 'Partner'}</div>
+          <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full retro-border text-sm font-bold shadow-sm z-10">{currentImage.senderName ? currentImage.senderName : (currentImage.sender === 'me' ? profileName : 'Partner')}</div>
           <img src={currentImage.url} alt="full resolution" className="max-w-full max-h-full object-contain retro-border retro-shadow-dark" />
           {images.length > 1 && ( <><button onClick={onPrev} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark rounded-full hover:scale-110 active:translate-y-1"><ChevronLeft size={24} /></button><button onClick={onNext} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark rounded-full hover:scale-110 active:translate-y-1"><ChevronRight size={24} /></button></> )}
           <div className="absolute bottom-4 flex gap-4 z-10"><RetroButton variant="primary" className="px-4 py-2 flex items-center gap-2"><Heart size={16}/> React</RetroButton><RetroButton variant="secondary" className="px-4 py-2 flex items-center gap-2"><Download size={16}/> Save</RetroButton></div>
@@ -151,13 +151,63 @@ function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMic
   );
 }
 
-export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory }) {
-  const [input, setInput] = useState(''); const [showDetails, setShowDetails] = useState(false); const [calling, setCalling] = useState(null); 
-  const [callDuration, setCallDuration] = useState(0); const callTimerRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(false); const [isDeafened, setIsDeafened] = useState(false);
+/**
+ * IncomingCallNotification
+ * Shows when partner initiates a call - personalized for receiving user
+ */
+function IncomingCallNotification({ callType, partnerName, onAccept, onReject, ringingAudioRef }) {
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="retro-bg-window retro-border retro-shadow-dark max-w-sm w-full p-8 text-center animate-in fade-in zoom-in-95 duration-300">
+        <div className="mb-6">
+          <div className="w-20 h-20 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-4 animate-pulse">
+            {callType === 'video' ? (
+              <Video size={40} />
+            ) : (
+              <Phone size={40} />
+            )}
+          </div>
+          <h2 className="text-2xl font-bold mb-2">{partnerName}</h2>
+          <p className="text-sm opacity-70 font-bold">
+            {callType === 'video' ? 'incoming video call' : 'incoming call'}
+          </p>
+        </div>
+
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={onReject}
+            className="p-4 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-colors active:translate-y-1"
+            title="Reject Call"
+          >
+            <PhoneOff size={24} className="rotate-180" />
+          </button>
+          <button
+            onClick={onAccept}
+            className="p-4 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-colors active:translate-y-1"
+            title="Accept Call"
+          >
+            <Phone size={24} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory, userId, partnerId }) {
+  const [input, setInput] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [calling, setCalling] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const ringingIntervalRef = useRef(null);
+  const [callDuration, setCallDuration] = useState(0);
+  const callTimerRef = useRef(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
   const [callStartTime, setCallStartTime] = useState(null);
   const mediaStreamRef = useRef(null);
-  const [isRecording, setIsRecording] = useState(false); const [recordingTime, setRecordingTime] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const [voicePreview, setVoicePreview] = useState(null); const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
   const mediaRecorderRef = useRef(null); const audioChunksRef = useRef([]); const recordingTimerRef = useRef(null); const recordingStartTimeRef = useRef(0);
   const [replyingTo, setReplyingTo] = useState(null); const [editingMsgId, setEditingMsgId] = useState(null); const [activeOptions, setActiveOptions] = useState(null); const [searchQuery, setSearchQuery] = useState('');
@@ -202,16 +252,39 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
     }
   }, [calling]);
 
+  // Remove demo auto-reply: real partners will send messages via shared `chatHistory`.
+
+  // Detect incoming call invites in shared chat history
   useEffect(() => {
-    const lastMsg = chatHistory[chatHistory.length - 1];
-    if (lastMsg && lastMsg.sender === 'me' && lastMsg.status !== 'read') {
-      const deliverTimer = setTimeout(() => { setChatHistory(prev => prev.map(m => m.id === lastMsg.id ? { ...m, status: 'delivered' } : m)); }, 1000);
-      const readTimer = setTimeout(() => { setChatHistory(prev => prev.map(m => m.id === lastMsg.id ? { ...m, status: 'read' } : m)); setPartnerTyping(true); }, 2500);
-      const replyText = "Haha okay! 💖"; const typingDelay = replyText.length * 100;
-      const replyTimer = setTimeout(() => { playAudio('receive', sfx); setPartnerTyping(false); setChatHistory(prev => [...prev, { id: Date.now(), sender: 'partner', type: 'text', text: replyText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'read' }]); }, 2500 + typingDelay);
-      return () => { clearTimeout(deliverTimer); clearTimeout(readTimer); clearTimeout(replyTimer); };
+    if (!userId) return;
+    const last = chatHistory[chatHistory.length - 1];
+    if (!last) return;
+
+    // If a new call invite arrived from partner
+    if (last.type === 'call_invite' && last.status === 'ringing' && last.sender !== userId) {
+      setIncomingCall({ messageId: last.id, callType: last.callType, fromName: last.senderName || 'Partner' });
+      // start simple ringtone loop
+      if (ringingIntervalRef.current) clearInterval(ringingIntervalRef.current);
+      ringingIntervalRef.current = setInterval(() => playAudio('receive', sfx), 900);
     }
-  }, [chatHistory, sfx, setChatHistory]);
+
+    // If a call invite was accepted (status changed to accepted)
+    if (last.type === 'call_invite' && last.status === 'accepted') {
+      // If I initiated it and partner accepted, start call locally
+      if (last.sender === userId) {
+        setCalling(last.callType);
+      }
+      // stop any ringing
+      if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+      setIncomingCall(null);
+    }
+
+    // If a call was rejected or expired, clear incoming state
+    if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'missed')) {
+      if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+      setIncomingCall(null);
+    }
+  }, [chatHistory, userId, sfx]);
 
   const handleInputChange = (e) => { setInput(e.target.value); if (!isTyping) setIsTyping(true); };
   useEffect(() => { const timer = setTimeout(() => setIsTyping(false), 1500); return () => clearTimeout(timer); }, [input]);
@@ -226,7 +299,8 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
     
     setChatHistory(prev => [...prev, {
       id: Date.now(),
-      sender: 'me',
+      sender: userId,
+      senderName: profile?.name,
       type: 'call',
       callType: calling,
       duration: durationStr,
@@ -240,13 +314,26 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
 
   const handleStartCall = (type) => {
     playAudio('click', sfx);
+    // append a call invite to shared chat history so partner receives ringing
+    const inviteId = Date.now();
+    setChatHistory(prev => [...prev, {
+      id: inviteId,
+      sender: userId,
+      senderName: profile?.name,
+      type: 'call_invite',
+      callType: type,
+      status: 'ringing',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      target: partnerId
+    }]);
+    // show outgoing UI for caller
     setCalling(type);
   };
 
   const handleSend = (e) => {
     e.preventDefault(); if (!input.trim()) return; playAudio('send', sfx);
     if (editingMsgId) { setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); setEditingMsgId(null); } 
-    else { setChatHistory([...chatHistory, { id: Date.now(), sender: 'me', type: 'text', text: input, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); }
+    else { setChatHistory([...chatHistory, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'text', text: input, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); }
     setInput(''); setReplyingTo(null); setActiveOptions(null);
   };
   const startRecording = async () => {
@@ -272,12 +359,28 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
     if (!voicePreviewUrl || !voicePreview) return;
     playAudio('send', sfx);
     const mins = Math.floor(voicePreview / 60); const secs = voicePreview % 60; const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-    setChatHistory(prev => [...prev, { id: Date.now(), sender: 'me', type: 'voice', duration: durationStr, audioUrl: voicePreviewUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]);
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'voice', duration: durationStr, audioUrl: voicePreviewUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]);
     setReplyingTo(null);
     discardVoiceNote();
   };
 
-  const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { playAudio('send', sfx); const mockUrl = URL.createObjectURL(file); setChatHistory([...chatHistory, { id: Date.now(), sender: 'me', type: 'image', url: mockUrl, text: file.name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); setReplyingTo(null); } };
+  const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { playAudio('send', sfx); const mockUrl = URL.createObjectURL(file); setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'image', url: mockUrl, text: file.name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); setReplyingTo(null); } };
+
+  const acceptCall = (messageId) => {
+    playAudio('click', sfx);
+    const msg = chatHistory.find(m => m.id === messageId);
+    setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
+    if (msg) setCalling(msg.callType);
+    if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+    setIncomingCall(null);
+  };
+
+  const rejectCall = (messageId) => {
+    playAudio('click', sfx);
+    setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m));
+    if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+    setIncomingCall(null);
+  };
   const handleDelete = (id) => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === id ? { ...m, isDeleted: true, text: null, url: null, duration: null, audioUrl: null } : m)); setActiveOptions(null); };
   const handleReact = (id, emoji) => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === id) { const reactions = m.reactions || []; return { ...m, reactions: reactions.includes(emoji) ? reactions.filter(e => e !== emoji) : [...reactions, emoji] }; } return m; })); setActiveOptions(null); };
   const handleEdit = (msg) => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setReplyingTo(null); setActiveOptions(null); };
@@ -294,6 +397,9 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
     <>
       <ImageViewerOverlay images={imageMessages} currentIndex={currentImageIndex >= 0 ? currentImageIndex : null} onClose={() => setViewingImageId(null)} onNext={() => setViewingImageId(imageMessages[(currentImageIndex + 1) % imageMessages.length].id)} onPrev={() => setViewingImageId(imageMessages[(currentImageIndex - 1 + imageMessages.length) % imageMessages.length].id)} profileName={profile.name || 'You'} />
       <DraggableCallWindow calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} onMicToggle={() => setIsMuted(!isMuted)} onDeafenToggle={() => setIsDeafened(!isDeafened)} onEndCall={handleEndCall} partnerNickname={profile?.partnerNickname || 'Partner'} sfx={sfx} />
+      {incomingCall && (
+        <IncomingCallNotification callType={incomingCall.callType} partnerName={incomingCall.fromName} onAccept={() => acceptCall(incomingCall.messageId)} onReject={() => rejectCall(incomingCall.messageId)} ringingAudioRef={ringingIntervalRef} />
+      )}
       <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => {playAudio('click', sfx); setShowDetails(!showDetails)}} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
 
@@ -301,14 +407,19 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
             <div className="flex-1 overflow-y-auto p-4 flex flex-col retro-bg-window relative">
               <div className="text-center text-xs font-bold opacity-50 mb-6 retro-border-b inline-block mx-auto pb-1 mt-2">-- connection secured --</div>
               {filteredMessages.map((msg, index) => {
-                const isMe = msg.sender === 'me'; const prevMsg = filteredMessages[index - 1]; const nextMsg = filteredMessages[index + 1]; const isGroupStart = !prevMsg || prevMsg.sender !== msg.sender; const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender; const marginClass = isGroupEnd ? "mb-6" : "mb-1";
+                const isMe = msg.sender === userId;
+                const prevMsg = filteredMessages[index - 1];
+                const nextMsg = filteredMessages[index + 1];
+                const isGroupStart = !prevMsg || prevMsg.sender !== msg.sender;
+                const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender;
+                const marginClass = isGroupEnd ? "mb-6" : "mb-1";
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
                     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
                       {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">☕</div>}</div>}
                       {isMe && !msg.isDeleted && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => {playAudio('click',sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id)}} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100"/></button></div>)}
                       <div className={`p-3 retro-border text-sm leading-relaxed relative ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isMe ? 'retro-bg-primary retro-shadow-dark' : 'retro-bg-window retro-shadow-dark'} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
-                        {msg.replyTo && !msg.isDeleted && (<div className="bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2 text-xs rounded-r-md"><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === 'me' ? profile.name || 'You' : 'Partner'}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}
+                        {msg.replyTo && !msg.isDeleted && (<div className="bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2 text-xs rounded-r-md"><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === userId ? profile.name || 'You' : (msg.replyTo.senderName || profile.partnerNickname || 'Partner')}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}
                         {msg.isDeleted ? (<span className="flex items-center gap-2"><Ban size={14}/> this message was deleted</span>) : ( <>{msg.type === 'text' && <span>{formatMessage(msg.text)}</span>} {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} />} {msg.type === 'call' && (<div className="flex items-center gap-2"><Phone size={16} className={msg.callType === 'video' ? 'hidden' : ''} /><Video size={16} className={msg.callType === 'video' ? '' : 'hidden'} /> <span className="font-bold text-sm">{msg.callType === 'video' ? 'Video' : 'Voice'} Call - {msg.duration}</span></div>)} {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => {playAudio('click',sfx); setViewingImageId(msg.id)}} className="w-32 h-32 sm:w-48 sm:h-48 object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity" />{msg.text && <span className="italic">{msg.text}</span>}</div>)}</> )}
                         {msg.isEdited && !msg.isDeleted && <span className="text-[10px] opacity-50 ml-2 italic">(edited)</span>}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && (<div className={`absolute -bottom-3 ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
@@ -373,7 +484,7 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory })
                 <div>
                   <h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Pin size={16}/> Pinned Messages</h3>
                   <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
-                    {pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={`pin-${m.id}`} className="bg-[var(--bg-window)] p-2 text-sm retro-border border-l-4 border-l-[var(--accent)]"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === 'me' ? 'You' : 'Partner'}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}
+                    {pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={`pin-${m.id}`} className="bg-[var(--bg-window)] p-2 text-sm retro-border border-l-4 border-l-[var(--accent)]"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || profile.partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}
                   </div>
                 </div>
                 <div>

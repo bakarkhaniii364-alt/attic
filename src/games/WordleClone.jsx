@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay, Confetti } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { fetchDynamicWord, getScore } from '../utils/helpers.js';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { WORDS_FALLBACK } from '../constants/data.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { Lightbulb, Flag, Activity } from 'lucide-react';
@@ -12,7 +13,7 @@ const KEYBOARD = [
   ['ENTER','Z','X','C','V','B','N','M','DEL']
 ];
 
-export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook }) {
+export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
   const [targetWord, setTargetWord] = useState(""); 
   const wordLen = config.customWord ? config.customWord.length : (config.diff === 'easy' ? 4 : config.diff === 'medium' ? 5 : 6);
   const maxGuesses = 6;
@@ -106,7 +107,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
                if (currentGuess === targetWord) { 
                    setGameStatus("won"); 
-                   setScores(p => ({ ...p, wordle: getScore(p, 'wordle') + 1 })); 
+                   setScores(prev => incrementUserScore(prev, userId, 'wordle', 1)); 
                    updateStats(true, emptyIndex + 1);
                    if (emptyIndex < 2) setPerfectWin(true);
                    setTimeout(() => { playAudio('win', sfx); onWin(); setShowStats(true); }, 1000); 

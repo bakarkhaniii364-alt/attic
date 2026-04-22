@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { RefreshCw } from 'lucide-react';
 
-export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook }) {
+export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
   const size = config.size || 3;
   const p1 = config.p1Avatar || 'X';
   const p2 = config.p2Avatar || 'O';
@@ -73,7 +74,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
               setGameOverOverlay(true);
               if (winData.player === p1) {
                   onWin(); 
-                  setScores(p => ({ ...p, tictactoe: getScore(p, 'tictactoe') + 1 }));
+                  setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1));
                   setLocalStats(p => ({...p, wins: p.wins+1}));
               } else {
                   setLocalStats(p => ({...p, losses: p.losses+1}));

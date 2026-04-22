@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { Star, RefreshCw, Eye, Lightbulb } from 'lucide-react';
 
 const DECKS = {
@@ -10,7 +11,7 @@ const DECKS = {
     food: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝']
 };
 
-export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile }) {
+export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
   const [cards, setCards] = useState([]); 
   const [flipped, setFlipped] = useState([]); 
   const [solved, setSolved] = useState([]); 
@@ -69,9 +70,9 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
           }
           setCombo(c => c+1);
           
-          if (newSolved.length === cards.length) { 
+            if (newSolved.length === cards.length) { 
               setTimerActive(false);
-              setScores(p => ({ ...p, memory: getScore(p, 'memory') + 1 })); 
+            setScores(prev => incrementUserScore(prev, userId, 'memory', 1)); 
               onWin(); 
               setTimeout(() => setGameOverOverlay(true), 1500);
           }

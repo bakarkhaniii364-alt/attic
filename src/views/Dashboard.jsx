@@ -5,6 +5,7 @@ import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
+import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { StreakBadge } from '../components/Features.jsx';
 
 function PixelPet({ happy, sleeping, onClick, skin }) {
@@ -178,7 +179,7 @@ function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState }) {
+export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId }) {
   const [mood, setMood] = useLocalStorage('my_mood', '😊');
   const [petHappy, setPetHappy] = useLocalStorage('pet_happy', 60);
   const [pokeActive, setPokeActive] = useState(false);
@@ -236,11 +237,11 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
       </RetroWindow>
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
-         <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2">
-            <p>TicTacToe Wins: {getScore(scores, 'tictactoe')}</p>
-            <p>Pictionary Guessed: {getScore(scores, 'pictionary')}</p>
-            <p>Memory Pairs: {getScore(scores, 'memory')}</p>
-            <p>Wordles Solved: {getScore(scores, 'wordle')}</p>
+        <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2">
+          <p>TicTacToe Wins: {getScoreForUser(scores, userId, 'tictactoe')}</p>
+          <p>Pictionary Guessed: {getScoreForUser(scores, userId, 'pictionary')}</p>
+          <p>Memory Pairs: {getScoreForUser(scores, userId, 'memory')}</p>
+          <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
          </div>
          <CalendarReminder />
       </RetroWindow>
