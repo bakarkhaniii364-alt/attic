@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
@@ -76,7 +76,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, images]);
+  }, [currentIndex, images, onNext, onPrev, onClose]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
@@ -145,6 +145,8 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
       }, 2000);
   };
 
+  const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
+
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowUp' && !input && !editingMsgId) {
       const myMsgs = safeHistory.filter(m => m.sender === userId && m.type === 'text' && !m.isDeleted);
@@ -168,11 +170,18 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
     if (unreadFromPartner) {
         setChatHistory(prev => prev.map(m => (m.sender === partnerId && m.status !== 'read') ? { ...m, status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } : m));
     }
-  }, [chatHistory, partnerId]);
+  }, [chatHistory, partnerId, setChatHistory]);
 
-  useEffect(() => { if (!activeOptions && searchQuery === '' && !viewingImageId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, activeOptions, searchQuery, viewingImageId, showDetails]);
+  useEffect(() => { 
+    if (!activeOptions && searchQuery === '' && !viewerContext.isOpen) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
+    }
+  }, [chatHistory, activeOptions, searchQuery, viewerContext.isOpen, showDetails]);
 
-  const handleStartCall = (type) => { playAudio('click', sfx); setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString(), target: partnerId }]); };
+  const handleStartCall = (type) => { 
+    playAudio('click', sfx); 
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString(), target: partnerId }]); 
+  };
 
   const handleSend = (e) => {
     if (e) e.preventDefault(); 
@@ -196,7 +205,6 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
         replyTo: replyingTo,
         status: 'sent'
       };
-      console.log("[CHAT] Sending text message:", newMsg);
       setChatHistory([...chatHistory, newMsg]);
       setPendingImages([]);
     }
@@ -220,13 +228,27 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const mediaRecorder = new MediaRecorder(stream); mediaRecorderRef.current = mediaRecorder; audioChunksRef.current = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+      const mediaRecorder = new MediaRecorder(stream); 
+      mediaRecorderRef.current = mediaRecorder; 
+      audioChunksRef.current = [];
       mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); const audioUrl = URL.createObjectURL(audioBlob); const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-        const reader = new FileReader(); reader.readAsDataURL(audioBlob); reader.onloadend = () => { setVoiceBase64(reader.result); if (durationSecs >= 1) { setVoicePreview(durationSecs); setVoicePreviewUrl(audioUrl); } };
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); 
+        const audioUrl = URL.createObjectURL(audioBlob); 
+        const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+        const reader = new FileReader(); reader.readAsDataURL(audioBlob); 
+        reader.onloadend = () => { 
+            setVoiceBase64(reader.result); 
+            if (durationSecs >= 1) { setVoicePreview(durationSecs); setVoicePreviewUrl(audioUrl); } 
+        };
         stream.getTracks().forEach(track => track.stop());
-      }; mediaRecorder.start(); setIsRecording(true); recordingStartTimeRef.current = Date.now(); setRecordingTime(0); recordingTimerRef.current = setInterval(() => { setRecordingTime(prev => prev + 1); }, 1000);
+      }; 
+      mediaRecorder.start(); 
+      setIsRecording(true); 
+      recordingStartTimeRef.current = Date.now(); 
+      setRecordingTime(0); 
+      recordingTimerRef.current = setInterval(() => { setRecordingTime(prev => prev + 1); }, 1000);
     } catch (err) { alert("Microphone access denied."); }
   };
   const stopRecording = () => { if (!isRecording || !mediaRecorderRef.current) return; setIsRecording(false); clearInterval(recordingTimerRef.current); mediaRecorderRef.current.stop(); };
@@ -275,17 +297,30 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
 
-  const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
-  const imageMessages = safeHistory.filter(m => m.type === 'image' && !m.isDeleted);
+  const imageMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group') && !m.isDeleted);
   const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted);
   const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
-  const currentImageIndex = imageMessages.findIndex(m => m.id === viewingImageId);
-  const headerActions = (<div className="flex gap-2"><button onClick={() => onStartCall('audio')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18} /></button><button onClick={() => onStartCall('video')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18} /></button></div>);
+  const headerActions = (
+    <div className="flex gap-2">
+      <button onClick={() => onStartCall('audio')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18} /></button>
+      <button onClick={() => onStartCall('video')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18} /></button>
+    </div>
+  );
   const filteredMessages = safeHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
 
   return (
     <>
-      <ImageViewerOverlay images={imageMessages} currentIndex={currentImageIndex >= 0 ? currentImageIndex : null} onClose={() => setViewingImageId(null)} onNext={() => setViewingImageId(imageMessages[(currentImageIndex + 1) % imageMessages.length].id)} onPrev={() => setViewingImageId(imageMessages[(currentImageIndex - 1 + imageMessages.length) % imageMessages.length].id)} profileName={profile.name || 'You'} onSaveToScrapbook={handleSaveToScrapbook} />
+      {viewerContext.isOpen && (
+        <ImageViewerOverlay 
+          images={viewerContext.urls} 
+          currentIndex={viewerContext.index} 
+          onClose={() => setViewerContext(p => ({ ...p, isOpen: false }))} 
+          onNext={() => setViewerContext(p => ({ ...p, index: (p.index + 1) % p.urls.length }))} 
+          onPrev={() => setViewerContext(p => ({ ...p, index: (p.index - 1 + p.urls.length) % p.urls.length }))} 
+          profileName={profile?.name} 
+          onSaveToScrapbook={handleSaveToScrapbook} 
+        />
+      )}
       <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
@@ -299,9 +334,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                 const isGroupEnd = !nextMsg || nextMsg.sender !== msg.sender;
                 const marginClass = isGroupEnd ? "mb-6" : "mb-1";
                 if (msg.type === 'call_invite' && msg.status === 'ringing') return null;
-
                 const isCallLog = msg.type === 'call_invite';
-
                 const isPureEmoji = msg.type === 'text' && msg.text && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
                 const isPureImage = (msg.type === 'image' || msg.type === 'image_group') && !msg.text;
                 const noBubble = (isPureEmoji || isPureImage) && !msg.isDeleted;
@@ -339,7 +372,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (<div className={`absolute ${noBubble ? '-bottom-1' : '-bottom-3'} ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
                       </div>
                       {!isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
-                      {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-40 py-1`}><button onClick={() => { playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14} /> Reply</button><button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14} /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>{msg.type === 'image' && <button onClick={() => { handleSaveToScrapbook(msg.url); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><ImageIcon size={14} /> Scrapbook</button>}<div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14} /> <span onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('❤️') ? rs.filter(e => e !== '❤️') : [...rs, '❤️'] }; } return m; })); setActiveOptions(null); }} className="cursor-pointer hover:scale-125 transition-transform">❤️</span></div>{isMe && msg.type === 'text' && <button onClick={() => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14} /> Edit</button>}{isMe && <button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14} /> Delete</button>}</div>)}
+                      {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-40 py-1`}><button onClick={() => { playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14} /> Reply</button><button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14} /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>{(msg.type === 'image' || msg.type === 'image_group') && <button onClick={() => { handleSaveToScrapbook(msg.url || msg.urls[0]); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><ImageIcon size={14} /> Scrapbook</button>}<div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14} /> <span onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('❤️') ? rs.filter(e => e !== '❤️') : [...rs, '❤️'] }; } return m; })); setActiveOptions(null); }} className="cursor-pointer hover:scale-125 transition-transform">❤️</span></div>{isMe && msg.type === 'text' && <button onClick={() => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14} /> Edit</button>}{isMe && <button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14} /> Delete</button>}</div>)}
                     </div>
                     {msg.isPinned && !msg.isDeleted && <div className={`absolute -top-3 ${isMe ? 'right-4' : 'left-4'} bg-[var(--accent)] rounded-full p-1 border-2 border-[var(--border)] z-10`}><Pin size={12} className="text-white" /></div>}
                     {isGroupEnd && (<div className="flex flex-col items-end gap-1 mt-1 justify-end px-2"><span className="text-[10px] opacity-70 font-bold">{msg.time}</span>{isMe && msg.status && !isCallLog && (<div className="flex items-center gap-1"><div className="flex -space-x-1.5"><Check size={12} className={msg.status === 'read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />{(msg.status === 'delivered' || msg.status === 'read') && <Check size={12} className={msg.status === 'read' ? 'text-blue-500' : 'text-[var(--border)] opacity-50'} strokeWidth={3} />}</div>{msg.status === 'read' && msg.readAt && <span className="text-[8px] font-black opacity-30 uppercase">seen {msg.readAt}</span>}</div>)}</div>)}
@@ -376,7 +409,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                     </div>
                   ))}
                   <div className="flex-1 min-w-[150px]">
-                    <p className="text-xs font-bold uppercase opacity-50 mb-1">Add a caption to the first photo...</p>
+                    <p className="text-xs font-bold uppercase opacity-50 mb-1">Media Preview</p>
                     <p className="text-[10px] italic">Sending {pendingImages.length} items at once.</p>
                   </div>
                 </div>
@@ -392,23 +425,17 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
               <div className="p-2 flex gap-1 bg-[var(--border)] shrink-0"><button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'media' ? 'bg-white' : 'opacity-50 text-white'}`}>Media</button><button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'calls' ? 'bg-white' : 'opacity-50 text-white'}`}>Calls</button><button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'search' ? 'bg-white' : 'opacity-50 text-white'}`}>Search</button></div>
               <div className="p-4 flex flex-col gap-6">
                 {activeSidebarTab === 'search' && (<div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Search size={16} /> Search Logs</h3><div className="flex bg-[var(--bg-window)] retro-border p-2"><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="filter messages..." className="bg-transparent outline-none w-full text-sm font-bold" />{searchQuery && <button onClick={() => setSearchQuery('')}><X size={14} className="opacity-50" /></button>}</div></div>)}
-                {activeSidebarTab === 'media' && (<><div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Pin size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-[var(--bg-window)] p-2 text-sm retro-border border-l-4 border-l-[var(--accent)]"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div><div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><ImageIcon size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewingImageId(m.id)} className="aspect-square retro-border retro-shadow-dark bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.url})` }}></div>)))}</div></div></>)}
+                {activeSidebarTab === 'media' && (
+                  <>
+                    <div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Pin size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-[var(--bg-window)] p-2 text-sm retro-border border-l-4 border-l-[var(--accent)]"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>
+                    <div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><ImageIcon size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewerContext({ urls: m.type === 'image_group' ? m.urls : [m.url], index: 0, isOpen: true })} className="aspect-square retro-border retro-shadow-dark bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}></div>)))}</div></div>
+                  </>
+                )}
                 {activeSidebarTab === 'calls' && (<div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><History size={16} /> Call History</h3><div className="flex flex-col gap-2 overflow-y-auto pr-1">{callHistory.length === 0 ? (<p className="text-sm opacity-50">No call history.</p>) : (callHistory.reverse().map(m => (<div key={m.id} className="bg-[var(--bg-window)] p-3 text-xs retro-border flex items-center justify-between"><div className="flex items-center gap-2">{m.callType === 'video' ? <Video size={14} className="text-[var(--secondary)]" /> : <Phone size={14} className="text-[var(--primary)]" />}<div><p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p><p className="opacity-50">{m.time}</p></div></div><span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 retro-border ${m.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{m.status}</span></div>)))}</div></div>)}
               </div>
             </div>
           )}
         </div>
-        {viewerContext.isOpen && (
-          <ImageViewerOverlay 
-            images={viewerContext.urls} 
-            currentIndex={viewerContext.index} 
-            onClose={() => setViewerContext(p => ({ ...p, isOpen: false }))} 
-            onNext={() => setViewerContext(p => ({ ...p, index: (p.index + 1) % p.urls.length }))} 
-            onPrev={() => setViewerContext(p => ({ ...p, index: (p.index - 1 + p.urls.length) % p.urls.length }))} 
-            profileName={profile?.name} 
-            onSaveToScrapbook={(url) => setSharedImages(p => [...new Set([...p, url])])} 
-          />
-        )}
       </RetroWindow>
     </>
   );
