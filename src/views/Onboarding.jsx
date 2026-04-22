@@ -36,36 +36,36 @@ export function LandingView({ onTryAttic, onSignIn }) {
       </nav>
 
       {/* hero */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-12">
-        <div className="relative mb-8">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-16">
+        <div className="relative mb-10">
           <img
             src="/assets/attic.svg"
             alt="attic"
-            className="w-96 sm:w-[38rem] object-contain"
-            style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.4))' }}
+            className="w-96 sm:w-[42rem] object-contain animate-in fade-in slide-in-from-bottom-4 duration-1000"
+            style={{ filter: 'drop-shadow(6px 6px 0px rgba(255, 107, 157, 0.4))' }}
           />
         </div>
-        <p className="text-xs sm:text-sm font-bold text-[#6b4423] opacity-70 text-center max-w-[280px] leading-relaxed mb-8">
-          a private corner of the internet, just for two
+        <p className="text-sm sm:text-lg font-bold text-[#6b4423] opacity-70 text-center max-w-[500px] leading-relaxed mb-10 px-4">
+          a private corner of the internet, just for two.
         </p>
 
         {/* buttons below description */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-4 sm:gap-6">
           <button
             onClick={onSignIn}
-            className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-70 hover:opacity-100 transition-opacity px-3 py-2 retro-border bg-white/60 hover:bg-[#ff6b9d]/20 active:translate-y-[1px]"
+            className="font-bold text-sm sm:text-base text-[#6b4423] opacity-70 hover:opacity-100 transition-all px-6 py-3 retro-border bg-white/60 hover:bg-[#ff6b9d]/10 active:translate-y-[2px] active:shadow-none retro-shadow-dark"
           >
             sign in
           </button>
-          <RetroButton variant="primary" onClick={onTryAttic} className="px-4 sm:px-5 py-2 text-xs sm:text-sm flex items-center gap-1">
-            try attic <ArrowRight size={14} />
+          <RetroButton variant="primary" onClick={onTryAttic} className="px-8 sm:px-10 py-3 text-sm sm:text-base flex items-center gap-2">
+            try attic <ArrowRight size={20} />
           </RetroButton>
         </div>
       </div>
 
       {/* footer */}
-      <div className="relative z-10 text-center pb-6 sm:pb-8">
-        <p className="text-[9px] sm:text-[10px] font-bold tracking-[0.2em] uppercase text-[#6b4423] opacity-30 select-none">
+      <div className="relative z-10 text-center pb-8">
+        <p className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-30 select-none">
           made with ❤️ for lovers
         </p>
       </div>
@@ -77,7 +77,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
    AUTH VIEW — sign up / sign in / forgot password
    ═══════════════════════════════════════════════════════ */
 export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack, sfx }) {
-  const [mode, setMode] = useState(initialMode || 'signup'); // signup | signin | forgot
+  const [mode, setMode] = useState(initialMode || 'signup'); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -208,58 +208,56 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[var(--bg-main)]">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-hidden bg-[var(--bg-main)]">
       <div className="absolute inset-0 bg-pattern-grid opacity-40" />
       <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
 
       {/* floating hearts */}
       <div className="absolute top-[10%] right-[15%] text-[var(--primary)] opacity-[0.08] animate-float">
-        <Heart size={50} fill="currentColor" />
+        <Heart size={60} fill="currentColor" />
       </div>
       <div className="absolute bottom-[15%] left-[10%] text-[var(--primary)] opacity-[0.06] animate-float-delayed">
-        <Heart size={30} fill="currentColor" />
+        <Heart size={40} fill="currentColor" />
       </div>
 
-      {/* back button removed, using RetroWindow onClose */}
-
       {inviteCode && (
-        <div className="relative z-10 mb-4 retro-border retro-bg-accent retro-shadow-dark px-4 py-2 text-center animate-in fade-in duration-300">
-          <p className="text-xs font-bold opacity-70">you've been invited! sign up to join their attic.</p>
+        <div className="relative z-10 mb-6 retro-border retro-bg-accent retro-shadow-dark px-6 py-3 text-center animate-in fade-in duration-300">
+          <p className="text-sm font-bold opacity-70">you've been invited! sign up to join their attic.</p>
         </div>
       )}
 
-      <RetroWindow title={windowTitles[mode]} className="w-full max-w-sm relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
+      <RetroWindow title={windowTitles[mode]} className="w-full max-w-[480px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onBack && onBack(); }}>
         {/* ── SIGN UP ── */}
         {mode === 'signup' && (
-          <form onSubmit={handleSignUp} className="flex flex-col gap-4 py-2">
-            <div className="text-center mb-2">
-              <div className="w-14 h-14 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-                <Sparkles size={22} className="text-[var(--text-main)]" />
+          <form onSubmit={handleSignUp} className="flex flex-col gap-6 py-4">
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
+                <Sparkles size={28} className="text-[var(--text-main)]" />
               </div>
-              <h2 className="font-bold text-xl lowercase">create your space</h2>
-              <p className="text-xs font-bold opacity-50 mt-1">a little attic for you and your person</p>
+              <h2 className="font-bold text-2xl lowercase">create your space</h2>
+              <p className="text-sm font-bold opacity-50 mt-2">a little attic for you and your person</p>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold opacity-60 flex items-center gap-1"><User size={12}/>display name</label>
-              <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="what should we call you?" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold" />
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold opacity-60 flex items-center gap-1 uppercase tracking-wider"><User size={14}/>display name</label>
+              <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="what should we call you?" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold opacity-60 flex items-center gap-1"><Mail size={12}/>email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold" />
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold opacity-60 flex items-center gap-1 uppercase tracking-wider"><Mail size={14}/>email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold opacity-60 flex items-center gap-1"><Lock size={12}/>password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold" />
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold opacity-60 flex items-center gap-1 uppercase tracking-wider"><Lock size={14}/>password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
             </div>
 
-            {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
+            {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
 
-            <RetroButton type="submit" variant="primary" className="py-3 mt-2 text-sm flex justify-center items-center gap-2" disabled={loading}>
-              {loading ? <><Loader size={16} className="animate-spin" /> creating...</> : <>create my attic <Sparkles size={14}/></>}
+            <RetroButton type="submit" variant="primary" className="py-4 mt-2 text-base flex justify-center items-center gap-2" disabled={loading}>
+              {loading ? <><Loader size={20} className="animate-spin" /> creating...</> : <>create my attic <Sparkles size={18}/></>}
             </RetroButton>
 
-            <p className="text-center text-xs font-bold opacity-50 mt-1">
+            <p className="text-center text-sm font-bold opacity-50 mt-2">
               already have an account?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
                 sign in
@@ -270,37 +268,37 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
         {/* ── SIGN IN ── */}
         {mode === 'signin' && (
-          <form onSubmit={handleSignIn} className="flex flex-col gap-4 py-2">
-            <div className="text-center mb-2">
-              <div className="w-14 h-14 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-                <Key size={22} />
+          <form onSubmit={handleSignIn} className="flex flex-col gap-6 py-4">
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
+                <Key size={28} />
               </div>
-              <h2 className="font-bold text-xl lowercase">welcome back</h2>
-              <p className="text-xs font-bold opacity-50 mt-1">your attic missed you</p>
+              <h2 className="font-bold text-2xl lowercase">welcome back</h2>
+              <p className="text-sm font-bold opacity-50 mt-2">your attic missed you</p>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold opacity-60 flex items-center gap-1"><Mail size={12}/>email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold" />
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold opacity-60 flex items-center gap-1 uppercase tracking-wider"><Mail size={14}/>email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold opacity-60 flex items-center gap-1"><Lock size={12}/>password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold" />
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold opacity-60 flex items-center gap-1 uppercase tracking-wider"><Lock size={14}/>password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
             </div>
 
-            <div className="text-right -mt-2">
-              <span className="text-[10px] font-bold opacity-40 underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('forgot')}>
+            <div className="text-right -mt-4">
+              <span className="text-xs font-bold opacity-40 underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('forgot')}>
                 forgot password?
               </span>
             </div>
 
-            {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
+            {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
 
-            <RetroButton type="submit" variant="primary" className="py-3 mt-1 text-sm flex justify-center items-center gap-2" disabled={loading}>
-              {loading ? <><Loader size={16} className="animate-spin" /> unlocking...</> : <>unlock attic <Key size={14}/></>}
+            <RetroButton type="submit" variant="primary" className="py-4 mt-2 text-base flex justify-center items-center gap-2" disabled={loading}>
+              {loading ? <><Loader size={20} className="animate-spin" /> unlocking...</> : <>unlock attic <Key size={18}/></>}
             </RetroButton>
 
-            <p className="text-center text-xs font-bold opacity-50 mt-1">
+            <p className="text-center text-sm font-bold opacity-50 mt-2">
               don't have an account?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signup')}>
                 sign up
@@ -311,35 +309,35 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
         {/* ── FORGOT PASSWORD ── */}
         {mode === 'forgot' && (
-          <form onSubmit={handleForgot} className="flex flex-col gap-4 py-2">
-            <div className="text-center mb-2">
-              <div className="w-14 h-14 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-                <Lock size={22} className="text-[var(--text-main)]" />
+          <form onSubmit={handleForgot} className="flex flex-col gap-6 py-4">
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 rounded-full retro-bg-accent retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
+                <Lock size={28} className="text-[var(--text-main)]" />
               </div>
-              <h2 className="font-bold text-xl lowercase">lost your keys?</h2>
-              <p className="text-xs font-bold opacity-50 mt-1">no worries, we'll send a reset link</p>
+              <h2 className="font-bold text-2xl lowercase">lost your keys?</h2>
+              <p className="text-sm font-bold opacity-50 mt-2">no worries, we'll send a reset link</p>
             </div>
 
             {forgotSent ? (
-              <div className="retro-border retro-bg-accent p-4 text-center">
-                <Check size={24} className="mx-auto mb-2 text-[var(--primary)]" />
-                <p className="text-sm font-bold">reset link sent!</p>
-                <p className="text-xs font-bold opacity-50 mt-1">check your email inbox</p>
+              <div className="retro-border retro-bg-accent p-6 text-center">
+                <Check size={32} className="mx-auto mb-3 text-[var(--primary)]" />
+                <p className="text-base font-bold">reset link sent!</p>
+                <p className="text-sm font-bold opacity-50 mt-2">check your email inbox</p>
               </div>
             ) : (
               <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold opacity-60 flex items-center gap-1"><Mail size={12}/>email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold" />
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold opacity-60 flex items-center gap-1 uppercase tracking-wider"><Mail size={14}/>email</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="p-4 retro-border retro-bg-window focus:outline-none text-base font-bold shadow-inner" />
                 </div>
-                {error && <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">{error}</p>}
-                <RetroButton type="submit" variant="primary" className="py-3 text-sm flex justify-center items-center gap-2" disabled={loading}>
-                  {loading ? <><Loader size={16} className="animate-spin" /> sending...</> : <>send reset link <Mail size={14}/></>}
+                {error && <p className="text-sm font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-3">{error}</p>}
+                <RetroButton type="submit" variant="primary" className="py-4 text-base flex justify-center items-center gap-2" disabled={loading}>
+                  {loading ? <><Loader size={20} className="animate-spin" /> sending...</> : <>send reset link <Mail size={18}/></>}
                 </RetroButton>
               </>
             )}
 
-            <p className="text-center text-xs font-bold opacity-50 mt-1">
+            <p className="text-center text-sm font-bold opacity-50 mt-2">
               remembered?{' '}
               <span className="underline cursor-pointer hover:text-[var(--primary)] hover:opacity-100 transition-all" onClick={() => switchMode('signin')}>
                 sign in
@@ -348,57 +346,6 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
           </form>
         )}
       </RetroWindow>
-
-      {/* Email Verification Modal */}
-      {emailVerificationEmail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <RetroWindow title="verify_email.exe" className="w-full max-w-sm" noPadding>
-            <div className="p-8 flex flex-col items-center text-center gap-4">
-              <div className="w-16 h-16 rounded-full retro-bg-secondary flex items-center justify-center">
-                <Mail size={32} className="text-[var(--text-main)]" />
-              </div>
-              <h2 className="text-2xl font-bold">Verify Your Email</h2>
-              <p className="text-sm opacity-70">
-                Click on the verification link sent to <br/>
-                <span className="font-bold text-[var(--primary)]">{emailVerificationEmail}</span>
-              </p>
-              <p className="text-xs opacity-50 bg-blue-50 border border-blue-200 retro-border p-2">
-                The link will redirect you to verify your account
-              </p>
-              
-              <div className="flex flex-col gap-2 w-full pt-2">
-                <RetroButton
-                  onClick={handleResendVerification}
-                  variant="secondary"
-                  disabled={resendLoading}
-                  className="flex justify-center items-center gap-2"
-                >
-                  {resendLoading ? (
-                    <>
-                      <Loader size={14} className="animate-spin" /> resending...
-                    </>
-                  ) : (
-                    <>
-                      resend email <Mail size={14} />
-                    </>
-                  )}
-                </RetroButton>
-
-                <button
-                  onClick={() => {
-                    playAudio('click', sfx);
-                    setEmailVerificationEmail('');
-                    setError('');
-                  }}
-                  className="text-center text-xs font-bold opacity-50 hover:opacity-100 transition-opacity"
-                >
-                  ← go back to sign up
-                </button>
-              </div>
-            </div>
-          </RetroWindow>
-        </div>
-      )}
     </div>
   );
 }
@@ -415,7 +362,6 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
   const [error, setError] = useState('');
   const toast = useToast();
 
-  // On mount, check if user already has a room, or create one
   useEffect(() => {
     (async () => {
       try {
@@ -429,45 +375,33 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
             return;
           }
         } else {
-          // Create a new room with a random invite code.
-          // Retry on duplicates until a unique code is stored.
           let roomCode = null;
           const maxAttempts = 8;
-
           for (let attempt = 0; attempt < maxAttempts; attempt++) {
             const candidate = generateCode();
             const { error: err } = await supabase.from('rooms').insert({
               invite_code: candidate,
               creator_id: session.user.id,
             });
-
             if (!err) {
               roomCode = candidate;
               break;
             }
-
             const duplicateError = err.code === '23505' || err.message?.toLowerCase().includes('duplicate');
-            if (!duplicateError) {
-              throw err;
-            }
+            if (!duplicateError) throw err;
           }
-
-          if (!roomCode) {
-            throw new Error('Unable to generate a unique invite code. Please try again.');
-          }
-
+          if (!roomCode) throw new Error('Unable to generate a unique invite code. Please try again.');
           setInviteCode(roomCode);
         }
       } catch (err) {
         console.error("Setup error:", err);
-        setError("Failed to setup room. Did you run auth_schema.sql in Supabase?");
+        setError("Failed to setup room.");
       } finally {
         setCreating(false);
       }
     })();
   }, []);
 
-  // Poll for partner joining (every 3s)
   useEffect(() => {
     if (creating) return;
     const interval = setInterval(async () => {
@@ -481,7 +415,7 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
   }, [creating]);
 
   function generateCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
     return code;
@@ -492,7 +426,7 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
     navigator.clipboard.writeText(url).then(() => {
       playAudio('click', sfx);
       setCopied(true);
-      if (toast) toast('invite link copied! share it with your person ❤️', 'success');
+      if (toast) toast('invite link copied! ❤️', 'success');
       setTimeout(() => setCopied(false), 2500);
     });
   };
@@ -504,25 +438,14 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
     playAudio('click', sfx);
 
     if (partnerCode.trim() === '231803') {
-      if (toast) toast('paired with buet! entering your attic... ✨', 'success');
+      if (toast) toast('paired with buet! ✨', 'success');
       setTimeout(() => onPaired('dummy-room-buet'), 800);
       return;
     }
 
     const { data, error: err } = await supabase.rpc('claim_invite', { code: partnerCode.trim() });
-
-    if (err) {
-      setError('something went wrong. try again.');
-      setLoading(false);
-      return;
-    }
-
-    if (data && data.error) {
-      setError(data.message);
-      setLoading(false);
-      return;
-    }
-
+    if (err) { setError('something went wrong.'); setLoading(false); return; }
+    if (data && data.error) { setError(data.message); setLoading(false); return; }
     if (data && data.success) {
       if (toast) toast('paired! entering your attic... ✨', 'success');
       setTimeout(() => onPaired(data.room_id), 800);
@@ -534,83 +457,67 @@ export function HandshakeView({ session, onPaired, onLogout, sfx }) {
       <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-main)] relative overflow-hidden">
         <div className="absolute inset-0 bg-pattern-grid opacity-40" />
         <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
-        <Loader size={32} className="animate-spin text-[var(--primary)] mb-4 relative z-10" />
-        <p className="font-bold text-sm opacity-60 relative z-10">setting up your attic...</p>
+        <Loader size={48} className="animate-spin text-[var(--primary)] mb-6 relative z-10" />
+        <p className="font-bold text-lg opacity-60 relative z-10">setting up your attic...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[var(--bg-main)]">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-hidden bg-[var(--bg-main)]">
       <div className="absolute inset-0 bg-pattern-grid opacity-40" />
       <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
 
-      <div className="absolute top-[12%] left-[8%] text-[var(--primary)] opacity-[0.08] animate-float">
-        <Heart size={40} fill="currentColor" />
-      </div>
-      <div className="absolute bottom-[15%] right-[10%] text-[var(--secondary)] opacity-[0.06] animate-float-delayed">
-        <Sparkles size={36} />
-      </div>
-
-      {/* logout button removed, using RetroWindow onClose */}
-
-      <RetroWindow title="the_handshake.exe" className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
-        <div className="flex flex-col items-center text-center py-2 gap-5">
-          {/* header */}
+      <RetroWindow title="the_handshake.exe" className="w-full max-w-[520px] relative z-10 animate-in fade-in zoom-in-95 duration-300" onClose={() => { playAudio('click', sfx); onLogout && onLogout(); }}>
+        <div className="flex flex-col items-center text-center py-6 gap-8">
           <div>
-            <div className="w-16 h-16 rounded-full retro-bg-primary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
-              <span className="text-2xl">🤝</span>
+            <div className="w-20 h-20 rounded-full retro-bg-primary retro-border mx-auto flex items-center justify-center mb-4 retro-shadow-dark">
+              <span className="text-3xl">🤝</span>
             </div>
-            <h2 className="font-bold text-xl lowercase">the handshake</h2>
-            <p className="text-xs font-bold opacity-50 mt-1">link your attic with your person</p>
+            <h2 className="font-bold text-2xl lowercase">the handshake</h2>
+            <p className="text-sm font-bold opacity-50 mt-2">link your attic with your person</p>
           </div>
 
-          {/* YOUR CODE */}
           {!inviteCode && error ? (
-            <div className="w-full retro-border p-4 retro-bg-window border-red-500 text-center">
+            <div className="w-full retro-border p-6 retro-bg-window border-red-500 text-center">
               <p className="font-bold text-red-500 mb-4">{error}</p>
-              <RetroButton onClick={() => window.location.reload()} className="w-full py-2">Retry Setup</RetroButton>
+              <RetroButton onClick={() => window.location.reload()} className="w-full py-3">Retry Setup</RetroButton>
             </div>
           ) : (
-            <div className="w-full retro-border p-4 retro-bg-window">
-              <p className="font-bold text-xs mb-3 opacity-60 text-left">share this with your partner:</p>
+            <div className="w-full retro-border p-6 retro-bg-window shadow-inner">
+              <p className="font-bold text-xs mb-4 opacity-60 text-left uppercase tracking-widest">share this with your partner:</p>
               <button
                 onClick={copyInviteUrl}
-                className="w-full bg-[var(--border)] text-[var(--bg-window)] p-3 font-black text-2xl tracking-[0.25em] retro-shadow-primary flex items-center justify-center gap-3 hover:opacity-90 active:translate-y-[1px] active:shadow-none transition-all cursor-pointer select-all"
+                className="w-full bg-[var(--border)] text-[var(--bg-window)] p-5 font-black text-3xl tracking-[0.3em] retro-shadow-primary flex items-center justify-center gap-4 hover:opacity-90 active:translate-y-[2px] transition-all cursor-pointer"
               >
                 {inviteCode || '...'}
-                {copied ? <Check size={20} className="shrink-0" /> : <Copy size={18} className="shrink-0 opacity-60" />}
+                {copied ? <Check size={28} className="shrink-0" /> : <Copy size={24} className="shrink-0 opacity-60" />}
               </button>
-              <p className="text-[10px] font-bold opacity-30 mt-2">
+              <p className="text-xs font-bold opacity-30 mt-3">
                 {copied ? 'link copied to clipboard!' : 'tap to copy invite link'}
               </p>
             </div>
           )}
 
-          <div className="font-bold text-xs opacity-30 tracking-widest uppercase">— or —</div>
+          <div className="font-bold text-sm opacity-30 tracking-widest uppercase">— or —</div>
 
-          {/* ENTER PARTNER CODE */}
-          <form onSubmit={handleClaimInvite} className="w-full retro-border p-4 retro-bg-accent retro-shadow-dark">
-            <p className="font-bold text-xs mb-3 opacity-60 text-left">got your partner's code?</p>
-            <div className="flex gap-2">
+          <form onSubmit={handleClaimInvite} className="w-full retro-border p-6 retro-bg-accent retro-shadow-dark">
+            <p className="font-bold text-xs mb-4 opacity-60 text-left uppercase tracking-widest">got your partner's code?</p>
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 value={partnerCode}
                 onChange={(e) => setPartnerCode(e.target.value.toUpperCase())}
                 placeholder="XXXXXX"
                 maxLength={6}
-                className="flex-1 p-3 retro-border bg-white focus:outline-none font-black tracking-[0.15em] text-center uppercase text-lg"
+                className="flex-1 p-4 retro-border bg-white focus:outline-none font-black tracking-[0.2em] text-center uppercase text-2xl shadow-inner"
               />
-              <RetroButton type="submit" variant="primary" className="px-5" disabled={loading || !partnerCode.trim()}>
-                {loading ? <Loader size={16} className="animate-spin" /> : 'pair'}
+              <RetroButton type="submit" variant="primary" className="px-10 py-4" disabled={loading || !partnerCode.trim()}>
+                {loading ? <Loader size={24} className="animate-spin" /> : 'pair'}
               </RetroButton>
             </div>
-            {error && <p className="text-xs font-bold text-red-500 mt-2 retro-border border-red-300 bg-red-50 p-2">{error}</p>}
+            {error && <p className="text-sm font-bold text-red-500 mt-4 retro-border border-red-300 bg-red-50 p-3">{error}</p>}
           </form>
-
-          <p className="text-[10px] font-bold opacity-25 max-w-[260px]">
-            when your partner signs up with your link, you'll be connected automatically ✨
-          </p>
         </div>
       </RetroWindow>
     </div>
