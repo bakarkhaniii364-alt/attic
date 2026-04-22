@@ -77,7 +77,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   return (
     <>
-      <div className={`retro-bg-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden ${className}`}>
+      <div className={`retro-bg-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden retro-window-mobile-fs ${className}`}>
       <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2 flex-shrink-0">
         <div className={`flex gap-2 items-center text-[var(--text-main)] ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
           <div className="flex flex-col gap-[2px] w-4 hidden sm:flex"><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div><div className="h-[2px] bg-[var(--border)] w-full"></div></div>
@@ -86,7 +86,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
         <div className="flex items-center gap-1">
           {headerActions}
           {onClose && (
-            <button onClick={handleCloseClick} className="bg-red-500 text-white retro-border w-7 h-7 flex items-center justify-center hover:bg-red-600 active:translate-y-[1px] ml-1">
+            <button onClick={handleCloseClick} className="bg-red-500 text-white retro-border w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-red-600 active:translate-y-[1px] ml-1">
               <X size={16} strokeWidth={3} />
             </button>
           )}
