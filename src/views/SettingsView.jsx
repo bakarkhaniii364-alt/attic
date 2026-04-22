@@ -109,7 +109,7 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Heart size={20} className="text-[var(--primary)]"/> relationship</h2>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-bold mb-1">partner's name</label>
+              <label className="block text-sm font-bold mb-1">partner's nickname</label>
               <input type="text" value={profile.partnerNickname || ''} onChange={(e) => setProfile({...profile, partnerNickname: e.target.value})} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
             </div>
             <div>
