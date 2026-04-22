@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase.js';
    ═══════════════════════════════════════════════════════ */
 export function LandingView({ onTryAttic, onSignIn }) {
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent">
+    <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent scale-up-15">
       {/* Background Grid with reduced opacity */}
       <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
 
@@ -33,7 +33,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
           <img
             src="/assets/attic.svg"
             alt="attic"
-            className="w-80 sm:w-[32rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700 mx-auto"
+            className="w-[90vw] sm:w-[40rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700 mx-auto"
             style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.2))' }}
           />
         </div>

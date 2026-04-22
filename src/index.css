@@ -125,7 +125,11 @@
   --text-on-accent: #e8d0d5;
 }
 
-html { font-size: 115%; }
+/* Standard scale for the whole site */
+html { font-size: 100%; }
+
+/* Utility for high-impact landing */
+.scale-up-15 { font-size: 115% !important; }
 
 body {
   font-family: 'Space Mono', monospace;
