@@ -210,17 +210,24 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
               {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 rounded-full retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
               <div>
                 <h1 className="text-2xl sm:text-3xl font-black mb-1 leading-none lowercase">hi {myDisplayName}! {mood}</h1>
-                <div className="flex items-center gap-3 mt-2">
-                    <div className="flex items-center gap-2">
-                        {partnerProfile.pfp ? (
-                            <img src={partnerProfile.pfp} alt="partner" className="w-6 h-6 rounded-full retro-border object-cover bg-white" />
-                        ) : (
-                            <div className="w-6 h-6 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-[10px]">{partnerProfile.emoji || '👤'}</div>
-                        )}
-                        <p className="text-xs font-bold truncate max-w-[100px]">
-                            {partnerProfile.name || coupleData.partnerNickname || 'Partner'} is <span className="text-green-600 animate-pulse">{partnerProfile.mood || 'online'}</span>
-                        </p>
+                <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 rounded-lg retro-border border-dashed">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            {partnerProfile.pfp ? (
+                                <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 rounded-full retro-border object-cover bg-white shadow-sm" />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
+                            )}
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
+                            <p className="text-sm font-bold truncate max-w-[120px] leading-none">
+                                {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
+                            </p>
+                        </div>
                     </div>
+                    <div className="h-8 w-px bg-[var(--border)] opacity-20 mx-1"></div>
                     <StreakBadge streak={streak} />
                 </div>
               </div>

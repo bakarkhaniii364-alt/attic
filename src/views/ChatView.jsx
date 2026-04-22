@@ -100,6 +100,8 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
   const [activeOptions, setActiveOptions] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingImageId, setViewingImageId] = useState(null);
+  const [pendingImage, setPendingImage] = useState(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   
@@ -128,6 +130,23 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
   const handleSend = (e) => {
     if (e) e.preventDefault(); if (!input.trim()) return; playAudio('send', sfx);
     if (editingMsgId) { setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); setEditingMsgId(null); }
+    else if (pendingImage) {
+      const newMsg = {
+        id: crypto.randomUUID(),
+        sender: userId,
+        senderName: profile?.name,
+        type: 'image',
+        url: pendingImage,
+        text: input.trim() || null,
+        timestamp: Date.now(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        replyTo: replyingTo,
+        status: 'sent'
+      };
+      setChatHistory([...chatHistory, newMsg]);
+      setPendingImage(null);
+      setPendingImagePreview(null);
+    }
     else { 
       const newMsg = { 
         id: crypto.randomUUID(), 
@@ -181,21 +200,10 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
     if (file) {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        playAudio('send', sfx);
         const compressed = await compressImage(reader.result);
-        setChatHistory(prev => [...prev, { 
-            id: crypto.randomUUID(), 
-            sender: userId, 
-            senderName: profile?.name, 
-            type: 'image', 
-            url: compressed, 
-            text: file.name, 
-            timestamp: Date.now(),
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
-            replyTo: replyingTo, 
-            status: 'sent' 
-        }]);
-        setReplyingTo(null);
+        setPendingImage(compressed);
+        setPendingImagePreview(compressed);
+        playAudio('click', sfx);
       };
       reader.readAsDataURL(file);
     }
@@ -216,7 +224,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
       <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col retro-bg-window relative">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col retro-bg-window relative">
               <div className="text-center text-xs font-bold opacity-50 mb-6 retro-border-b inline-block mx-auto pb-1 mt-2">-- connection secured --</div>
               {filteredMessages.map((msg, index) => {
                 const isMe = msg.sender === userId;
@@ -229,16 +237,20 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
 
                 const isCallLog = msg.type === 'call_invite';
 
+                const isPureEmoji = msg.type === 'text' && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
+                const isPureImage = msg.type === 'image' && !msg.text;
+                const noBubble = (isPureEmoji || isPureImage) && !msg.replyTo && !msg.isDeleted;
+
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
                     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
                       {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>}</div>}
                       {isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
-                      <div className={`p-3 retro-border text-sm leading-relaxed relative ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isCallLog ? 'bg-black/5 border-dashed italic' : isMe ? 'retro-bg-primary retro-shadow-dark' : 'retro-bg-window retro-shadow-dark'} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
+                      <div className={`p-3 text-sm leading-relaxed relative ${noBubble ? '' : 'retro-border'} ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isCallLog ? 'bg-black/5 border-dashed italic' : isMe ? (noBubble ? '' : 'retro-bg-primary retro-shadow-dark') : (noBubble ? '' : 'retro-bg-window retro-shadow-dark')} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
                         {msg.replyTo && !msg.isDeleted && (<div className="bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2 text-xs rounded-r-md"><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === userId ? profile.name || 'You' : (msg.replyTo.senderName || partnerNickname || 'Partner')}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}
                         {msg.isDeleted ? (<span className="flex items-center gap-2"><Ban size={14} /> this message was deleted</span>) : (
                           <>
-                            {msg.type === 'text' && <span>{formatMessage(msg.text)}</span>}
+                            {msg.type === 'text' && <span className={isPureEmoji ? 'text-4xl sm:text-5xl drop-shadow-sm' : 'break-words'}>{formatMessage(msg.text)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} />}
                             {msg.type === 'call_invite' && (
                               <div className="flex items-center gap-2 font-bold py-1">
@@ -246,10 +258,10 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                                 <span className="text-[10px] uppercase tracking-widest">{msg.callType === 'video' ? 'Video' : 'Audio'} Call {msg.status}</span>
                               </div>
                             )}
-                            {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => { playAudio('click', sfx); setViewingImageId(msg.id) }} className="w-32 h-32 sm:w-48 sm:h-48 object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity" />{msg.text && <span className="italic">{msg.text}</span>}</div>)}
+                            {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => { playAudio('click', sfx); setViewingImageId(msg.id) }} className={`${isPureImage ? 'w-48 h-auto sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity`} />{msg.text && <span className="italic break-words">{msg.text}</span>}</div>)}
                           </>
                         )}
-                        {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (<div className={`absolute -bottom-3 ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
+                        {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (<div className={`absolute ${noBubble ? '-bottom-1' : '-bottom-3'} ${isMe ? '-left-2' : '-right-2'} bg-white retro-border rounded-full px-1 py-0.5 text-xs flex gap-1 retro-shadow-primary z-10`}>{msg.reactions.map((r, i) => <span key={i}>{r}</span>)}</div>)}
                       </div>
                       {!isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pl-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
                       {activeOptions === msg.id && !isCallLog && (<div className={`absolute top-0 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} retro-bg-window retro-border retro-shadow-dark z-20 flex flex-col w-32 py-1`}><button onClick={() => { playAudio('click', sfx); setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Reply size={14} /> Reply</button><button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Pin size={14} /> {msg.isPinned ? 'Unpin' : 'Pin'}</button><div className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] border-b border-[var(--border)] border-dashed"><Smile size={14} /> <span onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === msg.id) { const rs = m.reactions || []; return { ...m, reactions: rs.includes('❤️') ? rs.filter(e => e !== '❤️') : [...rs, '❤️'] }; } return m; })); setActiveOptions(null); }} className="cursor-pointer hover:scale-125 transition-transform">❤️</span></div>{isMe && msg.type === 'text' && <button onClick={() => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--accent)] text-left"><Edit2 size={14} /> Edit</button>}{isMe && <button onClick={() => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-100 text-red-600 text-left"><Trash2 size={14} /> Delete</button>}</div>)}
@@ -280,9 +292,21 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                   <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
                 </div>
               )}
+              {pendingImagePreview && (
+                <div className="p-3 bg-white/80 backdrop-blur-md border-b-2 border-dashed border-[var(--border)] flex items-center gap-4 animate-in slide-in-from-bottom-2">
+                  <div className="relative">
+                    <img src={pendingImagePreview} alt="preview" className="w-20 h-20 object-cover retro-border shadow-sm" />
+                    <button onClick={() => { setPendingImage(null); setPendingImagePreview(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full retro-border shadow-md hover:scale-110"><X size={12}/></button>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold uppercase opacity-50 mb-1">Add a caption...</p>
+                    <p className="text-[10px] italic">Your image will be sent with the text below.</p>
+                  </div>
+                </div>
+              )}
               {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 rounded">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500 rounded">Send</button></div></div>)}
               {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 rounded-full"><X size={14} /></button></div>)}
-              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" /><button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-bg-window retro-border hover:bg-gray-100 disabled:opacity-50 transition-colors"><Paperclip size={18} /></button><button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 retro-bg-window retro-border transition-colors ${showEmojiPicker ? 'bg-[var(--accent)]' : 'hover:bg-gray-100'}`}><Smile size={18} /></button><div className="flex-1 relative flex items-center"><input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} placeholder="type a message..." disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} /></div>{!input.trim() && !editingMsgId && voicePreview === null ? (<button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`}><Mic size={18} className={isRecording ? 'animate-bounce' : ''} /></button>) : (<RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton>)}</form>
+              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" /><button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-bg-window retro-border hover:bg-gray-100 disabled:opacity-50 transition-colors"><Paperclip size={18} /></button><button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 retro-bg-window retro-border transition-colors ${showEmojiPicker ? 'bg-[var(--accent)]' : 'hover:bg-gray-100'}`}><Smile size={18} /></button><div className="flex-1 relative flex items-center"><input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} placeholder={pendingImage ? "Add a caption..." : "type a message..."} disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} /></div>{!input.trim() && !editingMsgId && voicePreview === null && !pendingImage ? (<button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`}><Mic size={18} className={isRecording ? 'animate-bounce' : ''} /></button>) : (<RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton>)}</form>
             </div>
           </div>
           {showDetails && (

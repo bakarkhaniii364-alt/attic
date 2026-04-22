@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RetroWindow, RetroButton, ShareOutcomeOverlay, Confetti } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, ShareOutcomeOverlay, Confetti, ScoreboardCountdown } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { fetchDynamicWord, getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
@@ -28,6 +28,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
   const [hintUsed, setHintUsed] = useState(false);
   const [perfectWin, setPerfectWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(true);
 
   const [stats, setStats] = useLocalStorage('wordle_stats', { played: 0, won: 0, streak: 0, maxStreak: 0, guessDistribution: [0,0,0,0,0,0] });
 
@@ -194,6 +195,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
   return (
     <RetroWindow title={`retro_word_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       {perfectWin && <Confetti active={true} />}
+      {showCountdown && <ScoreboardCountdown onComplete={() => setShowCountdown(false)} sfx={sfx} />}
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0">
           <span>{config.category === 'custom' ? `Custom Match` : `Level: ${config.diff}`}</span>
@@ -212,7 +214,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
         <div className="grid grid-rows-6 gap-2 w-3/4 max-w-[300px]">
           {boardState.map((guess, i) => {
-            const isCurrentRow = currentRowIndex === i; 
+            const isCurrentRow = currentRowIndex === i && animatingRow === -1; 
             const wordToDisplay = isCurrentRow ? currentGuess.padEnd(wordLen, " ") : guess.padEnd(wordLen, " ");
             const isAnimating = animatingRow === i;
 

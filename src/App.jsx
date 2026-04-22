@@ -27,7 +27,7 @@ import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 /* ═══════════════════════════════════════════════════════
    PREMIUM FLOATING CALL HUB (Discord-Robust)
    ═══════════════════════════════════════════════════════ */
-function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, sfx, remoteVideoRef, isRinging, type }) {
+function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteVideoRef, isRinging, type }) {
   const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -92,8 +92,8 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
           <div className={`w-full aspect-video bg-black relative overflow-hidden flex items-center justify-center`}>
             {isRinging ? (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)]">
-                   {type === 'video' ? <Video size={40} className="text-white"/> : <Phone size={40} className="text-white"/>}
+                <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden">
+                   {partnerPfp ? <img src={partnerPfp} alt="" className="w-full h-full object-cover" /> : (type === 'video' ? <Video size={40} className="text-white"/> : <Phone size={40} className="text-white"/>)}
                 </div>
                 <div className="text-white font-black text-[10px] uppercase tracking-[0.2em] animate-bounce">Ringing {partnerName}...</div>
               </div>
@@ -263,7 +263,13 @@ export default function App() {
     const initPeer = () => {
       const peer = new Peer(userId, { 
         debug: 1,
-        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
+        config: { iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' }, 
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' }
+        ] }
       });
       peerRef.current = peer;
       peer.on('call', (call) => { 
@@ -365,6 +371,7 @@ export default function App() {
     playAudio('click', sfxEnabled);
     if (callState.status !== 'idle') return;
     setIsRinging(true);
+    setIsCameraOff(type === 'audio'); // Audio call defaults to camera off
     setCallState({ status: 'ringing', type, callerId: userId, calleeId: partnerId, timestamp: Date.now() });
     setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString() }]);
   };
@@ -466,6 +473,7 @@ export default function App() {
             onCameraToggle={() => { setIsCameraOff(!isCameraOff); if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => t.enabled = isCameraOff); }}
             onEndCall={handleEndCall}
             partnerName={partnerName}
+            partnerPfp={partnerProfile.pfp}
             sfx={sfxEnabled}
             remoteVideoRef={remoteVideoRef}
             isRinging={isRinging}

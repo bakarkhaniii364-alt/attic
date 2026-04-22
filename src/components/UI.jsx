@@ -248,3 +248,42 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
     </div>
   );
 }
+
+// ── ScoreboardCountdown ──
+export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
+  const [current, setCurrent] = useState(count);
+  const [isFlipping, setIsFlipping] = useState(false);
+
+  useEffect(() => {
+    if (current > 0) {
+      const timer = setTimeout(() => {
+        setIsFlipping(true);
+        setTimeout(() => {
+          setCurrent(prev => prev - 1);
+          setIsFlipping(false);
+          playAudio('click', sfx);
+        }, 500);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (current === 0) {
+      const finish = setTimeout(() => onComplete && onComplete(), 500);
+      return () => clearTimeout(finish);
+    }
+  }, [current, onComplete, sfx]);
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
+      <div className="relative w-48 h-64 sm:w-64 sm:h-80 bg-[#1a1a1a] rounded-xl border-8 border-[#333] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center overflow-hidden animate-in zoom-in duration-300">
+        {/* Horizontal split line */}
+        <div className="absolute w-full h-1 bg-black/40 top-1/2 -translate-y-1/2 z-20 shadow-lg"></div>
+        
+        <div className={`relative text-[12rem] sm:text-[16rem] font-black leading-none select-none transition-all duration-500 transform ${isFlipping ? 'scale-y-0 opacity-0' : 'scale-y-100 opacity-100'}`} style={{ color: '#ff3e3e', textShadow: '0 0 30px rgba(255,62,62,0.4)', fontFamily: 'monospace' }}>
+          {current === 0 ? 'GO!' : current}
+        </div>
+
+        {/* Glossy overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+      </div>
+    </div>
+  );
+}

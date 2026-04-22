@@ -15,16 +15,39 @@ create table if not exists rooms (
   created_at timestamptz default now()
 );
 
+-- Ensure the is_active column exists even if the table was created previously
+alter table rooms add column if not exists is_active boolean default true;
+
+-- App state table: stores the synchronized data for a room
+create table if not exists app_state (
+  room_id text primary key,
+  state jsonb default '{}'::jsonb,
+  last_updated timestamp with time zone default timezone('utc'::text, now())
+);
+
 -- Enable Row Level Security
 alter table rooms enable row level security;
+alter table app_state enable row level security;
 
 -- Policy: users can read rooms they belong to
+drop policy if exists "read_own_rooms" on rooms;
 create policy "read_own_rooms" on rooms
   for select using (creator_id = auth.uid() or partner_id = auth.uid());
 
 -- Policy: users can create rooms as creator
+drop policy if exists "create_rooms" on rooms;
 create policy "create_rooms" on rooms
   for insert with check (creator_id = auth.uid());
+
+-- Policy: users can access app_state for their rooms
+drop policy if exists "access_app_state" on app_state;
+create policy "access_app_state" on app_state
+  for all using (
+    room_id in (
+      select id::text from rooms 
+      where (creator_id = auth.uid() or partner_id = auth.uid()) and is_active = true
+    )
+  );
 
 -- ── Claim an invite code (partner joining) ──
 create or replace function claim_invite(code text)
