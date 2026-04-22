@@ -71,21 +71,9 @@ export function SyncWatcher({ config, onBack, sfx }) {
     const handleLoadUrl = () => {
         if (!inputUrl) return;
         playAudio('click', sfx);
-        // Normalize YouTube URLs to embed format to improve embedding reliability
-        let newUrl = inputUrl.trim();
-        try {
-            let ytMatch = newUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})(?:&|$)/);
-            if (!ytMatch) {
-                const short = newUrl.match(/youtu\.be\/([0-9A-Za-z_-]{11})/);
-                if (short) ytMatch = short;
-            }
-            if (ytMatch && ytMatch[1]) {
-                const id = ytMatch[1];
-                // prefer embed URL
-                newUrl = `https://www.youtube.com/embed/${id}`;
-                console.log('SyncWatcher: transformed YouTube URL to embed', newUrl);
-            }
-        } catch (e) { /* ignore */ }
+        const newUrl = inputUrl.trim();
+        console.log('[SYNC] Attempting to load URL:', newUrl);
+        
         setUrl(newUrl);
         try { window.localStorage.setItem('sync_watcher_url', newUrl); } catch (e) {}
         setPlaying(false);
@@ -195,7 +183,16 @@ export function SyncWatcher({ config, onBack, sfx }) {
                                             enablejsapi: 1
                                         }
                                     },
-                                    file: { attributes: { controls: true, playsInline: true } }
+                                    file: { 
+                                        attributes: { 
+                                            controls: true, 
+                                            playsInline: true,
+                                            // Passing these here to avoid React unknown prop warnings on DOM video tag
+                                            onDuration: undefined,
+                                            onBuffer: undefined,
+                                            onBufferEnd: undefined
+                                        } 
+                                    }
                                 }}
                             />
                         </div>
