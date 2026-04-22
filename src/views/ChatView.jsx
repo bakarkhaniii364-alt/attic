@@ -138,7 +138,9 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
   const handleStartCall = (type) => { playAudio('click', sfx); setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString(), target: partnerId }]); };
 
   const handleSend = (e) => {
-    if (e) e.preventDefault(); if (!input.trim()) return; playAudio('send', sfx);
+    if (e) e.preventDefault(); 
+    if (!input.trim() && pendingImages.length === 0 && voicePreview === null) return; 
+    playAudio('send', sfx);
     if (editingMsgId) { setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); setEditingMsgId(null); }
     else if (pendingImages.length > 0) {
       const newMessages = pendingImages.map((img, idx) => ({
