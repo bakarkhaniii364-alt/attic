@@ -1,11 +1,22 @@
-import React from 'react';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore } from '../utils/helpers.js';
 import { playAudio } from '../utils/audio.js';
+import { supabase } from '../lib/supabase.js';
 
 export function SettingsView({ onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores }) {
   const toast = useToast();
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
   const handlePfpUpload = (e) => { 
     const file = e.target.files[0]; 
     if (file) { 
@@ -17,6 +28,49 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
       }; 
       reader.readAsDataURL(file); 
     } 
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError('');
+    playAudio('click', sfxEnabled);
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      
+      if (error) {
+        setPasswordError(error.message || 'Failed to change password');
+        setPasswordLoading(false);
+        return;
+      }
+
+      setPasswordSuccess(true);
+      toast('Password changed successfully!', 'success');
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordSuccess(false);
+      }, 2000);
+    } catch (err) {
+      setPasswordError(err.message || 'Something went wrong');
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -66,6 +120,127 @@ export function SettingsView({ onClose, theme, setTheme, profile, setProfile, on
               <p className="text-xs font-bold opacity-50 text-center">Timer visible on dashboard ❤️</p>
             )}
           </div>
+        </section>
+
+        {/* Security & Password */}
+        <section className="p-4 retro-bg-window retro-border border-dashed">
+          <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Lock size={20}/> security</h2>
+          
+          {!showChangePassword ? (
+            <RetroButton onClick={() => { setShowChangePassword(true); setPasswordError(''); setPasswordSuccess(false); }} variant="secondary" className="flex items-center gap-2">
+              <Lock size={16}/> change password
+            </RetroButton>
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              {passwordSuccess ? (
+                <div className="flex items-center justify-center gap-2 p-4 bg-green-100 retro-border border-green-500 rounded">
+                  <Check size={20} className="text-green-600" />
+                  <span className="font-bold text-green-700">Password changed successfully!</span>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Lock size={12}/> current password</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPw ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full p-2 retro-border retro-bg-window focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPw(!showCurrentPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+                      >
+                        {showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Lock size={12}/> new password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPw ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        minLength={6}
+                        className="w-full p-2 retro-border retro-bg-window focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPw(!showNewPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+                      >
+                        {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Lock size={12}/> confirm password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPw ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        minLength={6}
+                        className="w-full p-2 retro-border retro-bg-window focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPw(!showConfirmPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+                      >
+                        {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {passwordError && (
+                    <p className="text-xs font-bold text-red-600 bg-red-50 retro-border border-red-300 p-2 text-center">
+                      {passwordError}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <RetroButton
+                      type="submit"
+                      variant="primary"
+                      disabled={passwordLoading}
+                      className="flex-1 flex justify-center items-center gap-2 py-2"
+                    >
+                      {passwordLoading ? (
+                        <>
+                          <Loader size={14} className="animate-spin" /> updating...
+                        </>
+                      ) : (
+                        <>update password</>
+                      )}
+                    </RetroButton>
+                    <RetroButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setShowChangePassword(false);
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setPasswordError('');
+                      }}
+                      className="flex-1 py-2"
+                    >
+                      cancel
+                    </RetroButton>
+                  </div>
+                </>
+              )}
+            </form>
+          )}
         </section>
 
         {/* Achievements */}
