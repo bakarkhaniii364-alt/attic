@@ -125,6 +125,8 @@
   --text-on-accent: #e8d0d5;
 }
 
+html { font-size: 115%; }
+
 body {
   font-family: 'Space Mono', monospace;
   background-color: var(--bg-main);
