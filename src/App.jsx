@@ -212,6 +212,10 @@ export default function App() {
     }
   }, [profile, userId, setRoomProfiles, roomProfiles]);
 
+  const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
+  const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
+  const partnerEmoji = partnerProfile.emoji || '😊';
+
   // Sync Diagnostic Log
   useEffect(() => {
     if (syncedRoomId) {
@@ -219,13 +223,11 @@ export default function App() {
 - Room ID: ${syncedRoomId}
 - Profiles Synced: ${Object.keys(roomProfiles).length} (${Object.keys(roomProfiles).join(', ')})
 - Partner Profile Found: ${!!roomProfiles[partnerId]}
-- Partner Name: ${partnerProfile?.name || 'Unknown'}
+- Partner Name: ${partnerName}
         `);
     }
-  }, [syncedRoomId, roomProfiles, partnerId, partnerProfile]);
+  }, [syncedRoomId, roomProfiles, partnerId, partnerName]);
 
-  const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
-  
   // Nickname logic: If my partner set a nickname for ME in coupleData.nicknames[userId], use it.
   // Otherwise use my profile name.
   const myDisplayName = useMemo(() => {
@@ -234,9 +236,6 @@ export default function App() {
     }
     return profile.name || 'you';
   }, [profile.name, coupleData.nicknames, userId, hasRoom]);
-
-  const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
-  const partnerEmoji = partnerProfile.emoji || '😊';
 
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
