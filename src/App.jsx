@@ -158,7 +158,7 @@ export default function App() {
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
 
-  // 3. Calling System (STUN Connectivity)
+  // 3. Calling System
   const [calling, setCalling] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
@@ -174,32 +174,53 @@ export default function App() {
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
+  // CRITICAL: Scope fix for handleEndCall
+  const handleEndCall = () => {
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', status: 'ended', time: new Date().toLocaleTimeString() }]);
+    setCalling(null);
+  };
+
   // Peer initialization with Global STUN Servers
   useEffect(() => {
     if (!userId) return;
-    const peer = new Peer(userId, { 
-      debug: 2,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-        ]
-      }
-    });
-    peerRef.current = peer;
-    peer.on('call', (call) => { 
-      currentCallRef.current = call; 
-      // Auto-answer logic for better reliability
-      if (calling) {
-         navigator.mediaDevices.getUserMedia({ audio: true, video: calling === 'video' }).then(stream => {
-            call.answer(stream);
-            call.on('stream', (rs) => { if(remoteAudioRef.current) { remoteAudioRef.current.srcObject = rs; remoteAudioRef.current.play(); } });
-         });
-      }
-    });
+    
+    const initPeer = () => {
+      const peer = new Peer(userId, { 
+        debug: 2,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+          ]
+        }
+      });
+      peerRef.current = peer;
+      
+      peer.on('call', (call) => { 
+        currentCallRef.current = call; 
+        if (calling) {
+           navigator.mediaDevices.getUserMedia({ audio: true, video: calling === 'video' }).then(stream => {
+              call.answer(stream);
+              call.on('stream', (rs) => { 
+                if(remoteAudioRef.current) { remoteAudioRef.current.srcObject = rs; remoteAudioRef.current.play().catch(e => console.log("Audio block", e)); } 
+                if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
+              });
+           }).catch(err => { console.error("Media failed", err); handleEndCall(); });
+        }
+      });
+
+      peer.on('error', (err) => {
+        console.error("PeerJS Error", err);
+        if (err.type === 'disconnected' || err.type === 'network') {
+           setTimeout(initPeer, 3000); // Attempt reconnect
+        }
+      });
+    };
+
+    initPeer();
     return () => { if (peerRef.current) peerRef.current.destroy(); };
   }, [userId, calling]);
 
@@ -220,15 +241,22 @@ export default function App() {
     if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'ended' || last.status === 'missed')) {
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
       setIncomingCall(null); setCalling(null);
-      if (currentCallRef.current) { currentCallRef.current.close(); currentCallRef.current = null; }
+      if (currentCallRef.current) { try { currentCallRef.current.close(); } catch(e){} currentCallRef.current = null; }
       if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     }
   }, [chatHistory, userId, sfxEnabled]);
+
+  useEffect(() => {
+    if (calling) callTimerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
+    else { setCallDuration(0); if (callTimerRef.current) clearInterval(callTimerRef.current); }
+    return () => { if (callTimerRef.current) clearInterval(callTimerRef.current); };
+  }, [calling]);
 
   const initiatePeerCall = async (type) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
       localStreamRef.current = stream;
+      if (!peerRef.current || peerRef.current.destroyed) { throw new Error("Peer disconnected"); }
       const call = peerRef.current.call(partnerId, stream);
       currentCallRef.current = call;
       call.on('stream', (remoteStream) => {
@@ -238,6 +266,7 @@ export default function App() {
           remoteAudioRef.current.play().catch(e => console.error("Audio block", e));
         }
       });
+      call.on('error', (e) => { console.error("Call error", e); handleEndCall(); });
     } catch (err) { console.error('Failed call', err); handleEndCall(); }
   };
 
@@ -258,10 +287,13 @@ export default function App() {
       }
       setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
       setCalling(msg?.callType || 'audio');
-    } catch (err) { console.error('Failed accept', err); }
+    } catch (err) { console.error('Failed accept', err); handleEndCall(); }
     setIncomingCall(null);
   };
 
+  const rejectCall = (messageId) => { setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m)); setIncomingCall(null); };
+
+  // 4. Room Pairing & Sync logic
   const checkRoomAndSync = async (uid) => {
     try {
       const { data: room } = await supabase.rpc('get_my_room');
