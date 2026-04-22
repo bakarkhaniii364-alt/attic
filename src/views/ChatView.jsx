@@ -1,9 +1,10 @@
-import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History } from 'lucide-react';
+import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { useBroadcast } from '../hooks/useSupabaseSync.js';
+import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useNavigate } from 'react-router-dom';
 
 /* ═══════════════════════════════════════════════════════
    UTILITIES
@@ -52,7 +53,7 @@ function VoiceMessagePlayer({ duration, audioUrl }) {
   };
   return (
     <div className="flex items-center gap-3 bg-white/50 p-2 rounded-lg retro-border">
-      <button onClick={togglePlay} className="w-8 h-8 rounded-full retro-bg-accent retro-border flex items-center justify-center hover:scale-105">{isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}</button>
+      <button onClick={togglePlay} className="w-8 h-8 rounded-full retro-bg-accent retro-border flex items-center justify-center">{isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}</button>
       <div className="flex-1 h-2 bg-black/10 rounded-full w-20 sm:w-24 relative overflow-hidden"><div className={`absolute top-0 left-0 h-full bg-[var(--text-main)] w-1/3 rounded-full ${isPlaying ? 'animate-pulse bg-[var(--primary)] w-full transition-all duration-1000' : ''}`}></div></div>
       <span className="text-xs font-bold">{duration}</span>
     </div>
@@ -104,6 +105,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
 }
 
 export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId, onStartCall, sharedImages, setSharedImages }) {
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('media');
@@ -113,6 +115,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
   const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
   const [voiceBase64, setVoiceBase64] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [lobbyState, setLobbyState] = useGlobalSync('game_lobby', { status: 'idle' });
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -183,8 +186,35 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
     setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString(), target: partnerId }]); 
   };
 
+  const handleJoinGame = (inviteMsg) => {
+    playAudio('click', sfx);
+    // Update lobby state to 'joined'
+    setLobbyState({ ...inviteMsg, status: 'joined', partnerId: userId });
+    // Navigate to activity
+    navigate(`/activities/${inviteMsg.gameId}`);
+  };
+
   const handleSend = (e) => {
-    if (e) e.preventDefault(); 
+    if (e && e.preventDefault) e.preventDefault(); 
+    
+    // Check if it's a special invite message passed as 'e'
+    if (e && e.type === 'game_invite') {
+       const newMsg = {
+         id: crypto.randomUUID(),
+         sender: userId,
+         senderName: profile?.name,
+         type: 'game_invite',
+         gameId: e.gameId,
+         gameTitle: e.gameTitle,
+         text: e.text,
+         timestamp: Date.now(),
+         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+         status: 'pending'
+       };
+       setChatHistory([...chatHistory, newMsg]);
+       return;
+    }
+
     if (!input.trim() && pendingImages.length === 0 && voicePreview === null) return; 
     playAudio('send', sfx);
     if (editingMsgId) { 
@@ -337,6 +367,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                 const isCallLog = msg.type === 'call_invite';
                 const isPureEmoji = msg.type === 'text' && msg.text && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
                 const isPureImage = (msg.type === 'image' || msg.type === 'image_group') && !msg.text;
+                const isGameInvite = msg.type === 'game_invite';
                 const noBubble = (isPureEmoji || isPureImage) && !msg.isDeleted;
 
                 return (
@@ -346,20 +377,38 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                         <div className="w-8 flex-shrink-0">
                           {isGroupEnd && (
                             partnerProfile.pfp ? (
-                              <img src={partnerProfile.pfp} alt="partner" className="w-8 h-8 rounded-full retro-border object-cover bg-white" />
+                              <img src={partnerProfile.pfp} alt="partner" className="w-8 h-8 retro-border object-cover bg-white" />
                             ) : (
-                              <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
+                              <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
                             )
                           )}
                         </div>
                       )}
                       {isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
-                      <div className={`${noBubble ? 'p-0' : 'p-3'} text-sm leading-relaxed relative ${noBubble ? '' : 'retro-border'} ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isCallLog ? 'bg-black/5 border-dashed italic' : isMe ? (noBubble ? '' : 'retro-bg-primary retro-shadow-dark') : (noBubble ? '' : 'retro-bg-window retro-shadow-dark')} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
+                      <div className={`${noBubble || isGameInvite ? 'p-0' : 'p-3'} text-sm leading-relaxed relative ${noBubble || isGameInvite ? '' : 'retro-border'} ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isCallLog ? 'bg-black/5 border-dashed italic' : isMe ? (noBubble || isGameInvite ? '' : 'retro-bg-primary retro-shadow-dark') : (noBubble || isGameInvite ? '' : 'retro-bg-window retro-shadow-dark')} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
                         {msg.replyTo && !msg.isDeleted && (<div className={`${noBubble ? 'bg-white/80 backdrop-blur-md shadow-sm mb-2 retro-border border-l-4 p-2' : 'bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2'} text-xs rounded-r-md`}><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === userId ? profile.name || 'You' : (msg.replyTo.senderName || partnerNickname || 'Partner')}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}
                         {msg.isDeleted ? (<span className="flex items-center gap-2"><Ban size={14} /> this message was deleted</span>) : (
                           <>
                             {msg.type === 'text' && <span className={isPureEmoji ? 'text-4xl sm:text-5xl drop-shadow-sm' : 'break-words'}>{formatMessage(msg.text)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} />}
+                            {msg.type === 'game_invite' && (
+                                <div className="retro-border retro-bg-window retro-shadow-dark p-3 w-64 animate-in slide-in-from-bottom-2">
+                                   <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-[var(--border)] pb-2">
+                                      <Gamepad2 size={20} className="text-[var(--primary)]" />
+                                      <span className="font-black text-xs uppercase tracking-widest">Activity Invite</span>
+                                   </div>
+                                   <p className="text-xs font-bold mb-4 opacity-80">{msg.text}</p>
+                                   {!isMe ? (
+                                      <RetroButton className="w-full py-2 text-xs" onClick={() => handleJoinGame(msg)}>
+                                         Join Activity
+                                      </RetroButton>
+                                   ) : (
+                                      <div className="bg-[var(--accent)]/10 retro-border border-dashed p-2 text-center">
+                                         <p className="text-[10px] font-black uppercase opacity-60">Invite Sent</p>
+                                      </div>
+                                   )}
+                                </div>
+                            )}
                             {msg.type === 'call_invite' && (
                               <div className="flex items-center gap-2 font-bold py-1">
                                 {msg.callType === 'video' ? <Video size={16} className="text-pink-500" /> : <Phone size={16} className="text-cyan-500" />}
@@ -368,14 +417,14 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                             )}
                             {msg.type === 'image' && (<div className="flex flex-col gap-2"><img src={msg.url} alt="attachment" onClick={() => { playAudio('click', sfx); setViewerContext({ urls: [msg.url], index: 0, isOpen: true }); }} className={`${isPureImage ? 'w-48 h-auto sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:opacity-90 transition-opacity`} />{msg.text && <span className="italic break-words">{msg.text}</span>}</div>)}
                             {msg.type === 'image_group' && (
-                              <div className="flex flex-col gap-2">
-                                <div className={`grid ${msg.urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-1 w-full max-w-sm`}>
-                                  {msg.urls.map((u, i) => (
-                                    <img key={i} src={u} onClick={() => { playAudio('click', sfx); setViewerContext({ urls: msg.urls, index: i, isOpen: true }); }} className="aspect-square object-cover retro-border cursor-pointer hover:opacity-80" />
-                                  ))}
-                                </div>
-                                {msg.text && <span className="italic break-words">{msg.text}</span>}
-                              </div>
+                               <div className="flex flex-col gap-2">
+                                 <div className={`grid ${msg.urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-1 w-full max-w-sm`}>
+                                   {msg.urls.map((u, i) => (
+                                     <img key={i} src={u} onClick={() => { playAudio('click', sfx); setViewerContext({ urls: msg.urls, index: i, isOpen: true }); }} className="aspect-square object-cover retro-border cursor-pointer hover:opacity-80" />
+                                   ))}
+                                 </div>
+                                 {msg.text && <span className="italic break-words">{msg.text}</span>}
+                               </div>
                             )}
                           </>
                         )}

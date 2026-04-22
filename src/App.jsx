@@ -92,7 +92,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
           <div className={`w-full aspect-video bg-black relative overflow-hidden flex items-center justify-center`}>
             {isRinging ? (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden">
+                <div className="w-24 h-24 retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden">
                    {partnerPfp ? <img src={partnerPfp} alt="" className="w-full h-full object-cover" /> : (type === 'video' ? <Video size={40} className="text-white"/> : <Phone size={40} className="text-white"/>)}
                 </div>
                 <div className="text-white font-black text-[10px] uppercase tracking-[0.2em] animate-bounce">Ringing {partnerName}...</div>
@@ -103,7 +103,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
                   <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover animate-in fade-in duration-1000" />
                 ) : (
                   <div className="flex flex-col items-center gap-4 group">
-                    <div className="w-24 h-24 rounded-full retro-bg-accent retro-border flex items-center justify-center transition-transform group-hover:scale-110 duration-500">
+                    <div className="w-24 h-24 retro-bg-accent retro-border flex items-center justify-center transition-transform group-hover:scale-105 duration-500">
                        {type === 'video' ? <VideoOff size={40} className="text-white/80" /> : <Phone size={40} className="text-white/80" />}
                     </div>
                     <div className="flex flex-col items-center">
@@ -486,7 +486,7 @@ export default function App() {
         {incomingCall && (
           <div className="fixed inset-0 z-[6000] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
             <div className="bg-white/95 retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
-              <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)]">
+              <div className="w-24 h-24 rounded-lg retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)]">
                 {incomingCall.type === 'video' ? <Video size={48} className="text-white"/> : <Phone size={48} className="text-white"/>}
               </div>
               <h2 className="text-2xl font-black mb-1">{incomingCall.fromName}</h2>
@@ -525,8 +525,15 @@ export default function App() {
         {/* Floating Notifications */}
         <div className="fixed bottom-4 left-4 z-[200] flex flex-col gap-2 max-w-sm pointer-events-none">
             {notifications.map(n => (
-                <div key={n.id} onClick={() => navigate('/chat')} className="bg-white/95 backdrop-blur-md p-3 rounded-lg retro-border shadow-xl animate-in slide-in-from-left-4 pointer-events-auto flex items-center gap-3 cursor-pointer hover:-translate-y-1 transition-transform">
-                    <div className="w-8 h-8 rounded-full retro-bg-accent retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
+                <div key={n.id} onClick={() => navigate('/chat')} className="bg-white/95 backdrop-blur-md p-3 retro-border shadow-xl animate-in slide-in-from-left-4 pointer-events-auto flex items-center gap-3 cursor-pointer transition-transform">
+                    <div className="relative">
+                            {partnerProfile.pfp ? (
+                                <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white shadow-sm" />
+                            ) : (
+                                <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
+                            )}
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border border-white animate-pulse"></div>
+                    </div>
                     <div className="flex-1">
                         <p className="text-[10px] font-black uppercase opacity-40 leading-none mb-1">{partnerName}</p>
                         <p className="text-xs font-bold line-clamp-1">{n.text || (n.type === 'image' ? '📸 Sent a photo' : n.type === 'voice' ? '🎤 Sent a voice note' : 'New message')}</p>

@@ -4,6 +4,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { Play } from 'lucide-react';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 import { PictionaryGame } from './PictionaryGame.jsx';
 import { TicTacToe } from './TicTacToeGame.jsx';
@@ -20,16 +21,17 @@ import { LoveLanguageQuiz } from '../components/Features.jsx';
 
 export function GameCard({ title, desc, color, onClick }) {
   return (
-    <div onClick={onClick} className="retro-border retro-bg-window retro-shadow-dark p-4 cursor-pointer hover:-translate-y-1 transition-transform flex flex-col h-auto min-h-[8rem] sm:min-h-[10rem] group">
+    <div onClick={onClick} className="retro-border retro-bg-window retro-shadow-dark p-4 cursor-pointer transition-transform flex flex-col h-auto min-h-[8rem] sm:min-h-[10rem] group">
       <div className="w-8 h-8 retro-border mb-2 retro-shadow-dark group-hover:scale-110 transition-transform flex-shrink-0" style={{backgroundColor: color}}></div>
       <h3 className="font-bold text-lg sm:text-xl">{title}</h3><p className="text-xs sm:text-sm opacity-80 mt-1">{desc}</p>
     </div>
   );
 }
 
-export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
+export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat, userId }) {
   const isTurnBased = ['tictactoe', 'chess', 'pictionary'].includes(game.id);
   const isIndependent = ['sudoku', 'memory', 'wordle', 'quiz'].includes(game.id);
+  const [lobbyState, setLobbyState] = useGlobalSync('game_lobby', { status: 'idle' });
 
   const [mode, setMode] = useState(
     game.id === 'tictactoe' ? '1v1_local' : 
@@ -38,21 +40,27 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
   );
   const [diff, setDiff] = useState('medium');
   const [category, setCategory] = useState('animals');
-  const [waitingForPartner, setWaitingForPartner] = useState(false);
-  const [partnerJoined, setPartnerJoined] = useState(false);
 
   const sendInvite = () => {
     playAudio('click', sfx);
-    setWaitingForPartner(true);
+    const inviteData = { 
+      status: 'inviting', 
+      gameId: game.id, 
+      gameTitle: game.title, 
+      inviterId: userId, 
+      timestamp: Date.now() 
+    };
+    setLobbyState(inviteData);
     if (onShareToChat) {
-      onShareToChat(`🎮 I want to play ${game.title}! Join me?`);
+      onShareToChat(`🎮 I want to play ${game.title}! Join me?`, null, inviteData);
     }
-    // Simulate partner joining after 3-5s
-    setTimeout(() => { setPartnerJoined(true); playAudio('win', sfx); }, 3000 + Math.random() * 2000);
   };
 
   const handleStart = () => {
     playAudio('click', sfx); 
+    // Reset lobby state on start
+    setLobbyState({ status: 'idle' });
+    
     let configData = { mode, diff, category };
     if (category === 'custom') { const cw = document.getElementById('customWordInput')?.value; if(cw) configData.customWord = cw; }
     if (game.id === 'tictactoe') {
@@ -67,37 +75,48 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
     onStart(configData);
   };
 
-  if (waitingForPartner) {
+  if (lobbyState.status === 'inviting' || lobbyState.status === 'joined') {
     return (
-      <RetroWindow title={`${game.id}_lobby.exe`} className="w-full max-w-md h-auto" onClose={onBack}>
-        <div className="flex flex-col items-center gap-6 py-8">
-          <div className="w-20 h-20 retro-border retro-shadow-dark bg-[var(--accent)] flex items-center justify-center text-4xl animate-pulse">
-            {partnerJoined ? '✅' : '⏳'}
-          </div>
-          <h2 className="text-xl font-bold text-center">{game.title}</h2>
-          {partnerJoined ? (
-            <>
-              <p className="text-sm font-bold text-[var(--primary)] animate-pulse uppercase tracking-widest">Partner joined!</p>
-              <RetroButton className="py-3 px-12 text-lg" onClick={handleStart}>
-                Start Game <Play size={16} className="inline ml-2"/>
-              </RetroButton>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-bold opacity-70">Waiting for partner to join<span className="animate-pulse">...</span></p>
-              <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-[var(--primary)] animate-bounce" style={{animationDelay: '0ms'}}></div>
-                <div className="w-3 h-3 rounded-full bg-[var(--secondary)] animate-bounce" style={{animationDelay: '150ms'}}></div>
-                <div className="w-3 h-3 rounded-full bg-[var(--primary)] animate-bounce" style={{animationDelay: '300ms'}}></div>
-              </div>
-              <p className="text-xs opacity-50 mt-4">Invite sent to chat</p>
-              <RetroButton variant="accent" className="py-2 px-8 text-sm mt-2" onClick={() => { setWaitingForPartner(false); handleStart(); }}>
-                Skip — Play Solo
-              </RetroButton>
-            </>
-          )}
+      <div className="relative retro-bg-window retro-border retro-shadow-dark p-2 flex flex-col items-center gap-3 w-full max-w-[400px] mx-auto animate-in zoom-in-95 duration-300">
+        <div className="w-full bg-[var(--border)] text-white px-3 py-1 font-bold text-[10px] uppercase flex justify-between items-center">
+          <span>activity_lobby.exe</span>
+          <button onClick={() => { setLobbyState({ status: 'idle' }); onBack(); }} className="hover:bg-red-500 px-1 transition-colors border border-transparent hover:border-white/50">X</button>
         </div>
-      </RetroWindow>
+        <div className="flex flex-col items-center gap-6 py-8 w-full">
+            <div className="w-24 h-24 retro-border retro-shadow-dark bg-[var(--accent)] flex items-center justify-center text-5xl relative">
+              {lobbyState.status === 'joined' ? '🎮' : '⏳'}
+              {lobbyState.status === 'joined' && <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-1 retro-border text-[8px] font-black uppercase">READY</div>}
+            </div>
+            <div className="text-center">
+              <h2 className="text-2xl font-black italic tracking-tighter">{game.title}</h2>
+              <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Status: {lobbyState.status}</p>
+            </div>
+
+            {lobbyState.status === 'joined' ? (
+              <div className="space-y-4 w-full px-8">
+                <div className="bg-green-500/10 border-2 border-dashed border-green-500 p-3 text-center">
+                  <p className="text-xs font-black text-green-700 uppercase tracking-widest animate-pulse">Partner is in the lobby!</p>
+                </div>
+                <RetroButton className="w-full py-4 text-lg" onClick={handleStart}>
+                  Launch Activity <Play size={18} className="inline ml-2"/>
+                </RetroButton>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-xs font-bold opacity-70 animate-pulse uppercase tracking-[0.2em]">Waiting for partner...</p>
+                <div className="flex gap-2">
+                  <div className="w-3 h-3 bg-[var(--primary)] animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="w-3 h-3 bg-[var(--secondary)] animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="w-3 h-3 bg-[var(--primary)] animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+                <p className="text-[10px] opacity-40 text-center max-w-[200px] mt-4 uppercase">An invite has been sent to the chat.</p>
+                <RetroButton variant="white" className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100 uppercase mt-4" onClick={() => { setLobbyState({ status: 'idle' }); handleStart(); }}>
+                  Skip Lobby — Play Solo
+                </RetroButton>
+              </div>
+            )}
+        </div>
+      </div>
     );
   }
 
@@ -240,6 +259,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   const GameRenderer = () => {
     const { gameId } = useParams();
     const isActive = searchParams.get('active') === 'true';
+    const [lobbyState, setLobbyState] = useGlobalSync('game_lobby', { status: 'idle' });
     
     const fallbackTitles = {
       'pictionary': 'Pictionary', 'tictactoe': 'Tic-Tac-Toe', 'memory': 'Memory Match', 'wordle': 'Retro Word',
@@ -247,7 +267,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       'wyr': 'Would You Rather', 'lovelang': 'Love Language Quiz', 'sync': 'Sync Watcher'
     };
 
-    // Correctly move state update into useEffect to avoid render-time warnings
+    // Auto-launch if lobby status becomes 'launching' or similar? 
+    // For now, simple direct navigation.
     React.useEffect(() => {
       if (gameId === 'sync' && !isActive) {
         setSearchParams({ active: 'true' });
@@ -255,7 +276,6 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     }, [gameId, isActive, setSearchParams]);
 
     if (isActive) {
-      // Reconstruct config from URL params
       const config = { id: gameId };
       searchParams.forEach((value, key) => {
         if (key !== 'active') config[key] = value;
@@ -278,7 +298,6 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     }
 
     if (fallbackTitles[gameId]) {
-      // Don't show setup for sync if we're auto-launching via effect
       if (gameId === 'sync') return null;
 
       return (
@@ -286,6 +305,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
           game={{ id: gameId, title: fallbackTitles[gameId] }} 
           sfx={sfx} 
           onShareToChat={onShareToChat} 
+          userId={userId}
           onStart={(config) => {
             const newParams = new URLSearchParams();
             newParams.set('active', 'true');
