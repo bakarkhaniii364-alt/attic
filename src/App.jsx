@@ -150,12 +150,17 @@ export default function App() {
 
   useEffect(() => {
     // 1. Initial Session Check
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      const s = data?.session || null;
       setSession(s);
       if (s) {
         // If logged in, check room and initialize sync
         checkRoomAndSync(s.user.id);
+      } else {
+        setLoading(false);
       }
+    }).catch(err => {
+      console.error("Auth session check failed:", err);
       setLoading(false);
     });
 

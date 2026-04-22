@@ -16,7 +16,8 @@ export function ProtectedRoute({ children }) {
 
   useEffect(() => {
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session || null;
       setSession(session);
       
       if (session) {
@@ -60,7 +61,8 @@ export function PublicRoute({ children }) {
 
   useEffect(() => {
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session || null;
       setSession(session);
       
       if (session) {

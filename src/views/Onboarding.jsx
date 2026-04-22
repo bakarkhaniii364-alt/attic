@@ -117,7 +117,8 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
         return;
       }
 
-      const session = data.session || (await supabase.auth.getSession()).data?.session;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session || data.session || null;
       onAuthSuccess({ name: displayName.trim(), session, isNewUser: true, user: data.user });
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -139,7 +140,8 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
 
       if (err) { setError(err.message); setLoading(false); return; }
 
-      const session = data.session || (await supabase.auth.getSession()).data?.session;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session || data.session || null;
       if (!session) {
         setError('Unable to retrieve session. Please try again.');
         setLoading(false);
