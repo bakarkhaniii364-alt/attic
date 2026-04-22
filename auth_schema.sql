@@ -45,6 +45,9 @@ begin
     return json_build_object('error', 'already_paired', 'message', 'this attic is already occupied by two.');
   end if;
 
+  -- If joining succeeds, delete any existing unpaired rooms this user created as an orphan
+  delete from rooms where creator_id = auth.uid() and partner_id is null;
+
   update rooms set partner_id = auth.uid() where id = room_row.id;
 
   return json_build_object('success', true, 'room_id', room_row.id);
@@ -57,8 +60,10 @@ returns json as $$
 declare
   room_row rooms%rowtype;
 begin
+  -- Prioritize rooms where the user is already paired
   select * into room_row from rooms
-  where creator_id = auth.uid() or partner_id = auth.uid()
+  where (creator_id = auth.uid() or partner_id = auth.uid())
+  order by (partner_id is not null) desc, created_at desc
   limit 1;
 
   if not found then

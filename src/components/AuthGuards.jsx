@@ -8,36 +8,8 @@ import { Loader } from 'lucide-react';
  * If not logged in -> /login
  * If not paired -> /handshake
  */
-export function ProtectedRoute({ children }) {
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState(null);
-  const [hasRoom, setHasRoom] = useState(false);
+export function ProtectedRoute({ children, session, hasRoom }) {
   const location = useLocation();
-
-  useEffect(() => {
-    async function checkAuth() {
-      const { data } = await supabase.auth.getSession();
-      const session = data?.session || null;
-      setSession(session);
-      
-      if (session) {
-        const { data: room } = await supabase.rpc('get_my_room');
-        setHasRoom(!!(room && room.is_paired));
-      }
-      
-      setLoading(false);
-    }
-    checkAuth();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-main)]">
-        <Loader className="animate-spin text-[var(--primary)] mb-2" size={32} />
-        <p className="text-xs font-bold opacity-40 uppercase tracking-widest">checking access...</p>
-      </div>
-    );
-  }
 
   if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -50,33 +22,7 @@ export function ProtectedRoute({ children }) {
   return children;
 }
 
-/**
- * PublicRoute - For Landing/Auth pages.
- * If already logged in and paired -> /dashboard
- */
-export function PublicRoute({ children }) {
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState(null);
-  const [hasRoom, setHasRoom] = useState(false);
-
-  useEffect(() => {
-    async function checkAuth() {
-      const { data } = await supabase.auth.getSession();
-      const session = data?.session || null;
-      setSession(session);
-      
-      if (session) {
-        const { data: room } = await supabase.rpc('get_my_room');
-        setHasRoom(!!(room && room.is_paired));
-      }
-      
-      setLoading(false);
-    }
-    checkAuth();
-  }, []);
-
-  if (loading) return null;
-
+export function PublicRoute({ children, session, hasRoom }) {
   if (session && hasRoom) {
     return <Navigate to="/" replace />;
   }
