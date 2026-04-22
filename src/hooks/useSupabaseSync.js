@@ -77,11 +77,13 @@ export const initializeRoomSync = async (roomId) => {
                     newItems.forEach(item => itemMap.set(item.id, item));
                     const mergedArray = Array.from(itemMap.values());
                     if (mergedArray[0]?.timestamp) mergedArray.sort((a, b) => a.timestamp - b.timestamp);
-                    // Pruning to stay safe
                     mergedState[key] = key.includes('history') ? mergedArray.slice(-80) : mergedArray;
                 } else {
                     mergedState[key] = newItems;
                 }
+            } else if (typeof newState[key] === 'object' && newState[key] !== null && typeof globalState[key] === 'object' && globalState[key] !== null) {
+                // Merge objects (like room_profiles) to prevent partners overwriting each other
+                mergedState[key] = { ...globalState[key], ...newState[key] };
             } else {
                 mergedState[key] = newState[key];
             }
@@ -124,7 +126,9 @@ export function useGlobalSync(key, initialValue) {
   const updateState = useCallback((value) => {
     if (!isInitialized) return;
 
-    let valueToStore = value instanceof Function ? value(state) : value;
+    // Use current global value as base for functional updates to avoid stale state issues
+    const currentGlobal = globalState[key];
+    let valueToStore = value instanceof Function ? value(currentGlobal !== undefined ? currentGlobal : state) : value;
     
     if (Array.isArray(valueToStore) && Array.isArray(globalState[key])) {
         if (valueToStore.length > 0 && valueToStore[0]?.id) {
@@ -134,6 +138,9 @@ export function useGlobalSync(key, initialValue) {
             if (valueToStore[0]?.timestamp) valueToStore.sort((a, b) => a.timestamp - b.timestamp);
             if (key.includes('history')) valueToStore = valueToStore.slice(-80);
         }
+    } else if (typeof valueToStore === 'object' && valueToStore !== null && typeof globalState[key] === 'object' && globalState[key] !== null) {
+        // Merge objects to prevent overwriting partner data
+        valueToStore = { ...globalState[key], ...valueToStore };
     }
 
     if (JSON.stringify(globalState[key]) === JSON.stringify(valueToStore)) return;

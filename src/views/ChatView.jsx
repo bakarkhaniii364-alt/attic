@@ -342,7 +342,17 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
                     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
-                      {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>}</div>}
+                      {!isMe && (
+                        <div className="w-8 flex-shrink-0">
+                          {isGroupEnd && (
+                            partnerProfile.pfp ? (
+                              <img src={partnerProfile.pfp} alt="partner" className="w-8 h-8 rounded-full retro-border object-cover bg-white" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
+                            )
+                          )}
+                        </div>
+                      )}
                       {isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
                       <div className={`${noBubble ? 'p-0' : 'p-3'} text-sm leading-relaxed relative ${noBubble ? '' : 'retro-border'} ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isCallLog ? 'bg-black/5 border-dashed italic' : isMe ? (noBubble ? '' : 'retro-bg-primary retro-shadow-dark') : (noBubble ? '' : 'retro-bg-window retro-shadow-dark')} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
                         {msg.replyTo && !msg.isDeleted && (<div className={`${noBubble ? 'bg-white/80 backdrop-blur-md shadow-sm mb-2 retro-border border-l-4 p-2' : 'bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2'} text-xs rounded-r-md`}><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === userId ? profile.name || 'You' : (msg.replyTo.senderName || partnerNickname || 'Partner')}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}

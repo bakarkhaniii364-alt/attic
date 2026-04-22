@@ -199,17 +199,30 @@ export default function App() {
     petHappy: 60, 
     partnerNickname: '',
     nicknames: {} 
-  }, 'main');
+  });
   
-  const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' }, 'main');
-  const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {}, 'main');
+  const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' });
+  const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
 
   // Update room profile whenever local profile changes
   useEffect(() => {
     if (userId && JSON.stringify(roomProfiles[userId]) !== JSON.stringify(profile)) {
       setRoomProfiles(prev => ({ ...prev, [userId]: profile }));
+      console.log(`[SYNC] Local profile pushed for ${profile.name}`);
     }
-  }, [profile, userId]);
+  }, [profile, userId, setRoomProfiles, roomProfiles]);
+
+  // Sync Diagnostic Log
+  useEffect(() => {
+    if (syncedRoomId) {
+        console.log(`[SYNC] Health Status:
+- Room ID: ${syncedRoomId}
+- Profiles Synced: ${Object.keys(roomProfiles).length} (${Object.keys(roomProfiles).join(', ')})
+- Partner Profile Found: ${!!roomProfiles[partnerId]}
+- Partner Name: ${partnerProfile?.name || 'Unknown'}
+        `);
+    }
+  }, [syncedRoomId, roomProfiles, partnerId, partnerProfile]);
 
   const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
   
