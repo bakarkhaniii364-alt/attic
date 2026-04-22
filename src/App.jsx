@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Peer from 'peerjs';
-import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, Move } from 'lucide-react';
+import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera } from 'lucide-react';
 import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog, useToast } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { useUserContext } from './hooks/useUserContext.js';
@@ -25,34 +25,39 @@ import { ResetPasswordView } from './views/ResetPasswordView.jsx';
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 
 /* ═══════════════════════════════════════════════════════
-   GLOBAL DRAGGABLE CALL WINDOW
+   PREMIUM FLOATING CALL HUB (Draggable & Responsive)
    ═══════════════════════════════════════════════════════ */
-function GlobalCallWindow({ calling, callDuration, isMuted, isDeafened, onMicToggle, onDeafenToggle, onEndCall, partnerName, sfx, remoteVideoRef }) {
-  const [position, setPosition] = useState({ x: window.innerWidth - 340, y: 40 });
+function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, sfx, remoteVideoRef }) {
+  const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
 
-  const handleMouseDown = (e) => {
-    if (e.target.closest('button')) return;
+  const handleStart = (clientX, clientY) => {
     setIsDragging(true);
-    setDragOffset({ x: e.clientX - position.x, y: e.clientY - position.y });
+    setDragOffset({ x: clientX - position.x, y: clientY - position.y });
   };
+  const handleMove = (clientX, clientY) => {
+    if (!isDragging) return;
+    setPosition({ x: clientX - dragOffset.x, y: clientY - dragOffset.y });
+  };
+  const handleEnd = () => setIsDragging(false);
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      setPosition({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
-    };
-    const handleMouseUp = () => setIsDragging(false);
+    const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY);
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', handleEnd);
+      window.addEventListener('touchmove', onTouchMove);
+      window.addEventListener('touchend', handleEnd);
     }
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
   }, [isDragging, dragOffset]);
 
   const mins = Math.floor(callDuration / 60);
@@ -60,46 +65,56 @@ function GlobalCallWindow({ calling, callDuration, isMuted, isDeafened, onMicTog
 
   return (
     <div
-      className={`fixed z-[2000] retro-bg-window retro-border retro-shadow-dark transition-all duration-300 ${isMinimized ? 'w-48' : (calling === 'video' ? 'w-80 sm:w-96' : 'w-72')}`}
-      style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
-      onMouseDown={handleMouseDown}
+      className={`fixed z-[5000] retro-bg-window retro-border retro-shadow-dark transition-transform ${isMinimized ? 'w-48' : 'w-[90vw] sm:w-[400px]'}`}
+      style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+      onMouseDown={(e) => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
+      onTouchStart={(e) => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
     >
-      <div className="bg-[var(--border)] text-white px-3 py-2 flex justify-between items-center font-bold text-xs select-none">
-        <span className="flex items-center gap-2 truncate pr-2">
-          {calling === 'video' ? <Video size={14}/> : <Phone size={14}/>}
-          {partnerName} - {mins}:{secs.toString().padStart(2, '0')}
+      <div className="bg-[var(--border)] text-white px-4 py-2 flex justify-between items-center font-bold text-xs select-none">
+        <span className="flex items-center gap-2 truncate">
+          {calling === 'video' ? <Video size={14} className="text-pink-400"/> : <Phone size={14} className="text-cyan-400"/>}
+          {partnerName} • {mins}:{secs.toString().padStart(2, '0')}
         </span>
-        <div className="flex gap-2">
-          <button onClick={() => setIsMinimized(!isMinimized)}>{isMinimized ? <Maximize2 size={14}/> : <Minimize2 size={14}/>}</button>
-          <button onClick={onEndCall} className="text-red-300 hover:text-red-500 transition-colors"><PhoneOff size={14}/></button>
+        <div className="flex gap-3">
+          <button onClick={() => setIsMinimized(!isMinimized)} className="hover:scale-110 transition-transform">
+            {isMinimized ? <Maximize2 size={16}/> : <Minimize2 size={16}/>}
+          </button>
+          <button onClick={onEndCall} className="text-red-400 hover:text-red-600 transition-colors"><PhoneOff size={16}/></button>
         </div>
       </div>
 
       {!isMinimized && (
-        <div className="flex flex-col">
-          {calling === 'video' ? (
-            <div className="w-full aspect-video bg-black relative">
+        <div className="flex flex-col bg-black/5">
+          <div className={`w-full aspect-video bg-black/90 relative overflow-hidden flex items-center justify-center`}>
+            {calling === 'video' && !isDeafened ? (
               <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-              <div className="absolute bottom-2 left-2 bg-black/40 px-2 py-0.5 rounded text-[10px] text-white font-bold backdrop-blur-sm">Remote View</div>
-            </div>
-          ) : (
-            <div className="py-8 flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full retro-bg-secondary retro-border flex items-center justify-center animate-pulse">
-                <Phone size={24} />
+            ) : (
+              <div className="flex flex-col items-center gap-3 animate-pulse">
+                <div className="w-20 h-20 rounded-full retro-bg-secondary retro-border flex items-center justify-center">
+                   {calling === 'video' ? <VideoOff size={32} /> : <Phone size={32} />}
+                </div>
+                <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{calling === 'video' ? 'Camera Off' : 'Audio Call Only'}</p>
               </div>
-              <p className="font-bold text-xs">Audio Connected</p>
-            </div>
-          )}
+            )}
+            <div className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[8px] text-white font-bold uppercase border border-white/20 backdrop-blur-sm">Remote</div>
+          </div>
 
-          <div className="p-3 bg-[var(--bg-main)] flex justify-center gap-4">
-            <button onClick={onMicToggle} className={`p-2 rounded-full retro-border ${isMuted ? 'bg-red-400' : 'retro-bg-accent'}`}>
-              {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
+          <div className="p-4 grid grid-cols-4 gap-2 bg-[var(--bg-window)]">
+            <button onClick={onMicToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all ${isMuted ? 'bg-red-400 text-white' : 'retro-bg-accent hover:-translate-y-1'}`}>
+              {isMuted ? <MicOff size={20}/> : <Mic size={20}/>}
+              <span className="text-[8px] font-bold mt-1 uppercase">{isMuted ? 'Unmute' : 'Mute'}</span>
             </button>
-            <button onClick={onDeafenToggle} className={`p-2 rounded-full retro-border ${isDeafened ? 'bg-red-400' : 'retro-bg-accent'}`}>
-              {isDeafened ? <VolumeX size={18}/> : <Volume2 size={18}/>}
+            <button onClick={onDeafenToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all ${isDeafened ? 'bg-red-400 text-white' : 'retro-bg-secondary hover:-translate-y-1'}`}>
+              {isDeafened ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+              <span className="text-[8px] font-bold mt-1 uppercase">{isDeafened ? 'Undeafen' : 'Deafen'}</span>
             </button>
-            <button onClick={onEndCall} className="p-2 bg-red-500 text-white rounded-full retro-border hover:bg-red-600">
-              <PhoneOff size={18} className="rotate-[135deg]"/>
+            <button onClick={onCameraToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all ${isCameraOff ? 'bg-red-400 text-white' : 'retro-bg-primary hover:-translate-y-1'}`}>
+              {isCameraOff ? <VideoOff size={20}/> : <Camera size={20}/>}
+              <span className="text-[8px] font-bold mt-1 uppercase">Cam</span>
+            </button>
+            <button onClick={onEndCall} className="flex flex-col items-center justify-center p-3 retro-border bg-red-600 text-white hover:bg-red-700 transition-all hover:scale-105">
+              <PhoneOff size={20} className="rotate-[135deg]"/>
+              <span className="text-[8px] font-bold mt-1 uppercase">End</span>
             </button>
           </div>
         </div>
@@ -113,7 +128,6 @@ function GlobalCallWindow({ calling, callDuration, isMuted, isDeafened, onMicTog
    ═══════════════════════════════════════════════════════ */
 export default function App() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { userId, partnerId } = useUserContext();
 
   // 1. Auth & Session State
@@ -139,23 +153,18 @@ export default function App() {
   const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
   const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
   const [letters, setLetters] = useGlobalSync('shared_letters', []);
-  const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
-    anniversary: '', 
-    petName: 'pet', 
-    petSkin: '/assets/Cat Sprite Sheet.png', 
-    petHappy: 60,
-    partnerNickname: '' 
-  });
+  const [coupleData, setCoupleData] = useGlobalSync('couple_data', { anniversary: '', petName: 'pet', petSkin: '/assets/Cat Sprite Sheet.png', petHappy: 60, partnerNickname: '' });
 
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
 
-  // 3. Calling System (Global)
+  // 3. Calling System (Premium)
   const [calling, setCalling] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
   
   const peerRef = useRef(null);
   const currentCallRef = useRef(null);
@@ -163,26 +172,14 @@ export default function App() {
   const callTimerRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const remoteAudioRef = useRef(null); // HIDDEN AUDIO TAG
-
-  // Fetch Partner Data Automatically
-  useEffect(() => {
-    if (!partnerId) return;
-    const fetchPartnerName = async () => {
-      const { data } = await supabase.from('app_state').select('state').eq('room_id', syncedRoomId).limit(1).single();
-      // Logic to find partner nickname in state if it's there, but for now we fallback to Nickname in coupleData
-    };
-    fetchPartnerName();
-  }, [partnerId, syncedRoomId]);
+  const remoteAudioRef = useRef(null);
 
   // Peer initialization
   useEffect(() => {
     if (!userId) return;
     const peer = new Peer(userId, { debug: 1 });
     peerRef.current = peer;
-    peer.on('call', (call) => {
-      currentCallRef.current = call;
-    });
+    peer.on('call', (call) => { currentCallRef.current = call; });
     return () => { if (peerRef.current) peerRef.current.destroy(); };
   }, [userId]);
 
@@ -191,39 +188,26 @@ export default function App() {
     if (!userId) return;
     const last = chatHistory[chatHistory.length - 1];
     if (!last) return;
-    
     if (last.type === 'call_invite' && last.status === 'ringing' && last.sender !== userId) {
       setIncomingCall({ messageId: last.id, callType: last.callType, fromName: last.senderName || 'Partner' });
-      if (!ringingIntervalRef.current) {
-        ringingIntervalRef.current = setInterval(() => playAudio('receive', sfxEnabled), 900);
-      }
+      if (!ringingIntervalRef.current) ringingIntervalRef.current = setInterval(() => playAudio('receive', sfxEnabled), 900);
     }
-    
     if (last.type === 'call_invite' && last.status === 'accepted') {
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
       setIncomingCall(null);
-      if (last.sender === userId && !calling) {
-        setCalling(last.callType);
-        initiatePeerCall(last.callType);
-      }
+      if (last.sender === userId && !calling) { setCalling(last.callType); initiatePeerCall(last.callType); }
     }
-
     if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'ended' || last.status === 'missed')) {
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
-      setIncomingCall(null);
-      setCalling(null);
+      setIncomingCall(null); setCalling(null);
       if (currentCallRef.current) { currentCallRef.current.close(); currentCallRef.current = null; }
       if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     }
   }, [chatHistory, userId, sfxEnabled]);
 
   useEffect(() => {
-    if (calling) {
-      callTimerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
-    } else {
-      setCallDuration(0);
-      if (callTimerRef.current) clearInterval(callTimerRef.current);
-    }
+    if (calling) callTimerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
+    else { setCallDuration(0); if (callTimerRef.current) clearInterval(callTimerRef.current); }
     return () => { if (callTimerRef.current) clearInterval(callTimerRef.current); };
   }, [calling]);
 
@@ -235,12 +219,9 @@ export default function App() {
       currentCallRef.current = call;
       call.on('stream', (remoteStream) => {
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream; // CRITICAL: PLAY AUDIO
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
       });
-    } catch (err) {
-      console.error('Failed to get local stream', err);
-      handleEndCall();
-    }
+    } catch (err) { console.error('Failed call', err); handleEndCall(); }
   };
 
   const handleEndCall = () => {
@@ -257,14 +238,16 @@ export default function App() {
         currentCallRef.current.answer(stream);
         currentCallRef.current.on('stream', (remoteStream) => {
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream; // CRITICAL: PLAY AUDIO
+          if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
         });
       }
       setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
       setCalling(msg?.callType || 'audio');
-    } catch (err) { console.error('Failed to accept call', err); }
+    } catch (err) { console.error('Failed accept', err); }
     setIncomingCall(null);
   };
+
+  const rejectCall = (messageId) => { setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m)); setIncomingCall(null); };
 
   // 4. Room Pairing & Sync logic
   const checkRoomAndSync = async (uid) => {
@@ -272,11 +255,8 @@ export default function App() {
       const { data: room } = await supabase.rpc('get_my_room');
       const isPaired = !!(room && room.is_paired);
       setHasRoom(isPaired);
-      if (isPaired && syncedRoomId !== room.id) {
-        setSyncedRoomId(room.id);
-        await initializeRoomSync(room.id);
-      }
-    } catch (err) { console.error("Room sync check failed:", err); setHasRoom(false); } finally { setLoading(false); }
+      if (isPaired && syncedRoomId !== room.id) { setSyncedRoomId(room.id); await initializeRoomSync(room.id); }
+    } catch (err) { console.error("Room check failed", err); setHasRoom(false); } finally { setLoading(false); }
   };
 
   useEffect(() => {
@@ -284,33 +264,22 @@ export default function App() {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      const s = data?.session || null;
-      setSession(s);
-      if (s) await checkRoomAndSync(s.user.id);
-      else setLoading(false);
+      const s = data?.session || null; setSession(s);
+      if (s) await checkRoomAndSync(s.user.id); else setLoading(false);
     };
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      if (!mounted) return;
-      setSession(s);
-      if (s) checkRoomAndSync(s.user.id);
-      else { setHasRoom(false); setSyncedRoomId(null); setLoading(false); }
+      if (!mounted) return; setSession(s);
+      if (s) checkRoomAndSync(s.user.id); else { setHasRoom(false); setSyncedRoomId(null); setLoading(false); }
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
-  const milestone = useMemo(() => {
-    if (!milestoneShown && userId && coupleData?.anniversary) return getMilestoneToday(coupleData.anniversary);
-    return null;
-  }, [milestoneShown, userId, coupleData?.anniversary]);
-
   const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/login'); };
   const handlePaired = async (roomId) => { setHasRoom(true); setSyncedRoomId(roomId); await initializeRoomSync(roomId); navigate('/'); };
-  const handleShareToChat = (text, imgData) => { 
-    setChatHistory(p => [...p, { id: Date.now(), sender: userId, type: imgData ? 'image' : 'text', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); 
-  };
+  const handleShareToChat = (text, imgData) => { setChatHistory(p => [...p, { id: Date.now(), sender: userId, type: imgData ? 'image' : 'text', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); };
   const navigateTo = (v) => { playAudio('click', sfxEnabled); if (v === 'dashboard') navigate('/'); else navigate(`/${v}`); };
 
   if (loading) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
@@ -325,29 +294,31 @@ export default function App() {
 
         {/* Global Call UI */}
         {incomingCall && (
-          <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="retro-bg-window retro-border retro-shadow-dark max-w-sm w-full p-8 text-center animate-bounce-subtle">
-              <div className="w-20 h-20 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-4 animate-pulse">
-                {incomingCall.callType === 'video' ? <Video size={40} /> : <Phone size={40} />}
+          <div className="fixed inset-0 z-[6000] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="retro-bg-window retro-border retro-shadow-dark max-w-sm w-full p-10 text-center animate-bounce-subtle">
+              <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse">
+                {incomingCall.callType === 'video' ? <Video size={48} className="text-white"/> : <Phone size={48} className="text-white"/>}
               </div>
-              <h2 className="text-2xl font-bold mb-2">{incomingCall.fromName}</h2>
-              <p className="text-sm opacity-70 font-bold mb-6">is calling you...</p>
-              <div className="flex gap-4 justify-center">
-                <button onClick={() => rejectCall(incomingCall.messageId)} className="p-4 bg-red-500 text-white retro-border rounded-full hover:bg-red-600"><PhoneOff size={24} className="rotate-180"/></button>
-                <button onClick={() => acceptCall(incomingCall.messageId)} className="p-4 bg-green-500 text-white retro-border rounded-full hover:bg-green-600"><Phone size={24}/></button>
+              <h2 className="text-3xl font-bold mb-2">{incomingCall.fromName}</h2>
+              <p className="text-sm opacity-70 font-bold mb-8 uppercase tracking-widest animate-pulse">incoming call...</p>
+              <div className="flex gap-6 justify-center">
+                <button onClick={() => rejectCall(incomingCall.messageId)} className="p-6 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-all hover:scale-110 shadow-lg"><PhoneOff size={32} className="rotate-[135deg]"/></button>
+                <button onClick={() => acceptCall(incomingCall.messageId)} className="p-6 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"><Phone size={32}/></button>
               </div>
             </div>
           </div>
         )}
 
         {calling && (
-          <GlobalCallWindow
+          <PremiumCallHub
             calling={calling}
             callDuration={callDuration}
             isMuted={isMuted}
             isDeafened={isDeafened}
-            onMicToggle={() => { setIsMuted(!isMuted); localStreamRef.current.getAudioTracks().forEach(t => t.enabled = isMuted); }}
+            isCameraOff={isCameraOff}
+            onMicToggle={() => { setIsMuted(!isMuted); if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => t.enabled = isMuted); }}
             onDeafenToggle={() => setIsDeafened(!isDeafened)}
+            onCameraToggle={() => { setIsCameraOff(!isCameraOff); if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => t.enabled = isCameraOff); }}
             onEndCall={handleEndCall}
             partnerName={coupleData?.partnerNickname || 'Partner'}
             sfx={sfxEnabled}
@@ -355,7 +326,6 @@ export default function App() {
           />
         )}
         
-        {/* HIDDEN AUDIO ELEMENT FOR CALLS */}
         <audio ref={remoteAudioRef} autoPlay style={{display: 'none'}} />
 
         <Routes>
@@ -381,7 +351,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        {milestone && <MilestoneCelebration milestone={milestone} onClose={() => setMilestoneShown(true)} />}
+        {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(true)} />}
         {viewingDoodle && ( <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"><DoodleViewer doodle={viewingDoodle} onClose={() => setViewingDoodle(null)} profileName={profile?.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setReplyDoodle(d); navigateTo('doodle'); }} onReplyToChat={(t, i) => { handleShareToChat(t, i); setViewingDoodle(null); navigateTo('chat'); }} /></div>)}
       </div>
     </ToastProvider>
