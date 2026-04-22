@@ -25,9 +25,9 @@ import { ResetPasswordView } from './views/ResetPasswordView.jsx';
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 
 /* ═══════════════════════════════════════════════════════
-   PREMIUM FLOATING CALL HUB (Draggable & Responsive)
+   PREMIUM FLOATING CALL HUB (Discord-Robust)
    ═══════════════════════════════════════════════════════ */
-function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, sfx, remoteVideoRef }) {
+function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, sfx, remoteVideoRef, isRinging }) {
   const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -65,7 +65,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
 
   return (
     <div
-      className={`fixed z-[5000] retro-bg-window retro-border retro-shadow-dark transition-transform ${isMinimized ? 'w-48' : 'w-[90vw] sm:w-[400px]'}`}
+      className={`fixed z-[5000] retro-bg-window retro-border retro-shadow-dark transition-all duration-300 ${isMinimized ? 'w-48' : 'w-[90vw] sm:w-[400px]'}`}
       style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       onMouseDown={(e) => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
       onTouchStart={(e) => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
@@ -73,7 +73,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
       <div className="bg-[var(--border)] text-white px-4 py-2 flex justify-between items-center font-bold text-xs select-none">
         <span className="flex items-center gap-2 truncate">
           {calling === 'video' ? <Video size={14} className="text-pink-400"/> : <Phone size={14} className="text-cyan-400"/>}
-          {partnerName} • {mins}:{secs.toString().padStart(2, '0')}
+          {partnerName} • {isRinging ? 'Ringing...' : `${mins}:${secs.toString().padStart(2, '0')}`}
         </span>
         <div className="flex gap-3">
           <button onClick={() => setIsMinimized(!isMinimized)} className="hover:scale-110 transition-transform">
@@ -86,17 +86,28 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
       {!isMinimized && (
         <div className="flex flex-col bg-black/5">
           <div className={`w-full aspect-video bg-black/90 relative overflow-hidden flex items-center justify-center`}>
-            {calling === 'video' && !isDeafened ? (
-              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-            ) : (
-              <div className="flex flex-col items-center gap-3 animate-pulse">
-                <div className="w-20 h-20 rounded-full retro-bg-secondary retro-border flex items-center justify-center">
-                   {calling === 'video' ? <VideoOff size={32} /> : <Phone size={32} />}
+            {isRinging ? (
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-24 h-24 rounded-full retro-bg-secondary retro-border flex items-center justify-center animate-pulse shadow-[0_0_30px_var(--secondary)]">
+                   {calling === 'video' ? <Video size={40} /> : <Phone size={40} />}
                 </div>
-                <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{calling === 'video' ? 'Camera Off' : 'Audio Call Only'}</p>
+                <div className="text-white font-bold text-xs uppercase tracking-widest animate-bounce">Calling {partnerName}...</div>
               </div>
+            ) : (
+              <>
+                {calling === 'video' && !isDeafened && !isCameraOff ? (
+                  <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-20 h-20 rounded-full retro-bg-secondary retro-border flex items-center justify-center">
+                       {calling === 'video' ? <VideoOff size={32} /> : <Phone size={32} />}
+                    </div>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{calling === 'video' ? (isCameraOff ? 'Camera Off' : 'Connecting...') : 'Audio Only'}</p>
+                  </div>
+                )}
+              </>
             )}
-            <div className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[8px] text-white font-bold uppercase border border-white/20 backdrop-blur-sm">Remote</div>
+            {!isRinging && <div className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 rounded text-[8px] text-white font-bold uppercase border border-white/20 backdrop-blur-sm">Remote</div>}
           </div>
 
           <div className="p-4 grid grid-cols-4 gap-2 bg-[var(--bg-window)]">
@@ -160,6 +171,7 @@ export default function App() {
 
   // 3. Calling System
   const [calling, setCalling] = useState(null);
+  const [isRinging, setIsRinging] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -174,31 +186,26 @@ export default function App() {
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
-  // CRITICAL: Scope fix for handleEndCall
   const handleEndCall = () => {
     setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', status: 'ended', time: new Date().toLocaleTimeString() }]);
-    setCalling(null);
+    setCalling(null); setIsRinging(false);
   };
 
   // Peer initialization with Global STUN Servers
   useEffect(() => {
     if (!userId) return;
-    
     const initPeer = () => {
       const peer = new Peer(userId, { 
-        debug: 2,
+        debug: 1,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
           ]
         }
       });
       peerRef.current = peer;
-      
       peer.on('call', (call) => { 
         currentCallRef.current = call; 
         if (calling) {
@@ -211,15 +218,10 @@ export default function App() {
            }).catch(err => { console.error("Media failed", err); handleEndCall(); });
         }
       });
-
       peer.on('error', (err) => {
-        console.error("PeerJS Error", err);
-        if (err.type === 'disconnected' || err.type === 'network') {
-           setTimeout(initPeer, 3000); // Attempt reconnect
-        }
+        if (err.type === 'disconnected' || err.type === 'network') setTimeout(initPeer, 3000);
       });
     };
-
     initPeer();
     return () => { if (peerRef.current) peerRef.current.destroy(); };
   }, [userId, calling]);
@@ -235,36 +237,35 @@ export default function App() {
     }
     if (last.type === 'call_invite' && last.status === 'accepted') {
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
-      setIncomingCall(null);
+      setIncomingCall(null); setIsRinging(false);
       if (last.sender === userId && !calling) { setCalling(last.callType); initiatePeerCall(last.callType); }
     }
     if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'ended' || last.status === 'missed')) {
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
-      setIncomingCall(null); setCalling(null);
+      setIncomingCall(null); setCalling(null); setIsRinging(false);
       if (currentCallRef.current) { try { currentCallRef.current.close(); } catch(e){} currentCallRef.current = null; }
       if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     }
   }, [chatHistory, userId, sfxEnabled]);
 
   useEffect(() => {
-    if (calling) callTimerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
+    if (calling && !isRinging) callTimerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
     else { setCallDuration(0); if (callTimerRef.current) clearInterval(callTimerRef.current); }
     return () => { if (callTimerRef.current) clearInterval(callTimerRef.current); };
-  }, [calling]);
+  }, [calling, isRinging]);
 
   const initiatePeerCall = async (type) => {
     try {
+      setIsRinging(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
       localStreamRef.current = stream;
-      if (!peerRef.current || peerRef.current.destroyed) { throw new Error("Peer disconnected"); }
+      if (!peerRef.current || peerRef.current.destroyed) throw new Error("Peer disconnected");
       const call = peerRef.current.call(partnerId, stream);
       currentCallRef.current = call;
       call.on('stream', (remoteStream) => {
+        setIsRinging(false);
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = remoteStream;
-          remoteAudioRef.current.play().catch(e => console.error("Audio block", e));
-        }
+        if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = remoteStream; remoteAudioRef.current.play().catch(e => console.error("Audio block", e)); }
       });
       call.on('error', (e) => { console.error("Call error", e); handleEndCall(); });
     } catch (err) { console.error('Failed call', err); handleEndCall(); }
@@ -279,14 +280,12 @@ export default function App() {
         currentCallRef.current.answer(stream);
         currentCallRef.current.on('stream', (remoteStream) => {
           if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-          if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = remoteStream;
-            remoteAudioRef.current.play().catch(e => console.error("Audio block", e));
-          }
+          if (remoteAudioRef.current) { remoteAudioRef.current.srcObject = remoteStream; remoteAudioRef.current.play().catch(e => console.error("Audio block", e)); }
         });
       }
       setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
       setCalling(msg?.callType || 'audio');
+      setIsRinging(false);
     } catch (err) { console.error('Failed accept', err); handleEndCall(); }
     setIncomingCall(null);
   };
@@ -367,6 +366,7 @@ export default function App() {
             partnerName={coupleData?.partnerNickname || 'Partner'}
             sfx={sfxEnabled}
             remoteVideoRef={remoteVideoRef}
+            isRinging={isRinging}
           />
         )}
         
