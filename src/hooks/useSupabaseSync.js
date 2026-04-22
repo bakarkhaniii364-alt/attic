@@ -146,28 +146,39 @@ export function useGlobalSync(key, initialValue) {
             const merged = [...globalState[key]];
             valueToStore.forEach(item => {
                 const idx = merged.findIndex(m => m.id === item.id);
-                if (idx >= 0) merged[idx] = item;
+                if (idx >= 0) {
+                    if (JSON.stringify(merged[idx]) !== JSON.stringify(item)) merged[idx] = item;
+                }
                 else merged.push(item);
             });
             valueToStore = merged;
         }
     }
 
+    if (JSON.stringify(globalState[key]) === JSON.stringify(valueToStore)) return;
+
     setState(valueToStore);
     globalState[key] = valueToStore;
     try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
     
-    updateGlobalState(valueToStore);
+    debouncedUpdate();
   }, [key, state]);
 
-  const updateGlobalState = async (valueToStore) => {
-      if (!currentRoomId || !isInitialized) return;
-      const payload = { ...globalState, [key]: valueToStore };
-      globalState = payload; 
-      
-      const { error } = await supabase.from('app_state').update({ state: payload }).eq('room_id', currentRoomId);
-      if (error) console.error("Sync Error:", error);
+  // Debounced Supabase update to prevent rapid firing (e.g. while typing)
+  const updateTimeoutRef = useRef(null);
+  const debouncedUpdate = () => {
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    updateTimeoutRef.current = setTimeout(() => {
+      pushToSupabase();
+    }, 1000); // 1 second debounce
   };
+
+  const pushToSupabase = async () => {
+    if (!currentRoomId || !isInitialized) return;
+    const { error } = await supabase.from('app_state').update({ state: globalState }).eq('room_id', currentRoomId);
+    if (error) console.error("[SYNC] Push Error:", error);
+  };
+
 
   return [state, updateState];
 }

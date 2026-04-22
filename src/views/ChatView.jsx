@@ -211,12 +211,13 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
 
-  const imageMessages = chatHistory.filter(m => m.type === 'image' && !m.isDeleted);
-  const pinnedMessages = chatHistory.filter(m => m.isPinned && !m.isDeleted);
-  const callHistory = chatHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
+  const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
+  const imageMessages = safeHistory.filter(m => m.type === 'image' && !m.isDeleted);
+  const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted);
+  const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
   const currentImageIndex = imageMessages.findIndex(m => m.id === viewingImageId);
   const headerActions = (<div className="flex gap-2"><button onClick={() => onStartCall('audio')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18} /></button><button onClick={() => onStartCall('video')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18} /></button></div>);
-  const filteredMessages = chatHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
+  const filteredMessages = safeHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
 
   return (
     <>
@@ -237,7 +238,7 @@ export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sf
 
                 const isCallLog = msg.type === 'call_invite';
 
-                const isPureEmoji = msg.type === 'text' && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
+                const isPureEmoji = msg.type === 'text' && msg.text && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
                 const isPureImage = msg.type === 'image' && !msg.text;
                 const noBubble = (isPureEmoji || isPureImage) && !msg.replyTo && !msg.isDeleted;
 

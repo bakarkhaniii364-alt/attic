@@ -8,7 +8,7 @@ import { getScore } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { StreakBadge } from '../components/Features.jsx';
 
-function PixelPet({ happy, sleeping, onClick, skin }) {
+const PixelPet = React.memo(({ happy, sleeping, onClick, skin }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [isPressing, setIsPressing] = useState(false);
 
@@ -89,7 +89,7 @@ function PixelPet({ happy, sleeping, onClick, skin }) {
       )}
     </div>
   );
-}
+});
 
 function AnniversaryTimer({ anniversary }) {
   const [elapsed, setElapsed] = useState(null);
@@ -141,16 +141,34 @@ function AnniversaryTimer({ anniversary }) {
   );
 }
 
-function Unit({ val, label }) {
+export const Unit = React.memo(({ val, label }) => {
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [displayVal, setDisplayVal] = useState(val);
+
+  useEffect(() => {
+    if (val !== displayVal) {
+      setIsFlipping(true);
+      const timer = setTimeout(() => {
+        setDisplayVal(val);
+        setIsFlipping(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [val, displayVal]);
+
   return (
     <div className="flex flex-col items-center">
-      <div className="bg-[var(--bg-main)] retro-border w-10 h-10 flex items-center justify-center font-bold text-lg text-[var(--primary)] tabular-nums">
-        {String(val).padStart(2, '0')}
+      <div className="relative w-10 h-10 perspective-1000">
+        <div className={`w-full h-full bg-[var(--bg-main)] retro-border flex items-center justify-center font-bold text-lg text-[var(--primary)] tabular-nums transition-transform duration-300 preserve-3d ${isFlipping ? 'rotate-x-90 opacity-50' : 'rotate-x-0 opacity-100'}`}>
+          {String(displayVal).padStart(2, '0')}
+        </div>
+        {/* Subtle 3D shadow effect */}
+        <div className="absolute inset-0 pointer-events-none shadow-inner opacity-20"></div>
       </div>
       <span className="text-[9px] font-bold opacity-50 uppercase mt-0.5">{label}</span>
     </div>
   );
-}
+});
 
 function CalendarReminder() {
   const [events] = useLocalStorage('calendar_events', []);
