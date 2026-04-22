@@ -186,12 +186,12 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
 
-  const [scores, setScores] = useGlobalSync('game_scores', {}, 'main');
-  const [streaks, setStreaks] = useGlobalSync('user_streaks', {}, 'main');
-  const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT, 'chat');
-  const [sharedImages, setSharedImages] = useGlobalSync('shared_images', [], 'chat');
-  const [doodles, setDoodles] = useGlobalSync('shared_doodles', [], 'chat'); 
-  const [letters, setLetters] = useGlobalSync('shared_letters', [], 'chat');
+  const [scores, setScores] = useGlobalSync('game_scores', {});
+  const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
+  const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT);
+  const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
+  const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
+  const [letters, setLetters] = useGlobalSync('shared_letters', []);
   const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
     anniversary: '', 
     petName: 'pet', 
@@ -420,8 +420,7 @@ export default function App() {
       setHasRoom(isPaired);
       if (isPaired && syncedRoomId !== room.id) { 
         setSyncedRoomId(room.id); 
-        await initializeRoomSync(room.id, 'main'); 
-        await initializeRoomSync(room.id, 'chat'); 
+        await initializeRoomSync(room.id); 
       }
     } catch (err) { console.error("Room check failed", err); setHasRoom(false); } finally { setLoading(false); }
   };
@@ -453,8 +452,7 @@ export default function App() {
   const handlePaired = async (roomId) => { 
     setHasRoom(true); 
     setSyncedRoomId(roomId); 
-    await initializeRoomSync(roomId, 'main'); 
-    await initializeRoomSync(roomId, 'chat'); 
+    await initializeRoomSync(roomId); 
     navigate('/'); 
   };
   const handleShareToChat = (text, imgData) => { setChatHistory(p => [...p, { id: Date.now(), sender: userId, type: imgData ? 'image' : 'text', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); };

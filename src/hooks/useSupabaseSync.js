@@ -16,9 +16,10 @@ const pushToSupabase = async () => {
   if (!currentRoomId || !isInitialized) return;
   
   try {
+    const stateToPush = JSON.parse(JSON.stringify(globalState));
     const { error } = await supabase
       .from('app_state')
-      .upsert({ room_id: currentRoomId, state: globalState, last_updated: new Date().toISOString() }, { onConflict: 'room_id' });
+      .upsert({ room_id: currentRoomId, state: stateToPush, last_updated: new Date().toISOString() }, { onConflict: 'room_id' });
       
     if (error) console.error("[SYNC] PUSH ERROR:", error.message);
   } catch (e) {
@@ -32,8 +33,7 @@ const debouncedPush = (immediate = false) => {
   updateTimeout = setTimeout(pushToSupabase, 500);
 };
 
-export const initializeRoomSync = async (roomId, ns = 'main') => {
-  // Ignore namespace for now to restore stability with existing RLS
+export const initializeRoomSync = async (roomId) => {
   if (currentRoomId === roomId && isInitialized) return;
 
   if (currentChannel) {
@@ -43,10 +43,12 @@ export const initializeRoomSync = async (roomId, ns = 'main') => {
   currentRoomId = roomId;
   console.log(`[SYNC] Initializing room: ${roomId}`);
 
+  // Fetch initial state
   const { data, error } = await supabase.from('app_state').select('state').eq('room_id', roomId).single();
   
   if (data && data.state) {
     globalState = data.state;
+    console.log("[SYNC] Loaded state from DB:", Object.keys(globalState));
   } else if (error && error.code !== 'PGRST116') {
     console.error(`[SYNC] FETCH ERROR:`, error.message);
   }
@@ -62,6 +64,7 @@ export const initializeRoomSync = async (roomId, ns = 'main') => {
     filter: `room_id=eq.${roomId}` 
   }, (payload) => {
     if (payload.new && payload.new.state) {
+        console.log("[SYNC] Received Update from DB");
         const newState = payload.new.state;
         const mergedState = { ...globalState };
 
@@ -74,8 +77,8 @@ export const initializeRoomSync = async (roomId, ns = 'main') => {
                     newItems.forEach(item => itemMap.set(item.id, item));
                     const mergedArray = Array.from(itemMap.values());
                     if (mergedArray[0]?.timestamp) mergedArray.sort((a, b) => a.timestamp - b.timestamp);
-                    // AGGRESSIVE PRUNING to stay under 1MB Realtime limit
-                    mergedState[key] = key.includes('history') ? mergedArray.slice(-50) : mergedArray;
+                    // Pruning to stay safe
+                    mergedState[key] = key.includes('history') ? mergedArray.slice(-80) : mergedArray;
                 } else {
                     mergedState[key] = newItems;
                 }
@@ -92,12 +95,11 @@ export const initializeRoomSync = async (roomId, ns = 'main') => {
   currentChannel = channel;
 };
 
-export function useGlobalSync(key, initialValue, ns = 'main') {
+export function useGlobalSync(key, initialValue) {
   const getInitial = () => {
     if (globalState[key] !== undefined) return globalState[key];
     try {
-      // Check both new and old storage keys for migration
-      const item = window.localStorage.getItem(`sync_${ns}_${key}`) || window.localStorage.getItem(`sync_${key}`);
+      const item = window.localStorage.getItem(`sync_${key}`);
       return item ? JSON.parse(item) : initialValue;
     } catch (e) {
       return initialValue;
@@ -130,8 +132,7 @@ export function useGlobalSync(key, initialValue, ns = 'main') {
             valueToStore.forEach(item => itemMap.set(item.id, item));
             valueToStore = Array.from(itemMap.values());
             if (valueToStore[0]?.timestamp) valueToStore.sort((a, b) => a.timestamp - b.timestamp);
-            // AGGRESSIVE PRUNING on save
-            if (key.includes('history')) valueToStore = valueToStore.slice(-50);
+            if (key.includes('history')) valueToStore = valueToStore.slice(-80);
         }
     }
 
