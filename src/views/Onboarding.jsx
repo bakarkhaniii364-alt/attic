@@ -101,34 +101,28 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
     setLoading(true); setError('');
     playAudio('click', sfx);
 
-    const { data, error: err } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: { data: { display_name: displayName.trim() } },
-    });
+    try {
+      const { data, error: err } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { display_name: displayName.trim() } },
+      });
 
-    if (err && err.message) { setError(err.message); setLoading(false); return; }
+      if (err) { setError(err.message); setLoading(false); return; }
 
-    // Get session (data.session may be null if email confirmation is required, but we proceed anyway)
-    const session = data.session || (await supabase.auth.getSession()).data?.session;
-    if (!session && !data.user) {
-      setError('Unable to create account. Please try again.');
+      if (data.user && !data.user.email_confirmed_at) {
+        setLoading(false);
+        setEmailVerificationEmail(email.trim());
+        toast('Verification email sent!', 'success');
+        return;
+      }
+
+      const session = data.session || (await supabase.auth.getSession()).data?.session;
+      onAuthSuccess({ name: displayName.trim(), session, isNewUser: true, user: data.user });
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
       setLoading(false);
-      return;
     }
-
-    // Check if email needs verification
-    if (data.user && !data.user.email_confirmed_at) {
-      setLoading(false);
-      setEmailVerificationEmail(email.trim());
-      setEmail('');
-      setPassword('');
-      setDisplayName('');
-      return;
-    }
-
-    // Email is verified or verification not required, proceed to dashboard
-    onAuthSuccess({ name: displayName.trim(), session: session || data.session, isNewUser: true, user: data.user });
   };
 
   const handleSignIn = async (e) => {
@@ -137,22 +131,27 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
     setLoading(true); setError('');
     playAudio('click', sfx);
 
-    const { data, error: err } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (err) { setError(err.message); setLoading(false); return; }
+      if (err) { setError(err.message); setLoading(false); return; }
 
-    const session = data.session || (await supabase.auth.getSession()).data?.session;
-    if (!session) {
-      setError('Unable to retrieve session after signing in. Please try again.');
+      const session = data.session || (await supabase.auth.getSession()).data?.session;
+      if (!session) {
+        setError('Unable to retrieve session. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      const name = data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'you';
+      onAuthSuccess({ name, session, isNewUser: false });
+    } catch (err) {
+      setError('Login failed. Please check your credentials.');
       setLoading(false);
-      return;
     }
-
-    const name = data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'you';
-    onAuthSuccess({ name, session, isNewUser: false });
   };
 
   const handleForgot = async (e) => {
@@ -161,10 +160,18 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
     setLoading(true); setError('');
     playAudio('click', sfx);
 
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim());
-    setLoading(false);
-    if (err) { setError(err.message); return; }
-    setForgotSent(true);
+    try {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/password-reset`,
+      });
+      setLoading(false);
+      if (err) { setError(err.message); return; }
+      setForgotSent(true);
+      toast('Reset link sent!', 'success');
+    } catch (err) {
+      setError('Failed to send reset link.');
+      setLoading(false);
+    }
   };
 
   const handleResendVerification = async () => {

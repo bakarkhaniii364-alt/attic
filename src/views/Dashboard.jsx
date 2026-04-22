@@ -221,17 +221,17 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
         </div>
       </RetroWindow>
 
-      <RetroWindow title={`${profile.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
+      <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
-          <PixelPet skin={profile.petSkin} happy={petHappy} sleeping={isSleeping} onClick={() => { if(!isSleeping){ playAudio('click', sfx); setPetHappy(Math.min(100, petHappy + 10)); } }} />
-          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{width: `${petHappy}%`}}></div></div></div>
-          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); setPetHappy(Math.min(100, petHappy + 20)); toast('Fed the pet!', 'success', 1500);}}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); setPetHappy(Math.min(100, petHappy + 10));}}>Pet</RetroButton></div>
+          <PixelPet skin={coupleData.petSkin} happy={coupleData.petHappy} sleeping={isSleeping} onClick={() => { if(!isSleeping){ playAudio('click', sfx); updatePetHappy(Math.min(100, coupleData.petHappy + 10)); } }} />
+          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{width: `${coupleData.petHappy}%`}}></div></div></div>
+          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); updatePetHappy(Math.min(100, coupleData.petHappy + 20)); toast('Fed the pet!', 'success', 1500);}}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); updatePetHappy(Math.min(100, coupleData.petHappy + 10));}}>Pet</RetroButton></div>
         </div>
       </RetroWindow>
 
       <RetroWindow title="together.timer" className="md:col-span-4 h-auto">
         <div className="flex flex-col h-full justify-center gap-3">
-          <AnniversaryTimer anniversary={profile.anniversary} />
+          <AnniversaryTimer anniversary={coupleData.anniversary} />
           <div className="flex flex-wrap gap-2 justify-center mt-2 border-t border-dashed border-[var(--border)] pt-3">
             <p className="w-full text-center mb-1 font-bold text-[10px] opacity-50 uppercase tracking-widest">my mood</p>
             {['😊', '😴', '🥺', '😡', '🥰', '😤'].map(m => (<button key={m} onClick={() => {playAudio('click', sfx); setMood(m);}} className={`text-lg w-7 h-7 rounded-full retro-border flex items-center justify-center transition-transform hover:scale-110 ${mood === m ? 'retro-bg-accent retro-shadow-dark' : 'retro-bg-window'}`}>{m}</button>))}

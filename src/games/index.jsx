@@ -203,79 +203,88 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat }) {
   );
 }
 
-
-
 export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId }) {
-  const [setupGame, setSetupGame] = useLocalStorage('hub_setup', null); 
-  const [activeConfig, setActiveConfig] = useLocalStorage('hub_active', null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const handleWin = () => { playAudio('win', sfx); setConfetti(true); setTimeout(() => setConfetti(false), 4000); };
 
   const closeGame = () => {
-    setActiveConfig(null);
-    setSetupGame(null);
     navigate('/activities');
   };
 
-  const launch = (id, title) => { 
+  const launch = (id) => { 
     playAudio('click', sfx); 
     navigate(`/activities/${id}`);
-    if(id === 'sync'){ setActiveConfig({ id: 'sync' }); return; } 
-    setSetupGame({id, title}); 
   };
 
   const HubMenu = () => (
     <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <GameCard title="Pictionary" desc="Draw and guess the hidden word." color="#ffb6b9" onClick={() => launch('pictionary', 'Pictionary')} />
-        <GameCard title="Tic-Tac-Toe" desc="Classic 3x3. Try Memory Fading mode." color="var(--primary)" onClick={() => launch('tictactoe', 'Tic-Tac-Toe')} />
-        <GameCard title="Memory Match" desc="Flip cards and find pairs." color="var(--secondary)" onClick={() => launch('memory', 'Memory Match')} />
-        <GameCard title="Retro Word" desc="Guess the hidden word." color="var(--accent)" onClick={() => launch('wordle', 'Retro Word')} />
-        <GameCard title="Sudoku" desc="Logic puzzles. Race or Share." color="#ffb6b9" onClick={() => launch('sudoku', 'Sudoku')} />
-        <GameCard title="Chess" desc="Full rules engine. Standard or Sandbox." color="#a3c4f3" onClick={() => launch('chess', 'Chess')} />
-        <GameCard title="Couples Quiz" desc="How well do you know them?" color="#f9e2af" onClick={() => launch('quiz', 'Couples Quiz')} />
-        <GameCard title="2048" desc="Merge tiles. Reach 2048!" color="#a855f7" onClick={() => launch('2048', '2048')} />
-        <GameCard title="Typing Race" desc="Type fast. Beat your WPM." color="#14b8a6" onClick={() => launch('typing', 'Typing Race')} />
-        <GameCard title="Would You Rather" desc="See if you match!" color="#ec4899" onClick={() => launch('wyr', 'Would You Rather')} />
-        <GameCard title="Love Language" desc="Discover your love style." color="#f472b6" onClick={() => launch('lovelang', 'Love Language Quiz')} />
-        <GameCard title="Sync Watcher" desc="Watch YT together." color="#c1a3ff" onClick={() => launch('sync', 'Sync Watcher')} />
+        <GameCard title="Pictionary" desc="Draw and guess the hidden word." color="#ffb6b9" onClick={() => launch('pictionary')} />
+        <GameCard title="Tic-Tac-Toe" desc="Classic 3x3. Try Memory Fading mode." color="var(--primary)" onClick={() => launch('tictactoe')} />
+        <GameCard title="Memory Match" desc="Flip cards and find pairs." color="var(--secondary)" onClick={() => launch('memory')} />
+        <GameCard title="Retro Word" desc="Guess the hidden word." color="var(--accent)" onClick={() => launch('wordle')} />
+        <GameCard title="Sudoku" desc="Logic puzzles. Race or Share." color="#ffb6b9" onClick={() => launch('sudoku')} />
+        <GameCard title="Chess" desc="Full rules engine. Standard or Sandbox." color="#a3c4f3" onClick={() => launch('chess')} />
+        <GameCard title="Couples Quiz" desc="How well do you know them?" color="#f9e2af" onClick={() => launch('quiz')} />
+        <GameCard title="2048" desc="Merge tiles. Reach 2048!" color="#a855f7" onClick={() => launch('2048')} />
+        <GameCard title="Typing Race" desc="Type fast. Beat your WPM." color="#14b8a6" onClick={() => launch('typing')} />
+        <GameCard title="Would You Rather" desc="See if you match!" color="#ec4899" onClick={() => launch('wyr')} />
+        <GameCard title="Love Language" desc="Discover your love style." color="#f472b6" onClick={() => launch('lovelang')} />
+        <GameCard title="Sync Watcher" desc="Watch YT together." color="#c1a3ff" onClick={() => launch('sync')} />
       </div>
     </RetroWindow>
   );
 
   const GameRenderer = () => {
     const { gameId } = useParams();
-
-    if (activeConfig && activeConfig.id === gameId) {
-      const props = { config: activeConfig, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, profile, userId, partnerId };
-      if (activeConfig.id === 'pictionary') return <PictionaryGame {...props} />;
-      if (activeConfig.id === 'tictactoe') return <TicTacToe {...props} />;
-      if (activeConfig.id === 'memory') return <MemoryGame {...props} />;
-      if (activeConfig.id === 'wordle') return <WordleClone {...props} />;
-      if (activeConfig.id === 'sudoku') return <Sudoku {...props} />;
-      if (activeConfig.id === 'chess') return <ChessEngine {...props} />; 
-      if (activeConfig.id === 'quiz') return <CouplesQuiz {...props} />;
-      if (activeConfig.id === '2048') return <Game2048 {...props} />;
-      if (activeConfig.id === 'typing') return <TypingRace {...props} />;
-      if (activeConfig.id === 'wyr') return <WouldYouRather {...props} />;
-      if (activeConfig.id === 'lovelang') return <LoveLanguageQuiz {...props} />;
-      if (activeConfig.id === 'sync') return <SyncWatcher config={activeConfig} onBack={closeGame} sfx={sfx} />;
-    }
-
-    if (setupGame && setupGame.id === gameId) {
-      return <GameSetupWindow game={setupGame} sfx={sfx} onShareToChat={onShareToChat} onStart={(config) => { setActiveConfig({ id: setupGame.id, ...config }); setSetupGame(null); }} onBack={closeGame} />;
-    }
-
-    // Fallback if they hit a direct link but have no setup/config
+    const isActive = searchParams.get('active') === 'true';
+    
     const fallbackTitles = {
       'pictionary': 'Pictionary', 'tictactoe': 'Tic-Tac-Toe', 'memory': 'Memory Match', 'wordle': 'Retro Word',
       'sudoku': 'Sudoku', 'chess': 'Chess', 'quiz': 'Couples Quiz', '2048': '2048', 'typing': 'Typing Race',
-      'wyr': 'Would You Rather', 'lovelang': 'Love Language Quiz'
+      'wyr': 'Would You Rather', 'lovelang': 'Love Language Quiz', 'sync': 'Sync Watcher'
     };
+
+    if (isActive) {
+      // Reconstruct config from URL params
+      const config = { id: gameId };
+      searchParams.forEach((value, key) => {
+        if (key !== 'active') config[key] = value;
+      });
+
+      const props = { config, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, profile, userId, partnerId };
+      
+      if (gameId === 'pictionary') return <PictionaryGame {...props} />;
+      if (gameId === 'tictactoe') return <TicTacToe {...props} />;
+      if (gameId === 'memory') return <MemoryGame {...props} />;
+      if (gameId === 'wordle') return <WordleClone {...props} />;
+      if (gameId === 'sudoku') return <Sudoku {...props} />;
+      if (gameId === 'chess') return <ChessEngine {...props} />; 
+      if (gameId === 'quiz') return <CouplesQuiz {...props} />;
+      if (gameId === '2048') return <Game2048 {...props} />;
+      if (gameId === 'typing') return <TypingRace {...props} />;
+      if (gameId === 'wyr') return <WouldYouRather {...props} />;
+      if (gameId === 'lovelang') return <LoveLanguageQuiz {...props} />;
+      if (gameId === 'sync') return <SyncWatcher config={config} onBack={closeGame} sfx={sfx} />;
+    }
+
     if (fallbackTitles[gameId]) {
-      setSetupGame({ id: gameId, title: fallbackTitles[gameId] });
-      return null;
+      return (
+        <GameSetupWindow 
+          game={{ id: gameId, title: fallbackTitles[gameId] }} 
+          sfx={sfx} 
+          onShareToChat={onShareToChat} 
+          onStart={(config) => {
+            const newParams = new URLSearchParams();
+            newParams.set('active', 'true');
+            Object.entries(config).forEach(([k, v]) => newParams.set(k, v));
+            setSearchParams(newParams);
+          }} 
+          onBack={closeGame} 
+        />
+      );
     }
 
     return <Navigate to="/activities" replace />;

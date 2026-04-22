@@ -106,6 +106,28 @@ begin
     update rooms set partner_id = null, invite_code = new_code where id = room_uuid;
   end if;
 
+  -- Also clear the app_state for this room since the tie is severed
+  update app_state set state = '{}'::jsonb where room_id = room_uuid::text;
+
   return json_build_object('success', true, 'room_id', room_uuid, 'invite_code', new_code);
 end;
 $$ language plpgsql security definer;
+
+-- ── Delete all data associated with the current user ──
+create or replace function delete_user_data()
+returns json as $$
+declare
+  uid uuid := auth.uid();
+begin
+  -- Delete from app_state for any rooms where user was involved
+  delete from app_state where room_id in (
+    select id::text from rooms where creator_id = uid or partner_id = uid
+  );
+  
+  -- Delete the rooms themselves
+  delete from rooms where creator_id = uid or partner_id = uid;
+  
+  return json_build_object('success', true);
+end;
+$$ language plpgsql security definer;
+

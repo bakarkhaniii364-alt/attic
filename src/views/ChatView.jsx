@@ -41,7 +41,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMicToggle, onDeafenToggle, onEndCall, partnerNickname, sfx }) {
+function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMicToggle, onDeafenToggle, onEndCall, partnerNickname, sfx, remoteVideoRef }) {
   const [position, setPosition] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -87,7 +87,7 @@ function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMic
   return (
     <div
       ref={windowRef}
-      className="fixed z-50 w-80 retro-bg-window retro-border retro-shadow-dark cursor-move"
+      className={`fixed z-50 ${calling === 'video' ? 'w-96' : 'w-80'} retro-bg-window retro-border retro-shadow-dark cursor-move overflow-hidden`}
       style={{ left: `${position.x}px`, top: `${position.y}px` }}
       onMouseDown={handleMouseDown}
     >
@@ -101,17 +101,26 @@ function DraggableCallWindow({ calling, callDuration, isMuted, isDeafened, onMic
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col items-center gap-4">
-        <div className="w-20 h-20 rounded-full retro-bg-accent retro-border flex items-center justify-center retro-shadow-dark">
-          {calling === 'video' ? <Video size={32} /> : <Phone size={32} />}
-        </div>
-        <div className="text-center">
-          <p className="font-bold text-sm">{callDuration === 0 ? 'Ringing...' : 'Connected'}</p>
-          <p className="text-xs opacity-70 mt-1">{partnerNickname}</p>
-        </div>
+      <div className="flex flex-col items-center gap-4">
+        {calling === 'video' ? (
+          <div className="w-full aspect-video bg-black relative">
+            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            <div className="absolute bottom-2 left-2 bg-black/40 px-2 py-0.5 rounded text-[10px] text-white font-bold backdrop-blur-sm">Remote</div>
+          </div>
+        ) : (
+          <div className="pt-6 flex flex-col items-center gap-4">
+            <div className="w-20 h-20 rounded-full retro-bg-accent retro-border flex items-center justify-center retro-shadow-dark">
+              <Phone size={32} />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-sm">{callDuration === 0 ? 'Ringing...' : 'Connected'}</p>
+              <p className="text-xs opacity-70 mt-1">{partnerNickname}</p>
+            </div>
+          </div>
+        )}
 
-        {/* Controls */}
-        <div className="flex gap-3 justify-center w-full">
+        {/* Controls Overlay for Video or Bottom for Audio */}
+        <div className={`flex gap-3 justify-center w-full p-4 ${calling === 'video' ? 'bg-gradient-to-t from-black/60 to-transparent pt-8 -mt-12 relative z-10' : ''}`}>
           <button
             onClick={() => { playAudio('click', sfx); onMicToggle(); }}
             className={`p-3 retro-border rounded-full transition-all ${
@@ -194,7 +203,7 @@ function IncomingCallNotification({ callType, partnerName, onAccept, onReject, r
   );
 }
 
-export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory, userId, partnerId }) {
+export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId }) {
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [calling, setCalling] = useState(null);
@@ -204,8 +213,12 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory, u
   const callTimerRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
-  const [callStartTime, setCallStartTime] = useState(null);
-  const mediaStreamRef = useRef(null);
+  
+  const peerRef = useRef(null);
+  const currentCallRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
+
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [voicePreview, setVoicePreview] = useState(null); const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
@@ -215,120 +228,103 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory, u
   const [viewingImageId, setViewingImageId] = useState(null);
   const messagesEndRef = useRef(null); const fileInputRef = useRef(null);
 
+  useEffect(() => {
+    if (!userId) return;
+    const peer = new Peer(userId, { debug: 1 });
+    peerRef.current = peer;
+    peer.on('call', (call) => { currentCallRef.current = call; });
+    return () => { peer.destroy(); };
+  }, [userId]);
+
   useEffect(() => { if (!calling && !activeOptions && searchQuery === '' && !viewingImageId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, calling, showDetails, activeOptions, searchQuery, viewingImageId, partnerTyping]);
 
   useEffect(() => {
     if (calling) {
-      // Request microphone access when call starts
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          mediaStreamRef.current = stream;
-          setCallStartTime(Date.now());
-          playAudio('send', sfx);
-          console.log('Microphone access granted');
-        })
-        .catch(err => {
-          console.error('Microphone access denied:', err);
-          alert('Microphone access denied. The call will be visual only.');
-        });
-
       callTimerRef.current = setInterval(() => { setCallDuration(prev => prev + 1); }, 1000);
-      return () => { 
-        if (callTimerRef.current) clearInterval(callTimerRef.current);
-      };
+      return () => { if (callTimerRef.current) clearInterval(callTimerRef.current); };
     }
-  }, [calling, sfx]);
+  }, [calling]);
 
   useEffect(() => { 
     if (!calling) {
       setCallDuration(0);
       setIsMuted(false);
       setIsDeafened(false);
-      // Stop and cleanup media stream
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-        mediaStreamRef.current = null;
-      }
+      if (currentCallRef.current) { currentCallRef.current.close(); currentCallRef.current = null; }
+      if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(track => track.stop()); localStreamRef.current = null; }
     }
   }, [calling]);
 
-  // Remove demo auto-reply: real partners will send messages via shared `chatHistory`.
-
-  // Detect incoming call invites in shared chat history
   useEffect(() => {
     if (!userId) return;
     const last = chatHistory[chatHistory.length - 1];
     if (!last) return;
-
-    // If a new call invite arrived from partner
     if (last.type === 'call_invite' && last.status === 'ringing' && last.sender !== userId) {
       setIncomingCall({ messageId: last.id, callType: last.callType, fromName: last.senderName || 'Partner' });
-      // start simple ringtone loop
       if (ringingIntervalRef.current) clearInterval(ringingIntervalRef.current);
       ringingIntervalRef.current = setInterval(() => playAudio('receive', sfx), 900);
     }
-
-    // If a call invite was accepted (status changed to accepted)
     if (last.type === 'call_invite' && last.status === 'accepted') {
-      // If I initiated it and partner accepted, start call locally
-      if (last.sender === userId) {
-        setCalling(last.callType);
-      }
-      // stop any ringing
+      if (last.sender === userId && !calling) { setCalling(last.callType); initiatePeerCall(last.callType); }
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
       setIncomingCall(null);
     }
-
-    // If a call was rejected or expired, clear incoming state
-    if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'missed')) {
+    if (last.type === 'call_invite' && (last.status === 'rejected' || last.status === 'missed' || last.status === 'ended')) {
       if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
       setIncomingCall(null);
+      setCalling(null);
     }
   }, [chatHistory, userId, sfx]);
 
-  const handleInputChange = (e) => { setInput(e.target.value); if (!isTyping) setIsTyping(true); };
-  useEffect(() => { const timer = setTimeout(() => setIsTyping(false), 1500); return () => clearTimeout(timer); }, [input]);
+  const initiatePeerCall = async (type) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+      localStreamRef.current = stream;
+      const call = peerRef.current.call(partnerId, stream);
+      currentCallRef.current = call;
+      call.on('stream', (remoteStream) => { if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream; });
+    } catch (err) { console.error('Failed to get local stream', err); handleEndCall(); }
+  };
 
   const handleEndCall = () => {
     if (!calling) return;
     playAudio('click', sfx);
-    const callDurationSecs = callDuration;
-    const mins = Math.floor(callDurationSecs / 60);
-    const secs = callDurationSecs % 60;
-    const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-    
-    setChatHistory(prev => [...prev, {
-      id: Date.now(),
-      sender: userId,
-      senderName: profile?.name,
-      type: 'call',
-      callType: calling,
-      duration: durationStr,
-      durationSecs: callDurationSecs,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: 'ended'
-    }]);
-    
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', status: 'ended', time: new Date().toLocaleTimeString() }]);
     setCalling(null);
   };
 
   const handleStartCall = (type) => {
     playAudio('click', sfx);
-    // append a call invite to shared chat history so partner receives ringing
-    const inviteId = Date.now();
-    setChatHistory(prev => [...prev, {
-      id: inviteId,
-      sender: userId,
-      senderName: profile?.name,
-      type: 'call_invite',
-      callType: type,
-      status: 'ringing',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      target: partnerId
-    }]);
-    // show outgoing UI for caller
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString(), target: partnerId }]);
     setCalling(type);
   };
+
+  const acceptCall = async (messageId) => {
+    playAudio('click', sfx);
+    const msg = chatHistory.find(m => m.id === messageId);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: msg.callType === 'video' });
+      localStreamRef.current = stream;
+      if (currentCallRef.current) {
+        currentCallRef.current.answer(stream);
+        currentCallRef.current.on('stream', (remoteStream) => { if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream; });
+      }
+      setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
+      setCalling(msg.callType);
+    } catch (err) { console.error('Failed to accept call', err); }
+    if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+    setIncomingCall(null);
+  };
+
+  const rejectCall = (messageId) => {
+    playAudio('click', sfx);
+    setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m));
+    if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+    setIncomingCall(null);
+  };
+
+  const handleInputChange = (e) => { setInput(e.target.value); if (!isTyping) setIsTyping(true); };
+  useEffect(() => { const timer = setTimeout(() => setIsTyping(false), 1500); return () => clearTimeout(timer); }, [input]);
 
   const handleSend = (e) => {
     e.preventDefault(); if (!input.trim()) return; playAudio('send', sfx);
@@ -342,11 +338,7 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory, u
       mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); const audioUrl = URL.createObjectURL(audioBlob); const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-        if (durationSecs >= 1) { 
-          const mins = Math.floor(durationSecs / 60); const secs = durationSecs % 60; const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-          setVoicePreview(durationSecs);
-          setVoicePreviewUrl(audioUrl);
-        }
+        if (durationSecs >= 1) { setVoicePreview(durationSecs); setVoicePreviewUrl(audioUrl); }
         stream.getTracks().forEach(track => track.stop()); 
       }; mediaRecorder.start(); setIsRecording(true); recordingStartTimeRef.current = Date.now(); setRecordingTime(0); recordingTimerRef.current = setInterval(() => { setRecordingTime(prev => prev + 1); }, 1000);
     } catch (err) { alert("Microphone access denied."); }
@@ -358,29 +350,13 @@ export function ChatView({ onClose, profile, sfx, chatHistory, setChatHistory, u
   const confirmVoiceNote = () => {
     if (!voicePreviewUrl || !voicePreview) return;
     playAudio('send', sfx);
-    const mins = Math.floor(voicePreview / 60); const secs = voicePreview % 60; const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
-    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'voice', duration: durationStr, audioUrl: voicePreviewUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]);
+    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'voice', duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`, audioUrl: voicePreviewUrl, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]);
     setReplyingTo(null);
     discardVoiceNote();
   };
 
   const handleFileChange = (e) => { const file = e.target.files[0]; if (file) { playAudio('send', sfx); const mockUrl = URL.createObjectURL(file); setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'image', url: mockUrl, text: file.name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); setReplyingTo(null); } };
 
-  const acceptCall = (messageId) => {
-    playAudio('click', sfx);
-    const msg = chatHistory.find(m => m.id === messageId);
-    setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'accepted' } : m));
-    if (msg) setCalling(msg.callType);
-    if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
-    setIncomingCall(null);
-  };
-
-  const rejectCall = (messageId) => {
-    playAudio('click', sfx);
-    setChatHistory(prev => prev.map(m => m.id === messageId ? { ...m, status: 'rejected' } : m));
-    if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
-    setIncomingCall(null);
-  };
   const handleDelete = (id) => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => m.id === id ? { ...m, isDeleted: true, text: null, url: null, duration: null, audioUrl: null } : m)); setActiveOptions(null); };
   const handleReact = (id, emoji) => { playAudio('click', sfx); setChatHistory(chatHistory.map(m => { if (m.id === id) { const reactions = m.reactions || []; return { ...m, reactions: reactions.includes(emoji) ? reactions.filter(e => e !== emoji) : [...reactions, emoji] }; } return m; })); setActiveOptions(null); };
   const handleEdit = (msg) => { playAudio('click', sfx); setEditingMsgId(msg.id); setInput(msg.text); setReplyingTo(null); setActiveOptions(null); };

@@ -101,7 +101,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
       try { window.localStorage.removeItem('attic_room_id'); } catch (e) {}
       toast('Unpaired. Returning to handshake...', 'success');
-      setTimeout(() => window.location.reload(), 500);
+      setTimeout(() => {
+        navigate('/handshake');
+        window.location.reload(); // Still reload to clear all states, but navigate first
+      }, 500);
     } catch (err) {
       console.error(err);
       toast('Failed to unpair. Please contact support.', 'error');
@@ -120,10 +123,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
              </div>
              <div className="flex-1 space-y-2">
                <div><label className="block text-sm font-bold mb-1">display name</label><input type="text" value={profile.name} onChange={(e) => setProfile({...profile, name: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
-               <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={profile.petName || ''} onChange={(e) => setProfile({...profile, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
+               <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div>
                   <label className="block text-sm font-bold mb-1">pet skin</label>
-                  <select value={profile.petSkin || '/assets/Cat Sprite Sheet.png'} onChange={(e) => setProfile({...profile, petSkin: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none font-bold">
+                  <select value={coupleData.petSkin || '/assets/Cat Sprite Sheet.png'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none font-bold">
                     <option value="/assets/Cat Sprite Sheet.png">Default (Cat Sprite Sheet)</option>
                     <option value="/assets/cat 1.png">Variant 1 (cat 1)</option>
                     <option value="/assets/cat 1.6.png">Variant 2 (cat 1.6)</option>
@@ -144,13 +147,13 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-bold mb-1">partner's nickname</label>
-              <input type="text" value={profile.partnerNickname || ''} onChange={(e) => setProfile({...profile, partnerNickname: e.target.value})} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
+              <input type="text" value={coupleData.partnerNickname || ''} onChange={(e) => setCoupleData({...coupleData, partnerNickname: e.target.value})} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>
-              <input type="date" value={profile.anniversary || ''} onChange={(e) => { setProfile({...profile, anniversary: e.target.value}); toast('Anniversary date saved!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
+              <input type="date" value={coupleData.anniversary || ''} onChange={(e) => { setCoupleData({...coupleData, anniversary: e.target.value}); toast('Anniversary date saved!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
             </div>
-            {profile.anniversary && (
+            {coupleData.anniversary && (
               <p className="text-xs font-bold opacity-50 text-center">Timer visible on dashboard ❤️</p>
             )}
           </div>

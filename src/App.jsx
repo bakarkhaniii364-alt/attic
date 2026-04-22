@@ -21,6 +21,8 @@ import { DreamJournal } from './apps/DreamJournal.jsx';
 import { DailyQuestion, useStreaks, getMilestoneToday, MilestoneCelebration, RelationshipResume } from './components/Features.jsx';
 import { ActivitiesHub } from './games/index.jsx';
 import { ResetPasswordView } from './views/ResetPasswordView.jsx';
+import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
+
 
 /* ═══════════════════════════════════════════════════════
    APP CONTENT — the main dashboard / views (post-auth)
@@ -29,9 +31,7 @@ function AppContent({ onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { userId, partnerId } = useUserContext();
-  // We no longer use view from localStorage directly for rendering, we use the URL.
-  // But we can track protected views.
-  const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊', petName: '', partnerNickname: '', anniversary: '' }); 
+  const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊' }); 
   const [theme, setTheme] = useLocalStorage('app_theme', 'default');
   const [weather, setWeather] = useState('clear'); 
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
@@ -40,41 +40,42 @@ function AppContent({ onLogout }) {
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
   const [confirmDialog, setConfirmDialog] = useState(null);
 
-  // Synced Global States (Supabase) - Now with user-specific data
-  // scores structure: { [userId]: { tictactoe: 0, pictionary: 0, ... }, [partnerId]: { ... } }
+  // Synced Global States (Supabase)
   const [scores, setScores] = useGlobalSync('game_scores', {});
   const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
   const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT);
   const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
   const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
   const [letters, setLetters] = useGlobalSync('shared_letters', []);
+  
+  // Shared Couple Profile / Pet
+  const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
+    anniversary: '', 
+    petName: 'pet', 
+    petSkin: '/assets/Cat Sprite Sheet.png', 
+    petHappy: 60,
+    partnerNickname: '' 
+  });
 
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
   const milestone = !milestoneShown && userId ? getMilestoneToday(profile.anniversary) : null;
   
-  // Route guard: if profile not set, redirect to dashboard (it's always dashboard now)
-  const protectedViews = ['/settings','/chat','/doodle','/capsule','/lists','/calendar','/scrapbook','/activities','/pixelart','/dreams','/dailyq','/resume'];
-  useEffect(() => {
-    const isProtected = protectedViews.some(p => location.pathname.startsWith(p));
-    if (isProtected && !profile.name) {
-      navigate('/');
-    }
-  }, [location.pathname, profile.name]);
-
   useEffect(() => { 
     document.documentElement.setAttribute('data-theme', theme); 
   }, [theme]);
-  useEffect(() => { if (triggerShake) { setTimeout(() => setTriggerShake(false), 400); } }, [triggerShake]);
-  useEffect(() => { const imgs = chatHistory.filter(m => m.type === 'image' && !m.isDeleted).map(m => m.url); setSharedImages(prev => { const unique = new Set([...prev, ...imgs]); return Array.from(unique); }); }, [chatHistory]);
 
   const handleShareToChat = (text, imgData) => { 
-    if (imgData) { 
-      setChatHistory(p => [...p, { id: Date.now(), sender: 'me', type: 'image', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); 
-    } else { 
-      setChatHistory(p => [...p, { id: Date.now(), sender: 'me', type: 'text', text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); 
-    } 
+    setChatHistory(p => [...p, { 
+      id: Date.now(), 
+      sender: userId, 
+      type: imgData ? 'image' : 'text', 
+      url: imgData, 
+      text: text, 
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+      status: 'sent' 
+    }]); 
   };
 
   const showConfirm = (title, message, onOk) => {
@@ -87,10 +88,17 @@ function AppContent({ onLogout }) {
     else navigate(`/${v}`);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
-    onLogout();
+  const handleDeleteAccount = async () => {
+    showConfirm('delete_account.exe', 'This will PERMANENTLY delete all your data and room associations. Continue?', async () => {
+      const { data, error } = await supabase.rpc('delete_user_data');
+      if (error) {
+        alert('Failed to delete data. Please try again.');
+        return;
+      }
+      await supabase.auth.signOut();
+      localStorage.clear();
+      window.location.reload();
+    });
   };
 
   return (
@@ -100,19 +108,15 @@ function AppContent({ onLogout }) {
       {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
       <StrayTray radioState={radioState} setRadioState={setRadioState} />
 
-
       <Routes>
-        <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} weather={weather} setWeather={setWeather} />} />
-        <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />} />
-        
-        <Route path="/chat" element={<ChatView profile={profile} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} />} />
-        
+        <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={onLogout} onDelete={handleDeleteAccount} weather={weather} setWeather={setWeather} />} />
+        <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={onLogout} onDelete={handleDeleteAccount} onClose={()=>navigateTo('dashboard')} />} />
+        <Route path="/chat" element={<ChatView profile={profile} partnerNickname={coupleData.partnerNickname} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} />} />
         <Route path="/doodle" element={<DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { 
           const doodleEntry = {id: Date.now(), sender: userId, senderName: profile.name, userId: userId, ...d};
           setDoodles(p=>[...p, doodleEntry]); 
           setSharedImages(p => [...new Set([...p, d.img])]);
         }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} />} />
-
         <Route path="/capsule" element={<TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} />} />
         <Route path="/lists" element={<ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
         <Route path="/calendar" element={<CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
@@ -120,10 +124,8 @@ function AppContent({ onLogout }) {
         <Route path="/pixelart" element={<PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} userId={userId} />} />
         <Route path="/dreams" element={<DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
         <Route path="/dailyq" element={<DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
-        <Route path="/resume" element={<RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} />} />
-        
+        <Route path="/resume" element={<RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} coupleData={coupleData} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} />} />
         <Route path="/activities/*" element={<ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} userId={userId} partnerId={partnerId} />} />
-        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
@@ -142,175 +144,84 @@ function AppContent({ onLogout }) {
    APP — auth gate + room pairing + sync
    ═══════════════════════════════════════════════════════ */
 export default function App() {
-  // Auth states: loading | landing | auth-signup | auth-signin | handshake | syncing | ready
-  const [appState, setAppState] = useState('loading');
   const [session, setSession] = useState(null);
-  const [inviteCode, setInviteCode] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Check URL for invite code
-    const params = new URLSearchParams(window.location.search);
-    const invite = params.get('invite');
-    if (invite) {
-      setInviteCode(invite.toUpperCase());
-      window.history.replaceState({}, '', window.location.pathname); // clean URL
-    }
-
-    // Check auth session
+    // 1. Initial Session Check
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
       if (s) {
-        setSession(s);
-        // User is logged in: go directly to checkRoom (which leads to dashboard or handshake)
-        checkRoom(s, invite);
-      } else {
-        // No session: show landing or auth flow
-        setAppState(invite ? 'auth-signup' : 'landing');
+        // If logged in, check room and initialize sync
+        checkRoomAndSync(s.user.id);
       }
+      setLoading(false);
     });
 
-
-    // 3. Listen for auth changes
+    // 2. Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      if (!s) setAppState('landing');
+      if (s) checkRoomAndSync(s.user.id);
+      else setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkRoom = async (s, pendingInvite) => {
-    // If there's a pending invite code, try to claim it first
-    if (pendingInvite) {
-      const { data } = await supabase.rpc('claim_invite', { code: pendingInvite.toUpperCase() });
-      if (data && data.success) {
-        await startSync(data.room_id);
-        return;
-      }
+  const checkRoomAndSync = async (userId) => {
+    const { data: room } = await supabase.rpc('get_my_room');
+    if (room && room.is_paired) {
+      await initializeRoomSync(room.id);
     }
-
-    // Check if user already has a room
-    const { data } = await supabase.rpc('get_my_room');
-    if (data && data.is_paired) {
-      await startSync(data.id);
-    } else {
-      setAppState('handshake');
-    }
+    setLoading(false);
   };
 
-  const startSync = async (roomId) => {
-    setAppState('syncing');
-    window.localStorage.setItem('attic_room_id', roomId);
-    await initializeRoomSync(roomId);
-    setAppState('ready');
-  };
-
-  const handleAuthSuccess = async ({ name, session: s, isNewUser, user }) => {
-    let session = s;
-    if (!session) {
-      const { data } = await supabase.auth.getSession();
-      session = data?.session;
-    }
-
-    // If no session but user exists (email confirmation pending), manually sign them in or create dummy session
-    if (!session && user) {
-      session = s; // use whatever was passed
-    }
-
-    setSession(session);
-    // Set profile in localStorage for AppContent to pick up
-    window.localStorage.setItem('user_profile', JSON.stringify({
-      name, emoji: '😊', petName: '', partnerNickname: '', anniversary: ''
-    }));
-    window.localStorage.setItem('current_view', JSON.stringify('dashboard'));
-
-    // Check room (and auto-claim invite if exists)
-    await checkRoom(session, inviteCode);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    setSession(null);
+    navigate('/login');
   };
 
   const handlePaired = async (roomId) => {
-    await startSync(roomId);
+    await initializeRoomSync(roomId);
+    navigate('/');
   };
 
-  const handleLogout = () => {
-    setSession(null);
-    setAppState('landing');
-    setInviteCode(null);
-  };
-
-  // ── RENDER ──
-
-  // Check for password reset route before auth gates
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  
-  if (pathname === '/password-reset') {
+  if (loading) {
     return (
-      <ToastProvider>
-        <ResetPasswordView sfx={true} />
-      </ToastProvider>
-    );
-  }
-
-  if (appState === 'loading') {
-    return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-main)] relative overflow-hidden">
-        <div className="absolute inset-0 bg-pattern-grid opacity-40" />
-        <Loader size={28} className="animate-spin text-[var(--primary)] mb-3 relative z-10" />
-        <p className="font-bold text-xs opacity-40 relative z-10 tracking-widest">loading attic...</p>
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-main)]">
+        <Loader size={32} className="animate-spin text-[var(--primary)] mb-4" />
+        <p className="font-bold text-sm opacity-40 tracking-widest">LOADING ATTIC...</p>
       </div>
     );
   }
 
-  if (appState === 'landing') {
-    return (
-      <ToastProvider>
-        <LandingView
-          onTryAttic={() => setAppState('auth-signup')}
-          onSignIn={() => setAppState('auth-signin')}
-        />
-      </ToastProvider>
-    );
-  }
-
-  if (appState === 'auth-signup' || appState === 'auth-signin') {
-    return (
-      <ToastProvider>
-        <AuthView
-          mode={appState === 'auth-signup' ? 'signup' : 'signin'}
-          inviteCode={inviteCode}
-          onAuthSuccess={handleAuthSuccess}
-          onBack={() => setAppState('landing')}
-        />
-      </ToastProvider>
-    );
-  }
-
-  if (appState === 'handshake') {
-    return (
-      <ToastProvider>
-        <HandshakeView
-          session={session}
-          onPaired={handlePaired}
-          onLogout={async () => { await supabase.auth.signOut(); localStorage.clear(); handleLogout(); }}
-        />
-      </ToastProvider>
-    );
-  }
-
-  if (appState === 'syncing') {
-    return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[var(--bg-main)] relative overflow-hidden">
-        <div className="absolute inset-0 bg-pattern-grid opacity-40" />
-        <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
-        <Loader size={28} className="animate-spin text-[var(--primary)] mb-3 relative z-10" />
-        <p className="font-bold text-xs opacity-40 relative z-10 tracking-widest">syncing your attic...</p>
-      </div>
-    );
-  }
-
-  // ready
   return (
     <ToastProvider>
-      <AppContent onLogout={handleLogout} />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<PublicRoute><LandingView onTryAttic={() => navigate('/signup')} onSignIn={() => navigate('/signin')} /></PublicRoute>} />
+        <Route path="/signup" element={<PublicRoute><AuthView mode="signup" onAuthSuccess={() => navigate('/')} onBack={() => navigate('/login')} /></PublicRoute>} />
+        <Route path="/signin" element={<PublicRoute><AuthView mode="signin" onAuthSuccess={() => navigate('/')} onBack={() => navigate('/login')} /></PublicRoute>} />
+        <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
+
+        {/* Handshake Route (Special Protected) */}
+        <Route path="/handshake" element={
+          <ProtectedRoute>
+            <HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} />
+          </ProtectedRoute>
+        } />
+
+        {/* Main App Routes (Protected) */}
+        <Route path="/*" element={
+          <ProtectedRoute>
+            <AppContent onLogout={handleLogout} />
+          </ProtectedRoute>
+        } />
+      </Routes>
     </ToastProvider>
   );
 }
+

@@ -18,15 +18,12 @@ export function useUserContext() {
         if (user) {
           setUserId(user.id);
           
-          // Get partner ID from room_members table
-          const { data: members } = await supabase
-            .from('room_members')
-            .select('user_id')
-            .neq('user_id', user.id)
-            .limit(1);
+          // Get partner ID from rooms table via get_my_room RPC
+          const { data: room } = await supabase.rpc('get_my_room');
           
-          if (members && members.length > 0) {
-            setPartnerId(members[0].user_id);
+          if (room && room.is_paired) {
+            const partner = room.creator_id === user.id ? room.partner_id : room.creator_id;
+            setPartnerId(partner);
           }
         }
       } catch (err) {

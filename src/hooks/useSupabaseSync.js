@@ -12,7 +12,17 @@ const notifyListeners = () => {
   listeners.forEach(listener => listener());
 };
 
+let currentChannel = null;
+
 export const initializeRoomSync = async (roomId) => {
+  if (currentRoomId === roomId && isInitialized) return;
+  
+  // 0. Clean up previous subscription
+  if (currentChannel) {
+    supabase.removeChannel(currentChannel);
+    currentChannel = null;
+  }
+
   currentRoomId = roomId;
   if (!currentRoomId) return;
 
@@ -21,16 +31,19 @@ export const initializeRoomSync = async (roomId) => {
   
   if (data && data.state) {
     globalState = data.state;
-  } else if (error && error.code === 'PGRST116') {
+  } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
     // Row not found, create it
+    globalState = {}; // Reset for new room
     await supabase.from('app_state').insert({ room_id: currentRoomId, state: globalState });
+  } else {
+    globalState = {}; // Reset for new room
   }
 
   isInitialized = true;
   notifyListeners();
 
   // 2. Subscribe to realtime updates
-  const channel = supabase.channel(`room:${currentRoomId}`)
+  currentChannel = supabase.channel(`room:${currentRoomId}`)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state', filter: `room_id=eq.${currentRoomId}` }, (payload) => {
       // Merge incoming state
       if (payload.new && payload.new.state) {
@@ -40,7 +53,12 @@ export const initializeRoomSync = async (roomId) => {
     })
     .subscribe();
     
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+      if (currentChannel) {
+        supabase.removeChannel(currentChannel);
+        currentChannel = null;
+      }
+    };
 };
 
 export function useGlobalSync(key, initialValue) {
