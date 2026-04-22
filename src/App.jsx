@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import { Loader } from 'lucide-react';
 import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
+import { useUserContext } from './hooks/useUserContext.js';
 import { playAudio } from './utils/audio.js';
 import { INITIAL_CHAT } from './constants/data.js';
 import { StrayTray } from './components/LofiPlayer.jsx';
@@ -27,6 +28,7 @@ import { ResetPasswordView } from './views/ResetPasswordView.jsx';
 function AppContent({ onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { userId, partnerId } = useUserContext();
   // We no longer use view from localStorage directly for rendering, we use the URL.
   // But we can track protected views.
   const [profile, setProfile] = useLocalStorage('user_profile', { name: '', emoji: '😊', petName: '', partnerNickname: '', anniversary: '' }); 
@@ -38,8 +40,10 @@ function AppContent({ onLogout }) {
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
   const [confirmDialog, setConfirmDialog] = useState(null);
 
-  // Synced Global States (Supabase)
-  const [scores, setScores] = useGlobalSync('game_scores', { tictactoe: 0, pictionary: 0, memory: 0, wordle: 0, sudoku: 0, chess: 0 });
+  // Synced Global States (Supabase) - Now with user-specific data
+  // scores structure: { [userId]: { tictactoe: 0, pictionary: 0, ... }, [partnerId]: { ... } }
+  const [scores, setScores] = useGlobalSync('game_scores', {});
+  const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
   const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT);
   const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
   const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
@@ -48,8 +52,7 @@ function AppContent({ onLogout }) {
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
-  const streak = useStreaks();
-  const milestone = !milestoneShown ? getMilestoneToday(profile.anniversary) : null;
+  const milestone = !milestoneShown && userId ? getMilestoneToday(profile.anniversary) : null;
   
   // Route guard: if profile not set, redirect to dashboard (it's always dashboard now)
   const protectedViews = ['/settings','/chat','/doodle','/capsule','/lists','/calendar','/scrapbook','/activities','/pixelart','/dreams','/dailyq','/resume'];
@@ -98,27 +101,27 @@ function AppContent({ onLogout }) {
       <StrayTray radioState={radioState} setRadioState={setRadioState} />
 
       <Routes>
-        <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} />} />
-        <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />} />
+        <Route path="/" element={<Dashboard setView={navigateTo} profile={profile} scores={scores} doodles={doodles} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} />} />
+        <Route path="/settings" element={<SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={() => showConfirm('danger_zone.exe', 'Are you sure? This will permanently delete all your data.', () => { localStorage.clear(); window.location.reload(); })} onClose={()=>navigateTo('dashboard')} />} />
         
         <Route path="/chat" element={<ChatView profile={profile} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} />} />
         
         <Route path="/doodle" element={<DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { 
-          const doodleEntry = {id: Date.now(), sender: 'me', ...d};
+          const doodleEntry = {id: Date.now(), sender: 'me', userId: userId, ...d};
           setDoodles(p=>[...p, doodleEntry]); 
           setSharedImages(p => [...new Set([...p, d.img])]);
         }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} />} />
 
-        <Route path="/capsule" element={<TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} />} />
-        <Route path="/lists" element={<ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
-        <Route path="/calendar" element={<CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
+        <Route path="/capsule" element={<TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} />} />
+        <Route path="/lists" element={<ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
+        <Route path="/calendar" element={<CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
         <Route path="/scrapbook" element={<ScrapbookApp images={sharedImages} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
-        <Route path="/pixelart" element={<PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} />} />
-        <Route path="/dreams" element={<DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
-        <Route path="/dailyq" element={<DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />} />
-        <Route path="/resume" element={<RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} scores={scores} sfx={sfxEnabled} />} />
+        <Route path="/pixelart" element={<PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} userId={userId} />} />
+        <Route path="/dreams" element={<DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
+        <Route path="/dailyq" element={<DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} />} />
+        <Route path="/resume" element={<RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} />} />
         
-        <Route path="/activities/*" element={<ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} />} />
+        <Route path="/activities/*" element={<ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} userId={userId} partnerId={partnerId} />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
