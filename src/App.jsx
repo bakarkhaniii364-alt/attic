@@ -186,24 +186,23 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
 
-  const [scores, setScores] = useGlobalSync('game_scores', {});
-  const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
-  const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT);
-  const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
-  const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
-  const [letters, setLetters] = useGlobalSync('shared_letters', []);
+  const [scores, setScores] = useGlobalSync('game_scores', {}, 'main');
+  const [streaks, setStreaks] = useGlobalSync('user_streaks', {}, 'main');
+  const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT, 'chat');
+  const [sharedImages, setSharedImages] = useGlobalSync('shared_images', [], 'chat');
+  const [doodles, setDoodles] = useGlobalSync('shared_doodles', [], 'chat'); 
+  const [letters, setLetters] = useGlobalSync('shared_letters', [], 'chat');
   const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
     anniversary: '', 
     petName: 'pet', 
     petSkin: '/assets/Cat Sprite Sheet.png', 
     petHappy: 60, 
     partnerNickname: '',
-    nicknames: {} // NEW: Map of userId -> nickname_set_by_partner
-  });
+    nicknames: {} 
+  }, 'main');
   
-  // NEW: Dedicated call state and profile synchronization
-  const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' });
-  const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
+  const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' }, 'main');
+  const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {}, 'main');
 
   // Update room profile whenever local profile changes
   useEffect(() => {
@@ -399,7 +398,11 @@ export default function App() {
       const { data: room } = await supabase.rpc('get_my_room');
       const isPaired = !!(room && room.is_paired);
       setHasRoom(isPaired);
-      if (isPaired && syncedRoomId !== room.id) { setSyncedRoomId(room.id); await initializeRoomSync(room.id); }
+      if (isPaired && syncedRoomId !== room.id) { 
+        setSyncedRoomId(room.id); 
+        await initializeRoomSync(room.id, 'main'); 
+        await initializeRoomSync(room.id, 'chat'); 
+      }
     } catch (err) { console.error("Room check failed", err); setHasRoom(false); } finally { setLoading(false); }
   };
 
@@ -427,7 +430,13 @@ export default function App() {
     setSession(data.session);
     navigate('/');
   };
-  const handlePaired = async (roomId) => { setHasRoom(true); setSyncedRoomId(roomId); await initializeRoomSync(roomId); navigate('/'); };
+  const handlePaired = async (roomId) => { 
+    setHasRoom(true); 
+    setSyncedRoomId(roomId); 
+    await initializeRoomSync(roomId, 'main'); 
+    await initializeRoomSync(roomId, 'chat'); 
+    navigate('/'); 
+  };
   const handleShareToChat = (text, imgData) => { setChatHistory(p => [...p, { id: Date.now(), sender: userId, type: imgData ? 'image' : 'text', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); };
   const navigateTo = (v) => { playAudio('click', sfxEnabled); if (v === 'dashboard') navigate('/'); else navigate(`/${v}`); };
 

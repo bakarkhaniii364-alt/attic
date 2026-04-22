@@ -1,83 +1,81 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase.js';
 
-// Global store for the entire room's data
-let globalState = {};
-let isInitialized = false;
+// Namespaced global store
+const namespaces = {};
 const listeners = new Set();
-let currentRoomId = null;
-let currentChannel = null;
-let updateTimeout = null;
 
-// Notify all React hooks when the global state changes from incoming webhooks
-const notifyListeners = () => {
-  listeners.forEach(listener => listener());
+const notifyListeners = (namespace, key) => {
+  listeners.forEach(l => l(namespace, key));
 };
 
-const pushToSupabase = async () => {
-  if (!currentRoomId || !isInitialized) return;
-  const { error } = await supabase.from('app_state').update({ state: globalState }).eq('room_id', currentRoomId);
-  if (error) console.error("[SYNC] Push Error:", error);
-};
-
-const debouncedPush = () => {
-  if (updateTimeout) clearTimeout(updateTimeout);
-  updateTimeout = setTimeout(pushToSupabase, 1000);
-};
-
-export const initializeRoomSync = async (roomId) => {
-  if (currentRoomId === roomId && isInitialized && currentChannel) return;
+const pushToSupabase = async (ns) => {
+  const store = namespaces[ns];
+  if (!store || !store.roomId || !store.isInitialized) return;
   
-  // 0. Clean up ALL previous channels
-  try {
-    if (currentChannel) {
-      supabase.removeChannel(currentChannel);
-    }
-    await supabase.removeAllChannels();
-  } catch (e) {
-    console.warn("[SYNC] Channel cleanup warning:", e);
+  const { error } = await supabase
+    .from('app_state')
+    .update({ state: store.state })
+    .eq('room_id', store.roomId);
+    
+  if (error) console.error(`[SYNC:${ns}] Push Error:`, error);
+};
+
+const debouncedPush = (ns) => {
+  const store = namespaces[ns];
+  if (!store) return;
+  if (store.updateTimeout) clearTimeout(store.updateTimeout);
+  store.updateTimeout = setTimeout(() => pushToSupabase(ns), 1000);
+};
+
+export const initializeRoomSync = async (roomId, ns = 'main') => {
+  const rowId = ns === 'main' ? roomId : `${roomId}:${ns}`;
+  
+  if (namespaces[ns]?.roomId === rowId && namespaces[ns]?.isInitialized) return;
+
+  // Cleanup old channel for this namespace
+  if (namespaces[ns]?.channel) {
+    supabase.removeChannel(namespaces[ns].channel);
   }
-  currentChannel = null;
 
-  currentRoomId = roomId;
-  if (!currentRoomId) return;
+  namespaces[ns] = {
+    state: {},
+    isInitialized: false,
+    roomId: rowId,
+    channel: null,
+    updateTimeout: null
+  };
 
-  // 1. Fetch initial state from DB
-  const { data, error } = await supabase.from('app_state').select('state').eq('room_id', currentRoomId).single();
+  // 1. Fetch initial state
+  const { data, error } = await supabase.from('app_state').select('state').eq('room_id', rowId).single();
   
   if (data && data.state) {
-    globalState = data.state;
+    namespaces[ns].state = data.state;
   } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
-    globalState = {}; 
-    await supabase.from('app_state').insert({ room_id: currentRoomId, state: globalState });
-  } else {
-    globalState = {};
+    await supabase.from('app_state').insert({ room_id: rowId, state: {} });
   }
 
-  isInitialized = true;
-  notifyListeners();
+  namespaces[ns].isInitialized = true;
+  notifyListeners(ns, '*');
 
-  // 2. Setup channel
-  const channelName = `realtime:room:${currentRoomId}`;
-  currentChannel = supabase.channel(channelName, {
-    config: {
-      presence: { key: roomId },
-    },
-  });
+  // 2. Setup Realtime
+  const channelName = `realtime:${ns}:${roomId}`;
+  const channel = supabase.channel(channelName);
   
-  currentChannel.on('postgres_changes', { 
+  channel.on('postgres_changes', { 
     event: 'UPDATE', 
     schema: 'public', 
     table: 'app_state', 
-    filter: `room_id=eq.${currentRoomId}` 
+    filter: `room_id=eq.${rowId}` 
   }, (payload) => {
     if (payload.new && payload.new.state) {
         const newState = payload.new.state;
-        const mergedState = { ...globalState };
+        const currentNS = namespaces[ns];
+        const mergedState = { ...currentNS.state };
 
         Object.keys(newState).forEach(key => {
-            if (Array.isArray(newState[key]) && Array.isArray(globalState[key])) {
-                const existingItems = globalState[key];
+            if (Array.isArray(newState[key]) && Array.isArray(currentNS.state[key])) {
+                const existingItems = currentNS.state[key];
                 const newItems = newState[key];
                 const hasIds = newItems.length > 0 && newItems[0]?.id;
                 
@@ -92,10 +90,15 @@ export const initializeRoomSync = async (roomId) => {
                         }
                         else mergedArray.push(item);
                     });
-                    if (mergedArray[0]?.timestamp || mergedArray[0]?.time) {
+                    if (mergedArray[0]?.timestamp) {
                         mergedArray.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
                     }
-                    mergedState[key] = mergedArray;
+                    // LIMIT chat history to last 150 items to prevent payload bloat
+                    if (key === 'chat_history' && mergedArray.length > 150) {
+                        mergedState[key] = mergedArray.slice(-150);
+                    } else {
+                        mergedState[key] = mergedArray;
+                    }
                 } else {
                     mergedState[key] = newItems;
                 }
@@ -104,23 +107,21 @@ export const initializeRoomSync = async (roomId) => {
             }
         });
 
-        globalState = mergedState;
-        notifyListeners();
+        currentNS.state = mergedState;
+        notifyListeners(ns, '*');
     }
   });
 
-  currentChannel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      console.log('[SYNC] Realtime connection established');
-    }
-  });
+  channel.subscribe();
+  namespaces[ns].channel = channel;
 };
 
-export function useGlobalSync(key, initialValue) {
+export function useGlobalSync(key, initialValue, ns = 'main') {
   const getInitial = () => {
-    if (globalState[key] !== undefined) return globalState[key];
+    const nsStore = namespaces[ns];
+    if (nsStore && nsStore.state[key] !== undefined) return nsStore.state[key];
     try {
-      const item = window.localStorage.getItem(`sync_${key}`);
+      const item = window.localStorage.getItem(`sync_${ns}_${key}`);
       return item ? JSON.parse(item) : initialValue;
     } catch (e) {
       return initialValue;
@@ -130,26 +131,35 @@ export function useGlobalSync(key, initialValue) {
   const [state, setState] = useState(getInitial);
 
   useEffect(() => {
-    const handleSync = () => {
-      const globalValue = globalState[key];
+    const handleSync = (updatedNS, updatedKey) => {
+      if (updatedNS !== ns) return;
+      if (updatedKey !== '*' && updatedKey !== key) return;
+      
+      const nsStore = namespaces[ns];
+      if (!nsStore) return;
+
+      const globalValue = nsStore.state[key];
       if (globalValue !== undefined && JSON.stringify(globalValue) !== JSON.stringify(state)) {
         setState(globalValue);
-        try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(globalValue)); } catch (e) {}
+        try { window.localStorage.setItem(`sync_${ns}_${key}`, JSON.stringify(globalValue)); } catch (e) {}
       }
     };
     listeners.add(handleSync);
-    if (isInitialized) handleSync();
+    if (namespaces[ns]?.isInitialized) handleSync(ns, '*');
     return () => { listeners.delete(handleSync); };
-  }, [key, state]);
+  }, [ns, key, state]);
 
   const updateState = useCallback((value) => {
+    const nsStore = namespaces[ns];
+    if (!nsStore) return;
+
     let valueToStore = value instanceof Function ? value(state) : value;
     
     // Merge if array
-    if (Array.isArray(valueToStore) && Array.isArray(globalState[key])) {
+    if (Array.isArray(valueToStore) && Array.isArray(nsStore.state[key])) {
         const hasIds = valueToStore.length > 0 && (valueToStore[valueToStore.length - 1]?.id);
         if (hasIds) {
-            const merged = [...globalState[key]];
+            const merged = [...nsStore.state[key]];
             valueToStore.forEach(item => {
                 const idx = merged.findIndex(m => m.id === item.id);
                 if (idx >= 0) merged[idx] = item;
@@ -159,15 +169,14 @@ export function useGlobalSync(key, initialValue) {
         }
     }
 
-    // Only update if actually different
-    if (JSON.stringify(globalState[key]) === JSON.stringify(valueToStore)) return;
+    if (JSON.stringify(nsStore.state[key]) === JSON.stringify(valueToStore)) return;
 
-    globalState[key] = valueToStore;
+    nsStore.state[key] = valueToStore;
     setState(valueToStore);
-    try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
+    try { window.localStorage.setItem(`sync_${ns}_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
     
-    debouncedPush();
-  }, [key, state]);
+    debouncedPush(ns);
+  }, [ns, key, state]);
 
   return [state, updateState];
 }
@@ -177,15 +186,17 @@ export function useBroadcast(event, callback) {
     callbackRef.current = callback;
 
     useEffect(() => {
-        if (!currentChannel) return;
-        const channel = currentChannel.on('broadcast', { event }, (payload) => {
+        const mainChannel = namespaces['main']?.channel;
+        if (!mainChannel) return;
+        const channel = mainChannel.on('broadcast', { event }, (payload) => {
             if (callbackRef.current) callbackRef.current(payload.payload);
         });
     }, [event]);
 
     return useCallback((payload) => {
-        if (currentChannel) {
-            currentChannel.send({ type: 'broadcast', event, payload });
+        const mainChannel = namespaces['main']?.channel;
+        if (mainChannel) {
+            mainChannel.send({ type: 'broadcast', event, payload });
         }
     }, []);
 }
