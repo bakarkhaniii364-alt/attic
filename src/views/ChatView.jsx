@@ -3,6 +3,7 @@ import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, He
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
+import { useBroadcast } from '../hooks/useSupabaseSync.js';
 
 /* ═══════════════════════════════════════════════════════
    UTILITIES
@@ -79,7 +80,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId }) {
+export function ChatView({ onClose, profile, partnerProfile, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId, onStartCall }) {
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('media');
@@ -101,6 +102,24 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
   const [viewingImageId, setViewingImageId] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  
+  // TYPING INDICATOR LOGIC
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+  const sendTyping = useBroadcast('typing', (payload) => {
+      if (payload.userId === partnerId) {
+          setIsPartnerTyping(payload.isTyping);
+      }
+  });
+
+  const typingTimeoutRef = useRef(null);
+  const handleInputChange = (e) => {
+      setInput(e.target.value);
+      sendTyping({ userId, isTyping: true });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+          sendTyping({ userId, isTyping: false });
+      }, 2000);
+  };
 
   useEffect(() => { if (!activeOptions && searchQuery === '' && !viewingImageId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, activeOptions, searchQuery, viewingImageId, showDetails]);
 
@@ -109,8 +128,22 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
   const handleSend = (e) => {
     if (e) e.preventDefault(); if (!input.trim()) return; playAudio('send', sfx);
     if (editingMsgId) { setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); setEditingMsgId(null); }
-    else { setChatHistory([...chatHistory, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'text', text: input, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]); }
+    else { 
+      const newMsg = { 
+        id: crypto.randomUUID(), 
+        sender: userId, 
+        senderName: profile?.name, 
+        type: 'text', 
+        text: input, 
+        timestamp: Date.now(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+        replyTo: replyingTo, 
+        status: 'sent' 
+      };
+      setChatHistory([...chatHistory, newMsg]); 
+    }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
+    sendTyping({ userId, isTyping: false });
   };
 
   const startRecording = async () => {
@@ -128,7 +161,18 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
   const discardVoiceNote = () => { setVoicePreview(null); setVoicePreviewUrl(null); setVoiceBase64(null); };
   const confirmVoiceNote = () => {
     if (!voiceBase64 || !voicePreview) return; playAudio('send', sfx);
-    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'voice', duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`, audioUrl: voiceBase64, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]);
+    setChatHistory(prev => [...prev, { 
+        id: crypto.randomUUID(), 
+        sender: userId, 
+        senderName: profile?.name, 
+        type: 'voice', 
+        duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`, 
+        audioUrl: voiceBase64, 
+        timestamp: Date.now(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+        replyTo: replyingTo, 
+        status: 'sent' 
+    }]);
     setReplyingTo(null); discardVoiceNote();
   };
 
@@ -139,7 +183,18 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
       reader.onloadend = async () => {
         playAudio('send', sfx);
         const compressed = await compressImage(reader.result);
-        setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'image', url: compressed, text: file.name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), replyTo: replyingTo, status: 'sent' }]);
+        setChatHistory(prev => [...prev, { 
+            id: crypto.randomUUID(), 
+            sender: userId, 
+            senderName: profile?.name, 
+            type: 'image', 
+            url: compressed, 
+            text: file.name, 
+            timestamp: Date.now(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+            replyTo: replyingTo, 
+            status: 'sent' 
+        }]);
         setReplyingTo(null);
       };
       reader.readAsDataURL(file);
@@ -152,7 +207,7 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
   const pinnedMessages = chatHistory.filter(m => m.isPinned && !m.isDeleted);
   const callHistory = chatHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
   const currentImageIndex = imageMessages.findIndex(m => m.id === viewingImageId);
-  const headerActions = (<div className="flex gap-2"><button onClick={() => handleStartCall('audio')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18} /></button><button onClick={() => handleStartCall('video')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18} /></button></div>);
+  const headerActions = (<div className="flex gap-2"><button onClick={() => onStartCall('audio')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18} /></button><button onClick={() => onStartCall('video')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18} /></button></div>);
   const filteredMessages = chatHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
 
   return (
@@ -177,7 +232,7 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
                     <div className="flex items-end gap-2 max-w-[85%] md:max-w-[70%] relative">
-                      {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">☕</div>}</div>}
+                      {!isMe && <div className="w-8 flex-shrink-0">{isGroupEnd && <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>}</div>}
                       {isMe && !msg.isDeleted && !isCallLog && (<div className="opacity-0 group-hover:opacity-100 transition-opacity pr-2 flex items-center justify-center relative"><button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1 hover:bg-black/5 rounded-full"><MoreVertical size={16} className="opacity-50 hover:opacity-100" /></button></div>)}
                       <div className={`p-3 retro-border text-sm leading-relaxed relative ${msg.isDeleted ? 'bg-gray-100 border-gray-300 text-gray-500 italic' : isCallLog ? 'bg-black/5 border-dashed italic' : isMe ? 'retro-bg-primary retro-shadow-dark' : 'retro-bg-window retro-shadow-dark'} ${isMe ? `rounded-l-xl ${isGroupStart ? 'rounded-tr-xl' : 'rounded-tr-sm'} ${isGroupEnd ? 'rounded-br-xl' : 'rounded-br-sm'}` : `rounded-r-xl ${isGroupStart ? 'rounded-tl-xl' : 'rounded-tl-sm'} ${isGroupEnd ? 'rounded-bl-xl' : 'rounded-bl-sm'}`}`}>
                         {msg.replyTo && !msg.isDeleted && (<div className="bg-white/50 border-l-4 border-[var(--border)] p-2 mb-2 text-xs rounded-r-md"><p className="font-bold opacity-70 mb-1">{msg.replyTo.sender === userId ? profile.name || 'You' : (msg.replyTo.senderName || partnerNickname || 'Partner')}</p><p className="truncate opacity-80">{msg.replyTo.text || 'Attachment/Voice'}</p></div>)}
@@ -205,6 +260,19 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
                 );
               })}
               <div ref={messagesEndRef} className="h-4" />
+              {isPartnerTyping && (
+                  <div className="flex items-center gap-2 mb-4 animate-in fade-in duration-300">
+                      <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
+                      <div className="retro-bg-window retro-border px-3 py-2 rounded-xl rounded-bl-sm text-[10px] font-bold opacity-60 flex gap-1 items-center">
+                          {partnerNickname} is typing
+                          <span className="flex gap-0.5">
+                              <span className="w-1 h-1 bg-black rounded-full animate-bounce"></span>
+                              <span className="w-1 h-1 bg-black rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                              <span className="w-1 h-1 bg-black rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                          </span>
+                      </div>
+                  </div>
+              )}
             </div>
             <div className="flex flex-col retro-bg-accent retro-border-t relative">
               {showEmojiPicker && (
@@ -213,8 +281,8 @@ export function ChatView({ onClose, profile, partnerNickname, sfx, chatHistory, 
                 </div>
               )}
               {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 rounded">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500 rounded">Send</button></div></div>)}
-              {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : 'Partner'}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 rounded-full"><X size={14} /></button></div>)}
-              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" /><button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-bg-window retro-border hover:bg-gray-100 disabled:opacity-50 transition-colors"><Paperclip size={18} /></button><button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 retro-bg-window retro-border transition-colors ${showEmojiPicker ? 'bg-[var(--accent)]' : 'hover:bg-gray-100'}`}><Smile size={18} /></button><div className="flex-1 relative flex items-center"><input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={(e) => setInput(e.target.value)} placeholder="type a message..." disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} /></div>{!input.trim() && !editingMsgId && voicePreview === null ? (<button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`}><Mic size={18} className={isRecording ? 'animate-bounce' : ''} /></button>) : (<RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton>)}</form>
+              {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 rounded-full"><X size={14} /></button></div>)}
+              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative"><input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" /><button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-bg-window retro-border hover:bg-gray-100 disabled:opacity-50 transition-colors"><Paperclip size={18} /></button><button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 retro-bg-window retro-border transition-colors ${showEmojiPicker ? 'bg-[var(--accent)]' : 'hover:bg-gray-100'}`}><Smile size={18} /></button><div className="flex-1 relative flex items-center"><input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} placeholder="type a message..." disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 retro-border retro-bg-window focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} /></div>{!input.trim() && !editingMsgId && voicePreview === null ? (<button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 retro-border transition-all flex-shrink-0 select-none ${isRecording ? 'bg-red-400 text-white retro-shadow-none translate-y-[2px]' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`}><Mic size={18} className={isRecording ? 'animate-bounce' : ''} /></button>) : (<RetroButton type="submit" variant="primary" className="p-2 sm:p-3 flex-shrink-0"><Send size={18} /></RetroButton>)}</form>
             </div>
           </div>
           {showDetails && (

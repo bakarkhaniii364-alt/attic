@@ -274,7 +274,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       if (gameId === 'typing') return <TypingRace {...props} />;
       if (gameId === 'wyr') return <WouldYouRather {...props} />;
       if (gameId === 'lovelang') return <LoveLanguageQuiz {...props} />;
-      if (gameId === 'sync') return <SyncWatcher config={config} onBack={closeGame} sfx={sfx} />;
+      if (gameId === 'sync') return <SyncWatcher config={config} onBack={closeGame} sfx={sfx} userId={userId} />;
     }
 
     if (fallbackTitles[gameId]) {

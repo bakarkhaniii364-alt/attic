@@ -7,7 +7,7 @@ import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 
-export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores, userId, coupleData, setCoupleData }) {
+export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData }) {
   const navigate = useNavigate();
   const toast = useToast();
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -157,7 +157,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-bold mb-1">partner's nickname</label>
-              <input type="text" value={coupleData.partnerNickname || ''} onChange={(e) => setCoupleData({...coupleData, partnerNickname: e.target.value})} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
+              <input 
+                type="text" 
+                value={coupleData.nicknames?.[partnerId] || coupleData.partnerNickname || ''} 
+                onChange={(e) => {
+                  const newNicknames = { ...coupleData.nicknames, [partnerId]: e.target.value };
+                  setCoupleData({ ...coupleData, nicknames: newNicknames, partnerNickname: e.target.value });
+                }} 
+                placeholder="e.g. Fiona" 
+                className="w-full p-2 retro-border retro-bg-window focus:outline-none" 
+              />
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>

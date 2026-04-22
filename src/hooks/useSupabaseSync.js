@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase.js';
 
 // Global store for the entire room's data
@@ -6,19 +6,21 @@ let globalState = {};
 let isInitialized = false;
 const listeners = new Set();
 let currentRoomId = null;
+let currentChannel = null;
 
 // Notify all React hooks when the global state changes from incoming webhooks
 const notifyListeners = () => {
   listeners.forEach(listener => listener());
 };
 
-let currentChannel = null;
-
 export const initializeRoomSync = async (roomId) => {
   if (currentRoomId === roomId && isInitialized && currentChannel) return;
   
   // 0. Clean up ALL previous channels to avoid subscription collisions
   try {
+    if (currentChannel) {
+      supabase.removeChannel(currentChannel);
+    }
     await supabase.removeAllChannels();
   } catch (e) {
     console.warn("[SYNC] Channel cleanup warning:", e);
@@ -44,10 +46,13 @@ export const initializeRoomSync = async (roomId) => {
   isInitialized = true;
   notifyListeners();
 
-  // 2. Setup channel and add listeners BEFORE calling subscribe()
-  // Using a unique channel name to prevent internal Supabase caching issues
+  // 2. Setup channel
   const channelName = `realtime:room:${currentRoomId}`;
-  currentChannel = supabase.channel(channelName);
+  currentChannel = supabase.channel(channelName, {
+    config: {
+      presence: { key: roomId },
+    },
+  });
   
   currentChannel.on('postgres_changes', { 
     event: 'UPDATE', 
@@ -57,7 +62,38 @@ export const initializeRoomSync = async (roomId) => {
   }, (payload) => {
     // Merge incoming state
     if (payload.new && payload.new.state) {
-        globalState = { ...globalState, ...payload.new.state };
+        // Advanced merge for arrays (chat history, etc.)
+        const newState = payload.new.state;
+        const mergedState = { ...globalState };
+
+        Object.keys(newState).forEach(key => {
+            if (Array.isArray(newState[key]) && Array.isArray(globalState[key])) {
+                // Merge arrays by 'id' if present, otherwise just take new
+                const existingItems = globalState[key];
+                const newItems = newState[key];
+                const hasIds = newItems.length > 0 && newItems[0]?.id;
+                
+                if (hasIds) {
+                    const mergedArray = [...existingItems];
+                    newItems.forEach(item => {
+                        const idx = mergedArray.findIndex(m => m.id === item.id);
+                        if (idx >= 0) mergedArray[idx] = item;
+                        else mergedArray.push(item);
+                    });
+                    // Keep it sorted by time if it looks like a message log
+                    if (mergedArray[0]?.timestamp || mergedArray[0]?.time) {
+                        mergedArray.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                    }
+                    mergedState[key] = mergedArray;
+                } else {
+                    mergedState[key] = newItems;
+                }
+            } else {
+                mergedState[key] = newState[key];
+            }
+        });
+
+        globalState = mergedState;
         notifyListeners();
     }
   });
@@ -65,9 +101,6 @@ export const initializeRoomSync = async (roomId) => {
   currentChannel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
       console.log('[SYNC] Realtime connection established for room:', currentRoomId);
-    }
-    if (status === 'CHANNEL_ERROR') {
-      console.error('[SYNC] Realtime connection failed.');
     }
   });
 };
@@ -94,37 +127,78 @@ export function useGlobalSync(key, initialValue) {
         try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(globalState[key])); } catch (e) {}
       }
       else if (globalState[key] === undefined && isInitialized) {
-        // First initialization might not have the key yet
         updateGlobalState(state);
       }
     };
     listeners.add(handleSync);
-    // Initial flush if ready
     if (isInitialized) handleSync();
-    
     return () => listeners.delete(handleSync);
   }, [key, state]);
 
   // Update function that pushes to React, LocalStorage, Global Store, and Supabase
   const updateState = useCallback(async (value) => {
-    const valueToStore = value instanceof Function ? value(state) : value;
+    let valueToStore = value instanceof Function ? value(state) : value;
+    
+    // PRE-MERGE: If updating an array, merge with globalState first to avoid overwriting partner's concurrent edits
+    if (Array.isArray(valueToStore) && Array.isArray(globalState[key])) {
+        const hasIds = valueToStore.length > 0 && (valueToStore[valueToStore.length - 1]?.id);
+        if (hasIds) {
+            const merged = [...globalState[key]];
+            valueToStore.forEach(item => {
+                const idx = merged.findIndex(m => m.id === item.id);
+                if (idx >= 0) merged[idx] = item;
+                else merged.push(item);
+            });
+            valueToStore = merged;
+        }
+    }
+
     setState(valueToStore);
     globalState[key] = valueToStore;
     try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
     
-    // Push to database
     updateGlobalState(valueToStore);
   }, [key, state]);
 
   const updateGlobalState = async (valueToStore) => {
       if (!currentRoomId || !isInitialized) return;
-      // Copy current global state to push
       const payload = { ...globalState, [key]: valueToStore };
-      globalState = payload; // Update instantly
+      globalState = payload; 
       
       const { error } = await supabase.from('app_state').update({ state: payload }).eq('room_id', currentRoomId);
       if (error) console.error("Sync Error:", error);
   };
 
   return [state, updateState];
+}
+
+// Hook for transient events like typing indicators
+export function useBroadcast(event, callback) {
+    const callbackRef = useRef(callback);
+    callbackRef.current = callback;
+
+    useEffect(() => {
+        if (!currentChannel) return;
+        
+        const channel = currentChannel.on('broadcast', { event }, (payload) => {
+            if (callbackRef.current) callbackRef.current(payload.payload);
+        });
+
+        return () => {
+            // Note: channel.off doesn't exist, but removing channel or just letting GC handle it is usually okay
+            // In Attic we keep the channel alive globally.
+        };
+    }, [event]);
+
+    const send = useCallback((payload) => {
+        if (currentChannel) {
+            currentChannel.send({
+                type: 'broadcast',
+                event,
+                payload
+            });
+        }
+    }, []);
+
+    return send;
 }

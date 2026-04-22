@@ -11,6 +11,7 @@ create table if not exists rooms (
   invite_code text unique not null,
   creator_id uuid references auth.users(id) not null,
   partner_id uuid references auth.users(id),
+  is_active boolean default true,
   created_at timestamptz default now()
 );
 
@@ -31,7 +32,7 @@ returns json as $$
 declare
   room_row rooms%rowtype;
 begin
-  select * into room_row from rooms where invite_code = upper(code);
+  select * into room_row from rooms where invite_code = upper(code) and is_active = true;
 
   if not found then
     return json_build_object('error', 'invalid_code', 'message', 'that code doesn''t exist. double-check and try again.');
@@ -62,7 +63,7 @@ declare
 begin
   -- Prioritize rooms where the user is already paired
   select * into room_row from rooms
-  where (creator_id = auth.uid() or partner_id = auth.uid())
+  where (creator_id = auth.uid() or partner_id = auth.uid()) and is_active = true
   order by (partner_id is not null) desc, created_at desc
   limit 1;
 
@@ -105,14 +106,8 @@ begin
     new_code := upper(substring(md5(random()::text) from 1 for 6));
   end loop;
 
-  if room_row.partner_id = auth.uid() then
-    update rooms set creator_id = auth.uid(), partner_id = null, invite_code = new_code where id = room_uuid;
-  else
-    update rooms set partner_id = null, invite_code = new_code where id = room_uuid;
-  end if;
-
-  -- Also clear the app_state for this room since the tie is severed
-  update app_state set state = '{}'::jsonb where room_id = room_uuid::text;
+  -- Save away: Deactivate the room instead of clearing it
+  update rooms set is_active = false where id = room_uuid;
 
   return json_build_object('success', true, 'room_id', room_uuid, 'invite_code', new_code);
 end;

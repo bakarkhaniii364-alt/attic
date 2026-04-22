@@ -179,9 +179,10 @@ function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData }) {
   const updatePetHappy = (val) => setCoupleData({ ...coupleData, petHappy: val });
-  const [mood, setMood] = useLocalStorage('my_mood', '😊');
+  const mood = profile.mood || '😊';
+  const setMood = (m) => setProfile(prev => ({ ...prev, mood: m }));
   const [petHappy, setPetHappy] = useLocalStorage('pet_happy', 60);
   const [pokeActive, setPokeActive] = useState(false);
   const toast = useToast();
@@ -206,8 +207,23 @@ export function Dashboard({ setView, profile, scores, doodles, onOpenDoodle, sfx
         <div className="flex flex-col h-full justify-between gap-4">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-4">
-              {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 rounded-full retro-border retro-shadow-dark object-cover" /> : <div className="text-4xl">{profile.emoji}</div>}
-              <div><h1 className="text-2xl sm:text-3xl font-bold mb-1">hi {profile.name}!</h1><div className="flex items-center gap-2"><p className="text-sm sm:text-base">partner is <span className="retro-bg-secondary px-2 py-0.5 retro-border text-xs sm:text-sm inline-block rotate-2">online</span></p><StreakBadge streak={streak} /></div></div>
+              {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 rounded-full retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black mb-1 leading-none lowercase">hi {myDisplayName}! {mood}</h1>
+                <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-2">
+                        {partnerProfile.pfp ? (
+                            <img src={partnerProfile.pfp} alt="partner" className="w-6 h-6 rounded-full retro-border object-cover bg-white" />
+                        ) : (
+                            <div className="w-6 h-6 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-[10px]">{partnerProfile.emoji || '👤'}</div>
+                        )}
+                        <p className="text-xs font-bold truncate max-w-[100px]">
+                            {partnerProfile.name || coupleData.partnerNickname || 'Partner'} is <span className="text-green-600 animate-pulse">{partnerProfile.mood || 'online'}</span>
+                        </p>
+                    </div>
+                    <StreakBadge streak={streak} />
+                </div>
+              </div>
             </div>
             <button onClick={handlePoke} className={`p-2 retro-border rounded-full flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary scale-90' : 'retro-bg-window retro-shadow-dark hover:-translate-y-1'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button>
           </div>

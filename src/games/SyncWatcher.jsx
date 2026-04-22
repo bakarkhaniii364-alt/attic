@@ -3,86 +3,94 @@ import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import ReactPlayer from 'react-player';
 import { Play, Pause, FastForward, Heart, Link as LinkIcon, Users, MessageSquare, Volume2, Maximize2 } from 'lucide-react';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
-export function SyncWatcher({ config, onBack, sfx }) {
-    const [url, setUrl] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+export function SyncWatcher({ config, onBack, sfx, userId }) {
+    // 1. Synced Global State
+    const [url, setUrl] = useGlobalSync('sync_watcher_url', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+    const [playing, setPlaying] = useGlobalSync('sync_watcher_playing', false);
+    const [syncedPlayed, setSyncedPlayed] = useGlobalSync('sync_watcher_played', 0);
+    const [chatLog, setChatLog] = useGlobalSync('sync_watcher_chat', []);
+    const [lastAction, setLastAction] = useGlobalSync('sync_watcher_last_action', { type: 'init', actor: 'system', timestamp: Date.now() });
+
+    // 2. Local UI State
     const [inputUrl, setInputUrl] = useState('');
-    const [playing, setPlaying] = useState(false);
     const [volume, setVolume] = useState(0.8);
-    const [played, setPlayed] = useState(0);
+    const [played, setPlayed] = useState(0); // Local slider position
     const [duration, setDuration] = useState(0);
-
-    const [partnerConnected, setPartnerConnected] = useState(false);
     const [hearts, setHearts] = useState([]);
-    const [partnerAction, setPartnerAction] = useState(null);
-    const [chatLog, setChatLog] = useState([]);
     const [chatInput, setChatInput] = useState('');
+    const [loadError, setLoadError] = useState(null);
+    const [ready, setReady] = useState(false);
+    const [debugOpen, setDebugOpen] = useState(false);
 
     const playerRef = useRef(null);
     const wrapperRef = useRef(null);
-    const [loadError, setLoadError] = useState(null);
-    const [ready, setReady] = useState(false);
-    const [loadingTimeout, setLoadingTimeout] = useState(false);
-    const [debugOpen, setDebugOpen] = useState(false);
+    const isSeeking = useRef(false);
 
+    // 3. Sync Logic: React to partner's changes
     useEffect(() => {
-        // Mock partner connection
-        const saved = (() => {
-            try { return window.localStorage.getItem('sync_watcher_partner') === '1'; } catch (e) { return false; }
-        })();
-        if (saved) {
-            setPartnerConnected(true);
-        } else {
-            const tm = setTimeout(() => {
-                setPartnerConnected(true);
-                try { window.localStorage.setItem('sync_watcher_partner', '1'); } catch (e) {}
-                setChatLog(prev => [...prev, { sender: 'System', text: 'Partner joined the watch party!' }]);
-                playAudio('win', sfx);
-            }, 3000);
-            return () => clearTimeout(tm);
+        // When url or playing changes from global state, it's already handled by React's rendering
+        // But we need to handle seeking manually to avoid loops
+        if (Math.abs(syncedPlayed - played) > 0.05 && !isSeeking.current) {
+            console.log('[SYNC] Partner seek detected, adjusting local player to:', syncedPlayed);
+            playerRef.current?.seekTo(syncedPlayed);
+            setPlayed(syncedPlayed);
         }
-    }, []);
+    }, [syncedPlayed]);
 
     const handlePlayPause = () => {
         const newPlay = !playing;
+        playAudio('click', sfx);
         setPlaying(newPlay);
-
-        // Mock network sync message
-        if (partnerConnected) {
-            setPartnerAction(`You ${newPlay ? 'played' : 'paused'} the video`);
-            setTimeout(() => setPartnerAction(null), 2000);
-        }
+        setLastAction({ type: newPlay ? 'play' : 'pause', actor: 'user', timestamp: Date.now() });
     };
 
-    const handleSeekChange = (e) => setPlayed(parseFloat(e.target.value));
+    const handleSeekChange = (e) => {
+        isSeeking.current = true;
+        setPlayed(parseFloat(e.target.value));
+    };
+
     const handleSeekMouseUp = (e) => {
+        const newTime = parseFloat(e.target.value);
         if (playerRef.current) {
-            playerRef.current.seekTo(parseFloat(e.target.value));
-            if (partnerConnected) {
-                setPartnerAction(`You scrubbed the video`);
-                setTimeout(() => setPartnerAction(null), 2000);
+            playerRef.current.seekTo(newTime);
+            setSyncedPlayed(newTime);
+            setLastAction({ type: 'seek', actor: 'user', timestamp: Date.now() });
+        }
+        isSeeking.current = false;
+    };
+
+    const handleProgress = (state) => {
+        // Only update local slider if not seeking
+        if (!isSeeking.current) {
+            setPlayed(state.played);
+            
+            // Periodically sync the time (every 5 seconds) to keep users in sync if one drifts
+            if (Math.floor(state.playedSeconds) % 5 === 0 && Math.abs(state.played - syncedPlayed) > 0.01) {
+                // To avoid "fighting" over the time, we only sync if we are the one playing?
+                // Or just let the most recent update win. 
+                // For simplicity, we don't auto-sync progress here to avoid jitter.
             }
         }
     };
 
-    const handleProgress = (state) => setPlayed(state.played);
     const handleDuration = (d) => setDuration(d);
 
     const handleLoadUrl = () => {
         if (!inputUrl) return;
         playAudio('click', sfx);
         const newUrl = inputUrl.trim();
-        console.log('[SYNC] Attempting to load URL:', newUrl);
+        console.log('[SYNC] Broadcasting new URL:', newUrl);
         
         setUrl(newUrl);
-        try { window.localStorage.setItem('sync_watcher_url', newUrl); } catch (e) {}
         setPlaying(false);
+        setSyncedPlayed(0);
         setPlayed(0);
         setLoadError(null);
         setReady(false);
-        if (partnerConnected) {
-            setChatLog(prev => [...prev, { sender: 'System', text: '-- New Video Loaded by You --' }]);
-        }
+        setChatLog(prev => [...prev, { sender: 'System', text: `-- New Video Loaded --` }]);
+        setLastAction({ type: 'load', actor: 'user', timestamp: Date.now() });
     };
 
     const sendReaction = () => {
@@ -92,23 +100,24 @@ export function SyncWatcher({ config, onBack, sfx }) {
         setTimeout(() => {
             setHearts(prev => prev.filter(h => h.id !== newHeart.id));
         }, 2000);
+        // We could sync hearts too, but it might be too much traffic
     };
 
     const sendChat = (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
         playAudio('click', sfx);
-        setChatLog(prev => [...prev, { sender: 'You', text: chatInput }]);
+        
+        const newMessage = { 
+            senderId: userId, 
+            sender: 'User', // Local perspective
+            text: chatInput, 
+            timestamp: Date.now(), 
+            id: Date.now() 
+        };
+        
+        setChatLog(prev => [...prev, newMessage]);
         setChatInput('');
-
-        // Mock partner reply
-        if (partnerConnected && Math.random() > 0.5) {
-            setTimeout(() => {
-                const replies = ["haha yeah!", "so true", "omg", "love this part!", "😂", "agreed 100%"];
-                playAudio('win', sfx); // tiny ding
-                setChatLog(prev => [...prev, { sender: 'Partner', text: replies[Math.floor(Math.random() * replies.length)] }]);
-            }, 2000);
-        }
     };
 
     const toggleFullscreen = () => {
@@ -123,11 +132,20 @@ export function SyncWatcher({ config, onBack, sfx }) {
         return `${Math.floor(seconds / 60)}:${g(Math.floor(seconds % 60))}`;
     };
 
+    const displayAction = () => {
+        if (!lastAction || Date.now() - lastAction.timestamp > 3000) return null;
+        if (lastAction.type === 'play') return 'Video Playing';
+        if (lastAction.type === 'pause') return 'Video Paused';
+        if (lastAction.type === 'seek') return 'Seeking...';
+        if (lastAction.type === 'load') return 'New Video Loaded';
+        return null;
+    };
+
     return (
         <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
             <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 text-sm sm:text-base">
-                <span className="flex items-center gap-2">YouTube Sync <span className={`w-3 h-3 rounded-full ${partnerConnected ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : 'bg-red-400'} border border-black/50`}></span> {partnerConnected ? 'Connected' : 'Waiting...'}</span>
-                {partnerAction && <span className="bg-white/20 px-2 py-1 rounded text-xs animate-pulse">{partnerAction}</span>}
+                <span className="flex items-center gap-2">Shared Sync <span className={`w-3 h-3 rounded-full bg-green-400 shadow-[0_0_8px_#4ade80] border border-black/50`}></span> Connected</span>
+                {displayAction() && <span className="bg-white/20 px-2 py-1 rounded text-xs animate-pulse">{displayAction()}</span>}
             </div>
 
             <div className="flex flex-col lg:flex-row flex-1 overflow-hidden" ref={wrapperRef}>
@@ -154,45 +172,17 @@ export function SyncWatcher({ config, onBack, sfx }) {
                                     console.log('[SYNC] Player is READY');
                                     setReady(true); 
                                     setLoadError(null); 
-                                    setLoadingTimeout(false); 
                                 }}
-                                onStart={() => console.log('[SYNC] Playback STARTED')}
-                                onBuffer={() => console.log('[SYNC] Player is BUFFERING...')}
-                                onBufferEnd={() => console.log('[SYNC] Buffering ENDED')}
                                 onError={(e) => {
                                     console.error('[SYNC] Player Error:', e);
-                                    try {
-                                        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
-                                        setLoadError(`Could not load video: ${msg}`);
-                                    } catch (_err) {
-                                        setLoadError('Could not load video (unknown error).');
-                                    }
-                                    setLoadingTimeout(false);
+                                    setLoadError('Could not load video. Check URL or embedding permissions.');
                                 }}
                                 width="100%"
                                 height="100%"
                                 style={{ position: 'absolute', top: 0, left: 0 }}
                                 config={{
-                                    youtube: {
-                                        playerVars: { 
-                                            modestbranding: 1, 
-                                            rel: 0, 
-                                            controls: 1, 
-                                            playsinline: 1, 
-                                            origin: window.location.origin,
-                                            enablejsapi: 1
-                                        }
-                                    },
-                                    file: { 
-                                        attributes: { 
-                                            controls: true, 
-                                            playsInline: true,
-                                            // Passing these here to avoid React unknown prop warnings on DOM video tag
-                                            onDuration: undefined,
-                                            onBuffer: undefined,
-                                            onBufferEnd: undefined
-                                        } 
-                                    }
+                                    youtube: { playerVars: { modestbranding: 1, rel: 0, controls: 1, playsinline: 1 } },
+                                    file: { attributes: { controls: true, playsInline: true } }
                                 }}
                             />
                         </div>
@@ -207,30 +197,16 @@ export function SyncWatcher({ config, onBack, sfx }) {
                         </div>
                     </div>
 
-                                        {/* Loading / diagnostic overlay */}
-                                        {!ready && !loadError && (
-                                                <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-                                                        <div className="text-white/90 text-center">
-                                                                <div className="animate-pulse mb-2">Loading video…</div>
-                                                                <div className="text-xs opacity-70">If this takes long, the video may not allow embedding or the URL is invalid.</div>
-                                                        </div>
-                                                </div>
-                                        )}
-
-                                        {loadError && (
-                                                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 text-white p-4 text-center">
-                                                    <div>
-                                                        <p className="font-bold text-lg mb-2">Could not load video</p>
-                                                        <p className="text-sm opacity-70 mb-3">{loadError}</p>
-                                                        <p className="text-xs opacity-50 mb-3">Try a direct .mp4 link, a different YouTube URL, or check browser console for details.</p>
-                                                        <button onClick={() => { setLoadError(null); setReady(false); setLoadingTimeout(true); setTimeout(() => setLoadingTimeout(true), 500); }} className="px-3 py-2 retro-border bg-[var(--bg-window)] text-[var(--text-main)]">Retry</button>
-                                                        <button onClick={() => setDebugOpen(!debugOpen)} className="ml-2 px-3 py-2 retro-border bg-[var(--bg-window)] text-[var(--text-main)]">Toggle Debug</button>
-                                                        {debugOpen && (
-                                                            <pre className="mt-3 text-xs text-left max-h-40 overflow-auto bg-black/60 p-2 rounded">{JSON.stringify({ url, ready, loadError, playerRef: !!playerRef.current }, null, 2)}</pre>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                        )}
+                    {!ready && !loadError && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none bg-black/40">
+                            <div className="text-white/90 text-center">
+                                <div className="animate-pulse mb-2 font-bold uppercase tracking-widest text-xs">Syncing stream...</div>
+                                <div className="w-48 h-1 bg-white/20 mx-auto rounded-full overflow-hidden">
+                                    <div className="h-full bg-[var(--primary)] animate-progress-indefinite"></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="bg-[var(--bg-window)] border-t border-[var(--border)] p-2 sm:p-4 shrink-0 flex flex-col gap-2 z-20">
 
@@ -265,22 +241,25 @@ export function SyncWatcher({ config, onBack, sfx }) {
 
                 <div className="w-full lg:w-80 bg-[var(--bg-main)] retro-border-l flex flex-col shrink-0 h-64 lg:h-auto">
                     <div className="p-3 bg-[var(--bg-window)] border-b border-black/10 font-bold uppercase tracking-widest text-xs flex items-center gap-2 shrink-0">
-                        <MessageSquare size={14} className="text-[var(--primary)]" /> Live Chat
+                        <MessageSquare size={14} className="text-[var(--primary)]" /> Watch Chat
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-[var(--bg-main)]">
                         {chatLog.length === 0 && <div className="text-center text-xs opacity-50 mt-4 italic">No messages yet...</div>}
-                        {chatLog.map((log, i) => (
-                            <div key={i} className={`flex flex-col ${log.sender === 'System' ? 'items-center' : log.sender === 'You' ? 'items-end' : 'items-start'}`}>
-                                {log.sender === 'System' ? (
-                                    <div className="bg-[var(--bg-window)] px-3 py-1 retro-border rounded-full text-xs font-bold opacity-70 mt-2">{log.text}</div>
-                                ) : (
-                                    <div className={`max-w-[85%] px-3 py-2 retro-border rounded ${log.sender === 'You' ? 'bg-[var(--primary)] text-[var(--bg-window)] shadow-sm' : 'bg-[var(--accent)] text-[var(--text-main)] shadow-sm'} text-sm font-bold`}>
-                                        {log.text}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                        {chatLog.map((log, i) => {
+                            const isMe = log.senderId === userId || log.sender === 'User';
+                            return (
+                                <div key={log.id || i} className={`flex flex-col ${log.sender === 'System' ? 'items-center' : isMe ? 'items-end' : 'items-start'}`}>
+                                    {log.sender === 'System' ? (
+                                        <div className="bg-[var(--bg-window)] px-3 py-1 retro-border rounded-full text-xs font-bold opacity-70 mt-2">{log.text}</div>
+                                    ) : (
+                                        <div className={`max-w-[85%] px-3 py-2 retro-border rounded ${isMe ? 'bg-[var(--primary)] text-[var(--bg-window)] shadow-sm' : 'bg-[var(--accent)] text-[var(--text-main)] shadow-sm'} text-sm font-bold`}>
+                                            {log.text}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <form onSubmit={sendChat} className="p-3 bg-[var(--bg-window)] retro-border-t shrink-0 flex gap-2">

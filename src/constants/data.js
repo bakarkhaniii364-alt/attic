@@ -1,7 +1,4 @@
-export const INITIAL_CHAT = [
-  { id: 1, sender: 'partner', type: 'text', text: 'good morning! ❤️', time: '09:00 AM', status: 'read' },
-  { id: 2, sender: 'me', type: 'text', text: 'morning! want to play some games?', time: '09:05 AM', reactions: ['🥰'], status: 'read' }
-];
+export const INITIAL_CHAT = [];
 
 export const PICTIONARY_CATEGORIES = {
   animals: ['CAT', 'DOG', 'ELEPHANT', 'FISH', 'BIRD', 'SNAKE', 'RABBIT', 'MOUSE'],
