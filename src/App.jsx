@@ -151,15 +151,18 @@ export default function App() {
       window.history.replaceState({}, '', window.location.pathname); // clean URL
     }
 
-    // 2. Check auth session
+    // Check auth session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (s) {
         setSession(s);
+        // User is logged in: go directly to checkRoom (which leads to dashboard or handshake)
         checkRoom(s, invite);
       } else {
+        // No session: show landing or auth flow
         setAppState(invite ? 'auth-signup' : 'landing');
       }
     });
+
 
     // 3. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -196,11 +199,16 @@ export default function App() {
     setAppState('ready');
   };
 
-  const handleAuthSuccess = async ({ name, session: s, isNewUser }) => {
+  const handleAuthSuccess = async ({ name, session: s, isNewUser, user }) => {
     let session = s;
     if (!session) {
       const { data } = await supabase.auth.getSession();
       session = data?.session;
+    }
+
+    // If no session but user exists (email confirmation pending), manually sign them in or create dummy session
+    if (!session && user) {
+      session = s; // use whatever was passed
     }
 
     setSession(session);

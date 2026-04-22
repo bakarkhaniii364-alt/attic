@@ -5,38 +5,66 @@ import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 
 /* ═══════════════════════════════════════════════════════
-   LANDING PAGE — clean, warm, inviting
+   LANDING PAGE — cute & animated with paper airplane
    ═══════════════════════════════════════════════════════ */
 export function LandingView({ onTryAttic, onSignIn }) {
   return (
-    <div className="min-h-[100dvh] flex flex-col relative overflow-hidden bg-[var(--bg-main)]">
-      <div className="absolute inset-0 bg-pattern-grid opacity-40" />
-      <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
+    <div className="min-h-[100dvh] flex flex-col relative overflow-hidden bg-gradient-to-br from-[#fef3e2] via-[#fde8d8] to-[#fce3ce]">
+      <style>{`
+        @keyframes paper-airplane {
+          0% { transform: translateX(-100px) translateY(0) rotate(-20deg); opacity: 0; }
+          5% { opacity: 1; }
+          50% { transform: translateX(400px) translateY(-200px) rotate(0deg); }
+          95% { opacity: 1; }
+          100% { transform: translateX(900px) translateY(0) rotate(20deg); opacity: 0; }
+        }
+        @keyframes wiggle-bounce { 
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          25% { transform: translateY(-8px) rotate(-2deg); }
+          75% { transform: translateY(-8px) rotate(2deg); }
+        }
+        .paper-airplane { animation: paper-airplane 8s infinite; font-size: 2rem; position: fixed; }
+      `}</style>
 
-      {/* floating decorations */}
-      <div className="absolute top-[12%] left-[7%] text-[var(--primary)] opacity-[0.12] animate-float">
-        <Heart size={44} fill="currentColor" />
+      {/* Cute background with hearts */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 left-5 text-[#ff6b9d] opacity-20 text-4xl animate-pulse">♥</div>
+        <div className="absolute top-32 right-10 text-[#ff6b9d] opacity-15 text-3xl animate-pulse" style={{animationDelay: '1s'}}>♥</div>
+        <div className="absolute bottom-20 left-1/3 text-[#ff6b9d] opacity-10 text-5xl animate-pulse" style={{animationDelay: '2s'}}>♥</div>
+        <div className="absolute inset-0 bg-pattern-grid opacity-20" />
+        <div className="absolute inset-0 scanlines pointer-events-none opacity-10" />
       </div>
-      <div className="absolute top-[22%] right-[10%] text-[var(--secondary)] opacity-[0.10] animate-float-delayed">
-        <Sparkles size={38} />
-      </div>
-      <div className="absolute bottom-[22%] left-[12%] text-[var(--border)] opacity-[0.08] animate-float-delayed">
-        <Key size={34} />
-      </div>
-      <div className="absolute bottom-[35%] right-[7%] text-[var(--primary)] opacity-[0.10] animate-float">
-        <Heart size={26} fill="currentColor" />
-      </div>
-      <div className="absolute top-[55%] left-[50%] text-[var(--secondary)] opacity-[0.06] animate-float">
-        <Sparkles size={50} />
-      </div>
+
+      {/* Paper airplanes flying */}
+      <div className="paper-airplane" style={{top: '10%', left: '5%', animationDelay: '0s'}} aria-hidden>✈️</div>
+      <div className="paper-airplane" style={{top: '30%', left: '2%', animationDelay: '3s'}} aria-hidden>✈️</div>
+      <div className="paper-airplane" style={{top: '60%', left: '8%', animationDelay: '5s'}} aria-hidden>✈️</div>
 
       {/* nav */}
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
-        <span className="font-bold text-xs tracking-widest uppercase text-[var(--text-main)] opacity-40 select-none">●●●</span>
+        <span className="font-bold text-xs tracking-widest uppercase text-[#6b4423] opacity-60 select-none">●●●</span>
+        <span className="font-bold text-xs tracking-widest uppercase text-[#6b4423] opacity-40 select-none">attic</span>
+      </nav>
+
+      {/* hero */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-12">
+        <div className="relative mb-8">
+          <img
+            src="/assets/attic.svg"
+            alt="attic"
+            className="w-96 sm:w-[38rem] object-contain"
+            style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.4))', animation: 'wiggle-bounce 3s infinite' }}
+          />
+        </div>
+        <p className="text-xs sm:text-sm font-bold text-[#6b4423] opacity-70 text-center max-w-[280px] leading-relaxed mb-8">
+          a private corner of the internet, just for two
+        </p>
+
+        {/* buttons below description */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onSignIn}
-            className="font-bold text-xs sm:text-sm text-[var(--text-main)] opacity-60 hover:opacity-100 transition-opacity px-3 py-2 retro-border bg-transparent hover:bg-[var(--accent)] active:translate-y-[1px]"
+            className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-70 hover:opacity-100 transition-opacity px-3 py-2 retro-border bg-white/60 hover:bg-[#ff6b9d]/20 active:translate-y-[1px]"
           >
             sign in
           </button>
@@ -44,26 +72,11 @@ export function LandingView({ onTryAttic, onSignIn }) {
             try attic <ArrowRight size={14} />
           </RetroButton>
         </div>
-      </nav>
-
-      {/* hero */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-12">
-        <div className="relative mb-6">
-          <img
-            src="/assets/attic.svg"
-            alt="attic"
-            className="w-96 sm:w-[38rem] object-contain"
-            style={{ filter: 'drop-shadow(4px 4px 0px var(--accent))' }}
-          />
-        </div>
-        <p className="text-xs sm:text-sm font-bold text-[var(--text-main)] opacity-50 text-center max-w-[280px] leading-relaxed">
-          a private corner of the internet, just for two
-        </p>
       </div>
 
       {/* footer */}
       <div className="relative z-10 text-center pb-6 sm:pb-8">
-        <p className="text-[9px] sm:text-[10px] font-bold tracking-[0.2em] uppercase text-[var(--text-main)] opacity-25 select-none">
+        <p className="text-[9px] sm:text-[10px] font-bold tracking-[0.2em] uppercase text-[#6b4423] opacity-30 select-none">
           made with ❤️ for lovers
         </p>
       </div>
@@ -103,16 +116,18 @@ export function AuthView({ mode: initialMode, inviteCode, onAuthSuccess, onBack,
       options: { data: { display_name: displayName.trim() } },
     });
 
-    if (err) { setError(err.message); setLoading(false); return; }
+    if (err && err.message) { setError(err.message); setLoading(false); return; }
 
+    // Get session (data.session may be null if email confirmation is required, but we proceed anyway)
     const session = data.session || (await supabase.auth.getSession()).data?.session;
-    if (!session) {
-      setError('Unable to sign in after signup. Please try again.');
+    if (!session && !data.user) {
+      setError('Unable to create account. Please try again.');
       setLoading(false);
       return;
     }
 
-    onAuthSuccess({ name: displayName.trim(), session, isNewUser: true });
+    // Pass user data directly to bypass email confirmation flow
+    onAuthSuccess({ name: displayName.trim(), session: session || data.session, isNewUser: true, user: data.user });
   };
 
   const handleSignIn = async (e) => {
