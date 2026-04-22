@@ -28,20 +28,20 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
       </nav>
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 -mt-16 text-center">
-        <div className="relative mb-12 flex justify-center w-full">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-12 sm:pt-20 text-center">
+        <div className="relative mb-10 flex justify-center w-full">
           <img
             src="/assets/attic.svg"
             alt="attic"
-            className="w-[90vw] sm:w-[40rem] object-contain animate-in fade-in slide-in-from-bottom-2 duration-700 mx-auto"
+            className="w-[85vw] sm:w-[36rem] object-contain animate-in fade-in slide-in-from-bottom-4 duration-1000 mx-auto"
             style={{ filter: 'drop-shadow(4px 4px 0px rgba(255, 107, 157, 0.2))' }}
           />
         </div>
-        <p className="text-base sm:text-lg font-bold text-[#6b4423] opacity-50 max-w-[420px] leading-relaxed mb-14 px-4 mx-auto">
+        <p className="text-xs sm:text-sm font-bold text-[#6b4423] opacity-50 max-w-[360px] leading-relaxed mb-10 px-4 mx-auto uppercase tracking-widest">
           a private corner of the internet, just for two.
         </p>
 
-        <div className="flex items-center gap-4 sm:gap-6 justify-center w-full">
+        <div className="flex items-center gap-4 sm:gap-6 justify-center w-full mb-12">
           <button
             onClick={onSignIn}
             className="font-bold text-xs sm:text-sm text-[#6b4423] opacity-50 hover:opacity-100 transition-all px-6 py-3 retro-border bg-white/30 hover:bg-[#ff6b9d]/5 active:translate-y-[1px] active:shadow-none"
@@ -54,10 +54,10 @@ export function LandingView({ onTryAttic, onSignIn }) {
         </div>
       </div>
 
-      <div className="relative z-10 text-center pb-10">
-        <p className="text-[9px] font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-20 select-none leading-loose">
+      <div className="relative z-10 text-center pb-10 px-4">
+        <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-[#6b4423] opacity-50 select-none leading-loose">
           Made with love, for the lovers <br/>
-          By bakarkhaniii
+          By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--primary)] transition-colors">bakarkhaniii</a>
         </p>
       </div>
     </div>
