@@ -595,14 +595,21 @@ export default function App() {
         </div>
 
         <Routes>
-          <Route path="/" element={<PublicRoute session={session} hasRoom={hasRoom}><LandingView onTryAttic={() => navigate('/signin')} onSignIn={() => navigate('/signup')} /></PublicRoute>} />
+          <Route path="/" element={
+            !session ? (
+              <LandingView onTryAttic={() => navigate('/signin')} onSignIn={() => navigate('/signup')} />
+            ) : !hasRoom ? (
+              <Navigate to="/handshake" replace />
+            ) : (
+              <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} />
+            )
+          } />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
           <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
           <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
           <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
-          <Route path="/" element={<ProtectedRoute session={session} hasRoom={hasRoom}><Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
           <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} /></ProtectedRoute>} />
           <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} /></ProtectedRoute>} />

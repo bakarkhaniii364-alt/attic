@@ -12,7 +12,7 @@ export function ProtectedRoute({ children, session, hasRoom }) {
   const location = useLocation();
 
   if (!session) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   if (!hasRoom && location.pathname !== '/handshake') {
