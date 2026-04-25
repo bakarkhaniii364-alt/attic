@@ -104,7 +104,7 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId, onStartCall, sharedImages, setSharedImages }) {
+export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId, onStartCall, sharedImages, setSharedImages, onlineUsers = {} }) {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -391,19 +391,25 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-                    {/* Sender Label (only for group start) */}
-                    {isGroupStart && !isMe && !isCallLog && (
-                      <div className="flex items-center gap-2 mb-1 ml-11">
-                        <span className="text-[10px] font-black uppercase opacity-40 tracking-widest">{senderName}</span>
+                    {/* Sender Label (now always visible for clarity) */}
+                    {!isCallLog && (
+                      <div className={`flex items-center gap-2 mb-1 ${isMe ? 'mr-1' : 'ml-11'}`}>
+                        <span className="text-[9px] font-black uppercase opacity-40 tracking-widest">
+                            {isMe ? 'you' : senderName} {onlineUsers[msg.sender] === 'active' && <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block ml-1 animate-pulse"></span>}
+                        </span>
+                        <span className="text-[8px] font-bold opacity-20 uppercase tracking-tighter">{msg.time}</span>
                       </div>
                     )}
 
                     <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[95%] md:max-w-[90%] relative ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
-                      {/* Options Button (Left for Me, Right for Partner) */}
                       {!msg.isDeleted && !isCallLog && (
-                        <div className={`opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${isMe ? 'order-first' : 'order-last'}`}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1.5 hover:bg-black/5 rounded-full bg-white/40 backdrop-blur-sm retro-border border-dashed">
-                            <MoreVertical size={12} className="opacity-70" />
+                        <div className={`
+                          absolute top-1/2 -translate-y-1/2 transition-all duration-300 z-20
+                          ${isMe ? '-left-10 group-hover:left-[-45px]' : '-right-10 group-hover:right-[-45px]'}
+                          opacity-0 group-hover:opacity-100
+                        `}>
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1.5 hover:bg-black/5 rounded-full bg-white/80 backdrop-blur-sm retro-border border-dashed shadow-sm">
+                            <MoreVertical size={14} className="opacity-70" />
                           </button>
                         </div>
                       )}
@@ -494,21 +500,24 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                           </>
                         )}
 
-                        {/* Reactions */}
+                        {/* Reactions (Always visible and more stylized) */}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (
-                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-white retro-border rounded-full px-1.5 py-0.5 text-[10px] flex gap-1 shadow-sm z-10`}>
-                            {msg.reactions.map((r, i) => <span key={i}>{r}</span>)}
+                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-white retro-border rounded-full px-2 py-0.5 text-[11px] flex gap-1 shadow-md z-10 animate-in zoom-in-50`}>
+                            {msg.reactions.map((r, i) => <span key={i} className="hover:scale-125 transition-transform cursor-default">{r}</span>)}
                           </div>
                         )}
                       </div>
 
-                      {/* Options Popup */}
+                      {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
-                        <div className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} retro-bg-window retro-border shadow-xl z-30 py-1 flex flex-col w-36 overflow-hidden animate-in zoom-in-90 duration-200`}>
-                          <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--accent)] text-left"><Reply size={12}/> Reply</button>
-                          <button onClick={() => { setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--accent)] text-left"><Pin size={12}/> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
+                        <div className={`
+                          absolute top-0 z-[100] retro-bg-window retro-border shadow-2xl py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200
+                          ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
+                        `}>
+                          <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Reply size={14} className="text-blue-500"/> Reply</button>
+                          <button onClick={() => { setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Pin size={14} className="text-orange-500"/> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
                           
-                          <div className="flex items-center gap-1 px-2 py-2 border-y border-dashed border-[var(--border)]/20 bg-black/5 mt-1">
+                          <div className="flex items-center justify-around px-1 py-2 border-y-2 border-dashed border-[var(--border)]/10 bg-black/5 my-1">
                             {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
                               <button key={emoji} onClick={() => {
                                 setChatHistory(chatHistory.map(m => {
@@ -519,25 +528,24 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                                   return m;
                                 }));
                                 setActiveOptions(null);
-                              }} className={`text-sm p-1 hover:scale-125 transition-transform ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] rounded' : ''}`}>{emoji}</button>
+                              }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] rounded-lg' : ''}`}>{emoji}</button>
                             ))}
                           </div>
                           
                           {isMe && !msg.isDeleted && (
                             <>
-                              {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[var(--accent)] text-left"><Edit2 size={12}/> Edit</button>}
-                              <button onClick={() => { setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-red-50 text-red-600 text-left"><Trash2 size={12}/> Delete</button>
+                              {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Edit2 size={14} className="text-green-600"/> Edit</button>}
+                              <button onClick={() => { setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14}/> Delete</button>
                             </>
                           )}
                         </div>
                       )}
                     </div>
 
-                    {/* Metadata (Time / Status) */}
-                    {isGroupEnd && (
-                      <div className={`flex items-center gap-2 mt-1 px-11 text-[9px] font-black uppercase opacity-30 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <span>{msg.time}</span>
-                        {isMe && msg.status && !isCallLog && (
+                    {/* Metadata (Status for Me) */}
+                    {isGroupEnd && isMe && !isCallLog && (
+                      <div className={`flex items-center gap-2 mt-1 px-11 text-[9px] font-black uppercase opacity-30 flex-row-reverse`}>
+                        {msg.status && (
                           <div className="flex items-center gap-1">
                             <div className="flex -space-x-1.5">
                               <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} strokeWidth={4} />

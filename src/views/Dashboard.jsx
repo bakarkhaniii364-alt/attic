@@ -197,7 +197,7 @@ function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {} }) {
   const unreadChatCount = (chatHistory || []).filter(m => m.sender === partnerId && m.status !== 'read' && !m.isDeleted).length;
   const updatePetHappy = (val) => setCoupleData({ ...coupleData, petHappy: val });
   const mood = profile.mood || '😊';
@@ -241,9 +241,14 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
-                            <p className="text-sm font-bold truncate max-w-[120px] leading-none">
-                                {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-bold truncate max-w-[120px] leading-none">
+                                    {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
+                                </p>
+                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${onlineUsers[partnerId] ? 'bg-blue-400 text-white' : 'bg-gray-200 opacity-50'}`}>
+                                    {onlineUsers[partnerId] === 'active' ? 'online' : onlineUsers[partnerId] === 'idle' ? 'away' : 'offline'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div className="h-8 w-px bg-[var(--border)] opacity-20 mx-1"></div>

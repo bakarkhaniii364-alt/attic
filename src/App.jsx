@@ -206,6 +206,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [syncedRoomId, setSyncedRoomId] = useState(null);
   const [visualsReady, setVisualsReady] = useState(false); // Deferred for performance
+  const [onlineUsers, setOnlineUsers] = useState({}); // Tracking presence
 
   // 2. Global Sync States
   const [profile, setProfile] = useLocalStorage('user_profile', { 
@@ -585,6 +586,7 @@ export default function App() {
     if (!coreReady || !pendingRoomId) return;
     if (syncedRoomId === pendingRoomId) return;
     let cancelled = false;
+    let presenceChannel = null;
     (async () => {
       try {
         // give the UI a tick before starting heavy sync
@@ -592,12 +594,51 @@ export default function App() {
         if (cancelled) return;
         setSyncedRoomId(pendingRoomId);
         await initializeRoomSync(pendingRoomId);
+        
+        // Presence tracking
+        presenceChannel = supabase.channel(`presence_${pendingRoomId}`, {
+          config: { presence: { key: userId } }
+        });
+
+        presenceChannel
+          .on('presence', { event: 'sync' }, () => {
+            const newState = presenceChannel.presenceState();
+            const onlineMap = {};
+            Object.keys(newState).forEach(id => {
+               onlineMap[id] = newState[id][0]?.status || 'online';
+            });
+            setOnlineUsers(onlineMap);
+          })
+          .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+            console.log('join', key, newPresences);
+          })
+          .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            console.log('leave', key, leftPresences);
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              await presenceChannel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+            }
+          });
+
+        const handleVisibility = () => {
+          if (presenceChannel) {
+            presenceChannel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+          }
+        };
+        window.addEventListener('focus', handleVisibility);
+        window.addEventListener('blur', handleVisibility);
       } catch (err) {
         console.error('Lazy initializeRoomSync failed', err);
       }
     })();
-    return () => { cancelled = true; };
-  }, [coreReady, pendingRoomId]);
+    return () => { 
+      cancelled = true; 
+      if (presenceChannel) supabase.removeChannel(presenceChannel);
+      window.removeEventListener('focus', () => {});
+      window.removeEventListener('blur', () => {});
+    };
+  }, [coreReady, pendingRoomId, userId]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/'); };
   const handleAuthSuccess = async (data) => {
@@ -711,7 +752,7 @@ export default function App() {
             ) : !hasRoom ? (
               <Navigate to="/handshake" replace />
             ) : (
-              <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} />
+              <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} />
             )
           } />
           <Route path="/login" element={<Navigate to="/" replace />} />
@@ -721,7 +762,7 @@ export default function App() {
           <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
           <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
-          <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} /></ProtectedRoute>} />
+          <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} onlineUsers={onlineUsers} /></ProtectedRoute>} />
           <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} /></ProtectedRoute>} />
           <Route path="/shared-canvas" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
           <Route path="/capsule" element={<ProtectedRoute session={session} hasRoom={hasRoom}><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
