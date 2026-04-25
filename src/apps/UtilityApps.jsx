@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart } from 'lucide-react';
+import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -17,10 +17,10 @@ export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profi
           </div>
           <div className="flex-1 flex items-center justify-center bg-white retro-border retro-shadow-dark p-2 mb-6 min-h-[300px]"><img src={doodle.img} alt="Doodle from partner" className="max-w-full max-h-full object-contain" /></div>
           <p className="text-center italic opacity-50 text-sm mb-6">* Saved automatically to your Scrapbook *</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-auto">
-             <RetroButton variant="secondary" onClick={handleDownload} className="px-5 py-3 flex items-center justify-center gap-2"><Download size={18}/> Save</RetroButton>
-             <RetroButton variant="primary" onClick={() => onRedoodle(doodle)} className="px-5 py-3 flex items-center justify-center gap-2"><Brush size={18}/> Redoodle</RetroButton>
-             {onReplyToChat && <RetroButton variant="accent" onClick={handleReplyChat} className="px-5 py-3 flex items-center justify-center gap-2"><Send size={18}/> Reply in Chat</RetroButton>}
+          <div className="flex-1 flex flex-col sm:flex-row gap-3 justify-center mt-auto">
+             <RetroButton variant="secondary" onClick={handleDownload} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Download size={18}/> Save</RetroButton>
+             <RetroButton variant="primary" onClick={() => onRedoodle(doodle)} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Brush size={18}/> Redoodle</RetroButton>
+             {onReplyToChat && <RetroButton variant="accent" onClick={handleReplyChat} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Send size={18}/> Reply in Chat</RetroButton>}
           </div>
        </div>
     </RetroWindow>
@@ -30,6 +30,7 @@ export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profi
 export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapbook, sfx }) {
   const canvasRef = useRef(null); const [isDrawing, setIsDrawing] = useState(false); const [tool, setTool] = useState('pen'); const [color, setColor] = useState('#5c3a21'); const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const startPosRef = useRef({ x: 0, y: 0 }); const snapshotRef = useRef(null); const snapshotHistory = useRef([]);
+  const colorInputRef = useRef(null);
   
   const initCanvas = () => {
     const canvas = canvasRef.current; if (!canvas) return;
@@ -78,27 +79,38 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     setShowSentOverlay(true);
   };
 
-  // Save to album helper used by RetroWindow save action
-  const saveAndClose = () => {
-    handleSaveScrapbook();
-  };
   const handleSaveScrapbook = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); if (onSaveToScrapbook) onSaveToScrapbook(dataUrl); alert('Saved to Scrapbook!'); };
   const handleDownload = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); const a = document.createElement('a'); a.href = dataUrl; a.download = `doodle_${Date.now()}.png`; a.click(); };
-  const toolBtnClass = (t) => `p-2 rounded-md transition-colors ${tool === t ? 'bg-white retro-shadow-dark retro-border' : 'opacity-70 hover:bg-black/10'}`;
+  const toolBtnClass = (t) => `p-2 rounded-md transition-colors retro-border ${tool === t ? 'bg-white shadow-inner' : 'opacity-70 hover:bg-black/10'}`;
 
   return (
     <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose hasUnsavedChanges={hasUnsavedChanges} onSaveBeforeClose={() => { handleSaveScrapbook(); onClose && onClose(); }} sfx={sfx} noPadding>
       <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none">
         <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
-        {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'scale-125 ring-2 ring-offset-1 ring-[var(--border)]' : ''}`} style={{backgroundColor: c}} /> ))}
-        <div className="ml-auto flex-shrink-0"><RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs flex items-center gap-1"><Trash2 size={12}/> Clear</RetroButton></div>
+        {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> ))}
+        <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
+           <Pipette size={12} />
+           <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
+        </button>
+        <div className="ml-auto flex-shrink-0"><RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs flex items-center gap-1 retro-border"><Trash2 size={12}/> Clear</RetroButton></div>
       </div>
-      <div className={`flex-1 bg-white relative touch-none ${tool === 'fill' ? 'cursor-cell' : tool.startsWith('stamp_') ? 'cursor-grab' : tool === 'eraser' ? 'cursor-crosshair' : 'cursor-crosshair'}`}>
-        <canvas ref={canvasRef} onMouseDown={handlePointerDown} onMouseMove={handlePointerMove} onMouseUp={handlePointerUp} onMouseLeave={handlePointerUp} onTouchStart={handlePointerDown} onTouchMove={handlePointerMove} onTouchEnd={handlePointerUp} className="absolute inset-0 w-full h-full" />
+      <div className="flex-1 bg-white relative touch-none">
+        <canvas 
+          ref={canvasRef} 
+          onMouseDown={handlePointerDown} 
+          onMouseMove={handlePointerMove} 
+          onMouseUp={handlePointerUp} 
+          onMouseLeave={handlePointerUp} 
+          onTouchStart={handlePointerDown} 
+          onTouchMove={handlePointerMove} 
+          onTouchEnd={handlePointerUp} 
+          className="absolute inset-0 w-full h-full" 
+          style={{ cursor: tool === 'fill' ? 'cell' : tool.startsWith('stamp_') ? 'grab' : 'crosshair' }}
+        />
       </div>
       <div className="p-3 retro-bg-window retro-border-t flex flex-wrap gap-2 justify-between">
-        <div className="flex gap-2"><RetroButton variant="secondary" onClick={handleDownload} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2"><Download size={14}/> Device</RetroButton><RetroButton variant="white" onClick={handleSaveScrapbook} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2"><ImageIcon size={14}/> Album</RetroButton></div>
-        <RetroButton variant="primary" onClick={handleSend} className="px-6 py-2 text-sm sm:text-base flex items-center gap-2">Send <Send size={16}/></RetroButton>
+        <div className="flex gap-2"><RetroButton variant="secondary" onClick={handleDownload} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2 retro-border"><Download size={14}/> Device</RetroButton><RetroButton variant="white" onClick={handleSaveScrapbook} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2 retro-border"><ImageIcon size={14}/> Album</RetroButton></div>
+        <RetroButton variant="primary" onClick={handleSend} className="px-6 py-2 text-sm sm:text-base flex items-center gap-2 retro-border">Send <Send size={16}/></RetroButton>
       </div>
       {showSentOverlay && (
         <div className="fixed inset-0 z-[250] bg-black/60 flex items-center justify-center p-4">

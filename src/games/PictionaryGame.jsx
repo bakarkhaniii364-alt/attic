@@ -21,6 +21,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(4);
   const [undoStack, setUndoStack] = useState([]);
+  const colorInputRef = useRef(null);
   
   const timerLength = parseInt(config.diff) || 60;
   const [timeLeft, setTimeLeft] = useState(timerLength);
@@ -205,13 +206,20 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       </div>
       {gameState === 'drawing' && (
         <div className="p-2 retro-bg-accent retro-border-b flex flex-wrap gap-2 items-center select-none overflow-x-auto">
-          <button onClick={() => setTool('pen')} className={`p-2 rounded-md ${tool === 'pen' ? 'bg-white retro-border' : 'opacity-70'}`}><PenTool size={18}/></button>
-          <button onClick={() => setTool('eraser')} className={`p-2 rounded-md ${tool === 'eraser' ? 'bg-white retro-border' : 'opacity-70'}`}><Eraser size={18}/></button>
-          <button onClick={() => setTool('fill')} className={`p-2 rounded-md ${tool === 'fill' ? 'bg-white retro-border' : 'opacity-70'}`}><PaintBucket size={18}/></button>
-          <button onClick={() => setTool('pattern')} className={`p-2 bg-[url('https://www.transparenttextures.com/patterns/polka-dots.png')] rounded-md ${tool === 'pattern' ? 'bg-white retro-border' : 'opacity-70'}`}><div className="w-[18px] h-[18px]"></div></button>
+          <button onClick={() => setTool('pen')} className={`p-2 rounded-md retro-border ${tool === 'pen' ? 'bg-white shadow-inner' : 'opacity-70'}`}><PenTool size={18}/></button>
+          <button onClick={() => setTool('eraser')} className={`p-2 rounded-md retro-border ${tool === 'eraser' ? 'bg-white shadow-inner' : 'opacity-70'}`}><Eraser size={18}/></button>
+          <button onClick={() => setTool('fill')} className={`p-2 rounded-md retro-border ${tool === 'fill' ? 'bg-white shadow-inner' : 'opacity-70'}`}><PaintBucket size={18}/></button>
+          <button onClick={() => setTool('pattern')} className={`p-2 bg-[url('https://www.transparenttextures.com/patterns/polka-dots.png')] rounded-md retro-border ${tool === 'pattern' ? 'bg-white shadow-inner' : 'opacity-70'}`}><div className="w-[18px] h-[18px]"></div></button>
           
           <div className="flex items-center gap-1 mx-2 bg-white/50 px-2 py-1 rounded retro-border"><div className="w-2 h-2 bg-black rounded-full"></div><input type="range" min="1" max="20" value={brushSize} onChange={e=>setBrushSize(e.target.value)} className="w-16" /><div className="w-4 h-4 bg-black rounded-full"></div></div>
-          {['#000000', '#ff0000', '#0000ff', '#00ff00', '#ffb6b9', '#f9e2af'].map(c => ( <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-5 h-5 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'scale-125 ring-2' : ''}`} style={{backgroundColor: c}} /> ))}
+          
+          <div className="flex gap-1">
+            {['#000000', '#ff0000', '#0000ff', '#00ff00', '#ffb6b9', '#f9e2af'].map(c => ( <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-5 h-5 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> ))}
+            <button onClick={() => colorInputRef.current.click()} className="w-5 h-5 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
+               <Pipette size={10} />
+               <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); setTool('pen'); }} />
+            </button>
+          </div>
           
           <div className="ml-auto flex gap-2">
               <button onClick={() => setGridEnabled(!gridEnabled)} className={`p-2 bg-white retro-border rounded-md ${gridEnabled?'bg-gray-200':''}`} title="Toggle Tracing Grid"><Grid size={14}/></button>

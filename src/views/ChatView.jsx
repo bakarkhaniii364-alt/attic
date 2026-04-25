@@ -391,15 +391,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-                    {/* Sender Label (now always visible for clarity) */}
-                    {!isCallLog && (
-                      <div className={`flex items-center gap-2 mb-1 ${isMe ? 'mr-1' : 'ml-11'}`}>
-                        <span className="text-[9px] font-black uppercase opacity-40 tracking-widest">
-                            {isMe ? 'you' : senderName} {onlineUsers[msg.sender] === 'active' && <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block ml-1 animate-pulse"></span>}
-                        </span>
-                        <span className="text-[8px] font-bold opacity-20 uppercase tracking-tighter">{msg.time}</span>
-                      </div>
-                    )}
+                    {/* Metadata removed from here as per user request (only visible in options or last msg) */}
 
                     <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[95%] md:max-w-[90%] relative ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
                       {!msg.isDeleted && !isCallLog && (
@@ -517,6 +509,10 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                           <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Reply size={14} className="text-blue-500"/> Reply</button>
                           <button onClick={() => { setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Pin size={14} className="text-orange-500"/> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
                           
+                          <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-[var(--border)]/10 text-[9px] font-black uppercase opacity-50">
+                            <Clock size={10} /> {msg.time}
+                          </div>
+                          
                           <div className="flex items-center justify-around px-1 py-2 border-y-2 border-dashed border-[var(--border)]/10 bg-black/5 my-1">
                             {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
                               <button key={emoji} onClick={() => {
@@ -542,8 +538,8 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                       )}
                     </div>
 
-                    {/* Metadata (Status for Me) */}
-                    {isGroupEnd && isMe && !isCallLog && (
+                    {/* Metadata (Status for Me - Only for very last message in group) */}
+                    {isLast && isMe && !isCallLog && (
                       <div className={`flex items-center gap-2 mt-1 px-11 text-[9px] font-black uppercase opacity-30 flex-row-reverse`}>
                         {msg.status && (
                           <div className="flex items-center gap-1">
@@ -552,6 +548,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                               {(msg.status === 'delivered' || msg.status === 'read') && <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} strokeWidth={4} />}
                             </div>
                             {msg.status === 'read' && msg.readAt && <span>seen {msg.readAt}</span>}
+                            {msg.status === 'delivered' && <span>delivered</span>}
                           </div>
                         )}
                       </div>
