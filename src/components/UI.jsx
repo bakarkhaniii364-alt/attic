@@ -81,8 +81,8 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   return (
     <>
-      <div className={`glass-window retro-border retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
-        <div className="retro-bg-accent retro-border border-t-0 border-l-0 border-r-0 border-b-2 flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
+      <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
+        <div className="retro-bg-accent retro-border-thick border-t-0 border-l-0 border-r-0 border-b-[3px] flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
           {/* Subtle header sheen */}
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
           
