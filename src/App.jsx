@@ -12,6 +12,8 @@ import { StrayTray } from './components/LofiPlayer.jsx';
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { Dashboard } from './views/Dashboard.jsx';
 import { useGlobalSync, initializeRoomSync } from './hooks/useSupabaseSync.js';
+import { useChatSync } from './hooks/useChatSync.js';
+import { useAssetSync } from './hooks/useAssetSync.js';
 import { supabase } from './lib/supabase.js';
 
 // Lazy load heavy views
@@ -254,9 +256,15 @@ export default function App() {
 
   const [scores, setScores] = useGlobalSync('game_scores', {});
   const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
-  const [chatHistory, setChatHistory] = useGlobalSync('chat_history', INITIAL_CHAT);
-  const [sharedImages, setSharedImages] = useGlobalSync('shared_images', []);
-  const [doodles, setDoodles] = useGlobalSync('shared_doodles', []); 
+  const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId);
+  const { assets: doodles, uploadAsset: uploadDoodle } = useAssetSync(syncedRoomId, 'doodle');
+  const { assets: sharedImages, uploadAsset: uploadImage } = useAssetSync(syncedRoomId, 'scrapbook');
+  
+  // Legacy setters for compatibility during transition (can be removed once all components migrated)
+  const setChatHistory = () => console.warn("Legacy setChatHistory called. Use specialized hooks instead.");
+  const setDoodles = () => console.warn("Legacy setDoodles called. Use specialized hooks instead.");
+  const setSharedImages = () => console.warn("Legacy setSharedImages called. Use specialized hooks instead.");
+
   const [letters, setLetters] = useGlobalSync('shared_letters', []);
   const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
     anniversary: '', 
@@ -501,7 +509,13 @@ export default function App() {
   const rejectCall = () => { 
     playAudio('click', sfxEnabled);
     setCallState({ status: 'rejected', type: callState.type, timestamp: Date.now() });
-    setChatHistory(prev => prev.map(m => (m.type === 'call_invite' && m.status === 'ringing') ? { ...m, status: 'rejected' } : m));
+    
+    // Find the active ringing invite and update it
+    const ringingInvite = chatHistory.find(m => m.type === 'call_invite' && m.status === 'ringing');
+    if (ringingInvite && syncedRoomId) {
+        syncUpdateMessage(ringingInvite.id, { status: 'rejected' });
+    }
+    
     setIncomingCall(null); 
   };
 
@@ -680,7 +694,17 @@ export default function App() {
     try { setRoomProfiles(prev => ({ ...prev, [userId]: profile })); } catch(e) {}
     navigate('/');
   };
-  const handleShareToChat = (text, imgData) => { setChatHistory(p => [...p, { id: Date.now(), sender: userId, type: imgData ? 'image' : 'text', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); };
+  const handleShareToChat = async (text, imgData) => { 
+      if (syncedRoomId) {
+          if (imgData) {
+              const { base64ToBlob } = await import('./utils/file.js');
+              const blob = base64ToBlob(imgData);
+              await syncSendMessage(blob, 'image', userId, { text });
+          } else {
+              await syncSendMessage(text, 'text', userId);
+          }
+      }
+  };
   const navigateTo = (v) => { playAudio('click', sfxEnabled); if (v === 'dashboard') navigate('/'); else navigate(`/${v}`); };
 
   if (loading || hasRoom === null) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
@@ -775,13 +799,18 @@ export default function App() {
 
             <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} onlineUsers={onlineUsers} /></ProtectedRoute>} />
-            <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} roomId={syncedRoomId} userId={userId} /></ProtectedRoute>} />
+            <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={null} onSaveToScrapbook={null} sfx={sfxEnabled} roomId={syncedRoomId} userId={userId} /></ProtectedRoute>} />
             <Route path="/shared-canvas" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/capsule" element={<ProtectedRoute session={session} hasRoom={hasRoom}><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/lists" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute session={session} hasRoom={hasRoom}><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/scrapbook" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ScrapbookApp images={sharedImages} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} roomId={syncedRoomId} userId={userId} /></ProtectedRoute>} />
-            <Route path="/pixelart" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} userId={userId} /></ProtectedRoute>} />
+            <Route path="/pixelart" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={async (imgData) => {
+                if (syncedRoomId) {
+                    const { base64ToBlob } = await import('./utils/file.js');
+                    await uploadImage(base64ToBlob(imgData), 'scrapbook', userId);
+                }
+            }} userId={userId} /></ProtectedRoute>} />
             <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/dailyq" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/resume" element={<ProtectedRoute session={session} hasRoom={hasRoom}><RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} coupleData={coupleData} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />

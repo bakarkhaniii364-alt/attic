@@ -189,5 +189,43 @@ export function useChatSync(roomId) {
     }
   }, [roomId, hasMore, messages]);
 
-  return { messages, sendMessage, loading, loadMore, hasMore };
+  // 5. Update Message Helper
+  const updateMessage = useCallback(async (id, updates) => {
+    if (!roomId || !id) return;
+
+    // Map UI fields back to DB fields if necessary
+    const dbUpdates = { ...updates };
+    if (updates.text !== undefined) { dbUpdates.content = updates.text; delete dbUpdates.text; }
+    
+    // If updating metadata (like reactions or status)
+    if (updates.reactions || updates.status || updates.isDeleted || updates.isEdited) {
+        const { data: current } = await supabase.from('chat_messages').select('metadata').eq('id', id).single();
+        dbUpdates.metadata = { ...(current?.metadata || {}), ...updates };
+        delete dbUpdates.reactions;
+        delete dbUpdates.status;
+        delete dbUpdates.isDeleted;
+        delete dbUpdates.isEdited;
+    }
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[CHAT] Update error:', error);
+      throw error;
+    }
+
+    return data;
+  }, [roomId]);
+
+  // 6. Delete Message Helper (Soft delete via metadata)
+  const deleteMessage = useCallback(async (id) => {
+    return updateMessage(id, { isDeleted: true });
+  }, [updateMessage]);
+
+  return { messages, sendMessage, updateMessage, deleteMessage, loading, loadMore, hasMore };
 }

@@ -147,7 +147,7 @@ export function useGlobalSync(key, initialValue) {
     if (JSON.stringify(state) !== JSON.stringify(valueToStore)) {
       setState(valueToStore);
       globalState[key] = valueToStore;
-      try { localforage.setItem(`sync_${key}`, valueToStore); } catch (e) {}
+      localforage.setItem(`sync_${key}`, valueToStore).catch(e => console.error(e));
       updateGlobalState(valueToStore);
     }
   }, [key, state, updateGlobalState]);
@@ -163,7 +163,7 @@ export function useGlobalSync(key, initialValue) {
         
         if (remoteString !== localString) {
           setState(remoteValue);
-          try { localforage.setItem(`sync_${key}`, remoteValue); } catch (e) {}
+          localforage.setItem(`sync_${key}`, remoteValue).catch(e => console.error(e));
         }
       }
     };
