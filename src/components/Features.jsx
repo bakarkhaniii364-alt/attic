@@ -237,7 +237,7 @@ export function RelationshipResume({ onClose, profile, coupleData, scores, sfx, 
   );
 }
 // ── WEATHER WIDGET (Optimized) ──
-export function WeatherWidget() {
+export function WeatherWidget({ compact = false }) {
   const [weatherData, setWeatherData] = useState(() => {
     try {
       const cached = window.localStorage.getItem('attic_weather_cache');
@@ -296,6 +296,20 @@ export function WeatherWidget() {
   );
 
   if (!weatherData) return null;
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 retro-border retro-bg-accent flex items-center justify-center font-bold text-[10px] shadow-sm">
+          {weatherData.temp}°C
+        </div>
+        <div className="flex flex-col">
+          <p className="font-bold text-[9px] uppercase leading-none">{weatherData.desc}</p>
+          <p className="text-[8px] opacity-40 uppercase tracking-tighter leading-none">{weatherData.city}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2">

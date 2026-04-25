@@ -539,7 +539,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                     </div>
 
                     {/* Metadata (Status for Me - Only for very last message in group) */}
-                    {isLast && isMe && !isCallLog && (
+                    {isGroupEnd && isMe && !isCallLog && (
                       <div className={`flex items-center gap-2 mt-1 px-11 text-[9px] font-black uppercase opacity-30 flex-row-reverse`}>
                         {msg.status && (
                           <div className="flex items-center gap-1">

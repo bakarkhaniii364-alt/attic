@@ -210,6 +210,15 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const handlePoke = () => { playAudio('click', sfx); setPokeActive(true); setTriggerShake(true); toast('Poke sent to partner!', 'success'); setTimeout(() => setPokeActive(false), 2000); };
   const nav = (v) => setView(v);
   const unreadDoodles = doodles.filter(d => d.sender === 'partner' && !d.isRead);
+  const [petCooldown, setPetCooldown] = useState(false);
+  const handlePetAction = (val, msg) => {
+    if (petCooldown || isSleeping) return;
+    playAudio('click', sfx);
+    updatePetHappy(Math.min(100, coupleData.petHappy + val));
+    if (msg) toast(msg, 'success', 1500);
+    setPetCooldown(true);
+    setTimeout(() => setPetCooldown(false), 2000);
+  };
   const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
 
   return (
@@ -260,11 +269,13 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
             <button onClick={handlePoke} className={`p-2 retro-border flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary' : 'retro-bg-window retro-shadow-dark'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''}/><span className="text-[10px] font-bold mt-1">POKE</span></button>
           </div>
 
-          <>
             {pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>}
-            <div className="flex flex-wrap gap-3 items-center justify-end pt-2 border-t border-dashed border-[var(--border)]">
-              <button onClick={() => nav('settings')} className="bg-[var(--window)] text-[var(--text-main)] font-bold py-2 px-4 retro-border hover:-translate-y-1 transition-transform">Control panel</button>
-              <button onClick={onLogout} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform">Log out</button>
+            <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-dashed border-[var(--border)] mt-auto">
+              <WeatherWidget compact />
+              <div className="flex gap-2">
+                <button onClick={() => nav('settings')} className="bg-[var(--window)] text-[var(--text-main)] font-bold py-2 px-4 retro-border hover:-translate-y-1 transition-transform text-xs">Control panel</button>
+                <button onClick={onLogout} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform text-xs">Log out</button>
+              </div>
             </div>
           </>
         </div>
@@ -272,9 +283,9 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
-          <PixelPet skin={coupleData.petSkin} happy={coupleData.petHappy} sleeping={isSleeping} onClick={() => { if(!isSleeping){ playAudio('click', sfx); updatePetHappy(Math.min(100, coupleData.petHappy + 10)); } }} />
+          <PixelPet skin={coupleData.petSkin} happy={coupleData.petHappy} sleeping={isSleeping} onClick={() => handlePetAction(10)} />
           <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{width: `${coupleData.petHappy}%`}}></div></div></div>
-          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); updatePetHappy(Math.min(100, coupleData.petHappy + 20)); toast('Fed the pet!', 'success', 1500);}}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={isSleeping} onClick={() => {playAudio('click', sfx); updatePetHappy(Math.min(100, coupleData.petHappy + 10));}}>Pet</RetroButton></div>
+          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={isSleeping || petCooldown} onClick={() => handlePetAction(20, 'Fed the pet!')}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={isSleeping || petCooldown} onClick={() => handlePetAction(10)}>Pet</RetroButton></div>
         </div>
       </RetroWindow>
 
@@ -300,7 +311,6 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
           <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
           <p>Sudoku Solved: {getScoreForUser(scores, userId, 'sudoku')}</p>
          </div>
-         <WeatherWidget />
          <CalendarReminder />
       </RetroWindow>
 
