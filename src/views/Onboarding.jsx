@@ -31,30 +31,22 @@ export function LandingView({ onTryAttic, onSignIn }) {
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center pb-20">
         <div className="relative mb-12 sm:mb-16 transform-gpu hover:scale-105 transition-transform duration-500">
           <div className="absolute -inset-8 bg-[var(--primary)]/10 blur-[60px] rounded-full animate-pulse" />
-          <img src="/attic-logo.png" alt="Attic Logo" className="w-[20rem] sm:w-[32rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-          <div className="hidden relative z-10 flex-col items-center">
-             <div className="text-8xl sm:text-9xl mb-4 filter drop-shadow-2xl">🏠</div>
-             <h1 className="text-5xl sm:text-7xl font-black tracking-tighter text-[var(--text-main)] italic">ATTIC</h1>
-          </div>
+          <img src="/assets/attic.svg" alt="Attic Logo" className="w-[16rem] sm:w-[24rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
         </div>
 
         <div className="max-w-xl mx-auto space-y-8 sm:space-y-12">
           <div className="space-y-4">
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--text-main)] leading-none uppercase">
-              The Digital Sanctuary <br/> <span className="text-[var(--primary)]">For Distant Hearts</span>
-            </h2>
-            <p className="text-xs sm:text-sm font-bold opacity-60 max-w-sm mx-auto leading-relaxed">
-              Sync your world. Share your silence. <br/> A tactile space built for long-distance lovers.
+            <p className="text-sm sm:text-lg font-bold opacity-70 max-w-sm mx-auto leading-relaxed">
+              A corner of the internet, <br/> <span className="text-[var(--primary)]">just for two</span>
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <RetroButton onClick={onTryAttic} className="w-64 py-4 sm:py-5 text-lg sm:text-xl relative overflow-hidden group shadow-2xl">
-              <span className="relative z-10">Start Your Journey</span>
+              <span className="relative z-10">Enter Attic</span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </RetroButton>
             <RetroButton variant="white" onClick={onSignIn} className="w-64 py-4 sm:py-5 text-lg sm:text-xl border-dashed opacity-80 hover:opacity-100 shadow-xl">
-              Welcome Back
+              Start New Journey
             </RetroButton>
           </div>
         </div>
