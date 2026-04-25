@@ -198,16 +198,19 @@ body {
 .retro-bg-primary {
   background-color: var(--primary);
   color: var(--text-on-primary);
+  border: 2px solid var(--primary);
 }
 
 .retro-bg-secondary {
   background-color: var(--secondary);
   color: var(--text-on-secondary);
+  border: 2px solid var(--secondary);
 }
 
 .retro-bg-accent {
   background-color: var(--accent);
   color: var(--text-on-accent);
+  border: 2px solid var(--accent);
 }
 
 /* ── SMART MOBILE UI (FIXED) ── */
