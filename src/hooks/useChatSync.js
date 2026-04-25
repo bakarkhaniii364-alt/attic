@@ -1,0 +1,193 @@
+import { useState, useEffect, useCallback } from 'react';
+import localforage from 'localforage';
+import { supabase } from '../lib/supabase.js';
+
+/**
+ * useChatSync - Specialized hook for room-specific chat history
+ * Implements initial fetch, realtime subscriptions, and offline caching.
+ */
+/**
+ * Maps database row fields to the format expected by the ChatView UI.
+ */
+const mapMessage = (row) => ({
+  ...row,
+  sender: row.sender_id,
+  text: row.content,
+  time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  replyTo: row.metadata?.replyTo || null,
+  reactions: row.metadata?.reactions || [],
+  isDeleted: row.metadata?.isDeleted || false,
+  isEdited: row.metadata?.isEdited || false,
+});
+
+export function useChatSync(roomId) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+
+  // 1. Initial Load & Cache Hydration
+  useEffect(() => {
+    if (!roomId) return;
+
+    let mounted = true;
+
+    const initChat = async () => {
+      // Try to load from cache first for instant UI
+      const cached = await localforage.getItem(`chat_cache_${roomId}`);
+      if (cached && mounted) {
+        setMessages(cached);
+        setLoading(false);
+      }
+
+      // Fetch latest 50 from Supabase
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('[CHAT] Fetch error:', error);
+        if (mounted) setLoading(false);
+        return;
+      }
+
+      if (data && mounted) {
+        const sortedData = data.map(mapMessage).reverse(); // Newest at bottom
+        setMessages(sortedData);
+        setLoading(false);
+        setHasMore(data.length === 50);
+        
+        // Update cache
+        localforage.setItem(`chat_cache_${roomId}`, sortedData);
+      }
+    };
+
+    initChat();
+
+    // 2. Realtime Subscription (Filtered by room_id)
+    const channelName = `room_chat_${roomId}`;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'chat_messages', 
+          filter: `room_id=eq.${roomId}` 
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setMessages((prev) => {
+              const mapped = mapMessage(payload.new);
+              const newMsgs = [...prev, mapped];
+              localforage.setItem(`chat_cache_${roomId}`, newMsgs);
+              return newMsgs;
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages((prev) => {
+              const mapped = mapMessage(payload.new);
+              const newMsgs = prev.map((m) => (m.id === mapped.id ? mapped : m));
+              localforage.setItem(`chat_cache_${roomId}`, newMsgs);
+              return newMsgs;
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setMessages((prev) => {
+              const newMsgs = prev.filter((m) => m.id !== payload.old.id);
+              localforage.setItem(`chat_cache_${roomId}`, newMsgs);
+              return newMsgs;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [roomId]);
+
+  // 3. Send Message Helper
+  const sendMessage = useCallback(async (content, type = 'text', senderId, metadata = {}) => {
+    if (!roomId || !content) return;
+
+    let finalContent = content;
+
+    // If it's a blob/file (voice note or image), upload to storage first
+    if (content instanceof Blob) {
+      const fileExt = content.type.split('/')[1] || 'png';
+      const fileName = `${roomId}/${Date.now()}.${fileExt}`;
+      const bucket = type === 'voice' ? 'voice_notes' : (type === 'image' ? 'scrapbook' : 'doodles');
+
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, content, { cacheControl: '3600', upsert: true });
+
+      if (storageError) {
+        console.error('[CHAT] Storage upload error:', storageError);
+        throw storageError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+      
+      finalContent = publicUrl;
+    }
+
+    const newMessage = {
+      room_id: roomId,
+      sender_id: senderId,
+      type,
+      content: finalContent,
+      metadata,
+    };
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert(newMessage)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[CHAT] Send error:', error);
+      throw error;
+    }
+
+    return data;
+  }, [roomId]);
+
+  // 4. Load More (Pagination)
+  const loadMore = useCallback(async () => {
+    if (!roomId || !hasMore || messages.length === 0) return;
+
+    const oldestTimestamp = messages[0].created_at;
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .lt('created_at', oldestTimestamp)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('[CHAT] Pagination error:', error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const moreMsgs = data.map(mapMessage).reverse();
+      setMessages((prev) => [...moreMsgs, ...prev]);
+      setHasMore(data.length === 50);
+    } else {
+      setHasMore(false);
+    }
+  }, [roomId, hasMore, messages]);
+
+  return { messages, sendMessage, loading, loadMore, hasMore };
+}

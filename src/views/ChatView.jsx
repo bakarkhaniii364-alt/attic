@@ -4,7 +4,9 @@ import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useChatSync } from '../hooks/useChatSync.js';
 import { useNavigate } from 'react-router-dom';
+import { base64ToBlob } from '../utils/file.js';
 
 /* ═══════════════════════════════════════════════════════
    UTILITIES
@@ -104,7 +106,12 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, chatHistory, setChatHistory, userId, partnerId, onStartCall, sharedImages, setSharedImages, onlineUsers = {} }) {
+export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, chatHistory: propChatHistory, setChatHistory: propSetChatHistory, userId, partnerId, roomId, onStartCall, sharedImages, setSharedImages, onlineUsers = {} }) {
+  const { messages: syncMessages, sendMessage: syncSendMessage, loadMore: syncLoadMore, hasMore: syncHasMore, loading: syncLoading } = useChatSync(roomId);
+  
+  const isNormalized = !!roomId;
+  const chatHistory = isNormalized ? syncMessages : propChatHistory;
+  const setChatHistory = isNormalized ? null : propSetChatHistory; // setChatHistory is not used in normalized mode
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -219,39 +226,54 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
     if (!input.trim() && pendingImages.length === 0 && voicePreview === null) return; 
     playAudio('send', sfx);
     if (editingMsgId) { 
-      setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); 
+      if (isNormalized) {
+          // Edits not fully implemented in specialized hook yet, but could be payload updates
+      } else {
+          setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m)); 
+      }
       setEditingMsgId(null); 
     }
     else if (pendingImages.length > 0) {
-      const newMsg = {
-        id: crypto.randomUUID(),
-        sender: userId,
-        senderName: profile?.name,
-        type: pendingImages.length > 1 ? 'image_group' : 'image',
-        url: pendingImages.length === 1 ? pendingImages[0] : null,
-        urls: pendingImages.length > 1 ? pendingImages : null,
-        text: input.trim() || null,
-        timestamp: Date.now(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        replyTo: replyingTo,
-        status: 'sent'
-      };
-      setChatHistory([...chatHistory, newMsg]);
-      setPendingImages([]);
+      if (isNormalized) {
+          pendingImages.forEach(img => {
+              syncSendMessage(img, 'image', userId, { text: input.trim() });
+          });
+          setPendingImages([]);
+      } else {
+          const newMsg = {
+            id: crypto.randomUUID(),
+            sender: userId,
+            senderName: profile?.name,
+            type: pendingImages.length > 1 ? 'image_group' : 'image',
+            url: pendingImages.length === 1 ? pendingImages[0] : null,
+            urls: pendingImages.length > 1 ? pendingImages : null,
+            text: input.trim() || null,
+            timestamp: Date.now(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            replyTo: replyingTo,
+            status: 'sent'
+          };
+          setChatHistory([...chatHistory, newMsg]);
+          setPendingImages([]);
+      }
     }
     else { 
-      const newMsg = { 
-        id: crypto.randomUUID(), 
-        sender: userId, 
-        senderName: profile?.name, 
-        type: 'text', 
-        text: input, 
-        timestamp: Date.now(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
-        replyTo: replyingTo, 
-        status: 'sent' 
-      };
-      setChatHistory([...chatHistory, newMsg]); 
+      if (isNormalized) {
+          syncSendMessage(input, 'text', userId, { replyTo: replyingTo });
+      } else {
+          const newMsg = { 
+            id: crypto.randomUUID(), 
+            sender: userId, 
+            senderName: profile?.name, 
+            type: 'text', 
+            text: input, 
+            timestamp: Date.now(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+            replyTo: replyingTo, 
+            status: 'sent' 
+          };
+          setChatHistory([...chatHistory, newMsg]); 
+      }
     }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
     sendTyping({ userId, isTyping: false });
@@ -284,20 +306,34 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
   };
   const stopRecording = () => { if (!isRecording || !mediaRecorderRef.current) return; setIsRecording(false); clearInterval(recordingTimerRef.current); mediaRecorderRef.current.stop(); };
   const discardVoiceNote = () => { setVoicePreview(null); setVoicePreviewUrl(null); setVoiceBase64(null); };
-  const confirmVoiceNote = () => {
+  const confirmVoiceNote = async () => {
     if (!voiceBase64 || !voicePreview) return; playAudio('send', sfx);
-    setChatHistory(prev => [...prev, { 
-        id: crypto.randomUUID(), 
-        sender: userId, 
-        senderName: profile?.name, 
-        type: 'voice', 
-        duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`, 
-        audioUrl: voiceBase64, 
-        timestamp: Date.now(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
-        replyTo: replyingTo, 
-        status: 'sent' 
-    }]);
+    
+    if (isNormalized) {
+        try {
+            // Need to convert the audioChunks back to a Blob if we want to upload it
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            await syncSendMessage(audioBlob, 'voice', userId, { 
+                duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`,
+                replyTo: replyingTo 
+            });
+        } catch (e) {
+            alert("Failed to send voice note: " + e.message);
+        }
+    } else {
+        setChatHistory(prev => [...prev, { 
+            id: crypto.randomUUID(), 
+            sender: userId, 
+            senderName: profile?.name, 
+            type: 'voice', 
+            duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`, 
+            audioUrl: voiceBase64, 
+            timestamp: Date.now(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+            replyTo: replyingTo, 
+            status: 'sent' 
+        }]);
+    }
     setReplyingTo(null); discardVoiceNote();
   };
 

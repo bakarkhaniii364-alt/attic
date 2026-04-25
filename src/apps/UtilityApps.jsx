@@ -3,7 +3,9 @@ import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, 
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
+import { useAssetSync } from '../hooks/useAssetSync.js';
 import { floodFill } from '../utils/helpers.js';
+import { base64ToBlob } from '../utils/file.js';
 
 export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profileName, sfx }) {
   const handleDownload = () => { playAudio('click', sfx); const a = document.createElement('a'); a.href = doodle.img; a.download = `doodle_from_partner_${Date.now()}.png`; a.click(); };
@@ -27,7 +29,9 @@ export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profi
   );
 }
 
-export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapbook, sfx }) {
+export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapbook, sfx, roomId, userId }) {
+  const { uploadAsset } = useAssetSync(roomId);
+  const isNormalized = !!roomId;
   const canvasRef = useRef(null); const [isDrawing, setIsDrawing] = useState(false); const [tool, setTool] = useState('pen'); const [color, setColor] = useState('#5c3a21'); const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const startPosRef = useRef({ x: 0, y: 0 }); const snapshotRef = useRef(null); const snapshotHistory = useRef([]);
   const colorInputRef = useRef(null);
@@ -71,15 +75,43 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   const handlePointerUp = () => { if(isDrawing){ setIsDrawing(false); snapshotRef.current = null; snapshotHistory.current.push(canvasRef.current.toDataURL()); } };
   const clearCanvas = () => { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); setHasUnsavedChanges(true); snapshotHistory.current=[canvas.toDataURL()]; };
   const [showSentOverlay, setShowSentOverlay] = useState(false);
-  const handleSend = () => {
+  const handleSend = async () => {
     playAudio('send', sfx);
     const dataUrl = canvasRef.current.toDataURL('image/png');
-    if (onSendDoodle) onSendDoodle({img: dataUrl, history: snapshotHistory.current});
+    
+    if (isNormalized) {
+        try {
+            const blob = base64ToBlob(dataUrl);
+            await uploadAsset(blob, 'doodle', userId);
+        } catch (e) {
+            alert("Failed to send doodle: " + e.message);
+            return;
+        }
+    } else {
+        if (onSendDoodle) onSendDoodle({img: dataUrl, history: snapshotHistory.current});
+    }
+    
     setHasUnsavedChanges(false);
     setShowSentOverlay(true);
   };
 
-  const handleSaveScrapbook = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); if (onSaveToScrapbook) onSaveToScrapbook(dataUrl); alert('Saved to Scrapbook!'); };
+  const handleSaveScrapbook = async () => {
+    playAudio('click', sfx);
+    const dataUrl = canvasRef.current.toDataURL('image/png');
+    
+    if (isNormalized) {
+        try {
+            const blob = base64ToBlob(dataUrl);
+            await uploadAsset(blob, 'scrapbook', userId);
+            alert('Saved to Scrapbook!');
+        } catch (e) {
+            alert("Failed to save: " + e.message);
+        }
+    } else {
+        if (onSaveToScrapbook) onSaveToScrapbook(dataUrl);
+        alert('Saved to Scrapbook!');
+    }
+  };
   const handleDownload = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); const a = document.createElement('a'); a.href = dataUrl; a.download = `doodle_${Date.now()}.png`; a.click(); };
   const toolBtnClass = (t) => `p-2 rounded-md transition-colors retro-border ${tool === t ? 'bg-white shadow-inner' : 'opacity-70 hover:bg-black/10'}`;
 
@@ -446,10 +478,15 @@ export function CalendarApp({ onClose, sfx }) {
   );
 }
 
-export function ScrapbookApp({ onClose, images, sfx, userId }) {
+export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId }) {
+  const { assets } = useAssetSync(roomId, 'scrapbook');
   const [layoutMode, setLayoutMode] = useLocalStorage('scrapbook_mode', 'grid');
   const [layout, setLayout] = useGlobalSync('scrapbook_layout', {});
   const [page, setPage] = useState(1);
+  
+  // Combine legacy JSON images with new normalized storage assets
+  const normalizedImages = assets.map(a => a.url);
+  const images = [...new Set([...normalizedImages, ...propImages])];
   const visibleImages = images.slice(0, page * 12);
   const containerRef = useRef(null);
 
