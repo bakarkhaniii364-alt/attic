@@ -595,7 +595,7 @@ export default function App() {
         </div>
 
         <Routes>
-          <Route path="/login" element={<PublicRoute session={session} hasRoom={hasRoom}><LandingView onTryAttic={() => navigate('/signup')} onSignIn={() => navigate('/signin')} /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute session={session} hasRoom={hasRoom}><LandingView onTryAttic={() => navigate('/signin')} onSignIn={() => navigate('/signup')} /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/login')} /></PublicRoute>} />
           <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/login')} /></PublicRoute>} />
           <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
