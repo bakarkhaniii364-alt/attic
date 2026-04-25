@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, Loader, Check, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader, Check, ArrowLeft } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 import { playAudio } from '../utils/audio.js';
 
-/**
- * Password Reset Page
- * Displayed when user clicks password reset link from email
- * URL: /password-reset?code=<recovery_code>
- */
 export function ResetPasswordView({ sfx }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -23,35 +18,13 @@ export function ResetPasswordView({ sfx }) {
   const [validToken, setValidToken] = useState(true);
   const toast = useToast();
 
-  // Verify token on mount
-  useEffect(() => {
-    const code = searchParams.get('code');
-    if (!code) {
-      // No code: render password-reset request form instead of treating as an error.
-      setValidToken(false);
-    }
-  }, [searchParams]);
-
   const [requestEmail, setRequestEmail] = useState('');
   const [requestSent, setRequestSent] = useState(false);
 
-  const handleRequestReset = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      // Ask Supabase to send a password reset email. Redirect will open the
-      // same ResetPasswordView with a code when the user clicks the emailed link.
-      const redirectTo = `${window.location.origin}/password-reset`;
-      const { data, error: err } = await supabase.auth.resetPasswordForEmail(requestEmail, { redirectTo });
-      if (err) throw err;
-      setRequestSent(true);
-    } catch (err) {
-      setError(err.message || 'Failed to request password reset');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (!code) setValidToken(false);
+  }, [searchParams]);
 
   const validatePassword = () => {
     if (password.length < 6) {
@@ -65,31 +38,44 @@ export function ResetPasswordView({ sfx }) {
     return true;
   };
 
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const redirectTo = `${window.location.origin}/password-reset`;
+      const { data, error: err } = await supabase.auth.resetPasswordForEmail(requestEmail, { redirectTo });
+      if (err) throw err;
+      setRequestSent(true);
+      if (toast) toast('Reset link sent. Check your inbox.', 'success');
+    } catch (err) {
+      setError(err.message || 'Failed to request password reset');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!validatePassword()) return;
-
     setLoading(true);
     setError('');
     playAudio('click', sfx);
-
     try {
       const { error: err } = await supabase.auth.updateUser({ password });
-
       if (err) {
         setError(err.message || 'Failed to reset password. Try again.');
         setLoading(false);
-        try {
-          const { error: err } = await supabase.auth.updateUser({ password });
+        return;
+      }
+      setSuccess(true);
+      if (toast) toast('Password reset successfully!', 'success');
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
+      setLoading(false);
+    }
+  };
 
-          if (err) {
-            setError(err.message || 'Failed to reset password. Try again.');
-            setLoading(false);
-            return;
-          }
-
-          setSuccess(true);
-          if (toast) toast('Password reset successfully!', 'success');
   if (success) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
@@ -101,7 +87,7 @@ export function ResetPasswordView({ sfx }) {
             <h2 className="text-2xl font-bold">Password Reset!</h2>
             <p className="text-sm opacity-70">Your password has been successfully reset.</p>
             <Loader size={20} className="animate-spin text-[var(--primary)]" />
-            <RetroButton onClick={() => navigate('/signin')} className="mt-2">remember password? sign in instead</RetroButton>
+            <RetroButton onClick={() => navigate('/signin')} className="mt-3">remember password? sign in instead</RetroButton>
           </div>
         </RetroWindow>
       </div>
@@ -109,7 +95,6 @@ export function ResetPasswordView({ sfx }) {
   }
 
   if (!validToken) {
-    // Show a request-reset form when no code is present (user clicked "forgot password")
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
         <RetroWindow title="password_reset_request.exe" className="w-full max-w-sm" noPadding onClose={() => navigate('/signin')}>
@@ -225,10 +210,10 @@ export function ResetPasswordView({ sfx }) {
 
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/signin')}
             className="text-center text-xs font-bold opacity-50 hover:opacity-100 transition-opacity flex items-center justify-center gap-1"
           >
-            <ArrowLeft size={12} /> go back to login
+            remember password? sign in instead
           </button>
         </form>
       </RetroWindow>
