@@ -55,9 +55,27 @@ CREATE POLICY "access_room_assets" ON shared_assets
     );
 
 -- 6. Add to Realtime Publication (As per Pro-Tip #4)
--- Note: This ensures INSERTs are broadcasted to subscribers
-ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE shared_assets;
+-- Note: If you get an error here saying it's already a member, it's safe to ignore.
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'chat_messages'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'shared_assets'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE shared_assets;
+    END IF;
+END $$;
 
 -- ============================================================
 -- NOTE: SUPABASE STORAGE BUCKETS
