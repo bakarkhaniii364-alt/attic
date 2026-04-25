@@ -82,11 +82,11 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
         });
         if (error) throw error;
         addToast("Welcome to Attic! Check your email to verify.", "success");
-        onAuthSuccess({ session: data.session, name });
+        onAuthSuccess({ session: data.session, name, mode: 'signup' });
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        onAuthSuccess({ session: data.session });
+        onAuthSuccess({ session: data.session, mode: 'signin' });
       }
     } catch (err) { addToast(err.message, "error"); }
     finally { setLoading(false); }
@@ -95,46 +95,69 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
   return (
     <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 mesh-bg">
       <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
-      <RetroWindow title={`${mode === 'signup' ? 'register' : 'login'}.exe`} className="w-full max-w-[440px] shadow-2xl scale-up-15" onClose={onBack}>
-        <form onSubmit={handleAuth} className="flex flex-col gap-6 py-4">
-          <div className="text-center mb-4">
-            <h2 className="text-3xl font-black italic tracking-tighter text-[var(--primary)]">{mode === 'signup' ? 'JOIN ATTIC' : 'WELCOME BACK'}</h2>
-            <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Authorized Access Only</p>
+      <RetroWindow title={`${mode === 'signup' ? 'join attic' : 'welcome back'}.exe`} className="w-full max-w-[440px] shadow-2xl scale-up-15" onClose={onBack}>
+        <form onSubmit={handleAuth} className="flex flex-col gap-4 py-4">
+          <div className="text-center mb-2">
+            <h2 className="text-2xl font-black italic tracking-tight text-[var(--primary)] lowercase">{mode === 'signup' ? 'join attic' : 'welcome back'}</h2>
           </div>
 
-          {mode === 'signup' && (
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase opacity-60 ml-1">Couple Display Name</label>
-              <div className="relative">
-                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-                <input required type="text" placeholder="e.g. Romeo & Juliet" value={name} onChange={e => setName(e.target.value)} className="w-full pl-12 pr-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+          {mode === 'signup' ? (
+            <>
+              <div className="space-y-1">
+                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">display name</label>
+                <div className="relative">
+                  <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+                  <input required type="text" placeholder="alex" value={name} onChange={e => setName(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+                </div>
               </div>
-            </div>
+
+              <div className="space-y-1">
+                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">email</label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+                  <input required type="email" placeholder="you@love.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">password</label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+                  <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+                </div>
+                <div className="text-left mt-1">
+                  <a href="/password-reset" className="text-xs opacity-70 lowercase">forgot password?</a>
+                </div>
+              </div>
+
+              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
+                {loading ? <Loader className="animate-spin" /> : 'create account'}
+              </RetroButton>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">email</label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+                  <input required type="email" placeholder="you@love.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">password</label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
+                  <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+                </div>
+              </div>
+
+              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
+                {loading ? <Loader className="animate-spin" /> : 'enter attic'}
+              </RetroButton>
+            </>
           )}
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase opacity-60 ml-1">Email Terminal</label>
-            <div className="relative">
-              <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-              <input required type="email" placeholder="you@love.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase opacity-60 ml-1">Security Key</label>
-            <div className="relative">
-              <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-              <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
-            </div>
-          </div>
-
-          <RetroButton type="submit" disabled={loading} className="py-5 text-xl mt-4">
-            {loading ? <Loader className="animate-spin" /> : mode === 'signup' ? 'Create Sanctuary' : 'Enter Attic'}
-          </RetroButton>
-
-          <button type="button" onClick={onBack} className="text-[10px] font-bold opacity-40 hover:opacity-100 flex items-center justify-center gap-2 uppercase tracking-widest mt-2">
-            <ArrowLeft size={12} /> Return to landing
-          </button>
         </form>
       </RetroWindow>
     </div>

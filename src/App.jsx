@@ -510,7 +510,12 @@ export default function App() {
   const handleAuthSuccess = (data) => {
     if (data.name) setProfile(prev => ({ ...prev, name: data.name }));
     setSession(data.session);
-    navigate('/');
+    // If user just signed up, route them to handshake to start pairing.
+    if (data.mode === 'signup') {
+      navigate('/handshake');
+    } else {
+      navigate('/');
+    }
   };
   const handlePaired = async (roomId) => { 
     setHasRoom(true); 
