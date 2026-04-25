@@ -42,8 +42,8 @@ export function WeatherOverlay({ weather }) {
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
       {particles.map((_, i) => (
-        <div key={i} className="absolute" style={{ left: `${Math.random() * 100}%`, top: weather === 'spores' ? '100vh' : `-${Math.random() * 20}px`, animation: `${weather} ${Math.random() * 2 + (weather === 'rain' ? 1 : 3)}s linear infinite`, animationDelay: `${Math.random() * 2}s` }}>
-          {weather === 'rain' ? <div className="w-[2px] h-6 bg-blue-400 opacity-50 rounded-full" /> : weather === 'spores' ? <div className="w-1.5 h-1.5 bg-red-500 rounded-full opacity-60" style={{ filter: 'blur(1px)' }} /> : <Snowflake size={16} className="text-white opacity-80" />}
+        <div key={i} className="absolute" style={{ left: `${Math.random() * 100}%`, top: weather === 'spores' ? '100vh' : `-100px`, animation: `${weather} ${Math.random() * 2 + (weather === 'rain' ? 1 : 3)}s linear infinite`, animationDelay: `${Math.random() * 2}s` }}>
+          {weather === 'rain' ? <div className="w-[2px] h-10 bg-blue-400 opacity-50 rounded-full" /> : weather === 'spores' ? <div className="w-1.5 h-1.5 bg-red-500 rounded-full opacity-60" style={{ filter: 'blur(1px)' }} /> : <Snowflake size={16} className="text-white opacity-80" />}
         </div>
       ))}
     </div>
@@ -82,7 +82,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   return (
     <>
       <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
-        <div className="retro-bg-accent retro-border-thick border-t-0 border-l-0 border-r-0 border-b-[3px] flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
+        <div className="retro-bg-accent retro-border-thick border-t-0 border-l-0 border-r-0 border-b-[5px] flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
           {/* Subtle header sheen */}
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
           

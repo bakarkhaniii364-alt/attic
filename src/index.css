@@ -36,93 +36,93 @@
 }
 
 [data-theme="midnight"] {
-  --bg-main: #0d0d1a;
-  --bg-pattern: #12122e;
-  --bg-window: #1c1c3e;
-  --border: #504090;
-  --primary: #e94560;
-  --primary-hover: #ff6b84;
+  --bg-main: #0a0a14;
+  --bg-pattern: #14142b;
+  --bg-window: #16162d;
+  --border: #7c83fd;
+  --primary: #ff3e60;
+  --primary-hover: #ff607b;
   --secondary: #7c83fd;
   --accent: #2e2e55;
-  --text-main: #e0d8f0;
+  --text-main: #ffffff;
   --text-on-primary: #ffffff;
-  --text-on-secondary: #ffffff;
-  --text-on-accent: #e0d8f0;
+  --text-on-secondary: #0a0a14;
+  --text-on-accent: #ffffff;
 }
 
 [data-theme="cyberpunk"] {
-  --bg-main: #0a0e17;
-  --bg-pattern: #141c2b;
-  --bg-window: #1a2332;
-  --border: #45A29E;
-  --primary: #66FCF1;
-  --primary-hover: #4dd9ce;
-  --secondary: #F2A900;
-  --accent: #1e3040;
-  --text-main: #C5C6C7;
-  --text-on-primary: #0a0e17;
-  --text-on-secondary: #0a0e17;
-  --text-on-accent: #C5C6C7;
+  --bg-main: #050505;
+  --bg-pattern: #0f0f0f;
+  --bg-window: #111111;
+  --border: #f2a900;
+  --primary: #00ffcc;
+  --primary-hover: #33ffdd;
+  --secondary: #f2a900;
+  --accent: #1a1a1a;
+  --text-main: #ffffff;
+  --text-on-primary: #050505;
+  --text-on-secondary: #050505;
+  --text-on-accent: #ffffff;
 }
 
 [data-theme="synthwave"] {
-  --bg-main: #1a0a30;
-  --bg-pattern: #2a1248;
-  --bg-window: #2d1260;
-  --border: #9040c0;
-  --primary: #FD3777;
-  --primary-hover: #e0205e;
-  --secondary: #00E5FF;
-  --accent: #3a1870;
-  --text-main: #f0d0ff;
+  --bg-main: #12061a;
+  --bg-pattern: #1d0a2a;
+  --bg-window: #1a0828;
+  --border: #ff00ff;
+  --primary: #ff00ff;
+  --primary-hover: #ff33ff;
+  --secondary: #00ffff;
+  --accent: #2d0a40;
+  --text-main: #ffffff;
   --text-on-primary: #ffffff;
-  --text-on-secondary: #1a0a30;
-  --text-on-accent: #f0d0ff;
+  --text-on-secondary: #12061a;
+  --text-on-accent: #ffffff;
 }
 
 [data-theme="minimal"] {
-  --bg-main: #f5f5f5;
-  --bg-pattern: #e8e8e8;
+  --bg-main: #f0f0f0;
+  --bg-pattern: #e0e0e0;
   --bg-window: #ffffff;
-  --border: #222222;
-  --primary: #222222;
-  --primary-hover: #444444;
-  --secondary: #2563eb;
-  --accent: #e8e8e8;
-  --text-main: #222222;
+  --border: #000000;
+  --primary: #000000;
+  --primary-hover: #333333;
+  --secondary: #1a56db;
+  --accent: #e5e7eb;
+  --text-main: #000000;
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
-  --text-on-accent: #222222;
+  --text-on-accent: #000000;
 }
 
 [data-theme="monochrome"] {
-  --bg-main: #141414;
-  --bg-pattern: #1c1c1c;
-  --bg-window: #222222;
-  --border: #666666;
+  --bg-main: #000000;
+  --bg-pattern: #111111;
+  --bg-window: #0a0a0a;
+  --border: #ffffff;
   --primary: #ffffff;
-  --primary-hover: #cccccc;
-  --secondary: #999999;
-  --accent: #333333;
-  --text-main: #e0e0e0;
-  --text-on-primary: #141414;
-  --text-on-secondary: #141414;
-  --text-on-accent: #e0e0e0;
+  --primary-hover: #e5e5e5;
+  --secondary: #666666;
+  --accent: #1a1a1a;
+  --text-main: #ffffff;
+  --text-on-primary: #000000;
+  --text-on-secondary: #ffffff;
+  --text-on-accent: #ffffff;
 }
 
 [data-theme="hawkins"] {
-  --bg-main: #0B0A0C;
-  --bg-pattern: #170912;
-  --bg-window: #130a10;
-  --border: #4A192C;
-  --primary: #D01111;
-  --primary-hover: #A00B0B;
-  --secondary: #8B1A2A;
-  --accent: #230810;
-  --text-main: #e8d0d5;
+  --bg-main: #0a0a0a;
+  --bg-pattern: #1a0505;
+  --bg-window: #000000;
+  --border: #e21d1d;
+  --primary: #e21d1d;
+  --primary-hover: #ff2d2d;
+  --secondary: #ffffff;
+  --accent: #1a0505;
+  --text-main: #ffffff;
   --text-on-primary: #ffffff;
-  --text-on-secondary: #ffffff;
-  --text-on-accent: #e8d0d5;
+  --text-on-secondary: #0a0a0a;
+  --text-on-accent: #ffffff;
 }
 
 /* Standard scale for the whole site */
@@ -170,7 +170,7 @@ body {
 }
 
 .retro-border-thick {
-  border: 3px solid var(--border);
+  border: 5px solid var(--border);
 }
 
 .retro-shadow-dark {
@@ -183,10 +183,10 @@ body {
 
 /* Glassmorphism & Refraction */
 .glass-window {
-  background: rgba(255, 253, 249, 0.85);
+  background: var(--bg-window);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border: 2px solid var(--border);
+  border: 5px solid var(--border);
 }
 
 /* Living Mesh Background */
