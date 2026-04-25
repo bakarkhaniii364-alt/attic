@@ -200,7 +200,9 @@ export default function App() {
 
   // 1. Auth & Session State
   const [session, setSession] = useState(null);
-  const [hasRoom, setHasRoom] = useLocalStorage('attic_has_room', false);
+  const [hasRoom, setHasRoom] = useLocalStorage('attic_has_room', null);
+  const [pendingRoomId, setPendingRoomId] = useState(null);
+  const [coreReady, setCoreReady] = useState(false); // true after essential data loaded
   const [loading, setLoading] = useState(true);
   const [syncedRoomId, setSyncedRoomId] = useState(null);
 
@@ -495,18 +497,93 @@ export default function App() {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      const s = data?.session || null; setSession(s);
-      if (s) await checkRoomAndSync(s.user.id); else setLoading(false);
+      const s = data?.session || null;
+      setSession(s);
+      if (s) {
+        // populate local profile name from session metadata if available
+        try {
+          const metaName = s.user?.user_metadata?.name;
+          if (metaName) setProfile(prev => ({ ...prev, name: metaName }));
+        } catch (e) {}
+
+        // quick, lightweight check for pairing info (does NOT initialize full sync yet)
+        try {
+          const { data: room } = await supabase.rpc('get_my_room');
+          if (room) {
+            setHasRoom(!!room.is_paired);
+            if (room.is_paired) setPendingRoomId(room.id);
+            else setPendingRoomId(null);
+          } else {
+            setHasRoom(false);
+            setPendingRoomId(null);
+          }
+        } catch (err) {
+          console.error('Quick room check failed', err);
+          setHasRoom(false);
+          setPendingRoomId(null);
+        }
+      } else {
+        setHasRoom(false);
+        setPendingRoomId(null);
+      }
+      setLoading(false);
+      // mark core ready so UI can render and defer expensive work
+      setCoreReady(true);
     };
+
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      if (!mounted) return; setSession(s);
-      if (s) checkRoomAndSync(s.user.id); else { setHasRoom(false); setSyncedRoomId(null); setLoading(false); }
+      if (!mounted) return;
+      setSession(s);
+      if (s && s.user) {
+        // perform quick check on auth change
+        (async () => {
+          try {
+            const { data: room } = await supabase.rpc('get_my_room');
+            if (room) {
+              setHasRoom(!!room.is_paired);
+              if (room.is_paired) setPendingRoomId(room.id);
+              else setPendingRoomId(null);
+            } else {
+              setHasRoom(false);
+              setPendingRoomId(null);
+            }
+          } catch (err) { console.error('Auth state room check failed', err); setHasRoom(false); setPendingRoomId(null); }
+        })();
+      } else {
+        setHasRoom(false); setPendingRoomId(null);
+      }
     });
+
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+
+  // Apply theme after core is ready to avoid blocking initial render
+  useEffect(() => {
+    if (!coreReady) return;
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [coreReady, theme]);
+
+  // When we have a pending room ID and core is ready, lazily initialize the full room sync
+  useEffect(() => {
+    if (!coreReady || !pendingRoomId) return;
+    if (syncedRoomId === pendingRoomId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // give the UI a tick before starting heavy sync
+        await new Promise(r => setTimeout(r, 200));
+        if (cancelled) return;
+        setSyncedRoomId(pendingRoomId);
+        await initializeRoomSync(pendingRoomId);
+      } catch (err) {
+        console.error('Lazy initializeRoomSync failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coreReady, pendingRoomId]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/'); };
   const handleAuthSuccess = async (data) => {
@@ -526,24 +603,30 @@ export default function App() {
     }
   };
   const handlePaired = async (roomId) => { 
-    setHasRoom(true); 
-    setSyncedRoomId(roomId); 
-    await initializeRoomSync(roomId); 
-    navigate('/'); 
+    setHasRoom(true);
+    setPendingRoomId(roomId);
+    // lazily initialize heavy sync after a short delay so UI becomes interactive quickly
+    setTimeout(async () => {
+      setSyncedRoomId(roomId);
+      await initializeRoomSync(roomId);
+    }, 500);
+    // ensure our profile is pushed to room_profiles immediately so partner sees our display name
+    try { setRoomProfiles(prev => ({ ...prev, [userId]: profile })); } catch(e) {}
+    navigate('/');
   };
   const handleShareToChat = (text, imgData) => { setChatHistory(p => [...p, { id: Date.now(), sender: userId, type: imgData ? 'image' : 'text', url: imgData, text: text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'sent' }]); };
   const navigateTo = (v) => { playAudio('click', sfxEnabled); if (v === 'dashboard') navigate('/'); else navigate(`/${v}`); };
 
-  if (loading) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
+  if (loading || hasRoom === null) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
 
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
   return (
     <ToastProvider>
-      <div className={`min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+      <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
-        <LivingBackground weather={weather} />
-        <WeatherOverlay weather={weather} />
+        {coreReady && <LivingBackground weather={weather} />}
+        {coreReady && <WeatherOverlay weather={weather} />}
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}

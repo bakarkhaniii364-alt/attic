@@ -28,7 +28,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
       </nav>
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center overflow-hidden">
+      <main style={{ transform: 'translateY(-6.25vh)' }} className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center overflow-hidden">
         <div className="relative mb-4 sm:mb-6 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center">
           <div className="absolute -inset-10 bg-[var(--primary)]/10 blur-[60px] rounded-full animate-pulse" />
           <img src="/assets/attic.svg" alt="Attic Logo" className="w-[22rem] sm:w-[30rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
@@ -80,12 +80,16 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
             email, password, options: { data: { name } } 
         });
         if (error) throw error;
+        // Ensure user metadata persisted (best-effort) and reflect in UI
+        try { await supabase.auth.updateUser({ data: { name } }); } catch(e) { /* ignore */ }
         addToast("Welcome to Attic! Check your email to verify.", "success");
         onAuthSuccess({ session: data.session, name, mode: 'signup' });
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        onAuthSuccess({ session: data.session, mode: 'signin' });
+        // read metadata and forward display name for immediate UI update
+        const metaName = data?.user?.user_metadata?.name;
+        onAuthSuccess({ session: data.session, name: metaName, mode: 'signin' });
       }
     } catch (err) { addToast(err.message, "error"); }
     finally { setLoading(false); }
