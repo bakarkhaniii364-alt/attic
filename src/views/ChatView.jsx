@@ -1,4 +1,4 @@
-import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2 } from 'lucide-react';
+import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2, Clock } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
@@ -6,7 +6,7 @@ import { playAudio } from '../utils/audio.js';
 import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useChatSync } from '../hooks/useChatSync.js';
 import { useNavigate } from 'react-router-dom';
-import { base64ToBlob } from '../utils/file.js';
+import { base64ToBlob, compressImage } from '../utils/file.js';
 
 /* ═══════════════════════════════════════════════════════
    UTILITIES
@@ -236,7 +236,8 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
     else if (pendingImages.length > 0) {
       if (isNormalized) {
           pendingImages.forEach(img => {
-              syncSendMessage(img, 'image', userId, { text: input.trim() });
+              const blob = base64ToBlob(img);
+              syncSendMessage(blob, 'image', userId, { text: input.trim() });
           });
           setPendingImages([]);
       } else {

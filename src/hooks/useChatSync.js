@@ -9,16 +9,25 @@ import { supabase } from '../lib/supabase.js';
 /**
  * Maps database row fields to the format expected by the ChatView UI.
  */
-const mapMessage = (row) => ({
-  ...row,
-  sender: row.sender_id,
-  text: row.content,
-  time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  replyTo: row.metadata?.replyTo || null,
-  reactions: row.metadata?.reactions || [],
-  isDeleted: row.metadata?.isDeleted || false,
-  isEdited: row.metadata?.isEdited || false,
-});
+  const mapMessage = (row) => {
+    const mapped = {
+      ...row,
+      sender: row.sender_id,
+      time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      replyTo: row.metadata?.replyTo || null,
+      reactions: row.metadata?.reactions || [],
+      isDeleted: row.metadata?.isDeleted || false,
+      isEdited: row.metadata?.isEdited || false,
+      duration: row.metadata?.duration || null
+    };
+
+    // Route content to correct UI prop based on type
+    if (row.type === 'text') mapped.text = row.content;
+    else if (row.type === 'image') mapped.url = row.content;
+    else if (row.type === 'voice') mapped.audioUrl = row.content;
+
+    return mapped;
+  };
 
 export function useChatSync(roomId) {
   const [messages, setMessages] = useState([]);
@@ -119,7 +128,7 @@ export function useChatSync(roomId) {
 
     // If it's a blob/file (voice note or image), upload to storage first
     if (content instanceof Blob) {
-      const fileExt = content.type.split('/')[1] || 'png';
+      const fileExt = content.type.split('/')[1]?.split(';')[0] || 'png';
       const fileName = `${roomId}/${Date.now()}.${fileExt}`;
       const bucket = type === 'voice' ? 'voice_notes' : (type === 'image' ? 'scrapbook' : 'doodles');
 
