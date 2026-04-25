@@ -236,3 +236,79 @@ export function RelationshipResume({ onClose, profile, coupleData, scores, sfx, 
     </RetroWindow>
   );
 }
+// ── WEATHER WIDGET (Optimized) ──
+export function WeatherWidget() {
+  const [weatherData, setWeatherData] = useState(() => {
+    try {
+      const cached = window.localStorage.getItem('attic_weather_cache');
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        // Cache valid for 30 minutes
+        if (Date.now() - timestamp < 1800000) return data;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  const [loading, setLoading] = useState(!weatherData);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        // wttr.in format: ?format=j1 (JSON format)
+        // Using a generic location or user-set city if we had one. 
+        // For now, let's use auto-location based on IP via wttr.in
+        const res = await fetch('https://wttr.in/?format=j1');
+        if (!res.ok) throw new Error('Weather fetch failed');
+        const data = await res.json();
+        
+        const simplified = {
+          temp: data.current_condition[0].temp_C,
+          desc: data.current_condition[0].weatherDesc[0].value,
+          city: data.nearest_area[0].areaName[0].value
+        };
+
+        setWeatherData(simplified);
+        window.localStorage.setItem('attic_weather_cache', JSON.stringify({
+          data: simplified,
+          timestamp: Date.now()
+        }));
+      } catch (err) {
+        console.warn("Weather fetch failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // If no cache or cache expired, fetch
+    if (!weatherData) fetchWeather();
+    else {
+      // Silently refresh in background even if cache exists
+      const timer = setTimeout(fetchWeather, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  if (!weatherData && loading) return (
+    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2 text-[10px] font-bold opacity-30 uppercase tracking-widest text-center animate-pulse">
+      Fetching sky status...
+    </div>
+  );
+
+  if (!weatherData) return null;
+
+  return (
+    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2">
+      <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-1">🌤️ Local Weather</p>
+      <div className="flex items-center gap-2">
+        <div className="w-10 h-10 retro-border retro-bg-accent flex items-center justify-center font-bold text-xs shadow-sm">
+          {weatherData.temp}°C
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-xs truncate leading-none mb-1">{weatherData.desc}</p>
+          <p className="text-[10px] opacity-40 uppercase tracking-tighter">{weatherData.city}</p>
+        </div>
+      </div>
+    </div>
+  );
+}

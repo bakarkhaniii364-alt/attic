@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Peer from 'peerjs';
 import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera } from 'lucide-react';
@@ -11,18 +11,37 @@ import { StrayTray } from './components/LofiPlayer.jsx';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { Dashboard } from './views/Dashboard.jsx';
-import { ChatView } from './views/ChatView.jsx';
-import { SettingsView } from './views/SettingsView.jsx';
 import { useGlobalSync, initializeRoomSync } from './hooks/useSupabaseSync.js';
 import { supabase } from './lib/supabase.js';
 
-import { DoodleApp, PersistentDoodleApp, TimeCapsuleApp, ListsApp, CalendarApp, ScrapbookApp, DoodleViewer } from './apps/UtilityApps.jsx';
-import { PixelArtApp } from './apps/PixelArtApp.jsx';
-import { DreamJournal } from './apps/DreamJournal.jsx';
-import { DailyQuestion, getMilestoneToday, MilestoneCelebration, RelationshipResume } from './components/Features.jsx';
-import { ActivitiesHub } from './games/index.jsx';
-import { ResetPasswordView } from './views/ResetPasswordView.jsx';
-import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
+// Lazy load heavy views
+const ChatView = lazy(() => import('./views/ChatView.jsx').then(m => ({ default: m.ChatView })));
+const SettingsView = lazy(() => import('./views/SettingsView.jsx').then(m => ({ default: m.SettingsView })));
+const DoodleApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.DoodleApp })));
+const PersistentDoodleApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.PersistentDoodleApp })));
+const TimeCapsuleApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.TimeCapsuleApp })));
+const ListsApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ListsApp })));
+const CalendarApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.CalendarApp })));
+const ScrapbookApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ScrapbookApp })));
+const PixelArtApp = lazy(() => import('./apps/PixelArtApp.jsx').then(m => ({ default: m.PixelArtApp })));
+const DreamJournal = lazy(() => import('./apps/DreamJournal.jsx').then(m => ({ default: m.DreamJournal })));
+const DailyQuestion = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.DailyQuestion })));
+const MilestoneCelebration = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.MilestoneCelebration })));
+const RelationshipResume = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.RelationshipResume })));
+const ActivitiesHub = lazy(() => import('./games/index.jsx').then(m => ({ default: m.ActivitiesHub })));
+const ResetPasswordView = lazy(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
+const DoodleViewer = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.DoodleViewer })));
+
+const ProtectedRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => ({ default: m.ProtectedRoute })));
+const PublicRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => ({ default: m.PublicRoute })));
+
+// Loading Fallback Component
+const AppLoader = () => (
+  <div className="flex flex-col items-center justify-center p-8 min-h-[200px]">
+    <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4" />
+    <p className="font-bold text-[10px] opacity-40 tracking-widest uppercase animate-pulse">Loading View...</p>
+  </div>
+);
 
 /* ═══════════════════════════════════════════════════════
    PREMIUM FLOATING CALL HUB (Discord-Robust)
@@ -151,25 +170,24 @@ function LivingBackground({ weather }) {
   const [elements, setElements] = useState([]);
 
   useEffect(() => {
-    const newElements = [];
-    if (weather === 'rain') {
-      for (let i = 0; i < 60; i++) {
-        newElements.push({ id: i, left: Math.random() * 100, delay: Math.random() * 2, duration: 0.5 + Math.random() * 0.5 });
+    // Defer element generation to avoid blocking the main thread during mount
+    const timer = setTimeout(() => {
+      const newElements = [];
+      const count = weather === 'rain' ? 30 : weather === 'snow' ? 20 : weather === 'clouds' ? 4 : 15;
+      for (let i = 0; i < count; i++) {
+        if (weather === 'rain') {
+          newElements.push({ id: i, left: Math.random() * 100, delay: Math.random() * 2, duration: 0.5 + Math.random() * 0.5 });
+        } else if (weather === 'snow') {
+          newElements.push({ id: i, left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 3, size: 2 + Math.random() * 4 });
+        } else if (weather === 'clouds') {
+          newElements.push({ id: i, top: Math.random() * 100, delay: Math.random() * 20, duration: 30 + Math.random() * 20, size: 200 + Math.random() * 300 });
+        } else if (weather === 'clear') {
+           newElements.push({ id: i, left: Math.random() * 100, top: Math.random() * 100, delay: Math.random() * 5, duration: 2 + Math.random() * 3, size: 1 + Math.random() * 2 });
+        }
       }
-    } else if (weather === 'snow') {
-      for (let i = 0; i < 40; i++) {
-        newElements.push({ id: i, left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 3, size: 2 + Math.random() * 4 });
-      }
-    } else if (weather === 'clouds') {
-      for (let i = 0; i < 6; i++) {
-        newElements.push({ id: i, top: Math.random() * 100, delay: Math.random() * 20, duration: 30 + Math.random() * 20, size: 200 + Math.random() * 300 });
-      }
-    } else if (weather === 'clear') {
-       for (let i = 0; i < 50; i++) {
-        newElements.push({ id: i, left: Math.random() * 100, top: Math.random() * 100, delay: Math.random() * 5, duration: 2 + Math.random() * 3, size: 1 + Math.random() * 2 });
-      }
-    }
-    setElements(newElements);
+      setElements(newElements);
+    }, 100);
+    return () => clearTimeout(timer);
   }, [weather]);
 
   return (
@@ -506,44 +524,37 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
     const init = async () => {
-      const { data } = await supabase.auth.getSession();
+      // Step 1: Parallelize session fetch and initial room check
+      const [sessionRes, roomRes] = await Promise.all([
+        supabase.auth.getSession(),
+        supabase.rpc('get_my_room')
+      ]);
+
       if (!mounted) return;
-      const s = data?.session || null;
+      const s = sessionRes.data?.session || null;
       setSession(s);
+      
       if (s) {
-        // populate local profile name from session metadata if available
+        // populate local profile name
         try {
           const metaName = s.user?.user_metadata?.name;
-          if (metaName && profile.name !== metaName) {
-            setProfile(prev => ({ ...prev, name: metaName }));
-          }
+          if (metaName && profile.name !== metaName) setProfile(prev => ({ ...prev, name: metaName }));
         } catch (e) {}
 
-        // quick, lightweight check for pairing info (does NOT initialize full sync yet)
-        try {
-          const { data: room } = await supabase.rpc('get_my_room');
-          if (room) {
-            setHasRoom(!!room.is_paired);
-            if (room.is_paired) setPendingRoomId(room.id);
-            else setPendingRoomId(null);
-          } else {
-            setHasRoom(false);
-            setPendingRoomId(null);
-          }
-        } catch (err) {
-          console.error('Quick room check failed', err);
+        const room = roomRes.data;
+        if (room) {
+          setHasRoom(!!room.is_paired);
+          if (room.is_paired) setPendingRoomId(room.id);
+        } else {
           setHasRoom(false);
-          setPendingRoomId(null);
         }
       } else {
         setHasRoom(false);
-        setPendingRoomId(null);
       }
+      
       setLoading(false);
-      // mark core ready so UI can render and defer expensive work
       setCoreReady(true);
-      // defer heavy visuals
-      setTimeout(() => setVisualsReady(true), 800);
+      setVisualsReady(true); // Instant ready, elements are deferred internally
     };
 
     init();
@@ -745,37 +756,39 @@ export default function App() {
             ))}
         </div>
 
-        <Routes>
-          <Route path="/" element={
-            !session ? (
-              <LandingView onTryAttic={() => navigate('/signin')} onSignIn={() => navigate('/signup')} />
-            ) : !hasRoom ? (
-              <Navigate to="/handshake" replace />
-            ) : (
-              <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} />
-            )
-          } />
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
-          <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
-          <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
-          <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
+        <Suspense fallback={<AppLoader />}>
+          <Routes>
+            <Route path="/" element={
+              !session ? (
+                <LandingView onTryAttic={() => navigate('/signin')} onSignIn={() => navigate('/signup')} />
+              ) : !hasRoom ? (
+                <Navigate to="/handshake" replace />
+              ) : (
+                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} />
+              )
+            } />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
+            <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
+            <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
+            <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
-          <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
-          <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} onlineUsers={onlineUsers} /></ProtectedRoute>} />
-          <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} /></ProtectedRoute>} />
-          <Route path="/shared-canvas" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
-          <Route path="/capsule" element={<ProtectedRoute session={session} hasRoom={hasRoom}><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
-          <Route path="/lists" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
-          <Route path="/calendar" element={<ProtectedRoute session={session} hasRoom={hasRoom}><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
-          <Route path="/scrapbook" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ScrapbookApp images={sharedImages} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-          <Route path="/pixelart" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} userId={userId} /></ProtectedRoute>} />
-          <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
-          <Route path="/dailyq" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
-          <Route path="/resume" element={<ProtectedRoute session={session} hasRoom={hasRoom}><RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} coupleData={coupleData} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
-          <Route path="/activities/*" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} onlineUsers={onlineUsers} /></ProtectedRoute>} />
+            <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={(d) => { const de = {id: Date.now(), sender: userId, senderName: profile?.name, userId: userId, ...d}; setDoodles(p=>[...p, de]); setSharedImages(p => [...new Set([...p, d.img])]); }} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} sfx={sfxEnabled} /></ProtectedRoute>} />
+            <Route path="/shared-canvas" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+            <Route path="/capsule" element={<ProtectedRoute session={session} hasRoom={hasRoom}><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+            <Route path="/lists" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+            <Route path="/calendar" element={<ProtectedRoute session={session} hasRoom={hasRoom}><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+            <Route path="/scrapbook" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ScrapbookApp images={sharedImages} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
+            <Route path="/pixelart" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} onSaveToScrapbook={(url) => setSharedImages(p=>[...new Set([...p, url])])} userId={userId} /></ProtectedRoute>} />
+            <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+            <Route path="/dailyq" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+            <Route path="/resume" element={<ProtectedRoute session={session} hasRoom={hasRoom}><RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} coupleData={coupleData} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
+            <Route path="/activities/*" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
 
         {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(true)} />}
         {viewingDoodle && ( <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"><DoodleViewer doodle={viewingDoodle} onClose={() => setViewingDoodle(null)} profileName={profile?.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setReplyDoodle(d); navigateTo('doodle'); }} onReplyToChat={(t, i) => { handleShareToChat(t, i); setViewingDoodle(null); navigateTo('chat'); }} /></div>)}

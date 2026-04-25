@@ -6,7 +6,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
-import { StreakBadge } from '../components/Features.jsx';
+import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
 const PixelPet = React.memo(({ happy, sleeping, onClick, skin }) => {
   const [isHovering, setIsHovering] = useState(false);
@@ -298,7 +298,9 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
           <p>Pictionary Guessed: {getScoreForUser(scores, userId, 'pictionary')}</p>
           <p>Memory Pairs: {getScoreForUser(scores, userId, 'memory')}</p>
           <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
+          <p>Sudoku Solved: {getScoreForUser(scores, userId, 'sudoku')}</p>
          </div>
+         <WeatherWidget />
          <CalendarReminder />
       </RetroWindow>
 

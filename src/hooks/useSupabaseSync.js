@@ -85,7 +85,9 @@ export function useGlobalSync(key, initialValue) {
     if (globalState[key] !== undefined) return globalState[key];
     try {
       const item = window.localStorage.getItem(`sync_${key}`);
-      return item ? JSON.parse(item) : initialValue;
+      if (!item) return initialValue;
+      // Use a weak cache or just avoid frequent parsing if possible
+      return JSON.parse(item);
     } catch (e) {
       return initialValue;
     }
@@ -97,6 +99,9 @@ export function useGlobalSync(key, initialValue) {
   const updateGlobalState = useCallback(async (valueToStore) => {
     if (!currentRoomId || !isInitialized) return;
     
+    // Deep equality check before updating global store and triggering a push
+    if (JSON.stringify(globalState[key]) === JSON.stringify(valueToStore)) return;
+
     // Copy current global state to push
     const payload = { ...globalState, [key]: valueToStore };
     globalState = payload; // Update global store instantly for other hooks
@@ -110,29 +115,37 @@ export function useGlobalSync(key, initialValue) {
       
       const { error } = await supabase.from('app_state').update({ state: stateToPush }).eq('room_id', currentRoomId);
       if (error) console.error("Sync Error:", error);
-      else console.log(`[SYNC] Pushed updates for keys: ${Object.keys(stateToPush).join(', ')}`);
+      else console.log(`[SYNC] Pushed updates for key: ${key}`);
     }, 1000); // 1s debounce
   }, [key]);
 
   // Update function that pushes to React, LocalStorage, Global Store, and Supabase
   const updateState = useCallback(async (value) => {
     const valueToStore = value instanceof Function ? value(state) : value;
-    setState(valueToStore);
-    globalState[key] = valueToStore;
-    try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
     
-    updateGlobalState(valueToStore);
+    // Optimistic local update
+    if (JSON.stringify(state) !== JSON.stringify(valueToStore)) {
+      setState(valueToStore);
+      globalState[key] = valueToStore;
+      try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
+      updateGlobalState(valueToStore);
+    }
   }, [key, state, updateGlobalState]);
 
   // When globalState updates externally, update the local React state
   useEffect(() => {
     const handleSync = () => {
       const remoteValue = globalState[key];
-      if (remoteValue !== undefined && JSON.stringify(remoteValue) !== JSON.stringify(state)) {
-        setState(remoteValue);
-        try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(remoteValue)); } catch (e) {}
+      if (remoteValue !== undefined) {
+        // Deep equality check to prevent "Render Storm"
+        const remoteString = JSON.stringify(remoteValue);
+        const localString = JSON.stringify(state);
+        
+        if (remoteString !== localString) {
+          setState(remoteValue);
+          try { window.localStorage.setItem(`sync_${key}`, remoteString); } catch (e) {}
+        }
       }
-      // REMOVED: Automatic updateGlobalState(state) on undefined - let real changes trigger it
     };
     listeners.add(handleSync);
     if (isInitialized) handleSync();
