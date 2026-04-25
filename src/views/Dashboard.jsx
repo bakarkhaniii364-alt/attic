@@ -281,6 +281,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const handlePoke = () => { playAudio('click', sfx); setPokeActive(true); setTriggerShake(true); toast('Poke sent to partner!', 'success'); setTimeout(() => setPokeActive(false), 2000); };
   const nav = (v) => setView(v);
   const unreadDoodles = doodles.filter(d => d.sender === 'partner' && !d.isRead);
+  const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
 
   return (
     <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8">
