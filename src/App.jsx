@@ -485,7 +485,9 @@ export default function App() {
         setSyncedRoomId(room.id); 
         await initializeRoomSync(room.id); 
       }
+      return isPaired;
     } catch (err) { console.error("Room check failed", err); setHasRoom(false); } finally { setLoading(false); }
+    return false;
   };
 
   useEffect(() => {
@@ -507,14 +509,20 @@ export default function App() {
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
 
   const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/'); };
-  const handleAuthSuccess = (data) => {
+  const handleAuthSuccess = async (data) => {
     if (data.name) setProfile(prev => ({ ...prev, name: data.name }));
     setSession(data.session);
     // If user just signed up, route them to handshake to start pairing.
     if (data.mode === 'signup') {
       navigate('/handshake');
-    } else {
-      navigate('/');
+      return;
+    }
+    // For signin, check pairing immediately and route accordingly.
+    try {
+      const paired = await checkRoomAndSync(data.session.user.id);
+      if (paired) navigate('/'); else navigate('/handshake');
+    } catch (err) {
+      navigate('/handshake');
     }
   };
   const handlePaired = async (roomId) => { 

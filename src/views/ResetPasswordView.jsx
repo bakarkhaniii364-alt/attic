@@ -27,10 +27,31 @@ export function ResetPasswordView({ sfx }) {
   useEffect(() => {
     const code = searchParams.get('code');
     if (!code) {
-      setError('No reset code provided. Invalid or expired link.');
+      // No code: render password-reset request form instead of treating as an error.
       setValidToken(false);
     }
   }, [searchParams]);
+
+  const [requestEmail, setRequestEmail] = useState('');
+  const [requestSent, setRequestSent] = useState(false);
+
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      // Ask Supabase to send a password reset email. Redirect will open the
+      // same ResetPasswordView with a code when the user clicks the emailed link.
+      const redirectTo = `${window.location.origin}/password-reset`;
+      const { data, error: err } = await supabase.auth.resetPasswordForEmail(requestEmail, { redirectTo });
+      if (err) throw err;
+      setRequestSent(true);
+    } catch (err) {
+      setError(err.message || 'Failed to request password reset');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validatePassword = () => {
     if (password.length < 6) {
@@ -93,18 +114,25 @@ export function ResetPasswordView({ sfx }) {
   }
 
   if (!validToken) {
+    // Show a request-reset form when no code is present (user clicked "forgot password")
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
-        <RetroWindow title="error.exe" className="w-full max-w-sm" noPadding>
-          <div className="p-8 flex flex-col items-center text-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 border-2 border-red-400 flex items-center justify-center">
-              <AlertCircle size={32} className="text-red-600" />
-            </div>
-            <h2 className="text-2xl font-bold">Invalid Link</h2>
-            <p className="text-sm opacity-70">This password reset link is invalid or has expired. Please request a new one.</p>
-            <RetroButton onClick={() => navigate('/')} className="mt-4">
-              Back to Login
-            </RetroButton>
+        <RetroWindow title="password_reset_request.exe" className="w-full max-w-sm" noPadding>
+          <div className="p-6 flex flex-col items-center text-center gap-4">
+            <h2 className="text-2xl font-bold">Reset your password</h2>
+            <p className="text-sm opacity-70">Enter the email associated with your account to receive a reset link.</p>
+
+            {requestSent ? (
+              <div className="p-4 bg-green-50 retro-border text-green-700">Check your inbox for the reset link.</div>
+            ) : (
+              <form onSubmit={handleRequestReset} className="w-full">
+                <input type="email" required placeholder="you@love.com" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} className="w-full p-3 retro-border retro-bg-window mb-3" />
+                {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+                <RetroButton type="submit" className="w-full py-3" disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</RetroButton>
+              </form>
+            )}
+
+            <button type="button" onClick={() => navigate('/')} className="text-xs opacity-60 mt-2">Back to login</button>
           </div>
         </RetroWindow>
       </div>

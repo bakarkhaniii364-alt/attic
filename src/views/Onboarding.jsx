@@ -28,14 +28,14 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
       </nav>
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center">
-        <div className="relative mb-8 sm:mb-12 transform-gpu hover:scale-105 transition-transform duration-500 flex-grow flex items-center justify-center">
-          <div className="absolute -inset-12 bg-[var(--primary)]/10 blur-[60px] rounded-full animate-pulse" />
-          <img src="/assets/attic.svg" alt="Attic Logo" className="w-[24rem] sm:w-[32rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center overflow-hidden">
+        <div className="relative mb-4 sm:mb-6 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center">
+          <div className="absolute -inset-10 bg-[var(--primary)]/10 blur-[60px] rounded-full animate-pulse" />
+          <img src="/assets/attic.svg" alt="Attic Logo" className="w-[22rem] sm:w-[30rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
         </div>
 
         <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
-          <div className="space-y-2">
+          <div className="space-y-2 -mt-2">
             <p className="text-xs sm:text-base font-mono opacity-60 max-w-sm mx-auto leading-relaxed">
               A corner of the internet, <br/> <span className="text-[var(--primary)] font-bold">just for two</span>
             </p>
@@ -52,10 +52,9 @@ export function LandingView({ onTryAttic, onSignIn }) {
         </div>
       </main>
 
-      <footer className="relative z-10 p-6 sm:p-10 text-center">
-        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] opacity-30">
-          Made with love, for the lovers <br/>
-          By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--primary)] transition-colors border-b border-current">bakarkhaniii</a>
+      <footer className="absolute bottom-4 left-0 right-0 z-10 text-center">
+        <p className="text-[10px] sm:text-xs font-black tracking-[0.2em] opacity-30">
+          Made with love, for the lovers — By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--primary)] transition-colors border-b border-current">bakarkhaniii</a>
         </p>
       </footer>
     </div>
@@ -98,7 +97,7 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
       <RetroWindow title={`${mode === 'signup' ? 'join attic' : 'welcome back'}.exe`} className="w-full max-w-[440px] shadow-2xl scale-up-15" onClose={onBack}>
         <form onSubmit={handleAuth} className="flex flex-col gap-4 py-4">
           <div className="text-center mb-2">
-            <h2 className="text-2xl font-black italic tracking-tight text-[var(--primary)] lowercase">{mode === 'signup' ? 'join attic' : 'welcome back'}</h2>
+            <h2 className="text-2xl font-black tracking-tight text-[var(--primary)] lowercase">{mode === 'signup' ? 'join attic' : 'welcome back'}</h2>
           </div>
 
           {mode === 'signup' ? (
@@ -125,9 +124,7 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
                   <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
                   <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
                 </div>
-                <div className="text-left mt-1">
-                  <a href="/password-reset" className="text-xs opacity-70 lowercase">forgot password?</a>
-                </div>
+                {/* forgot password moved to signin form */}
               </div>
 
               <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
@@ -149,6 +146,9 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
                 <div className="relative">
                   <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
                   <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-[var(--accent)]/10 outline-none font-bold" />
+                </div>
+                <div className="text-left mt-1">
+                  <a href="/password-reset" className="text-xs opacity-70 lowercase">forgot password?</a>
                 </div>
               </div>
 
@@ -208,7 +208,7 @@ export function HandshakeView({ session, onPaired, onLogout }) {
              <div className="w-16 h-16 bg-[var(--primary)]/10 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
                 <Heart size={32} className="text-[var(--primary)]" fill="currentColor" />
              </div>
-             <h2 className="text-2xl font-black italic tracking-tighter">WAITING FOR CONNECTION</h2>
+             <h2 className="text-2xl font-black tracking-tighter">WAITING FOR CONNECTION</h2>
              <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest mt-1">Establishing Secure Couple-Sync</p>
           </div>
 
@@ -232,7 +232,7 @@ export function HandshakeView({ session, onPaired, onLogout }) {
           </form>
 
           <div className="border-t-2 border-dashed border-[var(--border)] pt-6 flex flex-col items-center gap-4">
-             <p className="text-[10px] font-bold opacity-40 uppercase max-w-[240px] text-center italic">Send your ID to your partner. Once they enter it, the Sanctuary will unlock.</p>
+             <p className="text-[10px] font-bold opacity-40 uppercase max-w-[240px] text-center">Send your ID to your partner. Once they enter it, the Sanctuary will unlock.</p>
              <RetroButton variant="white" onClick={onLogout} className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100">Terminate Session</RetroButton>
           </div>
         </div>
