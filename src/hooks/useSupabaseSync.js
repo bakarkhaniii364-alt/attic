@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 
 // Global store for the entire room's data
@@ -80,20 +81,39 @@ export const initializeRoomSync = async (roomId) => {
 };
 
 export function useGlobalSync(key, initialValue) {
-  // Read from globalState or local storage fallback
-  const getInitial = () => {
-    if (globalState[key] !== undefined) return globalState[key];
-    try {
-      const item = window.localStorage.getItem(`sync_${key}`);
-      if (!item) return initialValue;
-      // Use a weak cache or just avoid frequent parsing if possible
-      return JSON.parse(item);
-    } catch (e) {
-      return initialValue;
-    }
-  };
+  const [state, setState] = useState(initialValue);
+  const [loading, setLoading] = useState(true);
 
-  const [state, setState] = useState(getInitial);
+  // Load initial value from globalState or localforage
+  useEffect(() => {
+    let mounted = true;
+    const loadData = async () => {
+      // 1. Check globalState first (fastest)
+      if (globalState[key] !== undefined) {
+        if (mounted) {
+          setState(globalState[key]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      // 2. Fallback to localforage
+      try {
+        const item = await localforage.getItem(`sync_${key}`);
+        if (mounted) {
+          if (item !== null) {
+            setState(item);
+            globalState[key] = item; // Hydrate global store
+          }
+          setLoading(false);
+        }
+      } catch (e) {
+        if (mounted) setLoading(false);
+      }
+    };
+    loadData();
+    return () => { mounted = false; };
+  }, [key]);
 
   // updateGlobalState with debouncing to prevent spamming the database
   const updateGlobalState = useCallback(async (valueToStore) => {
@@ -127,7 +147,7 @@ export function useGlobalSync(key, initialValue) {
     if (JSON.stringify(state) !== JSON.stringify(valueToStore)) {
       setState(valueToStore);
       globalState[key] = valueToStore;
-      try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
+      try { localforage.setItem(`sync_${key}`, valueToStore); } catch (e) {}
       updateGlobalState(valueToStore);
     }
   }, [key, state, updateGlobalState]);
@@ -143,7 +163,7 @@ export function useGlobalSync(key, initialValue) {
         
         if (remoteString !== localString) {
           setState(remoteValue);
-          try { window.localStorage.setItem(`sync_${key}`, remoteString); } catch (e) {}
+          try { localforage.setItem(`sync_${key}`, remoteValue); } catch (e) {}
         }
       }
     };

@@ -277,7 +277,6 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                 <button onClick={onLogout} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform text-xs">Log out</button>
               </div>
             </div>
-          </>
         </div>
       </RetroWindow>
 
