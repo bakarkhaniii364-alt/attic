@@ -205,6 +205,7 @@ export default function App() {
   const [coreReady, setCoreReady] = useState(false); // true after essential data loaded
   const [loading, setLoading] = useState(true);
   const [syncedRoomId, setSyncedRoomId] = useState(null);
+  const [visualsReady, setVisualsReady] = useState(false); // Deferred for performance
 
   // 2. Global Sync States
   const [profile, setProfile] = useLocalStorage('user_profile', { 
@@ -262,6 +263,15 @@ export default function App() {
   }, [profile]);
 
   const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
+  
+  // Auto-sync partner name to coupleData for persistence
+  useEffect(() => {
+    if (partnerProfile.name && partnerProfile.name !== coupleData.partnerNickname) {
+      setCoupleData(prev => ({ ...prev, partnerNickname: partnerProfile.name }));
+      console.log(`[SYNC] Partner nickname updated to ${partnerProfile.name}`);
+    }
+  }, [partnerProfile.name, coupleData.partnerNickname]);
+
   const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
   const partnerEmoji = partnerProfile.emoji || '😊';
 
@@ -503,7 +513,9 @@ export default function App() {
         // populate local profile name from session metadata if available
         try {
           const metaName = s.user?.user_metadata?.name;
-          if (metaName) setProfile(prev => ({ ...prev, name: metaName }));
+          if (metaName && profile.name !== metaName) {
+            setProfile(prev => ({ ...prev, name: metaName }));
+          }
         } catch (e) {}
 
         // quick, lightweight check for pairing info (does NOT initialize full sync yet)
@@ -529,6 +541,8 @@ export default function App() {
       setLoading(false);
       // mark core ready so UI can render and defer expensive work
       setCoreReady(true);
+      // defer heavy visuals
+      setTimeout(() => setVisualsReady(true), 800);
     };
 
     init();
@@ -625,8 +639,8 @@ export default function App() {
     <ToastProvider>
       <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
-        {coreReady && <LivingBackground weather={weather} />}
-        {coreReady && <WeatherOverlay weather={weather} />}
+        {visualsReady && <LivingBackground weather={weather} />}
+        {visualsReady && <WeatherOverlay weather={weather} />}
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}

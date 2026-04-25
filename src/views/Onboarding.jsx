@@ -54,7 +54,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
 
       <footer className="absolute bottom-4 left-0 right-0 z-10 text-center">
         <p className="text-[10px] sm:text-xs font-black tracking-[0.2em] opacity-30">
-          Made with love, for the lovers — By <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--primary)] transition-colors border-b border-current">bakarkhaniii</a>
+          Made with love, for the lovers by <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--primary)] transition-colors border-b border-current">bakarkhaniii</a>
         </p>
       </footer>
     </div>

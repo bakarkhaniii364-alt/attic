@@ -137,17 +137,14 @@ body {
   color: var(--text-main);
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition: background-color 0.3s, color 0.3s;
   font-size: 14px;
 }
 
 /* Ensure retro borders applied site-wide without affecting layout flow */
-.retro-everywhere * {
-  outline: 2px solid var(--border);
-  outline-offset: -2px;
-  box-sizing: border-box;
-}
+/* Removed .retro-everywhere * scaffolding outline as it caused unwanted boxes */
 
 .bg-pattern-grid {
   background-image: linear-gradient(var(--bg-pattern) 2px, transparent 2px), linear-gradient(90deg, var(--bg-pattern) 2px, transparent 2px);
