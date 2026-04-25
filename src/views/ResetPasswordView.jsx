@@ -79,23 +79,17 @@ export function ResetPasswordView({ sfx }) {
       if (err) {
         setError(err.message || 'Failed to reset password. Try again.');
         setLoading(false);
-        return;
-      }
+        try {
+          const { error: err } = await supabase.auth.updateUser({ password });
 
-      setSuccess(true);
-      if (toast) toast('Password reset successfully! Redirecting to login...', 'success');
-      setTimeout(() => {
-        // Sign out and redirect to auth page
-        supabase.auth.signOut().then(() => {
-          navigate('/');
-        });
-      }, 2000);
-    } catch (err) {
-      setError(err.message || 'Something went wrong');
-      setLoading(false);
-    }
-  };
+          if (err) {
+            setError(err.message || 'Failed to reset password. Try again.');
+            setLoading(false);
+            return;
+          }
 
+          setSuccess(true);
+          if (toast) toast('Password reset successfully!', 'success');
   if (success) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
@@ -105,8 +99,9 @@ export function ResetPasswordView({ sfx }) {
               <Check size={32} className="text-white" />
             </div>
             <h2 className="text-2xl font-bold">Password Reset!</h2>
-            <p className="text-sm opacity-70">Your password has been successfully reset. You'll be redirected to login...</p>
+            <p className="text-sm opacity-70">Your password has been successfully reset.</p>
             <Loader size={20} className="animate-spin text-[var(--primary)]" />
+            <RetroButton onClick={() => navigate('/signin')} className="mt-2">remember password? sign in instead</RetroButton>
           </div>
         </RetroWindow>
       </div>
@@ -117,7 +112,7 @@ export function ResetPasswordView({ sfx }) {
     // Show a request-reset form when no code is present (user clicked "forgot password")
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
-        <RetroWindow title="password_reset_request.exe" className="w-full max-w-sm" noPadding>
+        <RetroWindow title="password_reset_request.exe" className="w-full max-w-sm" noPadding onClose={() => navigate('/signin')}>
           <div className="p-6 flex flex-col items-center text-center gap-4">
             <h2 className="text-2xl font-bold">Reset your password</h2>
             <p className="text-sm opacity-70">Enter the email associated with your account to receive a reset link.</p>
@@ -132,7 +127,10 @@ export function ResetPasswordView({ sfx }) {
               </form>
             )}
 
-            <button type="button" onClick={() => navigate('/')} className="text-xs opacity-60 mt-2">Back to login</button>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => navigate('/signin')} className="text-xs opacity-60 mt-2">remember password? sign in instead</button>
+              <button type="button" onClick={() => navigate('/')} className="text-xs opacity-60 mt-2">back to landing</button>
+            </div>
           </div>
         </RetroWindow>
       </div>
@@ -144,7 +142,7 @@ export function ResetPasswordView({ sfx }) {
       <div className="absolute inset-0 bg-pattern-grid opacity-40" />
       <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
 
-      <RetroWindow title="reset_password.exe" className="w-full max-w-sm relative z-10" onClose={onBack}>
+      <RetroWindow title="reset_password.exe" className="w-full max-w-sm relative z-10" onClose={() => navigate('/signin')}>
         <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
           <div className="text-center mb-2">
             <div className="w-14 h-14 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
