@@ -131,6 +131,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
              </div>
              <div className="flex-1 space-y-2">
                <div><label className="block text-sm font-bold mb-1">display name</label><input type="text" value={profile.name} onChange={(e) => setProfile({...profile, name: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
+               <div><label className="block text-sm font-bold mb-1">my city (for weather)</label><input type="text" value={profile.location || ''} placeholder="e.g. London" onChange={(e) => setProfile({...profile, location: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div>
                   <label className="block text-sm font-bold mb-1">pet skin</label>

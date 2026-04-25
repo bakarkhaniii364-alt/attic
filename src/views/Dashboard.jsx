@@ -170,7 +170,78 @@ export const Unit = React.memo(({ val, label }) => {
   );
 });
 
-function CalendarReminder() {
+function WeatherWidget({ location, partnerName }) {
+  const [weatherData, setWeatherData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!location) return;
+    const fetchWeather = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`);
+        const data = await res.json();
+        const current = data.current_condition[0];
+        setWeatherData({
+          temp: current.temp_C,
+          desc: current.weatherDesc[0].value,
+          humidity: current.humidity,
+          wind: current.windspeedKmph,
+          feelsLike: current.FeelsLikeC
+        });
+      } catch (err) {
+        console.error("Weather fetch failed", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 1800000); // 30 mins
+    return () => clearInterval(interval);
+  }, [location]);
+
+  if (!location) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2 opacity-40 py-4">
+        <p className="text-[10px] font-black uppercase tracking-widest text-center">Set partner's city in settings to see weather!</p>
+      </div>
+    );
+  }
+
+  if (loading && !weatherData) {
+    return <div className="flex items-center justify-center h-full animate-pulse text-[10px] font-bold uppercase opacity-30">Fetching sky status...</div>;
+  }
+
+  if (!weatherData) return null;
+
+  return (
+    <div className="flex flex-col h-full justify-between">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+           <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">{location}</p>
+           <h3 className="text-xl font-black">{weatherData.temp}°C</h3>
+        </div>
+        <div className="text-right">
+           <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">{partnerName}'s sky</p>
+           <p className="text-xs font-bold lowercase">{weatherData.desc}</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2 border-t border-dashed border-[var(--border)] pt-2 mt-auto">
+        <div className="flex flex-col">
+          <span className="text-[8px] font-black uppercase opacity-40">Feels Like</span>
+          <span className="text-xs font-bold">{weatherData.feelsLike}°C</span>
+        </div>
+        <div className="flex flex-col text-right">
+          <span className="text-[8px] font-black uppercase opacity-40">Humidity</span>
+          <span className="text-xs font-bold">{weatherData.humidity}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CalendarReminder() {
   const [events] = useLocalStorage('calendar_events', []);
   const now = new Date();
   const upcoming = events
@@ -299,6 +370,10 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
           <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
          </div>
          <CalendarReminder />
+      </RetroWindow>
+
+      <RetroWindow title="weather.api" className="md:col-span-4 h-auto min-h-[10rem]">
+         <WeatherWidget location={partnerProfile.location} partnerName={partnerName} />
       </RetroWindow>
 
       <RetroWindow title="applications" className="md:col-span-12">

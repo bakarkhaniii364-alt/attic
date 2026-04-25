@@ -93,24 +93,26 @@ export function useGlobalSync(key, initialValue) {
 
   const [state, setState] = useState(getInitial);
 
-  // When globalState updates externally, update the local React state
-  useEffect(() => {
-    const handleSync = () => {
-      if (globalState[key] !== undefined && JSON.stringify(globalState[key]) !== JSON.stringify(state)) {
-        setState(globalState[key]);
-        try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(globalState[key])); } catch (e) {}
-      }
-      else if (globalState[key] === undefined && isInitialized) {
-        // First initialization might not have the key yet
-        updateGlobalState(state);
-      }
-    };
-    listeners.add(handleSync);
-    // Initial flush if ready
-    if (isInitialized) handleSync();
+  // updateGlobalState with debouncing to prevent spamming the database
+  const updateGlobalState = useCallback(async (valueToStore) => {
+    if (!currentRoomId || !isInitialized) return;
     
-    return () => listeners.delete(handleSync);
-  }, [key, state]);
+    // Copy current global state to push
+    const payload = { ...globalState, [key]: valueToStore };
+    globalState = payload; // Update global store instantly for other hooks
+
+    // Debounce the actual database push
+    if (globalState._pendingUpdate) clearTimeout(globalState._pendingUpdate);
+    
+    globalState._pendingUpdate = setTimeout(async () => {
+      const stateToPush = { ...globalState };
+      delete stateToPush._pendingUpdate;
+      
+      const { error } = await supabase.from('app_state').update({ state: stateToPush }).eq('room_id', currentRoomId);
+      if (error) console.error("Sync Error:", error);
+      else console.log(`[SYNC] Pushed updates for keys: ${Object.keys(stateToPush).join(', ')}`);
+    }, 1000); // 1s debounce
+  }, [key]);
 
   // Update function that pushes to React, LocalStorage, Global Store, and Supabase
   const updateState = useCallback(async (value) => {
@@ -119,19 +121,23 @@ export function useGlobalSync(key, initialValue) {
     globalState[key] = valueToStore;
     try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(valueToStore)); } catch (e) {}
     
-    // Throttle / debounce pushing to database?
     updateGlobalState(valueToStore);
-  }, [key, state]);
+  }, [key, state, updateGlobalState]);
 
-  const updateGlobalState = async (valueToStore) => {
-      if (!currentRoomId || !isInitialized) return;
-      // Copy current global state to push
-      const payload = { ...globalState, [key]: valueToStore };
-      globalState = payload; // Update instantly
-      
-      const { error } = await supabase.from('app_state').update({ state: payload }).eq('room_id', currentRoomId);
-      if (error) console.error("Sync Error:", error);
-  };
+  // When globalState updates externally, update the local React state
+  useEffect(() => {
+    const handleSync = () => {
+      const remoteValue = globalState[key];
+      if (remoteValue !== undefined && JSON.stringify(remoteValue) !== JSON.stringify(state)) {
+        setState(remoteValue);
+        try { window.localStorage.setItem(`sync_${key}`, JSON.stringify(remoteValue)); } catch (e) {}
+      }
+      // REMOVED: Automatic updateGlobalState(state) on undefined - let real changes trigger it
+    };
+    listeners.add(handleSync);
+    if (isInitialized) handleSync();
+    return () => listeners.delete(handleSync);
+  }, [key, state]);
 
   return [state, updateState];
 }
