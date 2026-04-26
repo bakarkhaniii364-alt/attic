@@ -95,25 +95,36 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
   // 1. Arcade Menu (No specific game selected)
   if (!gameRoute || gameRoute === '') {
+    const games = [
+      { id: 'pictionary', title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5' },
+      { id: 'tictactoe', title: 'Tic-Tac-Toe', desc: 'Classic 3x3. Try Memory Fading mode.', color: '#ef4444' },
+      { id: 'memory', title: 'Memory Match', desc: 'Flip cards and find pairs.', color: '#3b82f6' },
+      { id: 'wordle', title: 'Retro Word', desc: 'Guess the hidden word.', color: '#fef3c7' },
+      { id: 'sudoku', title: 'Sudoku', desc: 'Logic puzzles. Race or Share.', color: '#fca5a5' },
+      { id: 'chess', title: 'Chess', desc: 'Full rules engine. Standard or Sandbox.', color: '#bfdbfe' },
+      { id: 'quiz', title: 'Couples Quiz', desc: 'How well do you know them?', color: '#fde68a' },
+      { id: '2048', title: '2048', desc: 'Merge tiles. Reach 2048!', color: '#a855f7' },
+      { id: 'typing', title: 'Typing Race', desc: 'Type fast. Beat your WPM.', color: '#14b8a6' },
+      { id: 'wyr', title: 'Would You Rather', desc: 'See if you match!', color: '#ec4899' },
+      { id: 'love', title: 'Love Language', desc: 'Discover your love style.', color: '#f472b6' },
+      { id: 'watch', title: 'Sync Watcher', desc: 'Watch YT together.', color: '#c084fc' }
+    ];
+
     return (
-      <RetroWindow title="arcade.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 p-4 pb-12 overflow-y-auto h-full">
-          {[
-            { id: 'tictactoe', title: 'Tic-Tac-Toe', desc: 'Classic connection game.' },
-            { id: 'pictionary', title: 'Pictionary', desc: 'Draw and guess words.' },
-            { id: 'memory', title: 'Memory Match', desc: 'Find the hidden pairs.' },
-            { id: 'wordle', title: 'Wordle Co-op', desc: 'Guess the word together.' },
-            { id: 'sudoku', title: 'Sudoku', desc: 'Solve the grid.' },
-            { id: 'chess', title: 'Chess', desc: 'The classic strategy game.' },
-            { id: 'quiz', title: 'Couples Quiz', desc: 'How well do you know each other?' },
-            { id: '2048', title: '2048 Co-op', desc: 'Slide and combine tiles.' },
-            { id: 'typing', title: 'Typing Race', desc: 'Who types faster?' },
-            { id: 'wyr', title: 'Would You Rather', desc: 'Tough choices together.' }
-          ].map(game => (
-            <div key={game.id} onClick={() => navigate(`/activities/${game.id}`)} className="p-4 retro-bg-window retro-border retro-shadow-dark cursor-pointer hover:-translate-y-1 transition-all group flex flex-col items-center text-center h-full">
-              <Gamepad2 size={32} className="mb-3 text-[var(--primary)] group-hover:scale-110 transition-transform" />
-              <h3 className="font-black uppercase text-sm sm:text-base leading-tight">{game.title}</h3>
-              <p className="text-[10px] sm:text-xs opacity-70 mt-2 leading-snug">{game.desc}</p>
+      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden" noPadding>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-8 overflow-y-auto h-full bg-[var(--bg-window)]">
+          {games.map(game => (
+            <div 
+              key={game.id} 
+              onClick={() => navigate(`/activities/${game.id}`)} 
+              className="p-6 bg-white border-2 border-[var(--border)] shadow-[3px_3px_0px_0px_var(--border)] cursor-pointer hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_var(--border)] transition-all flex flex-col items-start text-left min-h-[140px] relative overflow-hidden"
+            >
+              <div 
+                className="w-8 h-8 border-2 border-[var(--border)] mb-4" 
+                style={{ backgroundColor: game.color }}
+              />
+              <h3 className="font-black text-xl leading-none mb-2 text-[var(--border)]">{game.title}</h3>
+              <p className="text-xs font-bold opacity-60 leading-relaxed text-[var(--border)] max-w-[200px]">{game.desc}</p>
             </div>
           ))}
         </div>
