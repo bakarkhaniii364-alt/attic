@@ -86,12 +86,13 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, chatHistory: propChatHistory, setChatHistory: propSetChatHistory, userId, partnerId, roomId, onStartCall, sharedImages, setSharedImages, onlineUsers = {} }) {
-  const { messages: syncMessages, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, loading: syncLoading } = useChatSync(roomId);
-
+export function ChatView({ 
+  onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, 
+  chatHistory, setChatHistory, userId, partnerId, roomId, onStartCall, 
+  sharedImages, setSharedImages, onlineUsers = {},
+  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore 
+}) {
   const isNormalized = !!roomId;
-  const chatHistory = isNormalized ? syncMessages : propChatHistory;
-  const setChatHistory = isNormalized ? null : propSetChatHistory; // setChatHistory is not used in normalized mode
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -162,13 +163,22 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
     }
   };
 
+  // Safe Mark-as-Read Effect
   useEffect(() => {
     if (!Array.isArray(chatHistory)) return;
-    const unreadFromPartner = chatHistory.some(m => m.sender === partnerId && m.status !== 'read');
-    if (unreadFromPartner) {
-      setChatHistory(prev => prev.map(m => (m.sender === partnerId && m.status !== 'read') ? { ...m, status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } : m));
+    
+    const unreadFromPartner = chatHistory.filter(m => m.sender === partnerId && m.status !== 'read');
+    
+    if (unreadFromPartner.length > 0) {
+      if (isNormalized && syncUpdateMessage) {
+        unreadFromPartner.forEach(m => {
+          syncUpdateMessage(m.id, { status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+        });
+      } else if (setChatHistory) {
+        setChatHistory(prev => prev.map(m => (m.sender === partnerId && m.status !== 'read') ? { ...m, status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } : m));
+      }
     }
-  }, [chatHistory, partnerId, setChatHistory]);
+  }, [chatHistory, partnerId, isNormalized, syncUpdateMessage, setChatHistory]);
 
   useEffect(() => {
     if (!activeOptions && searchQuery === '' && !viewerContext.isOpen) {
@@ -247,7 +257,9 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
     }
     else {
       if (isNormalized) {
-        syncSendMessage(input, 'text', userId, { replyTo: replyingTo });
+        syncSendMessage(input, 'text', userId, { replyTo: replyingTo }).catch(err => {
+          console.error("Failed to send message:", err);
+        });
       } else {
         const newMsg = {
           id: crypto.randomUUID(),
@@ -376,7 +388,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
           onSaveToScrapbook={handleSaveToScrapbook}
         />
       )}
-      <RetroWindow title="chat_room.exe" onClose={() => navigate('/dashboard')} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
+      <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col retro-bg-window relative">

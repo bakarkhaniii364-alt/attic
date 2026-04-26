@@ -98,6 +98,9 @@ export function useChatSync(roomId) {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setMessages((prev) => {
+              // PREVENT DUPLICATES!
+              if (prev.some(m => m.id === payload.new.id)) return prev;
+              
               const mapped = mapMessage(payload.new);
               const newMsgs = [...prev, mapped];
               localforage.setItem(`chat_cache_${roomId}`, newMsgs);
@@ -127,54 +130,65 @@ export function useChatSync(roomId) {
     };
   }, [roomId]);
 
-  // 3. Send Message Helper
+  // 3. Send Message Helper (WITH OPTIMISTIC UPDATES)
   const sendMessage = useCallback(async (content, type = 'text', senderId, metadata = {}) => {
     if (!roomId || !content) return;
 
     let finalContent = content;
+    const isBlob = content instanceof Blob;
 
-    // If it's a blob/file (voice note or image), upload to storage first
-    if (content instanceof Blob) {
-      const fileExt = content.type.split('/')[1]?.split(';')[0] || 'png';
-      const fileName = `${roomId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-      const bucket = type === 'voice' ? 'voice_notes' : (type === 'image' ? 'scrapbook' : 'doodles');
-
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, content, { cacheControl: '3600', upsert: true });
-
-      if (storageError) {
-        console.error('[CHAT] Storage upload error:', storageError);
-        throw storageError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
-      
-      finalContent = publicUrl;
+    if (isBlob) {
+      finalContent = URL.createObjectURL(content); // Create instant local preview
     }
 
-    const newMessage = {
+    // --- INSTANT OPTIMISTIC UI UPDATE ---
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+      id: tempId,
       room_id: roomId,
       sender_id: senderId,
       type,
       content: finalContent,
-      metadata,
+      metadata: { ...metadata, status: 'sending' },
+      created_at: new Date().toISOString()
     };
+    
+    // Instantly show the message on screen!
+    setMessages(prev => [...prev, mapMessage(optimisticMsg)]);
 
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert(newMessage)
-      .select()
-      .single();
+    try {
+      if (isBlob) {
+        const fileExt = content.type.split('/')[1]?.split(';')[0] || 'png';
+        const fileName = `${roomId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        const bucket = type === 'voice' ? 'voice_notes' : (type === 'image' ? 'scrapbook' : 'doodles');
 
-    if (error) {
-      console.error('[CHAT] Send error:', error);
-      throw error;
+        const { error: storageError } = await supabase.storage.from(bucket).upload(fileName, content, { cacheControl: '3600', upsert: true });
+        if (storageError) throw storageError;
+
+        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+        finalContent = publicUrl;
+      }
+
+      const newMessage = {
+        room_id: roomId,
+        sender_id: senderId,
+        type,
+        content: finalContent,
+        metadata: { ...metadata, status: 'sent' },
+      };
+
+      const { data, error } = await supabase.from('chat_messages').insert(newMessage).select().single();
+      if (error) throw error;
+
+      // Swap the temporary message with the real confirmed database message
+      setMessages(prev => prev.map(m => m.id === tempId ? mapMessage(data) : m));
+      return data;
+    } catch (err) {
+      console.error('[CHAT] Send error:', err);
+      // If it fails, show a red failed state so the user knows!
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
+      throw err;
     }
-
-    return data;
   }, [roomId]);
 
   // 4. Load More (Pagination)
