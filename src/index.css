@@ -224,8 +224,8 @@ body {
 .bg-pattern-grid {
   background-color: transparent !important;
   background-image: 
-    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 4px, transparent 4px, transparent 32px),
-    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 4px, transparent 4px, transparent 32px) !important;
+    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 32px),
+    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 32px) !important;
 }
 
 ::-webkit-scrollbar { width: 12px; }
