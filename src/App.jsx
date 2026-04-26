@@ -289,6 +289,37 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
 
+  // ── CUSTOM DIFFERENCE CURSOR LOGIC ──
+  useEffect(() => {
+    const cursor = document.createElement('div');
+    cursor.className = 'diff-cursor';
+    document.body.appendChild(cursor);
+
+    const moveCursor = (e) => {
+      const target = e.target;
+      const isHoveringTarget = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'CANVAS' || target.closest('canvas');
+      
+      if (isHoveringTarget) {
+        cursor.style.display = 'block';
+        cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`;
+        
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          cursor.classList.add('active-text');
+        } else {
+          cursor.classList.remove('active-text');
+        }
+      } else {
+        cursor.style.display = 'none';
+      }
+    };
+
+    window.addEventListener('mousemove', moveCursor);
+    return () => {
+      window.removeEventListener('mousemove', moveCursor);
+      if (document.body.contains(cursor)) document.body.removeChild(cursor);
+    };
+  }, []);
+
   const [scores, setScoresRaw] = useGlobalSync('game_scores', {});
   const setScores = useCallback((val) => {
     const valueToStore = val instanceof Function ? val(scores || {}) : val;
