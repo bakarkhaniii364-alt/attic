@@ -257,23 +257,9 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       title="activities_hub.exe" 
       onClose={onClose} 
       className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col"
-      noPadding
     >
-      {/* Custom Window Header (Burger + Title + Close) */}
-      <div className="bg-[var(--accent)] border-b-2 border-[var(--border)] p-1.5 flex items-center justify-between px-3">
-        <div className="flex items-center gap-2">
-          <div className="flex flex-col gap-[3px] opacity-80 cursor-pointer">
-            <div className="w-4 h-[2px] bg-[var(--border)]"></div>
-            <div className="w-4 h-[2px] bg-[var(--border)]"></div>
-            <div className="w-4 h-[2px] bg-[var(--border)]"></div>
-          </div>
-          <span className="font-bold text-xs lowercase tracking-wider">activities_hub.exe</span>
-        </div>
-        <button onClick={onClose} className="w-6 h-6 bg-[#ef4444] text-white retro-border flex items-center justify-center font-bold text-xs hover:brightness-110 active:translate-y-0.5">×</button>
-      </div>
-
       {/* Main Grid Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#fdf2e9]/30">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {GAMES_LIST.map(game => (
             <button 
