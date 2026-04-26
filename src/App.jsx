@@ -879,8 +879,7 @@ export default function App() {
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
   return (
-    <ToastProvider>
-      <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+    <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
         {visualsReady && <LivingBackground weather={weather} />}
         {visualsReady && <WeatherOverlay weather={weather} />}
@@ -1025,7 +1024,8 @@ export default function App() {
                 if (syncedRoomId) {
                     const { base64ToBlob } = await import('./utils/file.js');
                     const blob = base64ToBlob(imgData);
-                    await uploadImage(blob, 'scrapbook', userId);
+                    const file = new File([blob], `image_${Date.now()}.png`, { type: 'image/png' });
+                    await uploadImage(file, 'scrapbook', userId);
                     toast('Saved to Scrapbook!', 'success');
                 }
             }} profile={profile} userId={userId} partnerId={partnerId} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} /></ProtectedRoute>} />
@@ -1036,6 +1036,5 @@ export default function App() {
         {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(true)} />}
         {viewingDoodle && ( <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"><DoodleViewer doodle={viewingDoodle} onClose={() => setViewingDoodle(null)} profileName={profile?.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setReplyDoodle(d); navigateTo('doodle'); }} onReplyToChat={(t, i) => { handleShareToChat(t, i); setViewingDoodle(null); navigateTo('chat'); }} /></div>)}
       </div>
-    </ToastProvider>
   );
 }
