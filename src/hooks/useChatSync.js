@@ -25,6 +25,12 @@ import { supabase } from '../lib/supabase.js';
     if (row.type === 'text') mapped.text = row.content;
     else if (row.type === 'image') mapped.url = row.content;
     else if (row.type === 'voice') mapped.audioUrl = row.content;
+    else if (row.type === 'game_invite') {
+      mapped.text = row.content;
+      mapped.gameId = row.metadata?.gameId;
+      mapped.gameTitle = row.metadata?.gameTitle;
+      mapped.status = row.metadata?.status;
+    }
 
     return mapped;
   };

@@ -222,6 +222,21 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat, use
   );
 }
 
+const GAMES_LIST = [
+  { id: 'pictionary', title: 'Pictionary', icon: '🎨', color: '#ffb6b9' },
+  { id: 'tictactoe', title: 'Tic-Tac-Toe', icon: '❌', color: 'var(--primary)' },
+  { id: 'memory', title: 'Memory Match', icon: '🃏', color: 'var(--secondary)' },
+  { id: 'wordle', title: 'Retro Word', icon: '📝', color: 'var(--accent)' },
+  { id: 'sudoku', title: 'Sudoku', icon: '🔢', color: '#ffb6b9' },
+  { id: 'chess', title: 'Chess', icon: '♟️', color: '#a3c4f3' },
+  { id: 'quiz', title: 'Couples Quiz', icon: '❓', color: '#f9e2af' },
+  { id: '2048', title: '2048', icon: '🎲', color: '#a855f7' },
+  { id: 'typing', title: 'Typing Race', icon: '⌨️', color: '#14b8a6' },
+  { id: 'wyr', title: 'Would You Rather', icon: '⚖️', color: '#ec4899' },
+  { id: 'lovelang', title: 'Love Language', icon: '💖', color: '#f472b6' },
+  { id: 'sync', title: 'Sync Watcher', icon: '📺', color: '#c1a3ff' }
+];
+
 export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -238,21 +253,18 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   };
 
   const HubMenu = () => (
-    <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <GameCard title="Pictionary" desc="Draw and guess the hidden word." color="#ffb6b9" onClick={() => launch('pictionary')} />
-        <GameCard title="Tic-Tac-Toe" desc="Classic 3x3. Try Memory Fading mode." color="var(--primary)" onClick={() => launch('tictactoe')} />
-        <GameCard title="Memory Match" desc="Flip cards and find pairs." color="var(--secondary)" onClick={() => launch('memory')} />
-        <GameCard title="Retro Word" desc="Guess the hidden word." color="var(--accent)" onClick={() => launch('wordle')} />
-        <GameCard title="Sudoku" desc="Logic puzzles. Race or Share." color="#ffb6b9" onClick={() => launch('sudoku')} />
-        <GameCard title="Chess" desc="Full rules engine. Standard or Sandbox." color="#a3c4f3" onClick={() => launch('chess')} />
-        <GameCard title="Couples Quiz" desc="How well do you know them?" color="#f9e2af" onClick={() => launch('quiz')} />
-        <GameCard title="2048" desc="Merge tiles. Reach 2048!" color="#a855f7" onClick={() => launch('2048')} />
-        <GameCard title="Typing Race" desc="Type fast. Beat your WPM." color="#14b8a6" onClick={() => launch('typing')} />
-        <GameCard title="Would You Rather" desc="See if you match!" color="#ec4899" onClick={() => launch('wyr')} />
-        <GameCard title="Love Language" desc="Discover your love style." color="#f472b6" onClick={() => launch('lovelang')} />
-        <GameCard title="Sync Watcher" desc="Watch YT together." color="#c1a3ff" onClick={() => launch('sync')} />
-        <GameCard title="Persistent Canvas" desc="Ongoing shared drawing." color="#4ade80" onClick={() => navigate('/shared-canvas')} />
+    <RetroWindow title="activities_lobby.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
+      <div className="text-center mb-6 mt-4">
+        <h2 className="text-xl font-black uppercase tracking-widest mb-2">Game Lobby</h2>
+        <p className="text-xs opacity-60 font-bold">Select an activity to play together</p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-2 overflow-y-auto">
+        {GAMES_LIST.map(game => (
+          <button key={game.id} onClick={() => launch(game.id)} className="border-2 border-[var(--border)] bg-white shadow-[4px_4px_0px_0px_var(--border)] p-4 flex flex-col items-center hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_var(--border)] transition-all active:scale-95 group">
+            <span className="text-4xl mb-3 drop-shadow-md group-hover:scale-110 transition-transform">{game.icon}</span>
+            <span className="font-black text-[10px] uppercase tracking-widest text-center leading-tight">{game.title}</span>
+          </button>
+        ))}
       </div>
     </RetroWindow>
   );

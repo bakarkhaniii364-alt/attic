@@ -124,12 +124,14 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
 // ── RetroButton ──
 export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) {
+  const base = "font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none lowercase flex items-center justify-center gap-2";
+  
   const variants = { 
-    primary: "retro-bg-primary retro-shadow-dark", 
-    secondary: "retro-bg-secondary retro-shadow-dark", 
-    white: "retro-bg-window retro-shadow-dark hover:bg-gray-50", 
-    accent: "retro-bg-accent retro-shadow-dark", 
-    disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50" 
+    primary: "bg-[var(--primary)] text-white", 
+    secondary: "bg-[var(--secondary)] text-white", 
+    white: "bg-white text-[var(--text-main)] hover:bg-gray-50", 
+    accent: "bg-[var(--accent)] text-[var(--text-main)]", 
+    disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50 shadow-none border-gray-400" 
   };
   
   return (
@@ -137,7 +139,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
       type={type} 
       onClick={onClick} 
       disabled={disabled} 
-      className={`retro-border font-black lowercase transition-all duration-200 transform-gpu flex items-center justify-center gap-2 ${disabled ? variants.disabled : `${variants[variant]} active:translate-y-1 active:translate-x-0 active:shadow-none`} ${className}`}
+      className={`${base} ${disabled ? variants.disabled : variants[variant]} ${className}`}
     >
       {children}
     </button>
