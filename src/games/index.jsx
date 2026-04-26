@@ -10,6 +10,11 @@ import { PictionaryGame } from './PictionaryGame.jsx';
 import { MemoryGame } from './MemoryGame.jsx';
 import { WordleClone } from './WordleClone.jsx';
 import { Sudoku } from './SudokuGame.jsx';
+import { ChessEngine } from './ChessEngine.jsx';
+import { CouplesQuiz } from './CouplesQuiz.jsx';
+import { Game2048 } from './Game2048.jsx';
+import { TypingRace } from './TypingRace.jsx';
+import { WouldYouRather } from './WouldYouRather.jsx';
 
 export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId, pictionaryState, setPictionaryState, onSaveToScrapbook }) {
   const { '*': gameRoute } = useParams();
@@ -34,7 +39,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       setLobbyState(prev => {
         const players = prev.players || [];
         if (!players.includes(userId)) {
-          return { ...prev, gameId: gameRoute, players: [...players, userId], status: (players.length + 1) >= 2 ? 'ready' : 'waiting' };
+          return { ...prev, gameId: gameRoute, players: [...players, userId], status: players.length + 1 >= 2 ? 'ready' : 'waiting' };
         }
         return prev;
       });
@@ -79,6 +84,11 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       case 'memory': return <MemoryGame {...commonProps} />;
       case 'wordle': return <WordleClone {...commonProps} />;
       case 'sudoku': return <Sudoku {...commonProps} />;
+      case 'chess': return <ChessEngine {...commonProps} />;
+      case 'quiz': return <CouplesQuiz {...commonProps} />;
+      case '2048': return <Game2048 {...commonProps} />;
+      case 'typing': return <TypingRace {...commonProps} />;
+      case 'wyr': return <WouldYouRather {...commonProps} />;
       default: return <div className="p-8 text-center font-bold">Game not found</div>;
     }
   };
@@ -86,19 +96,24 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   // 1. Arcade Menu (No specific game selected)
   if (!gameRoute || gameRoute === '') {
     return (
-      <RetroWindow title="arcade.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)]">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
+      <RetroWindow title="arcade.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 p-4 pb-12 overflow-y-auto h-full">
           {[
             { id: 'tictactoe', title: 'Tic-Tac-Toe', desc: 'Classic connection game.' },
             { id: 'pictionary', title: 'Pictionary', desc: 'Draw and guess words.' },
             { id: 'memory', title: 'Memory Match', desc: 'Find the hidden pairs.' },
             { id: 'wordle', title: 'Wordle Co-op', desc: 'Guess the word together.' },
-            { id: 'sudoku', title: 'Sudoku', desc: 'Solve the grid.' }
+            { id: 'sudoku', title: 'Sudoku', desc: 'Solve the grid.' },
+            { id: 'chess', title: 'Chess', desc: 'The classic strategy game.' },
+            { id: 'quiz', title: 'Couples Quiz', desc: 'How well do you know each other?' },
+            { id: '2048', title: '2048 Co-op', desc: 'Slide and combine tiles.' },
+            { id: 'typing', title: 'Typing Race', desc: 'Who types faster?' },
+            { id: 'wyr', title: 'Would You Rather', desc: 'Tough choices together.' }
           ].map(game => (
-            <div key={game.id} onClick={() => navigate(`/activities/${game.id}`)} className="p-6 retro-bg-window retro-border retro-shadow-dark cursor-pointer hover:-translate-y-1 transition-all group flex flex-col items-center text-center">
-              <Gamepad2 size={40} className="mb-4 text-[var(--primary)] group-hover:scale-110 transition-transform" />
-              <h3 className="font-black uppercase text-lg">{game.title}</h3>
-              <p className="text-xs opacity-70 mt-2">{game.desc}</p>
+            <div key={game.id} onClick={() => navigate(`/activities/${game.id}`)} className="p-4 retro-bg-window retro-border retro-shadow-dark cursor-pointer hover:-translate-y-1 transition-all group flex flex-col items-center text-center h-full">
+              <Gamepad2 size={32} className="mb-3 text-[var(--primary)] group-hover:scale-110 transition-transform" />
+              <h3 className="font-black uppercase text-sm sm:text-base leading-tight">{game.title}</h3>
+              <p className="text-[10px] sm:text-xs opacity-70 mt-2 leading-snug">{game.desc}</p>
             </div>
           ))}
         </div>
@@ -117,7 +132,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
             <div className="flex gap-8 items-center justify-center mb-10 w-full">
                {/* Player 1 (You) */}
                <div className="flex flex-col items-center">
-                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-white shadow-[0_0_15px_var(--primary)]">
+                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[0_0_15px_var(--primary)]">
                      <span className="font-black text-2xl">P1</span>
                   </div>
                   <span className="mt-3 font-bold text-xs uppercase bg-black text-white px-2 py-1">READY</span>
@@ -127,7 +142,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
                {/* Player 2 (Partner) */}
                <div className="flex flex-col items-center">
-                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all ${partnerInLobby ? 'bg-[var(--secondary)] text-white shadow-[0_0_15px_var(--secondary)]' : 'bg-transparent border-dashed border-[var(--border)] opacity-50'}`}>
+                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[0_0_15px_var(--secondary)]' : 'bg-transparent border-dashed opacity-50'}`}>
                      <span className="font-black text-2xl">{partnerInLobby ? 'P2' : '?'}</span>
                   </div>
                   {partnerInLobby ? (
@@ -139,7 +154,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
             </div>
 
             {isReady ? (
-               <button onClick={startGame} className="bg-[var(--primary)] text-white font-black text-xl px-12 py-4 retro-border retro-shadow-dark hover:scale-105 transition-transform animate-pulse">
+               <button onClick={startGame} className="bg-[var(--primary)] text-[var(--text-on-primary)] font-black text-xl px-12 py-4 retro-border retro-shadow-dark hover:scale-105 transition-transform animate-pulse">
                  INSERT COIN (START)
                </button>
             ) : (
@@ -156,11 +171,15 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   }
 
   // 3. Active Game State
-  return (
-    <RetroWindow title={`${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)]" noPadding>
-       <div className="h-full bg-[var(--bg-window)] overflow-y-auto">
-          {renderGame()}
-       </div>
-    </RetroWindow>
-  );
+  if (lobbyState.status === 'playing') {
+    return (
+      <RetroWindow title={`${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)]" noPadding>
+         <div className="h-full bg-[var(--bg-window)] overflow-y-auto">
+            {renderGame()}
+         </div>
+      </RetroWindow>
+    );
+  }
+
+  return <div className="p-8 text-center font-bold">Lobby initializing...</div>;
 }
