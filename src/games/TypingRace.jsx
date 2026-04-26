@@ -71,7 +71,19 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
             return <span key={i} className={color}>{char}</span>;
           })}
         </div>
-        <input ref={inputRef} type="text" value={typed} onChange={handleInput} disabled={!!endTime} autoFocus className="w-full p-4 retro-border retro-bg-window font-mono text-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" placeholder={started ? '' : 'Start typing...'} />
+        <input 
+          ref={inputRef} 
+          type="text" 
+          value={typed} 
+          onChange={handleInput} 
+          disabled={!!endTime} 
+          autoFocus 
+          onPaste={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+          autoComplete="off"
+          className="w-full p-4 retro-border retro-bg-window font-mono text-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" 
+          placeholder={started ? '' : 'Start typing...'} 
+        />
         <div className="flex justify-between text-sm font-bold opacity-60">
           <span>Progress: {progress}%</span>
           <span>Errors: {errors}</span>

@@ -48,7 +48,7 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
   };
 
   const handleCardClick = (index) => {
-    if (disabled || flipped.includes(index) || solved.includes(index)) return; 
+    if (disabled || flipped.length >= 2 || flipped.includes(index) || solved.includes(index)) return; 
     playAudio('click', sfx);
     const newFlipped = [...flipped, index]; 
     setFlipped(newFlipped);

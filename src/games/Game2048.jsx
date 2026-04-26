@@ -79,7 +79,8 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
 
   useEffect(() => {
     const handleKey = (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); handleMove(e.key.replace('Arrow', '').toLowerCase()); }
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) { e.preventDefault(); }
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { handleMove(e.key.replace('Arrow', '').toLowerCase()); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);

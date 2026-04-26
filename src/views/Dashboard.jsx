@@ -176,7 +176,7 @@ export const Unit = React.memo(({ val, label }) => {
 
         {/* The Flipping Flap (Drops down to cover the bottom) */}
         <div 
-          className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] origin-bottom transition-transform duration-300 ease-in-out z-10"
+          className={`absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] origin-bottom z-10 ${isFlipping ? 'transition-transform duration-300 ease-in-out' : ''}`}
           style={{ transform: isFlipping ? 'rotateX(-90deg)' : 'rotateX(0deg)' }}
         >
           <span className="translate-y-1/2">{currentStr}</span>
