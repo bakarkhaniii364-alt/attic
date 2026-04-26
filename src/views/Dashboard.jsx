@@ -143,8 +143,8 @@ function AnniversaryTimer({ anniversary }) {
 }
 
 export const Unit = React.memo(({ val, label }) => {
-  const [isFlipping, setIsFlipping] = useState(false);
   const [displayVal, setDisplayVal] = useState(val);
+  const [isFlipping, setIsFlipping] = useState(false);
 
   useEffect(() => {
     if (val !== displayVal) {
@@ -152,21 +152,40 @@ export const Unit = React.memo(({ val, label }) => {
       const timer = setTimeout(() => {
         setDisplayVal(val);
         setIsFlipping(false);
-      }, 300);
+      }, 300); // Syncs with the CSS transition duration
       return () => clearTimeout(timer);
     }
   }, [val, displayVal]);
 
+  const currentStr = String(displayVal).padStart(2, '0');
+  const nextStr = String(val).padStart(2, '0');
+
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-10 h-10 perspective-1000">
-        <div className={`w-full h-full bg-[var(--bg-main)] retro-border flex items-center justify-center font-bold text-lg text-[var(--primary)] tabular-nums transition-transform duration-300 preserve-3d ${isFlipping ? 'rotate-x-90 opacity-50' : 'rotate-x-0 opacity-100'}`}>
-          {String(displayVal).padStart(2, '0')}
+      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-white border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000">
+        
+        {/* Top Half (Shows NEXT value hidden underneath) */}
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px]">
+          <span className="translate-y-1/2">{nextStr}</span>
         </div>
-        {/* Subtle 3D shadow effect */}
-        <div className="absolute inset-0 pointer-events-none shadow-inner opacity-20"></div>
+        
+        {/* Bottom Half (Shows CURRENT value) */}
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-white overflow-hidden flex items-start justify-center pt-[1px]">
+          <span className="-translate-y-1/2">{currentStr}</span>
+        </div>
+
+        {/* The Flipping Flap (Drops down to cover the bottom) */}
+        <div 
+          className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] origin-bottom transition-transform duration-300 ease-in-out z-10"
+          style={{ transform: isFlipping ? 'rotateX(-90deg)' : 'rotateX(0deg)' }}
+        >
+          <span className="translate-y-1/2">{currentStr}</span>
+        </div>
+
+        {/* Center Crease/Divider */}
+        <div className="absolute top-1/2 left-0 w-full h-px bg-[var(--border)] opacity-30 z-20"></div>
       </div>
-      <span className="text-[9px] font-bold opacity-50 uppercase mt-0.5">{label}</span>
+      <span className="text-[9px] font-bold opacity-50 uppercase mt-1.5">{label}</span>
     </div>
   );
 });
@@ -257,7 +276,10 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                       ) : (
                         <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
                       )}
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border border-white animate-pulse"></div>
+                      <div 
+                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] ${onlineUsers[partnerId] === 'active' ? 'bg-green-500' : 'bg-red-500'}`}
+                        title={onlineUsers[partnerId] === 'active' ? 'Online' : 'Offline'}
+                      ></div>
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
