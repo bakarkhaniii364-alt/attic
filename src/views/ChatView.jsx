@@ -480,7 +480,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
                                 </div>
                                 <p className="text-xs font-bold mb-4 opacity-80">{msg.text || `Join me for ${msg.gameTitle || "a game"}!`}</p>
                                 {!isMe ? (
-                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-[var(--accent)] border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button</RetroButton>
+                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-[var(--accent)] border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button>
                                 ) : (
                                   <div className="bg-black/5 border-2 border-dashed border-[var(--border)]/30 p-2 text-center text-[9px] font-black uppercase opacity-60">Waiting for partner...</div>
                                 )}
