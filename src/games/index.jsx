@@ -253,20 +253,75 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   };
 
   const HubMenu = () => (
-    <RetroWindow title="activities_lobby.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
-      <div className="text-center mb-6 mt-4">
-        <h2 className="text-xl font-black uppercase tracking-widest mb-2">Game Lobby</h2>
-        <p className="text-xs opacity-60 font-bold">Select an activity to play together</p>
+    <div className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col bg-[#c0c0c0] text-black shadow-2xl relative" style={{ fontFamily: '"MS Sans Serif", "Tahoma", sans-serif' }}>
+      
+      {/* Outer 3D Window Borders (The Win95 Optical Illusion) */}
+      <div className="absolute inset-0 border-t-2 border-l-2 border-white pointer-events-none z-10"></div>
+      <div className="absolute inset-0 border-b-2 border-r-2 border-black pointer-events-none z-10"></div>
+      <div className="absolute inset-[2px] border-b-2 border-r-2 border-[#808080] pointer-events-none z-10"></div>
+      
+      {/* Window Content */}
+      <div className="relative z-20 flex flex-col h-full p-[3px]">
+        
+        {/* 1. Title Bar */}
+        <div className="bg-[#000080] text-white px-1 py-[2px] flex items-center justify-between select-none">
+          <div className="flex items-center gap-1.5 ml-1">
+            <span className="text-[14px]">📁</span>
+            <span className="font-bold text-xs tracking-wide">Activities</span>
+          </div>
+          <div className="flex gap-[2px]">
+            {/* Win95 Minimize Button */}
+            <button className="w-4 h-4 bg-[#c0c0c0] text-black border-t-[1.5px] border-l-[1.5px] border-white border-b-[1.5px] border-r-[1.5px] border-b-black border-r-black shadow-[-1px_-1px_0px_#808080_inset] flex items-end justify-center font-black text-[10px] pb-1 active:border-t-black active:border-l-black active:border-b-white active:border-r-white active:shadow-[1px_1px_0px_#808080_inset]">_</button>
+            {/* Win95 Maximize Button */}
+            <button className="w-4 h-4 bg-[#c0c0c0] text-black border-t-[1.5px] border-l-[1.5px] border-white border-b-[1.5px] border-r-[1.5px] border-b-black border-r-black shadow-[-1px_-1px_0px_#808080_inset] flex items-center justify-center font-black text-[10px] active:border-t-black active:border-l-black active:border-b-white active:border-r-white active:shadow-[1px_1px_0px_#808080_inset]">□</button>
+            {/* Win95 Close Button */}
+            <button onClick={onClose} className="w-4 h-4 bg-[#c0c0c0] text-black border-t-[1.5px] border-l-[1.5px] border-white border-b-[1.5px] border-r-[1.5px] border-b-black border-r-black shadow-[-1px_-1px_0px_#808080_inset] flex items-center justify-center font-bold text-[10px] active:border-t-black active:border-l-black active:border-b-white active:border-r-white active:shadow-[1px_1px_0px_#808080_inset]">X</button>
+          </div>
+        </div>
+
+        {/* 2. Menu Bar */}
+        <div className="flex text-black gap-3 px-2 py-1 text-xs select-none">
+          <span className="cursor-pointer hover:bg-[#000080] hover:text-white px-1"><span className="underline">F</span>ile</span>
+          <span className="cursor-pointer hover:bg-[#000080] hover:text-white px-1"><span className="underline">E</span>dit</span>
+          <span className="cursor-pointer hover:bg-[#000080] hover:text-white px-1"><span className="underline">V</span>iew</span>
+          <span className="cursor-pointer hover:bg-[#000080] hover:text-white px-1"><span className="underline">H</span>elp</span>
+        </div>
+
+        {/* 3. Address Bar */}
+        <div className="flex items-center gap-2 px-2 py-1 border-t border-[#808080] border-b border-white mb-1">
+          <span className="text-xs">Address</span>
+          <div className="flex-1 bg-white border-t-2 border-l-2 border-[#808080] border-b-2 border-r-2 border-white px-2 py-0.5 text-xs text-black shadow-[-1px_-1px_0px_#dfdfdf_inset]">
+            C:\Attic\Activities\Games
+          </div>
+        </div>
+
+        {/* 4. Inner Content Area (Sunken White Box) */}
+        <div className="flex-1 bg-white border-t-2 border-l-2 border-[#808080] border-b-2 border-r-2 border-white p-4 overflow-y-auto shadow-[-1px_-1px_0px_black_inset]">
+          <div className="flex flex-wrap gap-4 sm:gap-6 items-start content-start">
+            {GAMES_LIST.map(game => (
+              <div 
+                key={game.id} 
+                onClick={() => launch(game.id)}
+                className="flex flex-col items-center group cursor-pointer w-20 sm:w-24"
+              >
+                <div className="w-10 h-10 mb-1 flex items-center justify-center text-4xl group-active:brightness-50 group-active:opacity-50 transition-all">
+                  {game.icon}
+                </div>
+                {/* The classic dotted-border select state on hover */}
+                <span className="text-xs text-center leading-tight px-1 py-0.5 border border-transparent group-hover:bg-[#000080] group-hover:text-white group-hover:border-white group-hover:border-dotted select-none">
+                  {game.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* 5. Status Bar */}
+        <div className="bg-[#c0c0c0] text-black px-2 py-0.5 text-xs border-t-2 border-l-2 border-[#808080] border-b-2 border-r-2 border-white mt-1 flex items-center shadow-[-1px_-1px_0px_black_inset]">
+          <span>{GAMES_LIST.length} object(s)</span>
+        </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-2 overflow-y-auto">
-        {GAMES_LIST.map(game => (
-          <button key={game.id} onClick={() => launch(game.id)} className="border-2 border-[var(--border)] bg-white shadow-[4px_4px_0px_0px_var(--border)] p-4 flex flex-col items-center hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_var(--border)] transition-all active:scale-95 group">
-            <span className="text-4xl mb-3 drop-shadow-md group-hover:scale-110 transition-transform">{game.icon}</span>
-            <span className="font-black text-[10px] uppercase tracking-widest text-center leading-tight">{game.title}</span>
-          </button>
-        ))}
-      </div>
-    </RetroWindow>
+    </div>
   );
 
   const GameRenderer = () => {
