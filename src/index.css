@@ -5,19 +5,19 @@
 
 /* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
-  --bg-main: #ffe8d6;
-  --bg-pattern: #e0bfa5; 
-  --bg-window: #fffdf9;
-  --border: #5c3a21;
+  --bg-main: #fdf6e3;       /* Warm creamy white */
+  --bg-pattern: #e6d5c3;    /* Distinct, slightly darker graph grid lines */
+  --bg-window: #ffffff;     /* Pure white window backgrounds */
+  --border: #2d2a2e;        /* Soft black/dark brown borders */
   --text-on-border: #ffffff;
-  --primary: #e94560;
-  --primary-hover: #c23353;
-  --secondary: #4f9ef8;
-  --accent: #f9e2af;
-  --text-main: #5c3a21;
+  --primary: #ff4a6e;       /* Vibrant pinkish-red */
+  --primary-hover: #e0385a;
+  --secondary: #0ea5e9;     /* Sky blue */
+  --accent: #fcd34d;        /* Warm retro yellow */
+  --text-main: #2d2a2e;
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
-  --text-on-accent: #5c3a21;
+  --text-on-accent: #2d2a2e;
 }
 
 /* ════ THEMES ════ */

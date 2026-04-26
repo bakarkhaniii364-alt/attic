@@ -115,8 +115,19 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
           <div className={`w-full aspect-video bg-black relative overflow-hidden flex items-center justify-center`}>
             {isRinging ? (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-24 h-24 retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden">
-                   {partnerPfp ? <img src={partnerPfp} alt="" className="w-full h-full object-cover" /> : (type === 'video' ? <Video size={40} className="text-white"/> : <Phone size={40} className="text-white"/>)}
+                <div className="w-24 h-24 retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden bg-[var(--border)] relative">
+                   {/* Layer 1: Base Icon */}
+                   {type === 'video' ? <Video size={40} className="text-white absolute z-0"/> : <Phone size={40} className="text-white absolute z-0"/>}
+                   
+                   {/* Layer 2: PFP Image (Hides itself if broken) */}
+                   {partnerPfp && partnerPfp.length > 5 && (
+                     <img 
+                        src={partnerPfp} 
+                        alt="partner" 
+                        className="w-full h-full object-cover relative z-10 bg-[var(--bg-window)]" 
+                        onError={(e) => { e.target.style.display = 'none'; }} 
+                     />
+                   )}
                 </div>
                 <div className="text-white font-black text-[10px] uppercase tracking-[0.2em] animate-bounce">Ringing {partnerName}...</div>
               </div>
@@ -319,16 +330,20 @@ export default function App() {
   const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
   const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60, currentCanvas: null });
 
-  // Ensure strict bidirectional sync of display names and profile pictures
+  // Ensure strict bidirectional sync of display names, PFP, and emojis
   useEffect(() => {
-    if (userId && profile && profile.name) {
-      setRoomProfiles(prev => {
-        // Prevent infinite loops by checking if it actually changed
-        if (JSON.stringify(prev[userId]) === JSON.stringify(profile)) return prev;
-        return { ...prev, [userId]: profile };
-      });
-    }
-  }, [profile, userId, setRoomProfiles]);
+    if (!userId || !profile || !profile.name) return;
+    
+    setRoomProfiles(prev => {
+      const myPrev = prev[userId] || {};
+      // Strict equality check to prevent infinite loops, but deep enough to catch PFP changes
+      if (myPrev.name === profile.name && myPrev.pfp === profile.pfp && myPrev.emoji === profile.emoji && myPrev.mood === profile.mood) {
+        return prev;
+      }
+      console.log(`[SYNC] Broadcasting updated profile for ${profile.name}`);
+      return { ...prev, [userId]: { ...profile } };
+    });
+  }, [profile.name, profile.pfp, profile.emoji, profile.mood, userId, setRoomProfiles]);
 
   const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
   
@@ -897,8 +912,19 @@ export default function App() {
         {incomingCall && (
           <div className="fixed inset-0 z-[6000] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
             <div className="bg-white/95 retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
-              <div className="w-24 h-24 rounded-lg retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)]">
-                {incomingCall.type === 'video' ? <Video size={48} className="text-white"/> : <Phone size={48} className="text-white"/>}
+              <div className="w-24 h-24 rounded-lg retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)] relative overflow-hidden">
+                  {/* Layer 1: Base Icon */}
+                  {incomingCall.type === 'video' ? <Video size={48} className="text-white absolute z-0"/> : <Phone size={48} className="text-white absolute z-0"/>}
+                  
+                  {/* Layer 2: PFP Image */}
+                  {partnerProfile.pfp && partnerProfile.pfp.length > 5 && (
+                     <img 
+                        src={partnerProfile.pfp} 
+                        alt="partner" 
+                        className="w-full h-full object-cover relative z-10 bg-[var(--bg-window)]" 
+                        onError={(e) => { e.target.style.display = 'none'; }} 
+                     />
+                  )}
               </div>
               <h2 className="text-2xl font-black mb-1">{incomingCall.fromName}</h2>
               <p className="text-[10px] font-black text-[var(--primary)] mb-8 uppercase tracking-[0.2em] animate-pulse">
