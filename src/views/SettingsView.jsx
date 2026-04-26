@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
@@ -20,6 +20,9 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const availableThemes = ['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins', 'lavender', 'coffee', 'nord'];
+
   const handlePfpUpload = (e) => { 
     const file = e.target.files[0]; 
     if (file) { 
@@ -60,21 +63,11 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      
-      if (error) {
-        setPasswordError(error.message || 'Failed to change password');
-        setPasswordLoading(false);
-        return;
-      }
-
+      if (error) { setPasswordError(error.message || 'Failed to change password'); setPasswordLoading(false); return; }
       setPasswordSuccess(true);
       toast('Password changed successfully!', 'success');
       setTimeout(() => {
-        setShowChangePassword(false);
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-        setPasswordSuccess(false);
+        setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPasswordSuccess(false);
       }, 2000);
     } catch (err) {
       setPasswordError(err.message || 'Something went wrong');
@@ -85,31 +78,15 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const handleUnpair = async () => {
     try {
       const { data: roomData, error: rdErr } = await supabase.rpc('get_my_room');
-      if (rdErr || !roomData) {
-        toast('No paired room found', 'error');
-        return;
-      }
+      if (rdErr || !roomData) return toast('No paired room found', 'error');
       const roomId = roomData.id || roomData?.id;
-      if (!roomId) {
-        toast('Could not determine room', 'error');
-        return;
-      }
+      if (!roomId) return toast('Could not determine room', 'error');
 
-      const { data: leaveResult, error: leaveErr } = await supabase.rpc('leave_room', { room_uuid: roomId });
-      if (leaveErr) {
-        console.error('leave_room rpc failed', leaveErr);
-      }
-
+      await supabase.rpc('leave_room', { room_uuid: roomId });
       try { window.localStorage.removeItem('attic_room_id'); } catch (e) {}
       toast('Unpaired. Returning to handshake...', 'success');
-      setTimeout(() => {
-        navigate('/handshake');
-        window.location.reload(); // Still reload to clear all states, but navigate first
-      }, 500);
-    } catch (err) {
-      console.error(err);
-      toast('Failed to unpair. Please contact support.', 'error');
-    }
+      setTimeout(() => { navigate('/handshake'); window.location.reload(); }, 500);
+    } catch (err) { console.error(err); toast('Failed to unpair.', 'error'); }
   };
 
   const handleExportData = async () => {
@@ -119,52 +96,28 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       const roomId = roomData?.id;
       if (!roomId) throw new Error("No room found");
 
-      const { data: messages, error } = await supabase
-        .from('chat_messages')
-        .select('sender_id, content, type, created_at, metadata')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
-
+      const { data: messages, error } = await supabase.from('chat_messages').select('sender_id, content, type, created_at, metadata').eq('room_id', roomId).order('created_at', { ascending: true });
       if (error) throw error;
 
-      const dataBlob = new Blob([JSON.stringify({
-        export_date: new Date().toISOString(),
-        user_id: userId,
-        room_id: roomId,
-        messages: messages
-      }, null, 2)], { type: 'application/json' });
-      
+      const dataBlob = new Blob([JSON.stringify({ export_date: new Date().toISOString(), user_id: userId, room_id: roomId, messages: messages }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `attic_data_export_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
+      const link = document.createElement('a'); link.href = url; link.download = `attic_export_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
       toast('Export complete!', 'success');
-    } catch (err) {
-      console.error(err);
-      toast('Export failed', 'error');
-    }
+    } catch (err) { console.error(err); toast('Export failed', 'error'); }
   };
 
   const handleDeleteAccount = async () => {
-    const confirmDelete = window.confirm("🚨 PERMANENT ACTION: This will delete your shared Room and ALL data (chats, photos, scores) for both you and your partner. This cannot be undone. Proceed?");
-    
+    const confirmDelete = window.confirm("🚨 PERMANENT ACTION: This will delete your shared Room and ALL data. Proceed?");
     if (confirmDelete) {
       toast('Deleting everything...', 'info');
       try {
         const { error } = await supabase.rpc('delete_my_room');
         if (error) throw error;
-        
         await supabase.auth.signOut();
         localStorage.clear();
         window.location.href = '/';
-      } catch (err) {
-        console.error(err);
-        toast('Deletion failed', 'error');
-      }
+      } catch (err) { console.error(err); toast('Deletion failed', 'error'); }
     }
   };
 
@@ -204,31 +157,18 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-bold mb-1">partner's nickname</label>
-              <input 
-                type="text" 
-                value={coupleData.nicknames?.[partnerId] || coupleData.partnerNickname || ''} 
-                onChange={(e) => {
-                  const newNicknames = { ...coupleData.nicknames, [partnerId]: e.target.value };
-                  setCoupleData({ ...coupleData, nicknames: newNicknames, partnerNickname: e.target.value });
-                }} 
-                placeholder="e.g. Fiona" 
-                className="w-full p-2 retro-border retro-bg-window focus:outline-none" 
-              />
+              <input type="text" value={coupleData.nicknames?.[partnerId] || coupleData.partnerNickname || ''} onChange={(e) => { const newNicknames = { ...coupleData.nicknames, [partnerId]: e.target.value }; setCoupleData({ ...coupleData, nicknames: newNicknames, partnerNickname: e.target.value }); }} placeholder="e.g. Fiona" className="w-full p-2 retro-border retro-bg-window focus:outline-none" />
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>
               <input type="date" value={coupleData.anniversary || ''} onChange={(e) => { setCoupleData({...coupleData, anniversary: e.target.value}); toast('Anniversary date saved!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
             </div>
-            {coupleData.anniversary && (
-              <p className="text-xs font-bold opacity-50 text-center">Timer visible on dashboard ❤️</p>
-            )}
           </div>
         </section>
 
         {/* Security & Password */}
         <section className="p-4 retro-bg-window retro-border border-dashed">
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Lock size={20}/> security</h2>
-          
           {!showChangePassword ? (
             <RetroButton onClick={() => { setShowChangePassword(true); setPasswordError(''); setPasswordSuccess(false); }} variant="secondary" className="flex items-center gap-2">
               <Lock size={16}/> change password
@@ -236,109 +176,27 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           ) : (
             <form onSubmit={handleChangePassword} className="space-y-3">
               {passwordSuccess ? (
-                <div className="flex items-center justify-center gap-2 p-4 bg-green-100 retro-border border-green-500 rounded">
-                  <Check size={20} className="text-green-600" />
-                  <span className="font-bold text-green-700">Password changed successfully!</span>
-                </div>
+                <div className="flex items-center justify-center gap-2 p-4 bg-green-100 retro-border border-green-500 rounded"><Check size={20} className="text-green-600" /><span className="font-bold text-green-700">Password changed successfully!</span></div>
               ) : (
                 <>
                   <div>
                     <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Lock size={12}/> current password</label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPw ? 'text' : 'password'}
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full p-2 retro-border retro-bg-window focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPw(!showCurrentPw)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
-                      >
-                        {showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                    <div className="relative"><input type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" className="w-full p-2 retro-border retro-bg-window focus:outline-none" /><button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
                   </div>
-
                   <div>
                     <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Lock size={12}/> new password</label>
-                    <div className="relative">
-                      <input
-                        type={showNewPw ? 'text' : 'password'}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="••••••••"
-                        minLength={6}
-                        className="w-full p-2 retro-border retro-bg-window focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPw(!showNewPw)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
-                      >
-                        {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                    <div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" minLength={6} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
                   </div>
-
                   <div>
                     <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Lock size={12}/> confirm password</label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPw ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        minLength={6}
-                        className="w-full p-2 retro-border retro-bg-window focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPw(!showConfirmPw)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
-                      >
-                        {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                    <div className="relative"><input type={showConfirmPw ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" minLength={6} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /><button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">{showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
                   </div>
-
-                  {passwordError && (
-                    <p className="text-xs font-bold text-red-600 bg-red-50 retro-border border-red-300 p-2 text-center">
-                      {passwordError}
-                    </p>
-                  )}
-
+                  {passwordError && <p className="text-xs font-bold text-red-600 bg-red-50 retro-border border-red-300 p-2 text-center">{passwordError}</p>}
                   <div className="flex gap-2">
-                    <RetroButton
-                      type="submit"
-                      variant="primary"
-                      disabled={passwordLoading}
-                      className="flex-1 flex justify-center items-center gap-2 py-2"
-                    >
-                      {passwordLoading ? (
-                        <>
-                          <Loader size={14} className="animate-spin" /> updating...
-                        </>
-                      ) : (
-                        <>update password</>
-                      )}
+                    <RetroButton type="submit" variant="primary" disabled={passwordLoading} className="flex-1 flex justify-center items-center gap-2 py-2">
+                      {passwordLoading ? <><Loader size={14} className="animate-spin" /> updating...</> : <>update password</>}
                     </RetroButton>
-                    <RetroButton
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setShowChangePassword(false);
-                        setCurrentPassword('');
-                        setNewPassword('');
-                        setConfirmPassword('');
-                        setPasswordError('');
-                      }}
-                      className="flex-1 py-2"
-                    >
-                      cancel
-                    </RetroButton>
+                    <RetroButton type="button" variant="secondary" onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPasswordError(''); }} className="flex-1 py-2">cancel</RetroButton>
                   </div>
                 </>
               )}
@@ -346,23 +204,52 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           )}
         </section>
 
-        {/* Achievements */}
-        <section className="p-4 retro-bg-window retro-border border-dashed">
-           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Trophy size={20}/> local achievements</h2>
-           <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'tictactoe') > 0 ? 'retro-bg-primary' : 'bg-[var(--bg-main)] opacity-50'}`}>⭐ First Win</div>
-              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'pictionary') > 0 ? 'retro-bg-secondary' : 'bg-[var(--bg-main)] opacity-50'}`}>🎨 Artist</div>
-              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'wordle') > 0 ? 'retro-bg-accent' : 'bg-[var(--bg-main)] opacity-50'}`}>📚 Wordsmith</div>
-              <div className={`p-2 retro-border ${getScoreForUser(scores, userId, 'sudoku') > 0 ? 'retro-bg-primary' : 'bg-[var(--bg-main)] opacity-50'}`}>🧩 Puzzler</div>
-           </div>
-        </section>
-
         {/* Aesthetics & Weather */}
         <section className="p-4 retro-bg-window retro-border border-dashed">
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><ImageIcon size={20}/> aesthetics & weather</h2>
-          <div className="flex gap-2 mb-4">{['clear', 'rain', 'snow', 'spores'].map(w => ( <button key={w} onClick={() => {playAudio('click', sfxEnabled); setWeather(w)}} className={`flex-1 p-2 retro-border font-bold lowercase text-sm flex justify-center items-center gap-1 ${weather === w ? 'retro-bg-accent retro-shadow-dark' : 'bg-[var(--bg-window)]'}`}>{w === 'clear' ? <Sun size={14}/> : w === 'rain' ? <CloudRain size={14}/> : w === 'spores' ? <Sparkles size={14}/> : <Snowflake size={14}/>} {w}</button> ))}</div>
-          <p className="font-bold text-sm mb-2 opacity-70">Theme Mode</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">{['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins'].map(t => ( <button key={t} onClick={() => {playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500);}} className={`p-3 retro-border text-center lowercase font-bold text-sm sm:text-base ${theme === t ? 'retro-shadow-dark bg-[var(--accent)]' : 'bg-[var(--bg-window)] opacity-70'}`}>{t}</button> ))}</div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[
+              { id: 'clear', icon: <Sun size={14}/> },
+              { id: 'rain', icon: <CloudRain size={14}/> },
+              { id: 'snow', icon: <Snowflake size={14}/> },
+              { id: 'thunder', icon: <Zap size={14}/> },
+              { id: 'storm', icon: <CloudLightning size={14}/> },
+              { id: 'spores', icon: <Sparkles size={14}/> }
+            ].map(w => ( 
+              <button 
+                key={w.id} 
+                onClick={() => { playAudio('click', sfxEnabled); setWeather(w.id); }} 
+                className={`flex-1 min-w-[30%] p-2 retro-border font-bold lowercase text-[11px] sm:text-xs flex justify-center items-center gap-1.5 transition-all ${weather === w.id ? 'retro-bg-accent retro-shadow-dark scale-105' : 'bg-[var(--bg-window)] opacity-70 hover:opacity-100 hover:bg-black/5'}`}
+              >
+                {w.icon} {w.id}
+              </button> 
+            ))}
+          </div>
+          
+          <p className="font-bold text-sm mb-3 opacity-70">Theme Mode</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {availableThemes.map(t => ( 
+              <div 
+                key={t} 
+                data-theme={t}
+                onClick={() => { playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500); }} 
+                className={`flex flex-col p-2 retro-border cursor-pointer transition-transform hover:scale-105 ${theme === t ? 'ring-2 ring-offset-2 ring-[var(--primary)]' : 'opacity-80 hover:opacity-100'} bg-[var(--bg-main)]`}
+              >
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <span className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-tighter">{t}</span>
+                  {theme === t && <Check size={14} className="text-[var(--primary)]" />}
+                </div>
+                {/* Visual Theme Preview */}
+                <div className="flex flex-col gap-1 bg-[var(--bg-window)] p-1.5 retro-border border-dashed h-12">
+                   <div className="flex gap-1 h-1/2 w-full">
+                      <div className="flex-[2] bg-[var(--primary)] retro-border"></div>
+                      <div className="flex-[1] bg-[var(--secondary)] retro-border"></div>
+                   </div>
+                   <div className="h-1/2 w-3/4 bg-[var(--accent)] retro-border"></div>
+                </div>
+              </div> 
+            ))}
+          </div>
         </section>
 
         {/* Privacy & Data */}
@@ -375,13 +262,6 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                    <p className="text-[10px] opacity-60">Export a JSON copy of all your chat logs.</p>
                 </div>
                 <RetroButton onClick={handleExportData} className="px-4 py-2 text-xs">Export .json</RetroButton>
-             </div>
-             <div className="flex justify-between items-center">
-                <div>
-                   <p className="font-bold text-sm">Legal Notices</p>
-                   <p className="text-[10px] opacity-60">Privacy Policy & Terms of Service.</p>
-                </div>
-                <RetroButton onClick={() => navigate('/legal')} className="px-4 py-2 text-xs">View Legal</RetroButton>
              </div>
           </div>
         </section>
@@ -405,5 +285,4 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       {inner}
     </RetroWindow>
   );
-
 }
