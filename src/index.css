@@ -5,11 +5,11 @@
 
 /* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
-  --bg-main: #ffe8d6;
-  --bg-pattern: #e0bfa5; 
-  --bg-window: #fffdf9;
-  --bg-header: #f9e2af;
-  --border: #5c3a21;
+  --bg-main: #f9e2cf;       /* Richer, warmer peach background */
+  --bg-pattern: #d4b499;    /* Highly visible grid lines (Desert Sand) */
+  --bg-window: #fffdf9;     /* Pure paper-white windows */
+  --bg-header: #f9e2af;     /* Light cream headers */
+  --border: #5c3a21;        /* Thick retro brown borders */
   --text-on-border: #ffffff;
   --text-on-header: #5c3a21;
   --primary: #e94560;
@@ -224,8 +224,8 @@ body {
 .bg-pattern-grid {
   background-color: transparent !important;
   background-image: 
-    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 40px),
-    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 40px) !important;
+    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 4px, transparent 4px, transparent 32px),
+    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 4px, transparent 4px, transparent 32px) !important;
 }
 
 ::-webkit-scrollbar { width: 12px; }
