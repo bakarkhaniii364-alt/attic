@@ -82,7 +82,8 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     if (isNormalized) {
         try {
             const blob = base64ToBlob(dataUrl);
-            await uploadAsset(blob, 'doodle', userId);
+            const file = new File([blob], `doodle_${Date.now()}.png`, { type: 'image/png' });
+            await uploadAsset(file, 'doodle', userId);
         } catch (e) {
             alert("Failed to send doodle: " + e.message);
             return;
@@ -102,7 +103,8 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     if (isNormalized) {
         try {
             const blob = base64ToBlob(dataUrl);
-            await uploadAsset(blob, 'scrapbook', userId);
+            const file = new File([blob], `scrapbook_${Date.now()}.png`, { type: 'image/png' });
+            await uploadAsset(file, 'scrapbook', userId);
             alert('Saved to Scrapbook!');
         } catch (e) {
             alert("Failed to save: " + e.message);

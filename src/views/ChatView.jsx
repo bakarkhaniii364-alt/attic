@@ -264,21 +264,28 @@ export function ChatView({
   const stopRecording = () => { if (!isRecording || !mediaRecorderRef.current) return; setIsRecording(false); clearInterval(recordingTimerRef.current); mediaRecorderRef.current.stop(); };
   const discardVoiceNote = () => { setVoicePreview(null); setVoicePreviewUrl(null); setVoiceBase64(null); };
   const confirmVoiceNote = async () => {
-    if (!voiceBase64 || !voicePreview) return; playAudio('send', sfx);
+    if (!voiceBase64 || !voicePreview) return; 
+    playAudio('send', sfx);
 
     if (isNormalized) {
       try {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        await syncSendMessage(audioBlob, 'voice', userId, {
+        
+        // FIX: Wrap the raw Blob into a proper File object. 
+        // This gives Supabase the exact metadata it needs to not choke on the upload.
+        const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, { type: mimeType });
+
+        await syncSendMessage(audioFile, 'voice', userId, {
           duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`,
           replyTo: replyingTo
         });
       } catch (e) {
-        alert("Failed to send voice note: " + e.message);
+        alert("Upload Failed: " + e.message); // This will catch any remaining Supabase errors
       }
     }
-    setReplyingTo(null); discardVoiceNote();
+    setReplyingTo(null); 
+    discardVoiceNote();
   };
 
   const handleFileChange = async (e) => {

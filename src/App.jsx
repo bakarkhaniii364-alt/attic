@@ -862,7 +862,8 @@ export default function App() {
               try {
                   const { base64ToBlob } = await import('./utils/file.js');
                   const blob = base64ToBlob(imgData);
-                  await syncSendMessage(blob, 'image', userId, { text });
+                  const file = new File([blob], `image_${Date.now()}.png`, { type: 'image/png' });
+                  await syncSendMessage(file, 'image', userId, { text });
               } catch (e) {
                   console.error("Failed to process image", e);
                   toast("Failed to share image", "error");
