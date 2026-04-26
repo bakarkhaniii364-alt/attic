@@ -4,9 +4,10 @@
 @tailwind utilities;
 
 /* ════ DEFAULT (warm peach) ════ */
-:root {
+/* Fix: Added [data-theme="default"] so local component previews inherit it properly */
+:root, [data-theme="default"] {
   --bg-main: #ffe8d6;
-  --bg-pattern: #f0d0b8;
+  --bg-pattern: #e0bfa5; /* Darkened for grid visibility */
   --bg-window: #fffdf9;
   --border: #5c3a21;
   --primary: #e94560;
@@ -22,7 +23,7 @@
 /* ════ THEMES ════ */
 [data-theme="matcha"] {
   --bg-main: #e8eedf;
-  --bg-pattern: #cddbbf;
+  --bg-pattern: #c0cfb1; /* Darkened for grid visibility */
   --bg-window: #f9faf7;
   --border: #2d4a22;
   --primary: #4a7c59;
@@ -52,7 +53,7 @@
 
 [data-theme="cyberpunk"] {
   --bg-main: #050505;
-  --bg-pattern: #1a1a1a;
+  --bg-pattern: #1f1f1f;
   --bg-window: #000000;
   --border: #fcee0a;
   --primary: #fcee0a;
@@ -82,13 +83,13 @@
 
 [data-theme="minimal"] {
   --bg-main: #f4f4f5;
-  --bg-pattern: #e4e4e7;
+  --bg-pattern: #d4d4d8;
   --bg-window: #ffffff;
   --border: #18181b;
   --primary: #18181b;
   --primary-hover: #3f3f46;
   --secondary: #52525b;
-  --accent: #d4d4d8;
+  --accent: #e4e4e7;
   --text-main: #18181b;
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
@@ -97,13 +98,13 @@
 
 [data-theme="monochrome"] {
   --bg-main: #000000;
-  --bg-pattern: #1a1a1a;
-  --bg-window: #000000;
+  --bg-pattern: #262626;
+  --bg-window: #0a0a0a;
   --border: #ffffff;
   --primary: #ffffff;
   --primary-hover: #cccccc;
   --secondary: #737373;
-  --accent: #262626;
+  --accent: #171717;
   --text-main: #ffffff;
   --text-on-primary: #000000;
   --text-on-secondary: #ffffff;
@@ -112,7 +113,7 @@
 
 [data-theme="hawkins"] {
   --bg-main: #0a0a0a;
-  --bg-pattern: #200a0a;
+  --bg-pattern: #260a0a;
   --bg-window: #000000;
   --border: #dc2626;
   --primary: #dc2626;
@@ -127,7 +128,7 @@
 
 [data-theme="lavender"] {
   --bg-main: #eef2ff;
-  --bg-pattern: #dbeafe;
+  --bg-pattern: #c7d2fe;
   --bg-window: #ffffff;
   --border: #4c1d95;
   --primary: #8b5cf6;
@@ -142,7 +143,7 @@
 
 [data-theme="coffee"] {
   --bg-main: #eaddcf;
-  --bg-pattern: #dfcdbd;
+  --bg-pattern: #d0bda9;
   --bg-window: #f4ebe1;
   --border: #3e2723;
   --primary: #8b5a2b;
@@ -157,7 +158,7 @@
 
 [data-theme="nord"] {
   --bg-main: #2e3440;
-  --bg-pattern: #3b4252;
+  --bg-pattern: #434c5e;
   --bg-window: #242933;
   --border: #eceff4;
   --primary: #88c0d0;
@@ -168,6 +169,13 @@
   --text-on-primary: #2e3440;
   --text-on-secondary: #eceff4;
   --text-on-accent: #eceff4;
+}
+
+/* ════ GRADIENT KILLER ════ */
+/* This intercepts Tailwind utility classes on headers/buttons and forces pure solid theme colors */
+[class*="bg-gradient"], .bg-gradient-to-r, .bg-gradient-to-b, .bg-gradient-to-t {
+  background-image: none !important;
+  background-color: var(--border) !important;
 }
 
 html { font-size: 100%; height: 100%; }
@@ -181,14 +189,17 @@ body {
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  transition: background-color 0.3s, color 0.3s;
+  transition: background-color 0.3s, color 0.3s, transform 0.1s, filter 0.1s;
   font-size: 14px;
 }
 
-/* Dynamic Grid matching the theme */
+/* ════ DYNAMIC SOLID GRID ════ */
+/* Uses repeating-linear-gradient to draw solid lines without any fading or interpolation */
 .bg-pattern-grid {
-  background-image: linear-gradient(var(--bg-pattern) 2px, transparent 2px), linear-gradient(90deg, var(--bg-pattern) 2px, transparent 2px);
-  background-size: 40px 40px;
+  background-color: transparent !important;
+  background-image: 
+    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 40px),
+    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 40px) !important;
 }
 
 ::-webkit-scrollbar { width: 12px; }
@@ -200,10 +211,7 @@ body {
 .retro-shadow-dark { box-shadow: 6px 6px 0px 0px var(--border); }
 .retro-shadow-primary { box-shadow: 4px 4px 0px 0px var(--primary); }
 
-/* Removed gradient from mesh-bg to keep it purely solid */
-.mesh-bg {
-  background-color: var(--bg-main);
-}
+.mesh-bg { background-color: var(--bg-main); background-image: none !important; }
 
 .retro-bg-window { background-color: var(--bg-window); }
 .retro-bg-primary { background-color: var(--primary); color: var(--text-on-primary); border: 2px solid var(--primary); }
@@ -227,55 +235,64 @@ body {
 }
 
 .animate-shake { animation: shake 0.4s ease-in-out; }
-
 .cat-sprite { width: 128px; height: 128px; background-repeat: no-repeat; image-rendering: pixelated; }
 
-/* ════ Weather Animations ════ */
+/* ════ THE HAWKINS GLITCH ════ */
+/* Flips the entire app upside down and inverts colors once every 60 seconds for 1 second */
+@keyframes hawkins-upside-down {
+  0%, 98% { transform: none; filter: none; }
+  98.5% { transform: rotate(1deg) scale(1.02); filter: grayscale(0.5); }
+  99% { transform: rotate(180deg) scaleX(-1); filter: invert(1) hue-rotate(180deg); }
+  99.5% { transform: rotate(178deg) scaleX(-1); filter: invert(1); }
+  100% { transform: none; filter: none; }
+}
+
+[data-theme="hawkins"] body {
+  animation: hawkins-upside-down 60s infinite;
+  transform-origin: center center;
+}
+
+/* ════ WEATHER ANIMATIONS ════ */
 .weather-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
 
 .rain-drop {
-  position: absolute;
-  background: var(--secondary);
+  position: absolute; background: var(--secondary);
   width: 2px; height: 40px; top: -100px;
   animation: fall linear infinite; opacity: 0.7;
 }
 
 .storm-drop {
-  position: absolute;
-  background: var(--border);
+  position: absolute; background: var(--border);
   width: 3px; height: 60px; top: -100px;
-  animation: storm-fall linear infinite; opacity: 0.8;
+  animation: storm-fall linear infinite; opacity: 0.9;
 }
 
 .snow-flake {
-  position: absolute;
-  background: var(--border);
+  position: absolute; background: var(--border);
   border-radius: 50%; top: -10px;
   animation: snow-fall linear infinite; opacity: 0.8;
 }
 
+/* Jagged solid Lightning */
+.retro-lightning {
+  position: absolute; top: -10px;
+  width: 60px; height: 180px;
+  background: var(--text-main);
+  clip-path: polygon(50% 0%, 100% 0%, 50% 50%, 80% 50%, 0% 100%, 30% 50%, 0% 50%);
+  opacity: 0;
+  animation: flash-animation infinite;
+  z-index: 0;
+}
+
 .cloud-vessel {
-  position: absolute;
-  background: var(--bg-window);
-  border: 2px solid var(--border);
-  opacity: 0.4;
+  position: absolute; background: var(--bg-window);
+  border: 2px solid var(--border); opacity: 0.4;
   animation: float-clouds linear infinite;
 }
 
 .star-particle {
-  position: absolute;
-  background: var(--primary);
-  border-radius: 50%;
-  animation: twinkle ease-in-out infinite;
-}
-
-.lightning-flash {
-  position: absolute;
-  inset: 0;
-  background: white;
-  opacity: 0;
-  animation: flash-animation infinite;
-  z-index: 0;
+  position: absolute; background: var(--primary);
+  border-radius: 50%; animation: twinkle ease-in-out infinite;
 }
 
 @keyframes fall { to { transform: translateY(110dvh); } }
@@ -291,9 +308,9 @@ body {
 @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
 @keyframes flash-animation {
   0%, 95%, 98%, 100% { opacity: 0; }
-  96% { opacity: 0.8; }
-  97% { opacity: 0.2; }
-  99% { opacity: 0.9; }
+  96% { opacity: 1; }
+  97% { opacity: 0; }
+  99% { opacity: 1; }
 }
 
 .perspective-1000 { perspective: 1000px; }
