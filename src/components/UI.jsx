@@ -83,8 +83,8 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
     <>
       <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
         <div style={{ backgroundColor: 'var(--bg-header)' }} className="window-header-text retro-border-thick border-t-0 border-l-0 border-r-0 border-b-[5px] flex justify-between items-center p-2.5 flex-shrink-0 relative overflow-hidden">
-          {/* Subtle header sheen */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent pointer-events-none" />
+          {/* Subtle header sheen - Bypassing Gradient Killer with inline style */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.2), transparent)' }} />
           
           <div className={`relative z-10 flex gap-2 items-center ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
             <div className="flex flex-col gap-[2px] w-4">
