@@ -232,8 +232,8 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-window); border-left: 2px solid var(--border); }
 ::-webkit-scrollbar-thumb { background: var(--primary); border: 2px solid var(--border); }
 
-.retro-border { border: 2px solid var(--border); }
-.retro-border-thick { border: 4px solid var(--border); }
+.retro-border { border: 1.5px solid var(--border); }
+.retro-border-thick { border: 3px solid var(--border); }
 .retro-shadow-dark { box-shadow: 6px 6px 0px 0px var(--border); }
 .retro-shadow-primary { box-shadow: 4px 4px 0px 0px var(--primary); }
 
