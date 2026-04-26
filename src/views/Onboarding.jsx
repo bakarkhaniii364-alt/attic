@@ -69,6 +69,7 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const addToast = useToast();
 
   const handleAuth = async (e) => {
@@ -131,7 +132,20 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
                 {/* forgot password moved to signin form */}
               </div>
 
-              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
+              <div className="flex items-start gap-2 mb-4 mt-2">
+                <input 
+                  type="checkbox" 
+                  id="terms" 
+                  checked={termsAgreed}
+                  onChange={(e) => setTermsAgreed(e.target.checked)}
+                  className="mt-1 w-4 h-4 border-2 border-[var(--border)] accent-[var(--primary)]"
+                />
+                <label htmlFor="terms" className="text-[10px] font-bold opacity-80 leading-tight lowercase">
+                  I agree to the <a href="/legal" target="_blank" className="text-[var(--primary)] underline">Terms of Service</a> and acknowledge that deleting a room permanently deletes all data for both partners.
+                </label>
+              </div>
+
+              <RetroButton type="submit" disabled={loading || !termsAgreed} className="py-3 text-lg mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
               </RetroButton>
             </>
