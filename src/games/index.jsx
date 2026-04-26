@@ -223,18 +223,18 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat, use
 }
 
 const GAMES_LIST = [
-  { id: 'pictionary', title: 'Pictionary', icon: '🎨', color: '#ffb6b9' },
-  { id: 'tictactoe', title: 'Tic-Tac-Toe', icon: '❌', color: 'var(--primary)' },
-  { id: 'memory', title: 'Memory Match', icon: '🃏', color: 'var(--secondary)' },
-  { id: 'wordle', title: 'Retro Word', icon: '📝', color: 'var(--accent)' },
-  { id: 'sudoku', title: 'Sudoku', icon: '🔢', color: '#ffb6b9' },
-  { id: 'chess', title: 'Chess', icon: '♟️', color: '#a3c4f3' },
-  { id: 'quiz', title: 'Couples Quiz', icon: '❓', color: '#f9e2af' },
-  { id: '2048', title: '2048', icon: '🎲', color: '#a855f7' },
-  { id: 'typing', title: 'Typing Race', icon: '⌨️', color: '#14b8a6' },
-  { id: 'wyr', title: 'Would You Rather', icon: '⚖️', color: '#ec4899' },
-  { id: 'lovelang', title: 'Love Language', icon: '💖', color: '#f472b6' },
-  { id: 'sync', title: 'Sync Watcher', icon: '📺', color: '#c1a3ff' }
+  { id: 'pictionary', title: 'Pictionary', icon: '🎨', color: '#ffb6b9', desc: 'Draw and guess the hidden word.' },
+  { id: 'tictactoe', title: 'Tic-Tac-Toe', icon: '❌', color: 'var(--primary)', desc: 'Classic 3x3. Try Memory Fading mode.' },
+  { id: 'memory', title: 'Memory Match', icon: '🃏', color: 'var(--secondary)', desc: 'Flip cards and find pairs.' },
+  { id: 'wordle', title: 'Retro Word', icon: '📝', color: 'var(--accent)', desc: 'Guess the hidden word.' },
+  { id: 'sudoku', title: 'Sudoku', icon: '🔢', color: '#ffb6b9', desc: 'Logic puzzles. Race or Share.' },
+  { id: 'chess', title: 'Chess', icon: '♟️', color: '#a3c4f3', desc: 'Full rules engine. Standard or Sandbox.' },
+  { id: 'quiz', title: 'Couples Quiz', icon: '❓', color: '#f9e2af', desc: 'How well do you know them?' },
+  { id: '2048', title: '2048', icon: '🎲', color: '#a855f7', desc: 'Merge tiles. Reach 2048!' },
+  { id: 'typing', title: 'Typing Race', icon: '⌨️', color: '#14b8a6', desc: 'Type fast. Beat your WPM.' },
+  { id: 'wyr', title: 'Would You Rather', icon: '⚖️', color: '#ec4899', desc: 'See if you match!' },
+  { id: 'lovelang', title: 'Love Language', icon: '💖', color: '#f472b6', desc: 'Discover your love style.' },
+  { id: 'sync', title: 'Sync Watcher', icon: '📺', color: '#c1a3ff', desc: 'Watch YT together.' }
 ];
 
 export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState }) {
@@ -253,29 +253,50 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   };
 
   const HubMenu = () => (
-    <RetroWindow title="activities_lobby.exe" onClose={onClose} className="w-full max-w-4xl h-auto min-h-[50vh]">
-      <div className="text-center mb-6 mt-2 border-b-2 border-dashed border-[var(--border)]/20 pb-4">
-        <h2 className="text-xl font-black uppercase tracking-widest mb-1">Activities</h2>
-        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">Select an application</p>
+    <RetroWindow 
+      title="activities_hub.exe" 
+      onClose={onClose} 
+      className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col"
+      noPadding
+    >
+      {/* Custom Window Header (Burger + Title + Close) */}
+      <div className="bg-[var(--accent)] border-b-2 border-[var(--border)] p-1.5 flex items-center justify-between px-3">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-[3px] opacity-80 cursor-pointer">
+            <div className="w-4 h-[2px] bg-[var(--border)]"></div>
+            <div className="w-4 h-[2px] bg-[var(--border)]"></div>
+            <div className="w-4 h-[2px] bg-[var(--border)]"></div>
+          </div>
+          <span className="font-bold text-xs lowercase tracking-wider">activities_hub.exe</span>
+        </div>
+        <button onClick={onClose} className="w-6 h-6 bg-[#ef4444] text-white retro-border flex items-center justify-center font-bold text-xs hover:brightness-110 active:translate-y-0.5">×</button>
       </div>
-      
-      {/* This is the exact flex layout used in your Dashboard! */}
-      <div className="flex flex-wrap justify-center gap-6 sm:gap-8 py-4 px-2 overflow-y-auto">
-        {GAMES_LIST.map((game, index) => {
-          // Provide fallback retro colors in case your GAMES_LIST array doesn't have a color property
-          const retroColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4', '#f97316'];
-          const gameColor = game.color || retroColors[index % retroColors.length];
-          
-          return (
-            <AppIcon 
+
+      {/* Main Grid Area */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#fdf2e9]/30">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {GAMES_LIST.map(game => (
+            <button 
               key={game.id} 
-              icon={<span className="text-2xl drop-shadow-sm">{game.icon}</span>} 
-              label={game.title.toLowerCase()} 
-              color={gameColor} 
-              onClick={() => launch(game.id)} 
-            />
-          );
-        })}
+              onClick={() => launch(game.id)}
+              className="group bg-white border-2 border-[var(--border)] shadow-[6px_6px_0px_0px_var(--border)] p-5 flex flex-col items-start text-left hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_var(--border)] transition-all active:scale-[0.98]"
+            >
+              {/* Category Color Square */}
+              <div 
+                className="w-8 h-8 border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] mb-4 shrink-0"
+                style={{ backgroundColor: game.color }}
+              ></div>
+              
+              <h3 className="text-xl font-black mb-1 leading-none tracking-tighter lowercase">
+                {game.title}
+              </h3>
+              
+              <p className="text-[11px] font-bold opacity-60 leading-relaxed uppercase tracking-tight">
+                {game.desc}
+              </p>
+            </button>
+          ))}
+        </div>
       </div>
     </RetroWindow>
   );
