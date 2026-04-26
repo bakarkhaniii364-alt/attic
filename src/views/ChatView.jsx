@@ -87,9 +87,19 @@ function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
   );
 }
 
-function formatMessage(text) {
-  if (!text) return null; const parts = text.split(/(\*.*?\*|_.*?_)/g);
-  return parts.map((part, i) => { if (part.startsWith('*') && part.endsWith('*')) return <strong key={i}>{part.slice(1, -1)}</strong>; if (part.startsWith('_') && part.endsWith('_')) return <em key={i}>{part.slice(1, -1)}</em>; return part; });
+function formatMessage(text, isEdited) {
+  if (!text) return null;
+  const parts = text.split(/(\*.*?\*|_.*?_)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('*') && part.endsWith('*')) return <strong key={i}>{part.slice(1, -1)}</strong>;
+        if (part.startsWith('_') && part.endsWith('_')) return <em key={i}>{part.slice(1, -1)}</em>;
+        return part;
+      })}
+      {isEdited && <em className="text-[9px] opacity-40 ml-1.5 font-normal">(edited)</em>}
+    </>
+  );
 }
 
 function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, profileName, onSaveToScrapbook }) {
@@ -201,10 +211,19 @@ export function ChatView({
         e.preventDefault();
       }
     }
+    if (e.key === 'Enter' && !e.shiftKey && editingMsgId) {
+      handleSend(e);
+      e.preventDefault();
+    }
     if (e.key === 'Escape') {
-      setEditingMsgId(null);
-      setInput('');
-      setReplyingTo(null);
+      if (editingMsgId) {
+        setEditingMsgId(null);
+        setInput('');
+      } else if (replyingTo) {
+        setReplyingTo(null);
+      } else if (activeOptions) {
+        setActiveOptions(null);
+      }
     }
   };
 
@@ -229,6 +248,28 @@ export function ChatView({
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [chatHistory, activeOptions, searchQuery, viewerContext.isOpen, showDetails]);
+
+  // Handle click outside to close options
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeOptions && !e.target.closest('.message-options-menu') && !e.target.closest('.options-trigger')) {
+        setActiveOptions(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeOptions]);
+
+  // Handle click outside to close options
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeOptions && !e.target.closest('.message-options-menu') && !e.target.closest('.options-trigger')) {
+        setActiveOptions(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeOptions]);
 
   const handleStartCall = (type) => {
     playAudio('click', sfx);
@@ -393,7 +434,8 @@ export function ChatView({
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
 
   const imageMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group') && !m.isDeleted);
-  const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted);
+  // Sort pinned messages by time (newest first)
+  const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted).reverse();
   const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
   const headerActions = (
     <div className="flex gap-2">
@@ -401,7 +443,15 @@ export function ChatView({
       <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
     </div>
   );
-  const filteredMessages = safeHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
+  
+  // Refined search logic to catch names and text
+  const filteredMessages = safeHistory.filter(m => {
+    if (searchQuery === '') return true;
+    const q = searchQuery.toLowerCase();
+    const matchesText = m.text && m.text.toLowerCase().includes(q);
+    const matchesName = roomProfiles[m.sender]?.name?.toLowerCase().includes(q);
+    return matchesText || matchesName;
+  });
 
   return (
     <>
@@ -467,7 +517,7 @@ export function ChatView({
                           ${isMe ? '-left-10 group-hover:left-[-45px]' : '-right-10 group-hover:right-[-45px]'}
                           opacity-0 group-hover:opacity-100
                         `}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="p-1.5 hover:bg-black/5 rounded-full bg-white/80 backdrop-blur-sm retro-border border-dashed shadow-sm">
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 hover:bg-black/5 rounded-full bg-white/80 backdrop-blur-sm retro-border border-dashed shadow-sm">
                             <MoreVertical size={14} className="opacity-70" />
                           </button>
                         </div>
@@ -520,7 +570,7 @@ export function ChatView({
                           <span className="flex items-center gap-2 opacity-50"><Ban size={12} /> message deleted</span>
                         ) : (
                           <>
-                            {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words'}`}>{formatMessage(msg.text)}</span>}
+                            {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'game_invite' && (
                               <div className="border-2 border-[var(--border)] bg-white shadow-[1px_1px_0px_0px_var(--border)] p-3 w-64 text-[var(--text-main)] mt-1">
@@ -537,9 +587,18 @@ export function ChatView({
                               </div>
                             )}
                             {msg.type === 'call_invite' && (
-                              <div className="flex items-center gap-2 font-bold py-1">
-                                {msg.callType === 'video' ? <Video size={14} className="text-pink-500" /> : <Phone size={14} className="text-cyan-500" />}
-                                <span className="text-[9px] uppercase tracking-widest">{msg.callType} call {msg.status}</span>
+                              <div className="flex flex-col gap-1 py-1">
+                                <div className="flex items-center gap-3">
+                                  <div className={`p-2 rounded-full ${msg.status === 'missed' ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600'}`}>
+                                    {msg.callType === 'video' ? <Video size={16} /> : <Phone size={16} />}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[11px] font-black uppercase tracking-widest leading-none mb-1">
+                                      {msg.status === 'missed' ? 'Missed' : msg.status === 'ended' ? 'Call Ended' : msg.status === 'rejected' ? 'Declined' : 'Call'}
+                                    </span>
+                                    <span className="text-[9px] opacity-60 font-bold">{msg.time}</span>
+                                  </div>
+                                </div>
                               </div>
                             )}
                             {msg.type === 'image' && (
@@ -570,7 +629,7 @@ export function ChatView({
                       {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
                         <div className={`
-                          absolute z-[100] retro-bg-window retro-border shadow-2xl py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200
+                          message-options-menu absolute z-[100] retro-bg-window retro-border-thick retro-shadow-dark py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200
                           ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
                           ${isNearBottom ? 'bottom-0' : 'top-0'} 
                         `}>
@@ -684,7 +743,26 @@ export function ChatView({
               <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark z-10 rounded-full"><X size={16} /></button>
               <div className="p-2 flex gap-1 bg-[var(--border)] shrink-0"><button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'media' ? 'bg-white' : 'opacity-50 text-white'}`}>Media</button><button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'calls' ? 'bg-white' : 'opacity-50 text-white'}`}>Calls</button><button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'search' ? 'bg-white' : 'opacity-50 text-white'}`}>Search</button></div>
               <div className="p-4 flex flex-col gap-6">
-                {activeSidebarTab === 'search' && (<div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Search size={16} /> Search Logs</h3><div className="flex bg-[var(--bg-window)] retro-border p-2"><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="filter messages..." className="bg-transparent outline-none w-full text-sm font-bold" />{searchQuery && <button onClick={() => setSearchQuery('')}><X size={14} className="opacity-50" /></button>}</div></div>)}
+                {activeSidebarTab === 'search' && (
+                  <div>
+                    <h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Search size={16} /> Search Logs</h3>
+                    <div className="flex bg-white retro-border p-3 shadow-[1px_1px_0px_0px_var(--border)]">
+                      <input 
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        placeholder="Filter messages..." 
+                        className="bg-transparent outline-none w-full text-sm font-black placeholder:font-normal uppercase" 
+                      />
+                      {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><X size={14} className="opacity-50" /></button>}
+                    </div>
+                    {searchQuery && (
+                      <p className="text-[10px] font-bold opacity-50 mt-3 uppercase tracking-widest">
+                        {filteredMessages.length} results found
+                      </p>
+                    )}
+                  </div>
+                )}
                 {activeSidebarTab === 'media' && (
                   <>
                     <div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Pin size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-[var(--bg-window)] p-2 text-sm retro-border border-l-4 border-l-[var(--accent)]"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>

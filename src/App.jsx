@@ -576,7 +576,10 @@ export default function App() {
       call.on('close', () => handleEndCall());
       
       setCallState(prev => ({ ...prev, status: 'connected' }));
-    } catch (err) { console.error('Failed call initiation', err); handleEndCall(); }
+    } catch (err) { 
+      console.error('Failed call initiation', err); 
+      handleEndCall(); 
+    }
   };
 
   const startCall = (type) => {
