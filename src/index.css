@@ -232,9 +232,9 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-window); border-left: 2px solid var(--border); }
 ::-webkit-scrollbar-thumb { background: var(--primary); border: 2px solid var(--border); }
 
-.retro-border { border: 1.5px solid var(--border); }
-.retro-border-thick { border: 3px solid var(--border); }
-.retro-shadow-dark { box-shadow: 3px 3px 0px 0px var(--border); }
+.retro-border { border: 1px solid var(--border); }
+.retro-border-thick { border: 2px solid var(--border); }
+.retro-shadow-dark { box-shadow: 1.5px 1.5px 0px 0px var(--border); }
 .retro-shadow-primary { box-shadow: 2px 2px 0px 0px var(--primary); }
 
 .mesh-bg { background-color: var(--bg-main); background-image: none !important; }

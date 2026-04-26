@@ -1,11 +1,8 @@
-import React, { useState } from 'react';
-import { RetroWindow, RetroButton } from '../components/UI.jsx';
-import { playAudio } from '../utils/audio.js';
-import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { Moon, Send, Trash2 } from 'lucide-react';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
-export function DreamJournal({ onClose, sfx }) {
-  const [entries, setEntries] = useLocalStorage('dream_journal', []);
+export function DreamJournal({ onClose, sfx, userId, roomProfiles = {} }) {
+  const [entries, setEntries] = useGlobalSync('dream_journal', []);
   const [newDream, setNewDream] = useState('');
   const [interpretation, setInterpretation] = useState('');
   const [tab, setTab] = useState('write');
@@ -13,11 +10,16 @@ export function DreamJournal({ onClose, sfx }) {
   const addDream = () => {
     if (!newDream.trim()) return;
     playAudio('send', sfx);
-    setEntries([{ id: Date.now(), text: newDream, interpretation, date: new Date().toLocaleDateString(), mood: '🌙' }, ...entries]);
+    setEntries([{ id: Date.now(), text: newDream, interpretation, date: new Date().toLocaleDateString(), mood: '🌙', authorId: userId }, ...entries]);
     setNewDream(''); setInterpretation(''); setTab('journal');
   };
 
   const deleteDream = (id) => { playAudio('click', sfx); setEntries(entries.filter(e => e.id !== id)); };
+
+  const getUserName = (id) => {
+    if (id === userId) return 'You';
+    return roomProfiles[id]?.name || 'Partner';
+  };
 
   return (
     <RetroWindow title="dream_journal.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" confirmOnClose hasUnsavedChanges={() => newDream.trim() !== '' || interpretation.trim() !== ''} onSaveBeforeClose={() => { addDream(); onClose && onClose(); }} sfx={sfx} noPadding>
@@ -38,10 +40,10 @@ export function DreamJournal({ onClose, sfx }) {
           {entries.map(e => (
             <div key={e.id} className="retro-border retro-bg-window p-4 mb-3 retro-shadow-dark">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold opacity-50">{e.date}</span>
+                <span className="text-[10px] font-black uppercase opacity-40">By {getUserName(e.authorId)} • {e.date}</span>
                 <button onClick={() => deleteDream(e.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
               </div>
-              <p className="font-serif leading-relaxed">{e.text}</p>
+              <p className="font-serif leading-relaxed text-[var(--text-main)]">{e.text}</p>
               {e.interpretation && <p className="text-sm italic opacity-60 mt-2 border-t border-dashed pt-2 border-[var(--border)]">💭 {e.interpretation}</p>}
             </div>
           ))}

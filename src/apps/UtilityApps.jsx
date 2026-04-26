@@ -4,6 +4,7 @@ import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { useAssetSync } from '../hooks/useAssetSync.js';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { floodFill } from '../utils/helpers.js';
 import { base64ToBlob } from '../utils/file.js';
 
@@ -291,13 +292,28 @@ export function PoetryApp({ onClose, sfx }) {
   );
 }
 
-export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
-  const [activeTab, setActiveTab] = useState('inbox'); const [newLetter, setNewLetter] = useState(''); const [unlockMins, setUnlockMins] = useState('1'); const [now, setNow] = useState(Date.now());
+export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
+  const [activeTab, setActiveTab] = useState('inbox'); 
+  const [newLetter, setNewLetter] = useState(''); 
+  const [unlockMins, setUnlockMins] = useState('1'); 
+  const [now, setNow] = useState(Date.now());
   const [readingLetter, setReadingLetter] = useState(null);
 
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const handleSend = () => { if (!newLetter.trim()) return; playAudio('send', sfx); setLetters([...letters, { id: Date.now(), sender: 'me', text: newLetter, unlockDate: Date.now() + parseInt(unlockMins) * 60000 }]); setNewLetter(''); setActiveTab('inbox'); };
-  const getTimeLeft = (unlockDate) => { const diff = unlockDate - now; if (diff <= 0) return 'Unlocked!'; return `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`; };
+  
+  const handleSend = () => { 
+    if (!newLetter.trim()) return; 
+    playAudio('send', sfx); 
+    setLetters([...letters, { id: Date.now(), senderId: userId, text: newLetter, unlockDate: Date.now() + parseInt(unlockMins) * 60000 }]); 
+    setNewLetter(''); 
+    setActiveTab('inbox'); 
+  };
+  
+  const getTimeLeft = (unlockDate) => { 
+    const diff = unlockDate - now; 
+    if (diff <= 0) return 'Unlocked!'; 
+    return `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`; 
+  };
 
   if (readingLetter) {
      const handleDownloadLetter = async () => {
@@ -327,13 +343,13 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
              
              {/* From / To header */}
              <div className="mb-8 pb-4 border-b-2 border-dashed" style={{ borderColor: '#d4c5b0', color: '#8b7355' }}>
-               <p className="font-bold text-sm"><span className="uppercase tracking-widest opacity-60">From:</span> {readingLetter.sender === 'me' ? 'You' : 'Partner'}</p>
-               <p className="font-bold text-sm mt-1"><span className="uppercase tracking-widest opacity-60">To:</span> {readingLetter.sender === 'me' ? 'Partner' : 'You'}</p>
+               <p className="font-bold text-sm"><span className="uppercase tracking-widest opacity-60">From:</span> {readingLetter.senderId === userId ? 'You' : 'Partner'}</p>
+               <p className="font-bold text-sm mt-1"><span className="uppercase tracking-widest opacity-60">To:</span> {readingLetter.senderId === userId ? 'Partner' : 'You'}</p>
                <p className="text-xs opacity-40 mt-2">{new Date(readingLetter.id || Date.now()).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
              </div>
 
              <p className="font-serif text-lg leading-loose whitespace-pre-wrap" style={{ color: '#3a2f26' }}>{readingLetter.text}</p>
-             <p className="text-right italic font-bold mt-8" style={{ color: '#8b7355' }}>— {readingLetter.sender === 'me' ? 'You' : 'Partner'} 💌</p>
+             <p className="text-right italic font-bold mt-8" style={{ color: '#8b7355' }}>— {readingLetter.senderId === userId ? 'You' : 'Partner'} 💌</p>
           </div>
           <div className="flex gap-2 p-3 retro-border-t bg-[var(--bg-main)] shrink-0">
             <RetroButton className="flex-1 py-2 text-sm" onClick={handleDownloadLetter}>📥 Download Letter</RetroButton>
@@ -345,7 +361,10 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
 
   return (
     <RetroWindow title="time_capsule.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" confirmOnClose hasUnsavedChanges={() => newLetter.trim() !== ''} onSaveBeforeClose={() => { handleSend(); onClose && onClose(); }} sfx={sfx} noPadding>
-      <div className="flex border-b-2 retro-border shrink-0 z-20 relative"><button onClick={() => {playAudio('click', sfx); setActiveTab('inbox')}} className={`flex-1 py-3 font-bold ${activeTab === 'inbox' ? 'bg-[var(--primary)] text-[var(--bg-window)]' : 'bg-[var(--bg-window)] opacity-70'}`}>Locked Inbox</button><button onClick={() => {playAudio('click', sfx); setActiveTab('write')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'write' ? 'bg-[var(--secondary)] text-[var(--bg-window)]' : 'bg-[var(--bg-window)] opacity-70'}`}>Write Letter</button></div>
+      <div className="flex border-b-2 retro-border shrink-0 z-20 relative">
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('inbox')}} className={`flex-1 py-3 font-bold ${activeTab === 'inbox' ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70'}`}>Locked Inbox</button>
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('write')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'write' ? 'bg-[var(--secondary)] text-white' : 'bg-white opacity-70'}`}>Write Letter</button>
+      </div>
       {activeTab === 'write' ? (
         <div className="flex-1 p-4 sm:p-6 bg-[var(--bg-main)] flex flex-col gap-4 overflow-y-auto">
            <textarea value={newLetter} onChange={e=>setNewLetter(e.target.value)} placeholder="Write a time capsule letter to your partner... Make it meaningful. (It will be locked until the time expires)" className="flex-1 min-h-[200px] p-6 retro-border retro-bg-window focus:outline-none resize-none font-serif text-base sm:text-lg leading-relaxed shadow-inner" style={{ caretColor: 'var(--primary)' }} />
@@ -372,7 +391,7 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
                        <div className="absolute inset-0 p-4 flex flex-col items-center justify-center bg-[var(--bg-window)] overflow-hidden border-4 border-dashed border-[var(--bg-main)] m-1 hover:bg-[var(--accent)] transition-colors">
                           <Unlock size={28} className="text-[var(--primary)] mb-3"/>
                           <p className="text-sm italic text-center font-serif truncate w-full text-[var(--text-main)] font-bold">Tap to open...</p>
-                          <span className="absolute bottom-3 text-[10px] font-bold opacity-50 uppercase tracking-widest">From: {l.sender === 'me' ? 'You' : 'Partner'}</span>
+                          <span className="absolute bottom-3 text-[10px] font-bold opacity-50 uppercase tracking-widest">From: {l.senderId === userId ? 'You' : 'Partner'}</span>
                        </div>
                     )}
                  </div> 
@@ -385,17 +404,72 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
   );
 }
 
-export function ListsApp({ onClose, sfx }) {
-  const [activeTab, setActiveTab] = useState('bucket'); const [items, setItems] = useLocalStorage('shared_lists', [ { id: 1, type: 'bucket', text: 'Visit Japan', done: false }, { id: 2, type: 'bucket', text: 'Bake a cake together', done: true }, { id: 3, type: 'watch', text: 'Spirited Away', done: false } ]); const [newItem, setNewItem] = useState('');
-  const handleAdd = (e) => { e.preventDefault(); if (!newItem.trim()) return; playAudio('click', sfx); setItems([...items, { id: Date.now(), type: activeTab, text: newItem, done: false }]); setNewItem(''); };
-  const toggleDone = (id) => { playAudio('click', sfx); setItems(items.map(i => i.id === id ? {...i, done: !i.done} : i)); };
-  const deleteItem = (id) => { playAudio('click', sfx); setItems(items.filter(i => i.id !== id)); };
+
+
+export function ListsApp({ onClose, sfx, userId, roomProfiles = {} }) {
+  const [activeTab, setActiveTab] = useState('bucket'); 
+  const [items, setItems] = useGlobalSync('shared_lists', [ 
+    { id: 1, type: 'bucket', text: 'Visit Japan', done: false, authorId: userId }, 
+    { id: 2, type: 'bucket', text: 'Bake a cake together', done: true, authorId: userId }, 
+    { id: 3, type: 'watch', text: 'Spirited Away', done: false, authorId: userId } 
+  ]); 
+  const [newItem, setNewItem] = useState('');
+
+  const handleAdd = (e) => { 
+    e.preventDefault(); 
+    if (!newItem.trim()) return; 
+    playAudio('click', sfx); 
+    setItems([...items, { id: Date.now(), type: activeTab, text: newItem, done: false, authorId: userId }]); 
+    setNewItem(''); 
+  };
+
+  const toggleDone = (id) => { 
+    playAudio('click', sfx); 
+    setItems(items.map(i => i.id === id ? {...i, done: !i.done} : i)); 
+  };
+
+  const deleteItem = (id) => { 
+    playAudio('click', sfx); 
+    setItems(items.filter(i => i.id !== id)); 
+  };
+
   const currentItems = items.filter(i => i.type === activeTab);
+  const getUserName = (id) => {
+    if (id === userId) return 'You';
+    return roomProfiles[id]?.name || 'Partner';
+  };
+
   return (
     <RetroWindow title="shared_lists.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
-      <div className="flex border-b-2 retro-border"><button onClick={() => {playAudio('click', sfx); setActiveTab('bucket')}} className={`flex-1 py-3 font-bold ${activeTab === 'bucket' ? 'retro-bg-primary' : 'retro-bg-window opacity-70'}`}>Bucket List</button><button onClick={() => {playAudio('click', sfx); setActiveTab('watch')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'watch' ? 'retro-bg-secondary' : 'retro-bg-window opacity-70'}`}>Watchlist</button></div>
-      <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-main)]"><div className="space-y-3">{currentItems.map(item => ( <div key={item.id} className="flex items-center gap-3 p-3 retro-bg-window retro-border retro-shadow-dark"><button onClick={() => toggleDone(item.id)} className={`w-6 h-6 retro-border flex items-center justify-center ${item.done ? 'retro-bg-accent' : 'bg-white'}`}>{item.done && <Check size={14}/>}</button><span className={`flex-1 font-bold ${item.done ? 'line-through opacity-50' : ''}`}>{item.text}</span><button onClick={() => deleteItem(item.id)} className="p-2 hover:bg-red-100 rounded-full text-red-500"><Trash2 size={16}/></button></div> ))}</div></div>
-      <form onSubmit={handleAdd} className="p-3 retro-bg-window retro-border-t flex gap-2"><input type="text" value={newItem} onChange={e=>setNewItem(e.target.value)} placeholder={`Add to ${activeTab === 'bucket' ? 'bucket list' : 'watchlist'}...`} className="flex-1 p-2 retro-border focus:outline-none" /><RetroButton type="submit" className="px-4"><Send size={18}/></RetroButton></form>
+      <div className="flex border-b-2 retro-border shrink-0">
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('bucket')}} className={`flex-1 py-3 font-bold ${activeTab === 'bucket' ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70'}`}>Bucket List</button>
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('watch')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'watch' ? 'bg-[var(--secondary)] text-white' : 'bg-white opacity-70'}`}>Watchlist</button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-main)]">
+        <div className="space-y-3">
+          {currentItems.length === 0 && (
+            <div className="text-center py-10 opacity-30 font-bold uppercase tracking-widest text-xs">List is empty</div>
+          )}
+          {currentItems.map(item => ( 
+            <div key={item.id} className="flex items-center gap-3 p-3 bg-white retro-border shadow-[2px_2px_0px_0px_var(--border)] group animate-in slide-in-from-left-2 duration-300">
+              <button onClick={() => toggleDone(item.id)} className={`w-6 h-6 retro-border flex items-center justify-center transition-colors ${item.done ? 'bg-green-400' : 'bg-white'}`}>
+                {item.done && <Check size={14} className="text-white" />}
+              </button>
+              <div className="flex-1 flex flex-col">
+                <span className={`font-bold transition-all ${item.done ? 'line-through opacity-40' : ''}`}>{item.text}</span>
+                <span className="text-[8px] font-black uppercase opacity-40 tracking-tighter mt-0.5">Added by {getUserName(item.authorId)}</span>
+              </div>
+              <button onClick={() => deleteItem(item.id)} className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-50 text-red-400 transition-all">
+                <Trash2 size={16}/>
+              </button>
+            </div> 
+          ))}
+        </div>
+      </div>
+      <form onSubmit={handleAdd} className="p-3 bg-white retro-border-t flex gap-2 shrink-0">
+        <input type="text" value={newItem} onChange={e=>setNewItem(e.target.value)} placeholder={`Add to ${activeTab === 'bucket' ? 'bucket list' : 'watchlist'}...`} className="flex-1 p-3 retro-border focus:outline-none font-bold text-sm" />
+        <RetroButton type="submit" variant="primary" className="px-6"><Send size={18}/></RetroButton>
+      </form>
     </RetroWindow>
   );
 }
@@ -588,6 +662,151 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
           </div>
         )}
       </div>
+    </RetroWindow>
+  );
+}
+
+export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
+  const QUESTIONS = [
+    "If we could teleport anywhere for 1 hour, where would we go?",
+    "What's the first thing you noticed about me?",
+    "What's a song that always reminds you of us?",
+    "What's your favorite memory of us from this month?",
+    "If we were characters in a movie, who would we be?",
+    "What's one thing you're really looking forward to doing with me?",
+    "What's a small thing I do that makes you smile?",
+    "If we had a signature cocktail/mocktail, what would it be named?"
+  ];
+  const [data, setData] = useGlobalSync('daily_question', { qIdx: 0, answers: {} });
+  const [myAnswer, setMyAnswer] = useState('');
+  
+  const question = QUESTIONS[data.qIdx % QUESTIONS.length];
+  const myDone = !!data.answers[userId];
+  const partnerId = Object.keys(roomProfiles).find(id => id !== userId);
+  const partnerDone = partnerId && !!data.answers[partnerId];
+  const bothDone = myDone && partnerDone;
+
+  const submitAnswer = () => {
+    if (!myAnswer.trim()) return;
+    playAudio('send', sfx);
+    setData(prev => ({ ...prev, answers: { ...prev.answers, [userId]: myAnswer } }));
+  };
+
+  const nextQuestion = () => {
+    playAudio('click', sfx);
+    setData({ qIdx: (data.qIdx + 1), answers: {} });
+    setMyAnswer('');
+  };
+
+  return (
+    <RetroWindow title="daily_q.exe" onClose={onClose} className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[600px] flex flex-col">
+       <div className="flex-1 p-6 flex flex-col items-center justify-center text-center gap-6">
+          <div className="w-16 h-16 rounded-full retro-bg-accent flex items-center justify-center text-3xl shadow-inner">❓</div>
+          <h2 className="text-xl font-black leading-tight">"{question}"</h2>
+          
+          {!bothDone ? (
+             <div className="w-full space-y-4">
+                {!myDone ? (
+                   <div className="space-y-3">
+                      <textarea value={myAnswer} onChange={e=>setMyAnswer(e.target.value)} placeholder="Type your answer..." className="w-full p-4 retro-border retro-bg-window focus:outline-none resize-none h-24 font-bold" />
+                      <RetroButton variant="primary" onClick={submitAnswer} className="w-full py-3">Submit Answer</RetroButton>
+                   </div>
+                ) : (
+                   <div className="p-6 retro-border bg-white italic opacity-60">Waiting for partner to answer...</div>
+                )}
+                <div className="flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest">
+                   <span className={myDone ? 'text-green-500' : 'opacity-30'}>You: {myDone ? 'Done' : 'Pending'}</span>
+                   <span className={partnerDone ? 'text-green-500' : 'opacity-30'}>Partner: {partnerDone ? 'Done' : 'Pending'}</span>
+                </div>
+             </div>
+          ) : (
+             <div className="w-full space-y-6 animate-in zoom-in-95 duration-500">
+                <div className="grid grid-cols-1 gap-4">
+                   <div className="p-4 retro-border bg-white text-left">
+                      <p className="text-[10px] font-black uppercase text-[var(--primary)] mb-1">Your Answer:</p>
+                      <p className="font-bold">{data.answers[userId]}</p>
+                   </div>
+                   <div className="p-4 retro-border bg-white text-left">
+                      <p className="text-[10px] font-black uppercase text-[var(--secondary)] mb-1">Partner's Answer:</p>
+                      <p className="font-bold">{data.answers[partnerId] || 'No answer'}</p>
+                   </div>
+                </div>
+                <RetroButton variant="accent" onClick={nextQuestion} className="w-full py-3">Next Question</RetroButton>
+             </div>
+          )}
+       </div>
+    </RetroWindow>
+  );
+}
+
+export function RelationshipResume({ onClose, sfx, userId, roomProfiles = {} }) {
+  const partnerId = Object.keys(roomProfiles).find(id => id !== userId);
+  const myProfile = roomProfiles[userId] || {};
+  const partnerProfile = roomProfiles[partnerId] || {};
+
+  return (
+    <RetroWindow title="our_resume.doc" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+       <div className="flex-1 bg-white p-6 sm:p-10 overflow-y-auto">
+          <div className="border-b-4 border-[var(--border)] pb-6 mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+             <div>
+                <h1 className="text-3xl font-black uppercase tracking-tighter">Relationship Resume</h1>
+                <p className="font-bold opacity-50 uppercase text-xs tracking-widest mt-1">Status: Fully Synchronized</p>
+             </div>
+             <div className="flex -space-x-4">
+                <div className="w-16 h-16 rounded-full retro-border bg-white overflow-hidden shadow-lg z-10">
+                   <img src={myProfile.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`} className="w-full h-full object-cover" alt="me" />
+                </div>
+                <div className="w-16 h-16 rounded-full retro-border bg-white overflow-hidden shadow-lg">
+                   <img src={partnerProfile.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${partnerId}`} className="w-full h-full object-cover" alt="partner" />
+                </div>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+             <section>
+                <h2 className="font-black uppercase text-sm border-b-2 border-dashed border-[var(--border)] mb-4 pb-1">Core Competencies</h2>
+                <ul className="space-y-2 font-bold text-sm">
+                   <li className="flex items-center gap-2">✨ Infinite Cuddling</li>
+                   <li className="flex items-center gap-2">🍕 Pizza Selection</li>
+                   <li className="flex items-center gap-2">🎤 Bad Karaoke</li>
+                   <li className="flex items-center gap-2">🕒 Late Night Talks</li>
+                </ul>
+             </section>
+             <section>
+                <h2 className="font-black uppercase text-sm border-b-2 border-dashed border-[var(--border)] mb-4 pb-1">Shared Projects</h2>
+                <div className="space-y-3">
+                   <div>
+                      <p className="text-[10px] font-black uppercase opacity-40">Project Name</p>
+                      <p className="font-bold text-sm">"The Attic LDR Platform"</p>
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-black uppercase opacity-40">Current Status</p>
+                      <p className="font-bold text-sm">Active & Growing ❤️</p>
+                   </div>
+                </div>
+             </section>
+          </div>
+
+          <div className="mt-10 p-6 retro-bg-main retro-border border-dashed">
+             <h2 className="font-black text-center uppercase text-lg mb-4">Letter of Intent</h2>
+             <p className="italic font-serif leading-loose text-center">
+                "We hereby certify that our love is 100% authentic, occasionally chaotic, and permanently synchronized across all Attic modules."
+             </p>
+             <div className="flex justify-around mt-8">
+                <div className="text-center">
+                   <div className="h-px w-24 bg-[var(--border)] mb-2"></div>
+                   <p className="text-[10px] font-black uppercase">{myProfile.name || 'You'}</p>
+                </div>
+                <div className="text-center">
+                   <div className="h-px w-24 bg-[var(--border)] mb-2"></div>
+                   <p className="text-[10px] font-black uppercase">{partnerProfile.name || 'Partner'}</p>
+                </div>
+             </div>
+          </div>
+       </div>
+       <div className="p-4 bg-[var(--bg-main)] retro-border-t flex justify-center">
+          <RetroButton variant="primary" onClick={() => window.print()} className="px-8">Export to PDF</RetroButton>
+       </div>
     </RetroWindow>
   );
 }

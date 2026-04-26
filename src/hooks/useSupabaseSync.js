@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, sendTestBroadcast, onTestBroadcast, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
+import { useUserContext } from './useUserContext.js';
 
 // Global store for the entire room's data
 let globalState = {};
@@ -14,7 +15,8 @@ const notifyListeners = () => {
   listeners.forEach(listener => listener());
 };
 
-let currentChannel = null;
+let currentChannel = null; // Broadcast channel
+let dbChannel = null;      // Postgres changes channel
 
 /* ── E2EE UTILITIES REMOVED (Too buggy for current sync architecture) ── */
 
@@ -43,10 +45,40 @@ export const initializeRoomSync = async (roomId) => {
   }
 
   isInitialized = true;
+  
+  // Initialize dedicated sync channel for broadcasts
+  if (currentChannel) supabase.removeChannel(currentChannel);
+  currentChannel = supabase.channel(`broadcast_${currentRoomId}`)
+    .on('broadcast', { event: 'state_update' }, ({ payload }) => {
+        // This will be handled by individual hooks via notifyListeners
+        if (payload.key && payload.value !== undefined) {
+            globalState[payload.key] = payload.value;
+            notifyListeners();
+        }
+    })
+    .subscribe();
+
+  // Initialize DB listener channel
+  if (dbChannel) supabase.removeChannel(dbChannel);
+  dbChannel = supabase.channel(`db_sync_${currentRoomId}`)
+    .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'app_state', 
+        filter: `room_id=eq.${currentRoomId}` 
+    }, (payload) => {
+        if (payload.new && payload.new.state) {
+            globalState = { ...globalState, ...payload.new.state };
+            notifyListeners();
+        }
+    })
+    .subscribe();
+
   notifyListeners();
 };
 
 export function useGlobalSync(key, initialValue) {
+  const { userId } = useUserContext();
   const [state, setState] = useState(initialValue);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
@@ -101,6 +133,15 @@ export function useGlobalSync(key, initialValue) {
     const payload = { ...globalState, [key]: valueToStore };
     globalState = payload; // Update global store instantly for other hooks
 
+    // Solution: Instant Broadcast for true real-time feel
+    if (currentChannel) {
+        currentChannel.send({
+            type: 'broadcast',
+            event: 'state_update',
+            payload: { key, value: valueToStore, senderId: userId }
+        });
+    }
+
     // Debounce the actual database push using a Ref to ensure we always use latest globalState
     if (pendingUpdateRef.current) clearTimeout(pendingUpdateRef.current);
     
@@ -111,8 +152,7 @@ export function useGlobalSync(key, initialValue) {
       
       const { error } = await supabase.from('app_state').update({ state: stateToPush }).eq('room_id', currentRoomId);
       if (error) console.error("Sync Error:", error);
-      else console.log(`[SYNC] Pushed updates for key: ${key}`);
-    }, 1000); // 1s debounce
+    }, 500); // Reduced to 500ms for snappier feel
   }, [key]);
 
   // Update function that pushes to React, LocalStorage, Global Store, and Supabase
@@ -139,39 +179,23 @@ export function useGlobalSync(key, initialValue) {
       }
       updateGlobalState(valueToStore);
     }
-  }, [key, state, updateGlobalState]);
+  }, [key, state, userId, updateGlobalState]);
 
-  // 2. Realtime Sync (per-hook channel to avoid collisions)
+  // 2. Realtime Sync (Handled by global channels, we just listen to tick)
   useEffect(() => {
     if (!currentRoomId || (!isInitialized && !isTestMode())) return;
 
-    const uniqueId = Math.random().toString(36).substring(2, 9);
-    const channelName = `sync_${key}_${currentRoomId}_${uniqueId}`;
-    const channel = supabase.channel(channelName)
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'app_state', 
-        filter: `room_id=eq.${currentRoomId}` 
-      }, (payload) => {
-        // Solution 6: Strict null-checking
-        if (payload.new && payload.new.state && payload.new.state[key] !== undefined) {
-            const remoteValue = payload.new.state[key];
-            const remoteString = JSON.stringify(remoteValue);
-            const localString = JSON.stringify(state);
-            if (remoteString !== localString) {
-                setState(remoteValue);
-                globalState[key] = remoteValue;
-                localforage.setItem(`sync_${key}`, remoteValue).catch(e => {});
-            }
+    // Load latest value from global store on every tick
+    if (globalState[key] !== undefined) {
+        if (JSON.stringify(globalState[key]) !== JSON.stringify(state)) {
+            setState(globalState[key]);
+            localforage.setItem(`sync_${key}`, globalState[key]).catch(e => {});
         }
-      })
-      .subscribe();
-    
+    }
+
     let unspentTest;
     if (isTestMode()) {
         unspentTest = onTestStateUpdate(key, (val) => {
-            console.log(`[TEST_SYNC] Received state update for ${key}:`, val);
             setState(val);
             globalState[key] = val;
             notifyListeners();
@@ -179,7 +203,6 @@ export function useGlobalSync(key, initialValue) {
     }
 
     return () => {
-      supabase.removeChannel(channel);
       if (unspentTest) unspentTest();
     };
   }, [key, tick]);

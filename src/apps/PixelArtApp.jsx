@@ -1,15 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { Download, Trash2, PaintBucket, Eraser, Pipette } from 'lucide-react';
+import { Download, Trash2, PaintBucket, Eraser, Pipette, MousePointer2 } from 'lucide-react';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 const PALETTE = ['#5c3a21','#e94560','#4f9ef8','#f9e2af','#b5c99a','#ffffff','#000000','#ff6b6b','#a855f7','#14b8a6','#f97316','#ec4899'];
 
-export function PixelArtApp({ onClose, sfx, onSaveToScrapbook }) {
+export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
   const SIZE = 24;
-  const [grid, setGrid] = useState(() => Array(SIZE).fill(null).map(() => Array(SIZE).fill('#ffffff')));
+  const [grid, setGrid] = useGlobalSync('pixel_art_grid', Array(SIZE).fill(null).map(() => Array(SIZE).fill('#ffffff')));
   const [color, setColor] = useState('#5c3a21');
-  const [tool, setTool] = useState('pen'); // pen, eraser, or bucket
+  const [tool, setTool] = useState('pen'); 
   const [isDrawing, setIsDrawing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const colorInputRef = useRef(null);

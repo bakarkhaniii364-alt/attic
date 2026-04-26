@@ -167,6 +167,7 @@ export function ChatView({
   const recordingStartTimeRef = useRef(0);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [activeOptions, setActiveOptions] = useState(null);
   const [viewLimit, setViewLimit] = useState(50);
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,6 +275,15 @@ export function ChatView({
   const handleStartCall = (type) => {
     playAudio('click', sfx);
     onStartCall(type);
+  };
+
+  const jumpToMessage = (id) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(id);
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
   };
 
   const handleJoinGame = (inviteMsg) => {
@@ -505,12 +515,11 @@ export function ChatView({
                 const isPureImage = (msg.type === 'image' || msg.type === 'image_group') && !msg.text;
                 const isGameInvite = msg.type === 'game_invite';
                 const noBubble = (isPureEmoji || isPureImage) && !msg.isDeleted;
+                const isHighlighted = highlightedMessageId === msg.id;
 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-                    {/* Metadata removed from here as per user request (only visible in options or last msg) */}
-
-                    <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[95%] md:max-w-[90%] relative ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
+                    <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[95%] md:max-w-[90%] relative transition-all duration-500 ${isHighlighted ? 'scale-105 brightness-110 z-30' : ''} ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
                       {!msg.isDeleted && !isCallLog && (
                         <div className={`
                           absolute top-1/2 -translate-y-1/2 transition-all duration-300 z-20
@@ -546,6 +555,7 @@ export function ChatView({
                             isMe ? (noBubble ? '' : 'bg-[var(--primary)] text-white') : (noBubble ? '' : 'bg-white text-[var(--text-main)]')}
                         ${isMe ? `rounded-xl rounded-tr-none` : `rounded-xl rounded-tl-none`}
                         ${!isGroupStart ? (isMe ? 'rounded-tr-xl' : 'rounded-tl-xl') : ''}
+                        ${isHighlighted ? 'ring-4 ring-[var(--accent)] ring-opacity-50 animate-pulse' : ''}
                       `}>
                         {/* Reply Preview */}
                         {msg.replyTo && !msg.isDeleted && (
@@ -757,9 +767,24 @@ export function ChatView({
                       {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><X size={14} className="opacity-50" /></button>}
                     </div>
                     {searchQuery && (
-                      <p className="text-[10px] font-bold opacity-50 mt-3 uppercase tracking-widest">
-                        {filteredMessages.length} results found
-                      </p>
+                      <div className="flex flex-col gap-3 mt-4 overflow-y-auto max-h-[500px] pr-2">
+                        <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">
+                          {filteredMessages.length} results found
+                        </p>
+                        {filteredMessages.map(m => (
+                          <div 
+                            key={m.id} 
+                            onClick={() => jumpToMessage(m.id)}
+                            className="bg-white retro-border p-3 cursor-pointer hover:bg-[var(--accent)] transition-all group/res active:scale-95 shadow-[2px_2px_0px_0px_var(--border)]"
+                          >
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[10px] font-black uppercase text-[var(--primary)]">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
+                              <span className="text-[9px] opacity-40 font-bold">{m.time}</span>
+                            </div>
+                            <p className="text-xs font-bold line-clamp-2 leading-relaxed">{m.text || '📸 Media / Attachment'}</p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
