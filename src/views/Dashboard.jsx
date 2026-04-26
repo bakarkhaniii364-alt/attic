@@ -209,7 +209,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const hr = new Date().getHours(); const isSleeping = hr < 6 || hr > 22;
   const handlePoke = () => { playAudio('click', sfx); setPokeActive(true); setTriggerShake(true); toast('Poke sent to partner!', 'success'); setTimeout(() => setPokeActive(false), 2000); };
   const nav = (v) => setView(v);
-  const unreadDoodles = doodles.filter(d => d.sender === 'partner' && !d.isRead);
+  const unreadDoodles = (doodles || []).filter(d => d.sender === 'partner' && !d.isRead);
   const [petCooldown, setPetCooldown] = useState(false);
   const handlePetAction = (val, msg) => {
     if (petCooldown || isSleeping) return;
