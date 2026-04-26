@@ -90,7 +90,10 @@ const MILESTONES_LIST = [
 
 export function getMilestoneToday(anniversary) {
   if (!anniversary) return null;
-  const diff = Math.floor((new Date() - new Date(anniversary)) / (1000 * 60 * 60 * 24));
+  // Solution 26: Validate date before calculation
+  const start = new Date(anniversary);
+  if (isNaN(start.getTime())) return null;
+  const diff = Math.floor((new Date() - start) / (1000 * 60 * 60 * 24));
   return MILESTONES_LIST.find(m => m.days === diff) || null;
 }
 

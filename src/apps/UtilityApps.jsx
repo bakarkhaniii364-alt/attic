@@ -309,7 +309,10 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx }) {
          a.href = canvas.toDataURL('image/png');
          a.download = `letter_${readingLetter.id}.png`;
          a.click();
-       } catch(e) { console.error(e); }
+       } catch(e) { 
+         console.error(e);
+         alert("Failed to generate image. Please try again.");
+       }
      };
      return (
        <RetroWindow title="reading_letter.exe" onClose={()=>setReadingLetter(null)} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>

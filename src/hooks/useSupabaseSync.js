@@ -88,6 +88,8 @@ export function useGlobalSync(key, initialValue) {
     return () => { mounted = false; };
   }, [key]);
 
+  const pendingUpdateRef = useRef(null);
+
   // updateGlobalState with debouncing to prevent spamming the database
   const updateGlobalState = useCallback(async (valueToStore) => {
     if (!currentRoomId || (!isInitialized && !isTestMode())) return;
@@ -99,12 +101,13 @@ export function useGlobalSync(key, initialValue) {
     const payload = { ...globalState, [key]: valueToStore };
     globalState = payload; // Update global store instantly for other hooks
 
-    // Debounce the actual database push
-    if (globalState._pendingUpdate) clearTimeout(globalState._pendingUpdate);
+    // Debounce the actual database push using a Ref to ensure we always use latest globalState
+    if (pendingUpdateRef.current) clearTimeout(pendingUpdateRef.current);
     
-    globalState._pendingUpdate = setTimeout(async () => {
+    pendingUpdateRef.current = setTimeout(async () => {
       const stateToPush = { ...globalState };
-      delete stateToPush._pendingUpdate;
+      // Remove metadata before push
+      Object.keys(stateToPush).forEach(k => { if (k.startsWith('_')) delete stateToPush[k]; });
       
       const { error } = await supabase.from('app_state').update({ state: stateToPush }).eq('room_id', currentRoomId);
       if (error) console.error("Sync Error:", error);
@@ -120,7 +123,16 @@ export function useGlobalSync(key, initialValue) {
     if (JSON.stringify(state) !== JSON.stringify(valueToStore)) {
       setState(valueToStore);
       globalState[key] = valueToStore;
-      localforage.setItem(`sync_${key}`, valueToStore).catch(e => console.error(e));
+      
+      // Solution 7 & 28: Robust LocalForage handling
+      localforage.setItem(`sync_${key}`, valueToStore).catch(e => {
+          if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+              console.warn('[STORAGE] Quota exceeded, skipping local cache for', key);
+          } else {
+              console.error('[STORAGE] LocalForage error:', e);
+          }
+      });
+
       if (isTestMode()) {
         sendTestStateUpdate(key, valueToStore);
         notifyListeners();
@@ -142,16 +154,15 @@ export function useGlobalSync(key, initialValue) {
         table: 'app_state', 
         filter: `room_id=eq.${currentRoomId}` 
       }, (payload) => {
-        if (payload.new && payload.new.state) {
+        // Solution 6: Strict null-checking
+        if (payload.new && payload.new.state && payload.new.state[key] !== undefined) {
             const remoteValue = payload.new.state[key];
-            if (remoteValue !== undefined) {
-                const remoteString = JSON.stringify(remoteValue);
-                const localString = JSON.stringify(state);
-                if (remoteString !== localString) {
-                    setState(remoteValue);
-                    globalState[key] = remoteValue;
-                    localforage.setItem(`sync_${key}`, remoteValue).catch(e => console.error(e));
-                }
+            const remoteString = JSON.stringify(remoteValue);
+            const localString = JSON.stringify(state);
+            if (remoteString !== localString) {
+                setState(remoteValue);
+                globalState[key] = remoteValue;
+                localforage.setItem(`sync_${key}`, remoteValue).catch(e => {});
             }
         }
       })

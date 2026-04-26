@@ -8,7 +8,10 @@ import { supabase } from '../lib/supabase.js';
  */
 export function useUserContext() {
   const stored = typeof window !== 'undefined' ? window.localStorage.getItem('attic_user_state') : null;
-  const initial = stored ? JSON.parse(stored) : { userId: null };
+  const initial = (() => {
+    try { return stored ? JSON.parse(stored) : { userId: null }; }
+    catch (e) { return { userId: null }; }
+  })();
 
   const [userId, setUserId] = useState(() => {
     if (typeof window !== 'undefined') {

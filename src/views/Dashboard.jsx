@@ -12,7 +12,7 @@ const PixelPet = React.memo(({ happy, sleeping, onClick, skin }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [isPressing, setIsPressing] = useState(false);
 
-  const bgImage = skin || '/assets/Cat Sprite Sheet.png';
+  const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/Cat Sprite Sheet.png';
   const isAltSkin = bgImage.includes('cat 1');
 
   // Frame size is 128px (scaled by 4 from 32px)
@@ -114,7 +114,16 @@ function AnniversaryTimer({ anniversary }) {
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      setElapsed({ years, months, days, hours, minutes, seconds, totalDays });
+      // Solution 26: Sanitize results
+      setElapsed({ 
+          years: Math.max(0, years), 
+          months: Math.max(0, months), 
+          days: Math.max(0, days), 
+          hours: Math.max(0, hours), 
+          minutes: Math.max(0, minutes), 
+          seconds: Math.max(0, seconds), 
+          totalDays: Math.max(0, totalDays) 
+      });
     };
     update();
     const iv = setInterval(update, 1000);
@@ -197,8 +206,8 @@ export const Unit = React.memo(({ val, label }) => {
 export function CalendarReminder() {
   const [events] = useLocalStorage('calendar_events', []);
   const now = new Date();
-  const upcoming = events
-    .filter(e => new Date(e.date) >= now)
+  const upcoming = (events || [])
+    .filter(e => e && e.date && new Date(e.date) >= now)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const next = upcoming[0];
   if (!next) return (

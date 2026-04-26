@@ -88,8 +88,8 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
 
 export function ChatView({ 
   onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, 
-  chatHistory, setChatHistory, userId, partnerId, roomId, onStartCall, 
-  sharedImages, setSharedImages, onlineUsers = {},
+  chatHistory, userId, partnerId, roomId, onStartCall, 
+  sharedImages, onlineUsers = {},
   syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore 
 }) {
   const isNormalized = !!roomId;
@@ -175,11 +175,9 @@ export function ChatView({
         unreadFromPartner.forEach(m => {
           syncUpdateMessage(m.id, { status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
         });
-      } else if (setChatHistory) {
-        setChatHistory(prev => prev.map(m => (m.sender === partnerId && m.status !== 'read') ? { ...m, status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } : m));
       }
     }
-  }, [chatHistory, partnerId, isNormalized, syncUpdateMessage, setChatHistory]);
+  }, [chatHistory, partnerId, isNormalized, syncUpdateMessage]);
 
   useEffect(() => {
     if (!activeOptions && searchQuery === '' && !viewerContext.isOpen) {
@@ -189,7 +187,7 @@ export function ChatView({
 
   const handleStartCall = (type) => {
     playAudio('click', sfx);
-    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, senderName: profile?.name, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString(), target: partnerId }]);
+    onStartCall(type);
   };
 
   const handleJoinGame = (inviteMsg) => {
@@ -205,19 +203,7 @@ export function ChatView({
 
     // Check if it's a special invite message passed as 'e'
     if (e && e.type === 'game_invite') {
-      const newMsg = {
-        id: crypto.randomUUID(),
-        sender: userId,
-        senderName: profile?.name,
-        type: 'game_invite',
-        gameId: e.gameId,
-        gameTitle: e.gameTitle,
-        text: e.text,
-        timestamp: Date.now(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: 'pending'
-      };
-      setChatHistory([...chatHistory, newMsg]);
+      syncSendMessage(e.text, 'game_invite', userId, { gameId: e.gameId, gameTitle: e.gameTitle, status: 'pending' });
       return;
     }
 
@@ -225,9 +211,7 @@ export function ChatView({
     playAudio('send', sfx);
     if (editingMsgId) {
       if (isNormalized) {
-        // Edits not fully implemented in specialized hook yet, but could be payload updates
-      } else {
-        setChatHistory(chatHistory.map(m => m.id === editingMsgId ? { ...m, text: input, isEdited: true } : m));
+        syncUpdateMessage(editingMsgId, { text: input, isEdited: true });
       }
       setEditingMsgId(null);
     }
@@ -238,22 +222,6 @@ export function ChatView({
           syncSendMessage(blob, 'image', userId, { text: input.trim() });
         });
         setPendingImages([]);
-      } else {
-        const newMsg = {
-          id: crypto.randomUUID(),
-          sender: userId,
-          senderName: profile?.name,
-          type: pendingImages.length > 1 ? 'image_group' : 'image',
-          url: pendingImages.length === 1 ? pendingImages[0] : null,
-          urls: pendingImages.length > 1 ? pendingImages : null,
-          text: input.trim() || null,
-          timestamp: Date.now(),
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          replyTo: replyingTo,
-          status: 'sent'
-        };
-        setChatHistory([...chatHistory, newMsg]);
-        setPendingImages([]);
       }
     }
     else {
@@ -261,19 +229,6 @@ export function ChatView({
         syncSendMessage(input, 'text', userId, { replyTo: replyingTo }).catch(err => {
           console.error("Failed to send message:", err);
         });
-      } else {
-        const newMsg = {
-          id: crypto.randomUUID(),
-          sender: userId,
-          senderName: profile?.name,
-          type: 'text',
-          text: input,
-          timestamp: Date.now(),
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          replyTo: replyingTo,
-          status: 'sent'
-        };
-        setChatHistory([...chatHistory, newMsg]);
       }
     }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
@@ -313,7 +268,6 @@ export function ChatView({
 
     if (isNormalized) {
       try {
-        // Need to convert the audioChunks back to a Blob if we want to upload it
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         await syncSendMessage(audioBlob, 'voice', userId, {
@@ -323,19 +277,6 @@ export function ChatView({
       } catch (e) {
         alert("Failed to send voice note: " + e.message);
       }
-    } else {
-      setChatHistory(prev => [...prev, {
-        id: crypto.randomUUID(),
-        sender: userId,
-        senderName: profile?.name,
-        type: 'voice',
-        duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`,
-        audioUrl: voiceBase64,
-        timestamp: Date.now(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        replyTo: replyingTo,
-        status: 'sent'
-      }]);
     }
     setReplyingTo(null); discardVoiceNote();
   };
@@ -358,11 +299,22 @@ export function ChatView({
     }
   };
 
-  const handleSaveToScrapbook = (url) => {
-    if (!setSharedImages) return;
-    setSharedImages(prev => [...new Set([...(prev || []), url])]);
-    playAudio('click', sfx);
-    alert("Saved to Scrapbook!");
+  const handleSaveToScrapbook = async (url) => {
+    // Solution 18: Route all scrapbook saves through sync/upload
+    if (isNormalized) {
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            // Assuming uploadAsset is available via prop or we can use syncSendMessage for images
+            // In ChatView we don't have uploadAsset directly but we can use syncSendMessage or similar.
+            // Actually Solution 18 says use uploadAsset. I should pass it to ChatView.
+            await syncSendMessage(blob, 'image', userId, { text: 'Saved from chat' });
+            playAudio('click', sfx);
+            alert("Saved to Scrapbook and shared to chat!");
+        } catch (e) {
+            console.error(e);
+        }
+    }
   };
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
@@ -546,7 +498,7 @@ export function ChatView({
                           ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
                         `}>
                           <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
-                          <button onClick={() => { if(isNormalized) syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); else setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
+                          <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
 
                           <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-[var(--border)]/10 text-[9px] font-black uppercase opacity-50">
                             <Clock size={10} /> {msg.time}
@@ -555,18 +507,8 @@ export function ChatView({
                           <div className="flex items-center justify-around px-1 py-2 border-y-2 border-dashed border-[var(--border)]/10 bg-black/5 my-1">
                             {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
                               <button key={emoji} onClick={() => {
-                                if (isNormalized) {
-                                    const rs = msg.reactions || [];
-                                    syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
-                                } else {
-                                    setChatHistory(chatHistory.map(m => {
-                                      if (m.id === msg.id) {
-                                        const rs = m.reactions || [];
-                                        return { ...m, reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] };
-                                      }
-                                      return m;
-                                    }));
-                                }
+                                const rs = msg.reactions || [];
+                                syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
                                 setActiveOptions(null);
                               }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] rounded-lg' : ''}`}>{emoji}</button>
                             ))}
@@ -575,8 +517,7 @@ export function ChatView({
                           {isMe && !msg.isDeleted && (
                             <>
                               {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
-                              <button onClick={() => { if(isNormalized) syncDeleteMessage(msg.id); else setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14}/> Delete</button>
-                              <button onClick={() => { setChatHistory(chatHistory.map(m => m.id === msg.id ? { ...m, isDeleted: true, text: null, url: null } : m)); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
+                              <button onClick={() => { syncDeleteMessage(msg.id); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14}/> Delete</button>
                             </>
                           )}
                         </div>

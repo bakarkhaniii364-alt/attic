@@ -17,19 +17,21 @@ const createMockProxy = (target) => {
     return new Proxy(target, {
         get(obj, prop) {
             // High-level services we want to mock
-            if (prop === 'from' || prop === 'rpc' || prop === 'storage' || prop === 'auth') {
+            if (prop === 'from' || prop === 'rpc' || prop === 'storage' || prop === 'auth' || prop === 'channel') {
                 if (isTestMode()) {
                     return (...args) => {
-                        // Return a chainable proxy that eventually returns a "success" promise
+                        let isSingle = false;
                         const chain = () => ({
                             select: chain, insert: chain, update: chain, delete: chain, eq: chain, 
-                            order: chain, limit: chain, single: chain, lt: chain, match: chain,
+                            order: chain, limit: chain, lt: chain, match: chain,
+                            on: chain, subscribe: chain, track: chain, unsubscribe: () => {},
+                            single: () => { isSingle = true; return chain(); },
                             upload: async () => ({ data: { path: 'mock' }, error: null }),
                             getPublicUrl: () => ({ data: { publicUrl: 'mock-url' } }),
                             getSession: async () => ({ data: { session: null }, error: null }),
                             onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
                             // The final execution
-                            then: (resolve) => resolve({ data: prop === 'rpc' ? null : [], error: null }),
+                            then: (resolve) => resolve({ data: isSingle ? {} : (prop === 'rpc' ? null : []), error: null }),
                             catch: (reject) => reject(new Error("Mock Fail")),
                         });
                         return chain();

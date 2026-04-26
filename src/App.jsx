@@ -174,7 +174,8 @@ function LivingBackground({ weather }) {
   const [elements, setElements] = useState([]);
 
   useEffect(() => {
-    // Defer element generation to avoid blocking the main thread during mount
+    // Solution 28: Clear elements immediately on weather change to avoid DOM clutter
+    setElements([]);
     const timer = setTimeout(() => {
       const newElements = [];
       const count = weather === 'rain' ? 30 : weather === 'snow' ? 20 : weather === 'clouds' ? 4 : 15;
@@ -218,6 +219,7 @@ function LivingBackground({ weather }) {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const { userId } = useUserContext();
 
   // 1. Auth & Session State
@@ -264,7 +266,16 @@ export default function App() {
   const [scores, setScoresRaw] = useGlobalSync('game_scores', {});
   const setScores = useCallback((val) => {
     const valueToStore = val instanceof Function ? val(scores || {}) : val;
-    setScoresRaw({ ...(scores || {}), ...valueToStore });
+    // Solution 30: Sanitize input to prevent object expansion loop or synthetic events leaking in
+    const sanitized = {};
+    if (valueToStore && typeof valueToStore === 'object') {
+        Object.keys(valueToStore).forEach(k => {
+            if (typeof valueToStore[k] === 'number' || typeof valueToStore[k] === 'string') {
+                sanitized[k] = valueToStore[k];
+            }
+        });
+    }
+    setScoresRaw({ ...(scores || {}), ...sanitized });
   }, [scores, setScoresRaw]);
 
   const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
@@ -295,7 +306,8 @@ export default function App() {
 
   // Update room profile whenever local profile changes
   useEffect(() => {
-    if (userId && JSON.stringify(roomProfiles[userId]) !== JSON.stringify(profile)) {
+    // Solution 29: Prevent null/undefined key leaks in roomProfiles
+    if (userId && userId !== 'null' && JSON.stringify(roomProfiles[userId]) !== JSON.stringify(profile)) {
       setRoomProfiles(prev => ({ ...prev, [userId]: profile }));
       console.log(`[SYNC] Local profile pushed for ${profile.name}`);
     }
@@ -332,7 +344,8 @@ export default function App() {
   // Nickname logic: If my partner set a nickname for ME in coupleData.nicknames[userId], use it.
   // Otherwise use my profile name.
   const myDisplayName = useMemo(() => {
-    if (hasRoom && coupleData.nicknames && coupleData.nicknames[userId]) {
+    // Solution 12: Optional chaining for nicknames
+    if (hasRoom && coupleData?.nicknames?.[userId]) {
         return coupleData.nicknames[userId];
     }
     return profile.name || 'you';
@@ -358,6 +371,7 @@ export default function App() {
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
 
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const lastMsgIdRef = useRef(null);
 
@@ -371,8 +385,10 @@ export default function App() {
             const newNotif = { id: lastMsg.id, text: lastMsg.text, type: lastMsg.type };
             setNotifications(prev => [...prev, newNotif]);
             playAudio('notif', sfxEnabled);
+            
+            // Solution 20: Robust auto-dismiss with explicit ID matching
             setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id !== lastMsg.id));
+                setNotifications(prev => prev.filter(n => n.id === lastMsg.id ? false : true));
             }, 5000);
         }
     }
@@ -382,7 +398,8 @@ export default function App() {
     playAudio('click', sfxEnabled);
     if (callState.status !== 'idle') {
       setCallState({ status: 'ended', type: callState.type, endedBy: userId, timestamp: Date.now() });
-      setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', status: 'ended', callType: callState.type, time: new Date().toLocaleTimeString() }]);
+      // Solution 16: Use syncSendMessage instead of setChatHistory stub
+      syncSendMessage('Call ended', 'call_invite', userId, { status: 'ended', callType: callState.type });
     }
     setCalling(null); setIsRinging(false);
     if (currentCallRef.current) { try { currentCallRef.current.close(); } catch(e){} currentCallRef.current = null; }
@@ -393,6 +410,11 @@ export default function App() {
   useEffect(() => {
     if (!userId) return;
     const initPeer = () => {
+      // Solution 4: Destroy old instance before re-initializing
+      if (peerRef.current && !peerRef.current.destroyed) {
+          try { peerRef.current.destroy(); } catch(e) {}
+      }
+
       const peer = new Peer(userId, { 
         debug: 1,
         config: { iceServers: [
@@ -401,13 +423,15 @@ export default function App() {
           { urls: 'stun:stun2.l.google.com:19302' },
           { urls: 'stun:stun3.l.google.com:19302' },
           { urls: 'stun:stun4.l.google.com:19302' },
-          // Add your TURN server here for 100% connection reliability
-          // { urls: 'turn:your-turn-server.com', username: 'user', credential: 'password' }
         ] }
       });
       peerRef.current = peer;
       peer.on('call', (call) => { 
         currentCallRef.current = call; 
+        // Solution 23: Clean up on remote disconnect
+        call.on('close', () => handleEndCall());
+        call.on('error', () => handleEndCall());
+
         const currentStatus = callStateRef.current.status;
         
         // If we somehow already accepted it, answer immediately
@@ -415,9 +439,13 @@ export default function App() {
            if (localStreamRef.current) {
                call.answer(localStreamRef.current);
                call.on('stream', (rs) => { 
+                 // Solution 21 & 22: Null ref checks
                  if(remoteAudioRef.current) { 
                      remoteAudioRef.current.srcObject = rs; 
-                     remoteAudioRef.current.play().catch(e => console.log(e)); 
+                     remoteAudioRef.current.play().catch(e => {
+                         if (e.name === 'NotAllowedError') setAudioBlocked(true);
+                         console.log('Audio autoplay blocked');
+                     }); 
                  } 
                  if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
                });
@@ -425,7 +453,11 @@ export default function App() {
         }
       });
       peer.on('error', (err) => {
-        if (err.type === 'disconnected' || err.type === 'network') setTimeout(initPeer, 3000);
+        if (err.type === 'disconnected' || err.type === 'network') {
+            // Solution 4: Force destroy on retry
+            if (peerRef.current) peerRef.current.destroy();
+            setTimeout(initPeer, 3000);
+        }
       });
     };
     initPeer();
@@ -488,20 +520,38 @@ export default function App() {
           setCallState({ ...callState, status: 'connected' });
           return;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+      // Solution 24: Peer initialization guard
+      if (!peerRef.current || peerRef.current.destroyed) {
+          toast('Connection not ready. Try again.', 'error');
+          return handleEndCall();
+      }
+
+      // Solution 2: Camera/Mic rejection handling
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' })
+        .catch(err => {
+            if (err.name === 'NotAllowedError') toast('Camera/Mic permission denied', 'error');
+            throw err;
+        });
+
       localStreamRef.current = stream;
-      if (!peerRef.current || peerRef.current.destroyed) throw new Error("Peer disconnected");
       
       const call = peerRef.current.call(partnerId, stream);
       currentCallRef.current = call;
       
       call.on('stream', (remoteStream) => {
+        // Solution 22: Null ref checks
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
         if (remoteAudioRef.current) { 
             remoteAudioRef.current.srcObject = remoteStream; 
-            remoteAudioRef.current.play().catch(e => console.error("Audio block", e)); 
+            remoteAudioRef.current.play().catch(e => {
+                if (e.name === 'NotAllowedError') setAudioBlocked(true);
+                console.error("Audio block", e);
+            }); 
         }
       });
+      
+      // Solution 23: Call close event
+      call.on('close', () => handleEndCall());
       
       setCallState(prev => ({ ...prev, status: 'connected' }));
     } catch (err) { console.error('Failed call initiation', err); handleEndCall(); }
@@ -513,13 +563,20 @@ export default function App() {
     setIsRinging(true);
     setIsCameraOff(type === 'audio'); // Audio call defaults to camera off
     setCallState({ status: 'ringing', type, callerId: userId, calleeId: partnerId, timestamp: Date.now() });
-    setChatHistory(prev => [...prev, { id: Date.now(), sender: userId, type: 'call_invite', callType: type, status: 'ringing', time: new Date().toLocaleTimeString() }]);
+    // Solution 16 & 19: Robust unique ID and syncSendMessage
+    syncSendMessage('Incoming call...', 'call_invite', userId, { callType: type, status: 'ringing' });
   };
 
   const acceptCall = async () => {
     playAudio('click', sfxEnabled);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.type === 'video' });
+      // Solution 2: Permission handling
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.type === 'video' })
+        .catch(err => {
+            if (err.name === 'NotAllowedError') toast('Camera/Mic permission denied', 'error');
+            throw err;
+        });
+
       localStreamRef.current = stream;
       setCallState(prev => ({ ...prev, status: 'accepted' }));
       
@@ -527,12 +584,23 @@ export default function App() {
       if (currentCallRef.current && currentCallRef.current.answer) {
          currentCallRef.current.answer(stream);
          currentCallRef.current.on('stream', (rs) => { 
-           if(remoteAudioRef.current) { remoteAudioRef.current.srcObject = rs; remoteAudioRef.current.play().catch(e=>{}); } 
+           // Solution 21 & 22: Null ref checks
+           if(remoteAudioRef.current) { 
+             remoteAudioRef.current.srcObject = rs; 
+             remoteAudioRef.current.play().catch(e=>{
+               if (e.name === 'NotAllowedError') setAudioBlocked(true);
+             }); 
+           } 
            if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
          });
+         currentCallRef.current.on('close', () => handleEndCall());
       }
 
-      setChatHistory(prev => prev.map(m => (m.type === 'call_invite' && m.status === 'ringing') ? { ...m, status: 'accepted' } : m));
+      // Solution 16: Update synchronized message status
+      const ringingInvite = chatHistory.find(m => m.type === 'call_invite' && m.status === 'ringing' && m.sender === partnerId);
+      if (ringingInvite) {
+          syncUpdateMessage(ringingInvite.id, { status: 'accepted' });
+      }
     } catch (err) { console.error('Failed accept', err); handleEndCall(); }
     setIncomingCall(null);
   };
@@ -605,7 +673,9 @@ export default function App() {
     const checkTestMode = () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get('test_mode') === 'true') {
-        const testUser = params.get('user') || 'userA';
+        const testUserParam = params.get('user');
+        // Solution 27: Guard against literal "undefined" strings
+        const testUser = (testUserParam === 'undefined' || !testUserParam) ? 'userA' : testUserParam;
         const [base, suffix] = testUser.split('_');
         const idSuffix = suffix ? `-${suffix}` : '';
         const id1 = `00000000-0000-0000-0000-000000000001${idSuffix}`;
@@ -674,6 +744,21 @@ export default function App() {
   }, []);
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  
+  // Solution 30: Mobile Viewport Jitter Fix
+  useEffect(() => {
+    const handleResize = () => {
+      const vh = window.visualViewport ? window.visualViewport.height * 0.01 : window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    window.visualViewport?.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Apply theme after core is ready to avoid blocking initial render
   useEffect(() => {
@@ -774,9 +859,14 @@ export default function App() {
           if (inviteData) {
               await syncSendMessage(text, 'game_invite', userId, inviteData);
           } else if (imgData) {
-              const { base64ToBlob } = await import('./utils/file.js');
-              const blob = base64ToBlob(imgData);
-              await syncSendMessage(blob, 'image', userId, { text });
+              try {
+                  const { base64ToBlob } = await import('./utils/file.js');
+                  const blob = base64ToBlob(imgData);
+                  await syncSendMessage(blob, 'image', userId, { text });
+              } catch (e) {
+                  console.error("Failed to process image", e);
+                  toast("Failed to share image", "error");
+              }
           } else {
               await syncSendMessage(text, 'text', userId);
           }
@@ -834,6 +924,20 @@ export default function App() {
           />
         )}
         
+        {audioBlocked && (
+            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[6000] animate-bounce">
+                <button 
+                  onClick={() => {
+                      if (remoteAudioRef.current) remoteAudioRef.current.play().catch(e => {});
+                      setAudioBlocked(false);
+                  }}
+                  className="bg-red-500 text-white px-4 py-2 rounded-full retro-border shadow-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
+                >
+                    <Volume2 size={14}/> Click to Enable Audio
+                </button>
+            </div>
+        )}
+        
         <audio ref={remoteAudioRef} autoPlay style={{display: 'none'}} />
 
         {/* Floating Notifications */}
@@ -884,7 +988,7 @@ export default function App() {
             <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
             <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} onlineUsers={onlineUsers} syncSendMessage={syncSendMessage} syncUpdateMessage={syncUpdateMessage} syncDeleteMessage={syncDeleteMessage} syncLoadMore={syncLoadMore} syncHasMore={syncHasMore} /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} onlineUsers={onlineUsers} syncSendMessage={syncSendMessage} syncUpdateMessage={syncUpdateMessage} syncDeleteMessage={syncDeleteMessage} syncLoadMore={syncLoadMore} syncHasMore={syncHasMore} /></ProtectedRoute>} />
             <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={async (imgData) => {
                 if (syncedRoomId) {
                     const { base64ToBlob } = await import('./utils/file.js');

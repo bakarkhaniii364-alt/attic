@@ -186,7 +186,8 @@ export function useChatSync(roomId) {
     }
 
     // --- INSTANT OPTIMISTIC UI UPDATE ---
-    const tempId = `temp-${Date.now()}`;
+    // Solution 19: Use crypto.randomUUID() for robust collision resistance
+    const tempId = `temp-${crypto.randomUUID()}`;
     const optimisticMsg = {
       id: tempId,
       room_id: roomId,
