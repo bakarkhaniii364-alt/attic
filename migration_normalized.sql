@@ -84,3 +84,27 @@ END $$;
 -- 2. 'scrapbook' (Public: true)
 -- 3. 'voice_notes' (Public: true)
 -- ============================================================
+
+ 
+-- ============================================================
+-- PRIVACY & COMPLIANCE: Right to be Forgotten
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION delete_my_room()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  my_room_id uuid;
+BEGIN
+  -- Find the room the user belongs to
+  SELECT id INTO my_room_id FROM public.rooms 
+  WHERE (creator_id = auth.uid() OR partner_id = auth.uid()) AND is_active = true;
+
+  -- If found, delete it (Cascades to chat_messages and shared_assets automatically)
+  IF my_room_id IS NOT NULL THEN
+    DELETE FROM public.rooms WHERE id = my_room_id;
+  END IF;
+END;
+$$;

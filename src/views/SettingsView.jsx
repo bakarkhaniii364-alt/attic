@@ -98,13 +98,6 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       const { data: leaveResult, error: leaveErr } = await supabase.rpc('leave_room', { room_uuid: roomId });
       if (leaveErr) {
         console.error('leave_room rpc failed', leaveErr);
-        toast('Could not disconnect right now. Try again later.', 'error');
-        return;
-      }
-
-      if (leaveResult && leaveResult.error) {
-        toast(leaveResult.message || 'Could not disconnect.', 'error');
-        return;
       }
 
       try { window.localStorage.removeItem('attic_room_id'); } catch (e) {}
@@ -116,6 +109,62 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     } catch (err) {
       console.error(err);
       toast('Failed to unpair. Please contact support.', 'error');
+    }
+  };
+
+  const handleExportData = async () => {
+    toast('Compiling your data...', 'info');
+    try {
+      const { data: roomData } = await supabase.rpc('get_my_room');
+      const roomId = roomData?.id;
+      if (!roomId) throw new Error("No room found");
+
+      const { data: messages, error } = await supabase
+        .from('chat_messages')
+        .select('sender_id, content, type, created_at, metadata')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const dataBlob = new Blob([JSON.stringify({
+        export_date: new Date().toISOString(),
+        user_id: userId,
+        room_id: roomId,
+        messages: messages
+      }, null, 2)], { type: 'application/json' });
+      
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `attic_data_export_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast('Export complete!', 'success');
+    } catch (err) {
+      console.error(err);
+      toast('Export failed', 'error');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmDelete = window.confirm("🚨 PERMANENT ACTION: This will delete your shared Room and ALL data (chats, photos, scores) for both you and your partner. This cannot be undone. Proceed?");
+    
+    if (confirmDelete) {
+      toast('Deleting everything...', 'info');
+      try {
+        const { error } = await supabase.rpc('delete_my_room');
+        if (error) throw error;
+        
+        await supabase.auth.signOut();
+        localStorage.clear();
+        window.location.href = '/';
+      } catch (err) {
+        console.error(err);
+        toast('Deletion failed', 'error');
+      }
     }
   };
 
@@ -316,13 +365,34 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">{['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins'].map(t => ( <button key={t} onClick={() => {playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500);}} className={`p-3 retro-border text-center lowercase font-bold text-sm sm:text-base ${theme === t ? 'retro-shadow-dark bg-[var(--accent)]' : 'bg-[var(--bg-window)] opacity-70'}`}>{t}</button> ))}</div>
         </section>
 
+        {/* Privacy & Data */}
+        <section className="p-4 retro-bg-window retro-border border-dashed">
+          <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Lock size={20}/> privacy & data</h2>
+          <div className="flex flex-col gap-4">
+             <div className="flex justify-between items-center">
+                <div>
+                   <p className="font-bold text-sm">Download My Data</p>
+                   <p className="text-[10px] opacity-60">Export a JSON copy of all your chat logs.</p>
+                </div>
+                <RetroButton onClick={handleExportData} className="px-4 py-2 text-xs">Export .json</RetroButton>
+             </div>
+             <div className="flex justify-between items-center">
+                <div>
+                   <p className="font-bold text-sm">Legal Notices</p>
+                   <p className="text-[10px] opacity-60">Privacy Policy & Terms of Service.</p>
+                </div>
+                <RetroButton onClick={() => navigate('/legal')} className="px-4 py-2 text-xs">View Legal</RetroButton>
+             </div>
+          </div>
+        </section>
+
       {/* Danger Zone */}
       <section className="p-4 bg-red-500/10 retro-border border-red-500/40 mt-auto">
         <h2 className="font-bold text-xl text-red-500 mb-2 flex items-center gap-2"><Trash2 size={20}/> danger zone</h2>
-        <p className="text-sm opacity-70 mb-4">Two separate actions: <strong>Unpair</strong> returns you to handshake (keeps shared history). <strong>Delete</strong> clears local data.</p>
-        <div className="flex gap-2">
-          <button onClick={handleUnpair} className="bg-yellow-500 text-white font-bold py-2 px-4 retro-border border-yellow-700 hover:-translate-y-1 transition-transform flex items-center gap-2"><Hand size={16}/> Unpair (disconnect)</button>
-          <button onClick={onDelete} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2"><Trash2 size={16}/> Disconnect & delete</button>
+        <p className="text-sm opacity-70 mb-4"><strong>Unpair</strong> disconnects you (keeps data). <strong>Delete Room</strong> wipes EVERYTHING permanently.</p>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={handleUnpair} className="bg-yellow-500 text-white font-bold py-2 px-4 retro-border border-yellow-700 hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm"><Hand size={16}/> Unpair (disconnect)</button>
+          <button onClick={handleDeleteAccount} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm"><Trash2 size={16}/> Delete Room & Data</button>
         </div>
       </section>
     </div>

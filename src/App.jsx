@@ -10,6 +10,7 @@ import { INITIAL_CHAT } from './constants/data.js';
 import { StrayTray } from './components/LofiPlayer.jsx';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
+import { LegalView } from './views/LegalView.jsx';
 import { Dashboard } from './views/Dashboard.jsx';
 import { useGlobalSync, initializeRoomSync } from './hooks/useSupabaseSync.js';
 import { useChatSync } from './hooks/useChatSync.js';
@@ -847,6 +848,7 @@ export default function App() {
             <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/dailyq" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/resume" element={<ProtectedRoute session={session} hasRoom={hasRoom}><RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} coupleData={coupleData} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
+            <Route path="/legal" element={<LegalView onClose={() => navigateTo('dashboard')} />} />
             <Route path="/activities/*" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} onSaveToScrapbook={async (imgData) => {
                 if (syncedRoomId) {
                     const { base64ToBlob } = await import('./utils/file.js');
