@@ -228,6 +228,7 @@ export default function App() {
   const [syncedRoomId, setSyncedRoomId] = useState(null);
   const [visualsReady, setVisualsReady] = useState(false); // Deferred for performance
   const [onlineUsers, setOnlineUsers] = useState({}); // Tracking presence
+  const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
   // 2. Global Sync States
   const [profile, setProfile] = useLocalStorage('user_profile', { 
@@ -282,6 +283,8 @@ export default function App() {
   });
   
   const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' });
+  const callStateRef = useRef(callState);
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
   const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
   const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60, currentCanvas: null });
 
@@ -400,18 +403,20 @@ export default function App() {
       peerRef.current = peer;
       peer.on('call', (call) => { 
         currentCallRef.current = call; 
-        // Only auto-answer if we have already accepted in the state
-        if (callState.status === 'connected' || callState.status === 'accepted') {
-           navigator.mediaDevices.getUserMedia({ audio: true, video: callState.type === 'video' }).then(stream => {
-              call.answer(stream);
-              call.on('stream', (rs) => { 
-                if(remoteAudioRef.current) { 
-                    remoteAudioRef.current.srcObject = rs; 
-                    remoteAudioRef.current.play().catch(e => console.log("Audio play blocked, waiting for interaction", e)); 
-                } 
-                if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
-              });
-           }).catch(err => { console.error("Media access failed", err); handleEndCall(); });
+        const currentStatus = callStateRef.current.status;
+        
+        // If we somehow already accepted it, answer immediately
+        if (currentStatus === 'connected' || currentStatus === 'accepted') {
+           if (localStreamRef.current) {
+               call.answer(localStreamRef.current);
+               call.on('stream', (rs) => { 
+                 if(remoteAudioRef.current) { 
+                     remoteAudioRef.current.srcObject = rs; 
+                     remoteAudioRef.current.play().catch(e => console.log(e)); 
+                 } 
+                 if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
+               });
+           }
         }
       });
       peer.on('error', (err) => {
@@ -508,6 +513,16 @@ export default function App() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.type === 'video' });
       localStreamRef.current = stream;
       setCallState(prev => ({ ...prev, status: 'accepted' }));
+      
+      // NEW: Answer the waiting PeerJS call here!
+      if (currentCallRef.current && currentCallRef.current.answer) {
+         currentCallRef.current.answer(stream);
+         currentCallRef.current.on('stream', (rs) => { 
+           if(remoteAudioRef.current) { remoteAudioRef.current.srcObject = rs; remoteAudioRef.current.play().catch(e=>{}); } 
+           if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
+         });
+      }
+
       setChatHistory(prev => prev.map(m => (m.type === 'call_invite' && m.status === 'ringing') ? { ...m, status: 'accepted' } : m));
     } catch (err) { console.error('Failed accept', err); handleEndCall(); }
     setIncomingCall(null);

@@ -287,7 +287,8 @@ export function ChatView({
       audioChunksRef.current = [];
       mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const audioUrl = URL.createObjectURL(audioBlob);
         const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
         const reader = new FileReader(); reader.readAsDataURL(audioBlob);
@@ -312,7 +313,8 @@ export function ChatView({
     if (isNormalized) {
       try {
         // Need to convert the audioChunks back to a Blob if we want to upload it
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         await syncSendMessage(audioBlob, 'voice', userId, {
           duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`,
           replyTo: replyingTo
