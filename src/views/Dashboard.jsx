@@ -98,6 +98,7 @@ function AnniversaryTimer({ anniversary }) {
     if (!anniversary) return;
     const update = () => {
       const start = new Date(anniversary);
+      if (isNaN(start.getTime())) return;
       const now = new Date();
       let diff = now - start;
       if (diff < 0) diff = 0;

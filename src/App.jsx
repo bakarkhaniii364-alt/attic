@@ -282,6 +282,7 @@ export default function App() {
   
   const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' });
   const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
+  const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60 });
 
   // Update room profile whenever local profile changes
   useEffect(() => {
@@ -699,9 +700,11 @@ export default function App() {
     try { setRoomProfiles(prev => ({ ...prev, [userId]: profile })); } catch(e) {}
     navigate('/');
   };
-  const handleShareToChat = async (text, imgData) => { 
+  const handleShareToChat = async (text, imgData, inviteData = null) => { 
       if (syncedRoomId) {
-          if (imgData) {
+          if (inviteData) {
+              await syncSendMessage(text, 'game_invite', userId, inviteData);
+          } else if (imgData) {
               const { base64ToBlob } = await import('./utils/file.js');
               const blob = base64ToBlob(imgData);
               await syncSendMessage(blob, 'image', userId, { text });
@@ -834,7 +837,14 @@ export default function App() {
             <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/dailyq" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/resume" element={<ProtectedRoute session={session} hasRoom={hasRoom}><RelationshipResume onClose={()=>navigateTo('dashboard')} profile={profile} coupleData={coupleData} scores={scores} sfx={sfxEnabled} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
-            <Route path="/activities/*" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} profile={profile} userId={userId} partnerId={partnerId} /></ProtectedRoute>} />
+            <Route path="/activities/*" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ActivitiesHub onClose={()=>navigateTo('dashboard')} scores={scores} setScores={setScores} sfx={sfxEnabled} setConfetti={setConfetti} onShareToChat={handleShareToChat} onSaveToScrapbook={async (imgData) => {
+                if (syncedRoomId) {
+                    const { base64ToBlob } = await import('./utils/file.js');
+                    const blob = base64ToBlob(imgData);
+                    await uploadImage(blob, 'scrapbook', userId);
+                    toast('Saved to Scrapbook!', 'success');
+                }
+            }} profile={profile} userId={userId} partnerId={partnerId} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

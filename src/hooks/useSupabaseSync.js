@@ -148,35 +148,35 @@ export function useGlobalSync(key, initialValue) {
 }
 
 export function useBroadcast(eventName, callback) {
+  const [channel, setChannel] = useState(null);
+
   useEffect(() => {
     if (!currentRoomId || !isInitialized) return;
 
-    const uniqueId = Math.random().toString(36).substring(2, 9);
-    const channel = supabase.channel(`broadcast_${eventName}_${uniqueId}`)
+    // Fixed channel name for all users in this room/event
+    const channelName = `room_broadcast_${currentRoomId}_${eventName}`;
+    const newChannel = supabase.channel(channelName)
       .on('broadcast', { event: eventName }, ({ payload }) => {
         if (callback) callback(payload);
       })
       .subscribe();
 
+    setChannel(newChannel);
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(newChannel);
     };
   }, [eventName, callback, isInitialized]);
 
   const sendBroadcast = useCallback((payload) => {
-    const channel = supabase.channel(`broadcast_sender_${eventName}_${Math.random()}`);
-    channel.subscribe(status => {
-      if (status === 'SUBSCRIBED') {
+    if (channel) {
         channel.send({
           type: 'broadcast',
           event: eventName,
           payload
-        }).then(() => {
-          supabase.removeChannel(channel);
         });
-      }
-    });
-  }, [eventName]);
+    }
+  }, [eventName, channel]);
 
   return sendBroadcast;
 }

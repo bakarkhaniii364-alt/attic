@@ -132,6 +132,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
       let key = e.key.toUpperCase();
       if (key === 'BACKSPACE') key = 'DEL';
       if (key === 'ENTER' || key === 'DEL' || /^[A-Z]$/.test(key)) handleKeyPress(key);

@@ -80,7 +80,7 @@ export function useAssetSync(roomId, assetType = null) {
 
     // A. Upload to Supabase Storage
     const fileExt = fileBlob.type.split('/')[1] || 'png';
-    const fileName = `${roomId}/${Date.now()}.${fileExt}`;
+    const fileName = `${roomId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const bucket = type === 'doodle' ? 'doodles' : 'scrapbook';
 
     const { data: storageData, error: storageError } = await supabase.storage

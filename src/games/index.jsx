@@ -222,7 +222,7 @@ export function GameSetupWindow({ game, onStart, onBack, sfx, onShareToChat, use
   );
 }
 
-export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId }) {
+export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -282,7 +282,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         if (key !== 'active') config[key] = value;
       });
 
-      const props = { config, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, profile, userId, partnerId };
+      const props = { config, setScores, onBack: closeGame, sfx, onWin: handleWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState };
       
       if (gameId === 'pictionary') return <PictionaryGame {...props} />;
       if (gameId === 'tictactoe') return <TicTacToe {...props} />;

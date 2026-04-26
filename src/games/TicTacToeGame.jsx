@@ -124,7 +124,12 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
 
   const makeAIMove = (currentBoard) => {
     const empty = currentBoard.map((v, i) => v === null ? i : null).filter(v => v !== null); if (empty.length === 0) return null;
-    if (config.diff === 'easy' || (size > 3 && depthLimitRandom())) return empty[Math.floor(Math.random() * empty.length)];
+    
+    // Safety for Memory Mode: AI should not use Minimax as board never fills up traditionally
+    if (config.mode === 'memory' || config.diff === 'easy' || (size > 3 && depthLimitRandom())) {
+        return empty[Math.floor(Math.random() * empty.length)];
+    }
+
     if (config.diff === 'medium' && Math.random() > 0.4) return empty[Math.floor(Math.random() * empty.length)];
     
     let bestScore = -Infinity; let move = empty[0];

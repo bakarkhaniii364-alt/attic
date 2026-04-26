@@ -130,7 +130,7 @@ export function useChatSync(roomId) {
     // If it's a blob/file (voice note or image), upload to storage first
     if (content instanceof Blob) {
       const fileExt = content.type.split('/')[1]?.split(';')[0] || 'png';
-      const fileName = `${roomId}/${Date.now()}.${fileExt}`;
+      const fileName = `${roomId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
       const bucket = type === 'voice' ? 'voice_notes' : (type === 'image' ? 'scrapbook' : 'doodles');
 
       const { data: storageData, error: storageError } = await supabase.storage

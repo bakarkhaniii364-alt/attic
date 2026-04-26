@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { calculateLevenshtein, floodFill } from '../utils/helpers.js';
 import { incrementUserScore, getScoreForUser } from '../utils/userDataHelpers.js';
 import { PICTIONARY_CATEGORIES } from '../constants/data.js';
+import { useBroadcast } from '../hooks/useSupabaseSync.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
-export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId }) {
-  const [gameState, setGameState] = useState('prep'); 
-  const [turn, setTurn] = useState(1);
-  const [isDrawer, setIsDrawer] = useState(true);
-  const [word, setWord] = useState('LOADING');
-  const [displayWord, setDisplayWord] = useState([]);
+export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState }) {
+  const { gameState, drawerId, word, displayWord, timeLeft } = pictionaryState;
+  const isDrawer = userId === drawerId;
+  const partnerName = profile?.partnerNickname || 'Partner';
+
   const [guess, setGuess] = useState('');
   const [hotCold, setHotCold] = useState('');
   
@@ -24,12 +24,12 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const colorInputRef = useRef(null);
   
   const timerLength = parseInt(config.diff) || 60;
-  const [timeLeft, setTimeLeft] = useState(timerLength);
   const [finalImage, setFinalImage] = useState(null);
   
   const [gridEnabled, setGridEnabled] = useState(false);
   const [floatingEmojis, setFloatingEmojis] = useState([]);
   const [fakeCursor, setFakeCursor] = useState({ x: 0, y: 0, show: false });
+  const [partnerCursor, setPartnerCursor] = useState({ x: 0, y: 0, show: false });
 
   const getNewWord = () => {
     if (config.category === 'custom' && config.customWord) return config.customWord;
@@ -40,36 +40,40 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const startRound = () => { 
     playAudio('click', sfx); 
     const newWord = getNewWord();
-    setWord(newWord);
-    setDisplayWord(newWord.split('').map(() => '_'));
-    setTimeLeft(timerLength); 
-    setGameState('drawing'); 
+    setPictionaryState({
+        gameState: 'drawing',
+        drawerId: userId,
+        word: newWord,
+        displayWord: newWord.split('').map(() => '_'),
+        timeLeft: timerLength
+    });
     setUndoStack([]); 
-    // default: the user who started the round is the drawer
-    setIsDrawer(true);
   };
 
   const handleSkip = () => {
       playAudio('click', sfx);
       const newWord = getNewWord();
-      setWord(newWord);
-      setDisplayWord(newWord.split('').map(() => '_'));
-      // Penalize drawer for skip (per-user)
+      setPictionaryState(prev => ({
+          ...prev,
+          word: newWord,
+          displayWord: newWord.split('').map(() => '_')
+      }));
       setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1));
   };
 
   useEffect(() => { 
+      if (!isDrawer) return; // Only drawer controls timer
       let timer; 
-      if (gameState === 'guessing' || gameState === 'drawing') { 
+      if (gameState === 'drawing') { 
         timer = setInterval(() => { 
-          setTimeLeft(prev => { 
-            if (prev <= 1) { clearInterval(timer); setGameState('lost'); return 0; } 
-            return prev - 1; 
+          setPictionaryState(prev => { 
+            if (prev.timeLeft <= 1) { clearInterval(timer); return { ...prev, gameState: 'lost', timeLeft: 0 }; } 
+            return { ...prev, timeLeft: prev.timeLeft - 1 }; 
           }); 
         }, 1000); 
       } 
       return () => clearInterval(timer); 
-  }, [gameState]);
+  }, [gameState, isDrawer, setPictionaryState]);
 
   const updateCanvasResolution = () => {
     const canvas = canvasRef.current; if (!canvas) return;
@@ -79,6 +83,50 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   };
   useEffect(() => { if (gameState === 'drawing') updateCanvasResolution(); }, [gameState]);
+
+  // Realtime Drawing Sync
+  const sendDraw = useBroadcast('pictionary_draw');
+  
+  const handleRemoteDraw = useCallback((payload) => {
+      if (isDrawer) return; 
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const { x, y, type, color, tool, brushSize } = payload;
+      
+      if (type === 'clear') {
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          return;
+      }
+
+      ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
+      ctx.lineWidth = tool === 'eraser' ? brushSize * 4 : brushSize; 
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+      if (type === 'down') {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+      } else if (type === 'move') {
+          ctx.lineTo(x, y);
+          ctx.stroke();
+      } else if (type === 'fill') {
+          floodFill(canvas, Math.floor(x), Math.floor(y), color);
+      }
+  }, [isDrawer]);
+
+  useBroadcast('pictionary_draw', handleRemoteDraw);
+
+  const sendCursor = useBroadcast('pictionary_cursor');
+  useBroadcast('pictionary_cursor', (payload) => {
+      if (isDrawer) return;
+      setPartnerCursor(payload);
+  });
+
+  const sendEmoji = useBroadcast('pictionary_emoji');
+  useBroadcast('pictionary_emoji', (payload) => {
+      setFloatingEmojis(p => [...p, { id: Date.now(), ...payload }]);
+      setTimeout(() => { setFloatingEmojis(p => p.slice(1)); }, 2000);
+  });
 
   const saveStateToUndo = () => { const canvas = canvasRef.current; if (!canvas) return; setUndoStack(prev => [...prev, canvas.toDataURL()]); };
   const handleUndo = () => {
@@ -92,25 +140,12 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const getCoords = (e) => { const canvas = canvasRef.current; const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; };
 
   const handlePointerDown = (e) => { 
-      if (gameState !== 'drawing') return; 
+      if (!isDrawer || gameState !== 'drawing') return; 
       const { x, y } = getCoords(e); 
       
-      if (tool === 'pattern') {
-          const canvas = canvasRef.current;
-          const ctx = canvas.getContext('2d');
-          const pCanvas = document.createElement('canvas');
-          pCanvas.width = 20; pCanvas.height = 20;
-          const pCtx = pCanvas.getContext('2d');
-          pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0,0,20,20);
-          pCtx.fillStyle = color; pCtx.beginPath(); pCtx.arc(10,10,5,0,2*Math.PI); pCtx.fill();
-          const pattern = ctx.createPattern(pCanvas, 'repeat');
-          ctx.fillStyle = pattern;
-          ctx.fillRect(0,0,canvas.width,canvas.height);
-          saveStateToUndo();
-          return;
-      }
       if (tool === 'fill') {
           floodFill(canvasRef.current, Math.floor(x), Math.floor(y), color);
+          sendDraw({ type: 'fill', x, y, color });
           saveStateToUndo();
           return;
       }
@@ -118,33 +153,54 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       isDrawingRef.current = true; 
       const ctx = canvasRef.current.getContext('2d'); 
       ctx.beginPath(); ctx.moveTo(x, y); 
-      setFakeCursor({ x, y, show: true });
+      sendDraw({ type: 'down', x, y, color, tool, brushSize });
+      sendCursor({ x, y, show: true });
   };
+
   const handlePointerMove = (e) => { 
       const { x, y } = getCoords(e); 
-      if (gameState === 'drawing') setFakeCursor({ x, y, show: true });
-      if (!isDrawingRef.current || gameState !== 'drawing') return; 
-      const ctx = canvasRef.current.getContext('2d'); 
-      ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
-      ctx.lineWidth = tool === 'eraser' ? brushSize * 4 : brushSize; 
-      ctx.lineTo(x, y); ctx.stroke(); 
+      if (isDrawer) {
+          sendCursor({ x, y, show: true });
+          if (isDrawingRef.current && gameState === 'drawing') {
+              const ctx = canvasRef.current.getContext('2d'); 
+              ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
+              ctx.lineWidth = tool === 'eraser' ? brushSize * 4 : brushSize; 
+              ctx.lineTo(x, y); ctx.stroke(); 
+              sendDraw({ type: 'move', x, y, color, tool, brushSize });
+          }
+      }
+      setFakeCursor({ x, y, show: true });
   };
+
   const handlePointerUp = () => { 
-      if(isDrawingRef.current) { isDrawingRef.current = false; saveStateToUndo(); } 
-      if (gameState === 'drawing') setFakeCursor(p => ({...p, show: false}));
+      if(isDrawer && isDrawingRef.current) { 
+          isDrawingRef.current = false; 
+          saveStateToUndo(); 
+          sendDraw({ type: 'up' });
+          sendCursor(p => ({...p, show: false}));
+      } 
   };
-  const handleClear = () => { if (window.confirm("Are you sure you want to clear the entire canvas?")) { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); saveStateToUndo(); } };
+  const handleClear = () => { 
+    if (isDrawer && window.confirm("Are you sure you want to clear the entire canvas?")) { 
+        playAudio('click', sfx); 
+        const canvas = canvasRef.current; 
+        const ctx = canvas.getContext('2d'); 
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
+        saveStateToUndo(); 
+        sendDraw({ type: 'clear' });
+    } 
+  };
 
   const submitGuess = (e) => { 
       e.preventDefault(); 
       if (guess.toUpperCase() === word.toUpperCase()) { 
           onWin(); 
-          setGameState('won'); 
           setFinalImage(canvasRef.current.toDataURL()); 
           let pts = 1;
-          if (timeLeft >= timerLength - 10) pts = 2; // Speed multiplier
-        // Award points to the guesser (current user)
-        setScores(prev => incrementUserScore(prev, userId, 'pictionary', pts));
+          if (timeLeft >= timerLength - 10) pts = 2;
+          setScores(prev => incrementUserScore(prev, userId, 'pictionary', pts));
+          
+          setPictionaryState(prev => ({ ...prev, gameState: 'won' }));
       } else { 
           playAudio('click', sfx); 
           const dist = calculateLevenshtein(guess.toUpperCase(), word.toUpperCase());
@@ -162,16 +218,18 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     const rnd = hidden[Math.floor(Math.random() * hidden.length)];
     const newDisplay = [...displayWord];
     newDisplay[rnd] = word[rnd];
-    setDisplayWord(newDisplay);
-    // hint costs the current user a point
+    
+    setPictionaryState(prev => ({ ...prev, displayWord: newDisplay }));
     setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1));
   };
 
   const spawnEmoji = () => {
       const eList = ['👍', '🤣', '👎', '❤️', '🔥', '👀'];
       const emj = eList[Math.floor(Math.random()*eList.length)];
-      setFloatingEmojis(p => [...p, { id: Date.now(), emj, left: Math.random()*80+10, top: Math.random()*80+10 }]);
+      const payload = { emj, left: Math.random()*80+10, top: Math.random()*80+10 };
+      setFloatingEmojis(p => [...p, { id: Date.now(), ...payload }]);
       setTimeout(() => { setFloatingEmojis(p => p.slice(1)); }, 2000);
+      sendEmoji(payload);
   };
 
     if (gameState === 'won' || gameState === 'lost') { 
@@ -183,9 +241,11 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
         <div className="flex flex-col items-center justify-center h-full text-center p-4">
           <Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/>
-          <h2 className="text-2xl font-bold mb-4">{profile && profile.name ? `You're the Drawer — ${profile.name}` : `Your Turn to Draw`}</h2>
+          <h2 className="text-2xl font-bold mb-4">{drawerId ? (isDrawer ? "You're the Drawer" : `${partnerName} is drawing...`) : "Ready to start?"}</h2>
           <div className="w-full mb-6"><p className="font-bold opacity-70 mb-1 text-sm">Category: {config.category}</p><p className="font-bold opacity-70 text-xs">Timer: {timerLength}s limit.</p></div>
-          <RetroButton className="w-full py-4 text-lg" onClick={startRound}>View Secret Word</RetroButton>
+          <RetroButton className="w-full py-4 text-lg" onClick={startRound} disabled={drawerId && !isDrawer}>
+            {drawerId ? (isDrawer ? "Drawing in progress" : "Waiting for partner...") : "Start Round"}
+          </RetroButton>
         </div>
       </RetroWindow>
     );
@@ -197,28 +257,24 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
          <span className={timeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {timeLeft}s</span>
          {gameState === 'drawing' ? (
            <div className="flex items-center gap-2">
-             <span className="text-sm opacity-80">{isDrawer ? 'You are drawing' : (profile?.partnerNickname || 'Partner') + ' is drawing'}</span>
-             <RetroButton variant="white" onClick={() => {setGameState('guessing'); setFinalImage(canvasRef.current.toDataURL()); setFakeCursor(p=>({...p, show:false})); setIsDrawer(false);}} className="px-4 py-1 text-xs">Hand to Guesser</RetroButton>
+             <span className="text-sm opacity-80">{isDrawer ? "You are drawing" : `${partnerName} is drawing`}</span>
+             {isDrawer && <RetroButton variant="white" onClick={() => { setPictionaryState(prev => ({...prev, gameState: 'guessing'})); setFinalImage(canvasRef.current.toDataURL()); }} className="px-4 py-1 text-xs">Hand to Guesser</RetroButton>}
            </div>
          ) : (
-           <span>{isDrawer ? 'Waiting for partner to guess...' : `${profile?.partnerNickname || 'Partner'} is drawing`}</span>
+           <span>{isDrawer ? 'Waiting for partner to guess...' : `${partnerName} is drawing`}</span>
          )}
       </div>
-      {gameState === 'drawing' && (
+
+      {gameState === 'drawing' && isDrawer && (
         <div className="p-2 retro-bg-accent retro-border-b flex flex-wrap gap-2 items-center select-none overflow-x-auto">
           <button onClick={() => setTool('pen')} className={`p-2 rounded-md retro-border ${tool === 'pen' ? 'bg-white shadow-inner' : 'opacity-70'}`}><PenTool size={18}/></button>
           <button onClick={() => setTool('eraser')} className={`p-2 rounded-md retro-border ${tool === 'eraser' ? 'bg-white shadow-inner' : 'opacity-70'}`}><Eraser size={18}/></button>
           <button onClick={() => setTool('fill')} className={`p-2 rounded-md retro-border ${tool === 'fill' ? 'bg-white shadow-inner' : 'opacity-70'}`}><PaintBucket size={18}/></button>
-          <button onClick={() => setTool('pattern')} className={`p-2 bg-[url('https://www.transparenttextures.com/patterns/polka-dots.png')] rounded-md retro-border ${tool === 'pattern' ? 'bg-white shadow-inner' : 'opacity-70'}`}><div className="w-[18px] h-[18px]"></div></button>
           
           <div className="flex items-center gap-1 mx-2 bg-white/50 px-2 py-1 rounded retro-border"><div className="w-2 h-2 bg-black rounded-full"></div><input type="range" min="1" max="20" value={brushSize} onChange={e=>setBrushSize(e.target.value)} className="w-16" /><div className="w-4 h-4 bg-black rounded-full"></div></div>
           
           <div className="flex gap-1">
             {['#000000', '#ff0000', '#0000ff', '#00ff00', '#ffb6b9', '#f9e2af'].map(c => ( <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-5 h-5 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> ))}
-            <button onClick={() => colorInputRef.current.click()} className="w-5 h-5 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
-               <Pipette size={10} />
-               <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); setTool('pen'); }} />
-            </button>
           </div>
           
           <div className="ml-auto flex gap-2">
@@ -230,38 +286,62 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           </div>
         </div>
       )}
-      <div className={`flex-1 bg-white relative touch-none cursor-none ${gridEnabled ? 'pattern-grid-light' : ''} overflow-hidden`} onMouseMove={(e)=>{ const el = e.currentTarget.getBoundingClientRect(); setFakeCursor({ x: e.clientX - el.left, y: e.clientY - el.top, show: fakeCursor.show }); }}>
+
+      <div className={`flex-1 bg-white relative touch-none cursor-none ${gridEnabled ? 'pattern-grid-light' : ''} overflow-hidden`} onPointerMove={handlePointerMove} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp}>
         <canvas ref={canvasRef} onMouseDown={handlePointerDown} onMouseMove={handlePointerMove} onMouseUp={handlePointerUp} onMouseLeave={handlePointerUp} onTouchStart={handlePointerDown} onTouchMove={handlePointerMove} onTouchEnd={handlePointerUp} className="absolute inset-0 w-full h-full" />
         
-        {/* Fake ghost cursor overlay during guessing to mimic networked motion */}
-        {gameState === 'guessing' && fakeCursor.show && (
-          <div className="absolute pointer-events-none text-red-500 transition-all duration-150 ease-out" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
-            <PenTool size={20} className="drop-shadow-lg opacity-70" />
+        {/* Partner Cursor */}
+        {partnerCursor.show && !isDrawer && (
+          <div className="absolute pointer-events-none z-[100] transition-all duration-75" style={{ left: partnerCursor.x, top: partnerCursor.y }}>
+            <PenTool size={16} className="text-[var(--primary)] -scale-x-100" />
+            <div className="bg-[var(--primary)] text-white text-[8px] font-black px-1 rounded-sm -mt-1 ml-4 uppercase whitespace-nowrap shadow-sm border border-white/50">{partnerName}</div>
           </div>
         )}
 
-        {gameState === 'drawing' && fakeCursor.show && (
-          <div className="absolute pointer-events-none text-[var(--primary)] transition-all duration-75 ease-out -translate-y-4" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
-            <Brush size={22} className="drop-shadow-lg opacity-90" />
+        {/* Local Cursor */}
+        {fakeCursor.show && isDrawer && (
+          <div className="absolute pointer-events-none z-[100]" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
+            <div className={`w-3 h-3 rounded-full border border-black/20`} style={{ backgroundColor: color, transform: 'translate(-50%, -50%)' }}></div>
           </div>
         )}
 
-        {/* Floating Emojis */}
-        {floatingEmojis.map(f => (
-            <div key={f.id} className="absolute text-4xl animate-float-up pointer-events-none z-20" style={{ left: `${f.left}%`, top: `${f.top}%` }}>{f.emj}</div>
+        {floatingEmojis.map(e => (
+            <div key={e.id} className="absolute text-4xl animate-float-up pointer-events-none select-none z-50 drop-shadow-lg" style={{ left: `${e.left}%`, top: `${e.top}%` }}>{e.emj}</div>
         ))}
-        {gameState === 'guessing' && <div className="absolute inset-0 z-10" onMouseMove={(e)=>{ const r = e.target.getBoundingClientRect(); setFakeCursor({ x: e.clientX-r.left, y: e.clientY-r.top, show: true }); }} onMouseLeave={() => setFakeCursor(p=>({...p, show:false}))}></div>}
       </div>
-      {gameState === 'drawing' ? ( <div className="p-3 retro-bg-window retro-border-t flex justify-between items-center font-bold text-lg"><span className="opacity-70 text-sm">Draw:</span> <span className="text-[var(--primary)] text-xl tracking-widest uppercase">{word}</span> <span></span></div> ) : (
-        <div className="p-3 retro-bg-window retro-border-t flex flex-col gap-3">
-          <div className="flex justify-between items-center px-1 border-b border-dashed border-[var(--border)] pb-2 mb-1">
-             <div className="flex items-center gap-4">
-                 <span className="font-bold text-sm sm:text-base flex items-center gap-2">Word: <span className="tracking-[0.5em] text-[var(--primary)] text-lg uppercase">{displayWord.join('')}</span></span>
-                 <button onClick={useHint} className="text-xs retro-border bg-white px-2 py-1 flex items-center gap-1 hover:bg-yellow-50 active:translate-y-px"><Lightbulb size={12}/> Hint</button>
-             </div>
-             <span className="text-xs sm:text-sm font-bold text-[var(--border)]">{hotCold}</span>
+
+      {isDrawer && (
+        <div className="p-4 retro-bg-accent retro-border-t flex justify-center items-center gap-8">
+            <div className="text-center">
+                <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">Secret Word</p>
+                <div className="text-2xl font-black tracking-widest uppercase text-[var(--primary-hover)] drop-shadow-sm">{word}</div>
+            </div>
+            <div className="w-px h-10 bg-black/10"></div>
+            <div className="text-center">
+                <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">Progress</p>
+                <div className="text-2xl font-black tracking-[0.3em] uppercase">{displayWord.join(' ')}</div>
+            </div>
+            <RetroButton onClick={useHint} className="ml-4" variant="white">Hint (-1 pt)</RetroButton>
+        </div>
+      )}
+
+      {!isDrawer && (
+        <div className="p-4 retro-bg-window retro-border-t shadow-lg">
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center px-1 border-b border-dashed border-[var(--border)] pb-2 mb-1">
+               <span className="font-bold text-sm sm:text-base flex items-center gap-2">Word: <span className="tracking-[0.5em] text-[var(--primary)] text-lg uppercase">{displayWord.join('')}</span></span>
+               <span className="text-xs sm:text-sm font-bold text-[var(--border)]">{hotCold}</span>
+            </div>
+            {gameState === 'guessing' ? (
+                <form onSubmit={submitGuess} className="flex gap-4 max-w-lg mx-auto w-full">
+                    <input type="text" value={guess} onChange={e=>setGuess(e.target.value)} placeholder="Type your guess here..." className="flex-1 p-3 retro-border focus:outline-none uppercase font-black text-lg tracking-widest bg-gray-50 shadow-inner" autoFocus />
+                    <RetroButton type="submit" className="px-8 text-lg">GUESS!</RetroButton>
+                </form>
+            ) : (
+                <p className="text-sm font-bold opacity-60 uppercase tracking-widest animate-pulse text-center">{partnerName} is drawing something amazing...</p>
+            )}
           </div>
-          <form onSubmit={submitGuess} className="flex gap-2"><input type="text" value={guess} onChange={e=>setGuess(e.target.value)} placeholder="Type guess..." className="flex-1 p-2 sm:p-3 retro-border focus:outline-none uppercase font-bold" /><RetroButton type="submit" className="px-4 sm:px-6">Guess</RetroButton></form>
+          {hotCold && <div className={`mt-2 text-center font-black uppercase italic tracking-widest animate-bounce ${hotCold.includes('Hot') ? 'text-orange-500' : hotCold.includes('Warm') ? 'text-yellow-600' : 'text-blue-400'}`}>{hotCold}</div>}
         </div>
       )}
     </RetroWindow>
