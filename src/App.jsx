@@ -729,7 +729,6 @@ export default function App() {
           }
       }
   };
-  const navigateTo = (v) => { playAudio('click', sfxEnabled); if (v === 'dashboard') navigate('/'); else navigate(`/${v}`); };
 
   if (loading || hasRoom === null) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
 
