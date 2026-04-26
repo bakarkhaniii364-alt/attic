@@ -5,19 +5,21 @@
 
 /* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
-  --bg-main: #fdf6e3;       /* Warm creamy white */
-  --bg-pattern: #e6d5c3;    /* Distinct, slightly darker graph grid lines */
-  --bg-window: #ffffff;     /* Pure white window backgrounds */
-  --border: #2d2a2e;        /* Soft black/dark brown borders */
+  --bg-main: #ffe8d6;
+  --bg-pattern: #e0bfa5; 
+  --bg-window: #fffdf9;
+  --bg-header: #f9e2af;
+  --border: #5c3a21;
   --text-on-border: #ffffff;
-  --primary: #ff4a6e;       /* Vibrant pinkish-red */
-  --primary-hover: #e0385a;
-  --secondary: #0ea5e9;     /* Sky blue */
-  --accent: #fcd34d;        /* Warm retro yellow */
-  --text-main: #2d2a2e;
+  --text-on-header: #5c3a21;
+  --primary: #e94560;
+  --primary-hover: #d13d56;
+  --secondary: #4361ee;
+  --accent: #fcd34d;
+  --text-main: #5c3a21;
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
-  --text-on-accent: #2d2a2e;
+  --text-on-accent: #5c3a21;
 }
 
 /* ════ THEMES ════ */
@@ -25,8 +27,10 @@
   --bg-main: #e8eedf;
   --bg-pattern: #c0cfb1;
   --bg-window: #f9faf7;
+  --bg-header: #c0cfb1;
   --border: #2d4a22;
   --text-on-border: #ffffff;
+  --text-on-header: #2d4a22;
   --primary: #4a7c59;
   --primary-hover: #3a6348;
   --secondary: #e07b54;
@@ -41,8 +45,10 @@
   --bg-main: #0f172a;
   --bg-pattern: #1e293b;
   --bg-window: #0b0f19;
+  --bg-header: var(--border);
   --border: #94a3b8;
   --text-on-border: #0f172a;
+  --text-on-header: var(--text-on-border);
   --primary: #38bdf8;
   --primary-hover: #0284c7;
   --secondary: #818cf8;
@@ -57,8 +63,10 @@
   --bg-main: #050505;
   --bg-pattern: #1f1f1f;
   --bg-window: #000000;
+  --bg-header: var(--border);
   --border: #fcee0a;
   --text-on-border: #000000;
+  --text-on-header: var(--text-on-border);
   --primary: #fcee0a;
   --primary-hover: #e0d008;
   --secondary: #00ffcc;
@@ -73,8 +81,10 @@
   --bg-main: #2b0f4c;
   --bg-pattern: #3c156b;
   --bg-window: #1a0b2e;
+  --bg-header: var(--border);
   --border: #ff007f;
   --text-on-border: #ffffff;
+  --text-on-header: var(--text-on-border);
   --primary: #ff007f;
   --primary-hover: #cc0066;
   --secondary: #00f0ff;
@@ -89,8 +99,10 @@
   --bg-main: #f4f4f5;
   --bg-pattern: #d4d4d8;
   --bg-window: #ffffff;
+  --bg-header: #d4d4d8;
   --border: #18181b;
   --text-on-border: #ffffff;
+  --text-on-header: #18181b;
   --primary: #18181b;
   --primary-hover: #3f3f46;
   --secondary: #52525b;
@@ -105,8 +117,10 @@
   --bg-main: #000000;
   --bg-pattern: #262626;
   --bg-window: #0a0a0a;
+  --bg-header: var(--border);
   --border: #ffffff;
   --text-on-border: #000000;
+  --text-on-header: var(--text-on-border);
   --primary: #ffffff;
   --primary-hover: #cccccc;
   --secondary: #737373;
@@ -121,8 +135,10 @@
   --bg-main: #0a0a0a;
   --bg-pattern: #260a0a;
   --bg-window: #000000;
+  --bg-header: var(--border);
   --border: #dc2626;
   --text-on-border: #ffffff;
+  --text-on-header: var(--text-on-border);
   --primary: #dc2626;
   --primary-hover: #991b1b;
   --secondary: #7f1d1d;
@@ -137,8 +153,10 @@
   --bg-main: #eef2ff;
   --bg-pattern: #c7d2fe;
   --bg-window: #ffffff;
+  --bg-header: #c7d2fe;
   --border: #4c1d95;
   --text-on-border: #ffffff;
+  --text-on-header: #4c1d95;
   --primary: #8b5cf6;
   --primary-hover: #7c3aed;
   --secondary: #f472b6;
@@ -153,8 +171,10 @@
   --bg-main: #eaddcf;
   --bg-pattern: #d0bda9;
   --bg-window: #f4ebe1;
+  --bg-header: #d0bda9;
   --border: #3e2723;
   --text-on-border: #ffffff;
+  --text-on-header: #3e2723;
   --primary: #8b5a2b;
   --primary-hover: #6d4622;
   --secondary: #d2691e;
@@ -169,8 +189,10 @@
   --bg-main: #2e3440;
   --bg-pattern: #434c5e;
   --bg-window: #242933;
+  --bg-header: var(--border);
   --border: #eceff4;
   --text-on-border: #2e3440;
+  --text-on-header: var(--text-on-border);
   --primary: #88c0d0;
   --primary-hover: #81a1c1;
   --secondary: #bf616a;
@@ -224,7 +246,7 @@ body {
 
 /* Force Window Headers to use the new contrasting text variable */
 .window-header-text {
-  color: var(--text-on-border) !important;
+  color: var(--text-on-header) !important;
 }
 
 @media (max-width: 640px) {
