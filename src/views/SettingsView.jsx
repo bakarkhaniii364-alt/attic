@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
@@ -10,6 +10,12 @@ import { supabase } from '../lib/supabase.js';
 export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData }) {
   const navigate = useNavigate();
   const toast = useToast();
+  
+  // Cache the initial state so we can revert if "Cancel" is clicked
+  const [initialState] = useState({
+    theme, weather, profile, coupleData, sfxEnabled
+  });
+
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -22,6 +28,21 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const availableThemes = ['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins', 'lavender', 'coffee', 'nord'];
+
+  const handleCancel = () => {
+    setTheme(initialState.theme);
+    setWeather(initialState.weather);
+    setProfile(initialState.profile);
+    setCoupleData(initialState.coupleData);
+    setSfxEnabled(initialState.sfxEnabled);
+    onClose();
+  };
+
+  const handleSave = () => {
+    playAudio('click', sfxEnabled);
+    toast('Settings Saved!', 'success');
+    onClose();
+  };
 
   const handlePfpUpload = (e) => { 
     const file = e.target.files[0]; 
@@ -122,16 +143,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   const inner = (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 relative p-4 sm:p-6">
       {/* Profile Section */}
       <section className="p-4 retro-bg-window retro-border border-dashed">
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><User size={20}/> user profile</h2>
-          <div className="flex gap-4 items-center mb-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center mb-4">
              <div className="relative group cursor-pointer">
                 {profile.pfp ? <img src={profile.pfp} alt="Avatar" className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-shadow-dark object-cover" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
                 <label className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity backdrop-blur-sm"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
              </div>
-             <div className="flex-1 space-y-2">
+             <div className="flex-1 w-full space-y-2">
                <div><label className="block text-sm font-bold mb-1">display name</label><input type="text" value={profile.name} onChange={(e) => setProfile({...profile, name: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div>
@@ -161,7 +182,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>
-              <input type="date" value={coupleData.anniversary || ''} onChange={(e) => { setCoupleData({...coupleData, anniversary: e.target.value}); toast('Anniversary date saved!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
+              <input type="date" value={coupleData.anniversary || ''} onChange={(e) => { setCoupleData({...coupleData, anniversary: e.target.value}); toast('Anniversary date updated!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
             </div>
           </div>
         </section>
@@ -275,14 +296,26 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <button onClick={handleDeleteAccount} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm"><Trash2 size={16}/> Delete Room & Data</button>
         </div>
       </section>
+
+      {/* FIXED BOTTOM BAR */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--bg-window)] border-t-2 retro-border shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-end gap-3 z-50">
+         <RetroButton onClick={handleCancel} variant="secondary" className="px-6 py-2 flex items-center gap-2">
+            <X size={16} /> Cancel
+         </RetroButton>
+         <RetroButton onClick={handleSave} variant="primary" className="px-8 py-2 flex items-center gap-2">
+            <Save size={16} /> Save Settings
+         </RetroButton>
+      </div>
     </div>
   );
 
   if (compact) return inner;
 
   return (
-    <RetroWindow title="control_panel.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
-      {inner}
+    <RetroWindow title="control_panel.exe" onClose={handleCancel} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative overflow-hidden">
+      <div className="overflow-y-auto h-full">
+         {inner}
+      </div>
     </RetroWindow>
   );
 }

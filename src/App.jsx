@@ -173,6 +173,17 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
 function LivingBackground({ weather }) {
   const [elements, setElements] = useState([]);
 
+  // Generate a random jagged path for lightning
+  const generateLightningPath = () => {
+    let path = `M 100 0`;
+    let currentX = 100;
+    for (let y = 20; y <= 300; y += 30) {
+      currentX += (Math.random() - 0.5) * 80;
+      path += ` L ${currentX} ${y}`;
+    }
+    return path;
+  };
+
   useEffect(() => {
     setElements([]);
     const timer = setTimeout(() => {
@@ -180,23 +191,16 @@ function LivingBackground({ weather }) {
       const count = weather === 'rain' ? 30 : weather === 'storm' ? 45 : weather === 'snow' ? 20 : weather === 'clouds' ? 4 : weather === 'clear' ? 15 : 0;
       
       for (let i = 0; i < count; i++) {
-        if (weather === 'rain') {
-          newElements.push({ id: i, type: 'rain', left: Math.random() * 100, delay: Math.random() * 2, duration: 0.5 + Math.random() * 0.5 });
-        } else if (weather === 'storm') {
-          newElements.push({ id: i, type: 'storm', left: Math.random() * 120, delay: Math.random() * 1.5, duration: 0.3 + Math.random() * 0.3 });
-        } else if (weather === 'snow') {
-          newElements.push({ id: i, type: 'snow', left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 3, size: 2 + Math.random() * 4 });
-        } else if (weather === 'clouds') {
-          newElements.push({ id: i, type: 'cloud', top: Math.random() * 100, delay: Math.random() * 20, duration: 30 + Math.random() * 20, size: 200 + Math.random() * 300 });
-        } else if (weather === 'clear') {
-           newElements.push({ id: i, type: 'star', left: Math.random() * 100, top: Math.random() * 100, delay: Math.random() * 5, duration: 2 + Math.random() * 3, size: 2 + Math.random() * 3 });
-        }
+        if (weather === 'rain') newElements.push({ id: i, type: 'rain', left: Math.random() * 100, delay: Math.random() * 2, duration: 0.5 + Math.random() * 0.5 });
+        else if (weather === 'storm') newElements.push({ id: i, type: 'storm', left: Math.random() * 120, delay: Math.random() * 1.5, duration: 0.3 + Math.random() * 0.3 });
+        else if (weather === 'snow') newElements.push({ id: i, type: 'snow', left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 3, size: 2 + Math.random() * 4 });
+        else if (weather === 'clouds') newElements.push({ id: i, type: 'cloud', top: Math.random() * 100, delay: Math.random() * 20, duration: 30 + Math.random() * 20, size: 200 + Math.random() * 300 });
+        else if (weather === 'clear') newElements.push({ id: i, type: 'star', left: Math.random() * 100, top: Math.random() * 100, delay: Math.random() * 5, duration: 2 + Math.random() * 3, size: 2 + Math.random() * 3 });
       }
 
-      // Add the background atmospheric glow for thunder/storm
       if (weather === 'thunder' || weather === 'storm') {
-         newElements.push({ id: 'glow1', type: 'glow', delay: 0, duration: 4 + Math.random() * 3 });
-         newElements.push({ id: 'glow2', type: 'glow', delay: 2.5, duration: 6 + Math.random() * 2 });
+         newElements.push({ id: 'bolt1', type: 'lightning', left: 10 + Math.random() * 80, delay: 0, duration: 4 + Math.random() * 3, path: generateLightningPath() });
+         newElements.push({ id: 'bolt2', type: 'lightning', left: 10 + Math.random() * 80, delay: 2, duration: 5 + Math.random() * 2, path: generateLightningPath() });
       }
 
       setElements(newElements);
@@ -213,8 +217,11 @@ function LivingBackground({ weather }) {
         if (e.type === 'cloud') return <div key={e.id} className="cloud-vessel rounded-full" style={{ top: `${e.top}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size / 2 }} />
         if (e.type === 'star') return <div key={e.id} className="star-particle" style={{ left: `${e.left}%`, top: `${e.top}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size }} />
         
-        {/* Render the background glow */}
-        if (e.type === 'glow') return <div key={e.id} className="thunder-glow" style={{ animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s` }} />
+        if (e.type === 'lightning') return (
+          <svg key={e.id} className="svg-lightning" viewBox="0 0 200 300" style={{ left: `${e.left}%`, width: '200px', height: '300px', animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s` }}>
+             <path d={e.path} />
+          </svg>
+        );
         return null;
       })}
     </div>
@@ -312,28 +319,20 @@ export default function App() {
   const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
   const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60, currentCanvas: null });
 
-  // Update room profile whenever local profile changes
+  // Ensure strict bidirectional sync of display names and profile pictures
   useEffect(() => {
-    // Solution 29: Prevent null/undefined key leaks in roomProfiles
-    if (userId && userId !== 'null' && JSON.stringify(roomProfiles[userId]) !== JSON.stringify(profile)) {
-      setRoomProfiles(prev => ({ ...prev, [userId]: profile }));
-      console.log(`[SYNC] Local profile pushed for ${profile.name}`);
+    if (userId && profile && profile.name) {
+      setRoomProfiles(prev => {
+        // Prevent infinite loops by checking if it actually changed
+        if (JSON.stringify(prev[userId]) === JSON.stringify(profile)) return prev;
+        return { ...prev, [userId]: profile };
+      });
     }
-    if (profile && profile.name) {
-      localStorage.setItem('attic_profile', JSON.stringify(profile));
-    }
-  }, [profile]);
+  }, [profile, userId, setRoomProfiles]);
 
   const partnerProfile = useMemo(() => roomProfiles[partnerId] || {}, [roomProfiles, partnerId]);
   
-  // Auto-sync partner name to coupleData for persistence
-  useEffect(() => {
-    if (partnerProfile.name && partnerProfile.name !== coupleData.partnerNickname) {
-      setCoupleData(prev => ({ ...prev, partnerNickname: partnerProfile.name }));
-      console.log(`[SYNC] Partner nickname updated to ${partnerProfile.name}`);
-    }
-  }, [partnerProfile.name, coupleData.partnerNickname]);
-
+  // The UI MUST prioritize the synced name.
   const partnerName = partnerProfile.name || coupleData.partnerNickname || 'Partner';
   const partnerEmoji = partnerProfile.emoji || '😊';
 

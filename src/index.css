@@ -3,13 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ════ DEFAULT (warm peach) ════ */
-/* Fix: Added [data-theme="default"] so local component previews inherit it properly */
+/* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
   --bg-main: #ffe8d6;
-  --bg-pattern: #e0bfa5; /* Darkened for grid visibility */
+  --bg-pattern: #e0bfa5; 
   --bg-window: #fffdf9;
   --border: #5c3a21;
+  --text-on-border: #ffffff;
   --primary: #e94560;
   --primary-hover: #c23353;
   --secondary: #4f9ef8;
@@ -23,9 +23,10 @@
 /* ════ THEMES ════ */
 [data-theme="matcha"] {
   --bg-main: #e8eedf;
-  --bg-pattern: #c0cfb1; /* Darkened for grid visibility */
+  --bg-pattern: #c0cfb1;
   --bg-window: #f9faf7;
   --border: #2d4a22;
+  --text-on-border: #ffffff;
   --primary: #4a7c59;
   --primary-hover: #3a6348;
   --secondary: #e07b54;
@@ -41,6 +42,7 @@
   --bg-pattern: #1e293b;
   --bg-window: #0b0f19;
   --border: #94a3b8;
+  --text-on-border: #0f172a;
   --primary: #38bdf8;
   --primary-hover: #0284c7;
   --secondary: #818cf8;
@@ -56,6 +58,7 @@
   --bg-pattern: #1f1f1f;
   --bg-window: #000000;
   --border: #fcee0a;
+  --text-on-border: #000000;
   --primary: #fcee0a;
   --primary-hover: #e0d008;
   --secondary: #00ffcc;
@@ -71,6 +74,7 @@
   --bg-pattern: #3c156b;
   --bg-window: #1a0b2e;
   --border: #ff007f;
+  --text-on-border: #ffffff;
   --primary: #ff007f;
   --primary-hover: #cc0066;
   --secondary: #00f0ff;
@@ -86,6 +90,7 @@
   --bg-pattern: #d4d4d8;
   --bg-window: #ffffff;
   --border: #18181b;
+  --text-on-border: #ffffff;
   --primary: #18181b;
   --primary-hover: #3f3f46;
   --secondary: #52525b;
@@ -101,6 +106,7 @@
   --bg-pattern: #262626;
   --bg-window: #0a0a0a;
   --border: #ffffff;
+  --text-on-border: #000000;
   --primary: #ffffff;
   --primary-hover: #cccccc;
   --secondary: #737373;
@@ -116,6 +122,7 @@
   --bg-pattern: #260a0a;
   --bg-window: #000000;
   --border: #dc2626;
+  --text-on-border: #ffffff;
   --primary: #dc2626;
   --primary-hover: #991b1b;
   --secondary: #7f1d1d;
@@ -131,6 +138,7 @@
   --bg-pattern: #c7d2fe;
   --bg-window: #ffffff;
   --border: #4c1d95;
+  --text-on-border: #ffffff;
   --primary: #8b5cf6;
   --primary-hover: #7c3aed;
   --secondary: #f472b6;
@@ -146,6 +154,7 @@
   --bg-pattern: #d0bda9;
   --bg-window: #f4ebe1;
   --border: #3e2723;
+  --text-on-border: #ffffff;
   --primary: #8b5a2b;
   --primary-hover: #6d4622;
   --secondary: #d2691e;
@@ -161,6 +170,7 @@
   --bg-pattern: #434c5e;
   --bg-window: #242933;
   --border: #eceff4;
+  --text-on-border: #2e3440;
   --primary: #88c0d0;
   --primary-hover: #81a1c1;
   --secondary: #bf616a;
@@ -172,7 +182,6 @@
 }
 
 /* ════ GRADIENT KILLER ════ */
-/* This intercepts Tailwind utility classes on headers/buttons and forces pure solid theme colors */
 [class*="bg-gradient"], .bg-gradient-to-r, .bg-gradient-to-b, .bg-gradient-to-t {
   background-image: none !important;
   background-color: var(--border) !important;
@@ -185,16 +194,11 @@ body {
   font-family: 'Space Mono', monospace;
   background-color: var(--bg-main);
   color: var(--text-main);
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto;
   transition: background-color 0.3s, color 0.3s, transform 0.1s, filter 0.1s;
   font-size: 14px;
 }
 
-/* ════ DYNAMIC SOLID GRID ════ */
-/* Uses repeating-linear-gradient to draw solid lines without any fading or interpolation */
 .bg-pattern-grid {
   background-color: transparent !important;
   background-image: 
@@ -218,6 +222,11 @@ body {
 .retro-bg-secondary { background-color: var(--secondary); color: var(--text-on-secondary); border: 2px solid var(--secondary); }
 .retro-bg-accent { background-color: var(--accent); color: var(--text-on-accent); border: 2px solid var(--accent); }
 
+/* Force Window Headers to use the new contrasting text variable */
+.window-header-text {
+  color: var(--text-on-border) !important;
+}
+
 @media (max-width: 640px) {
   body { font-size: 13px; }
   .retro-bg-window { width: 96% !important; margin: 0 auto; max-width: 100% !important; height: auto !important; max-height: calc(100dvh - 2rem); overflow-y: auto; }
@@ -238,12 +247,8 @@ body {
 .cat-sprite { width: 128px; height: 128px; background-repeat: no-repeat; image-rendering: pixelated; }
 
 /* ════ THE HAWKINS GLITCH ════ */
-/* TIMER INSTRUCTIONS:
-   Right now it is set to "5s" for testing. 
-   To make it happen once a minute, change "5s" to "60s".
-*/
 [data-theme="hawkins"] body {
-  animation: hawkins-upside-down 5s infinite; /* <-- CHANGE THIS 5s TO 60s */
+  animation: hawkins-upside-down 60s infinite; 
   transform-origin: center center;
   overflow-x: hidden;
 }
@@ -277,20 +282,6 @@ body {
   animation: snow-fall linear infinite; opacity: 0.8;
 }
 
-/* Pulsating Top Background Glow (No Gradients, No Overlay) */
-.thunder-glow {
-  position: absolute; 
-  top: -15vh; /* Pulled up so it bleeds down from off-screen */
-  left: -10vw;
-  right: -10vw;
-  height: 45vh; /* Only covers the top half */
-  background-color: var(--text-main); /* Solid color source */
-  filter: blur(120px); /* Massive blur creates the glow without gradients */
-  opacity: 0;
-  z-index: -1; /* Forces it behind the grid and all UI */
-  animation: thunder-pulse infinite;
-}
-
 .cloud-vessel {
   position: absolute; background: var(--bg-window);
   border: 2px solid var(--border); opacity: 0.4;
@@ -300,6 +291,18 @@ body {
 .star-particle {
   position: absolute; background: var(--primary);
   border-radius: 50%; animation: twinkle ease-in-out infinite;
+}
+
+/* Randomized SVG Lightning Animations */
+.svg-lightning {
+  position: absolute;
+  top: 0;
+  stroke: var(--text-main);
+  fill: none;
+  stroke-width: 4;
+  opacity: 0;
+  filter: drop-shadow(0 0 10px var(--text-main));
+  animation: lightning-strike infinite;
 }
 
 @keyframes fall { to { transform: translateY(110dvh); } }
@@ -314,12 +317,11 @@ body {
 @keyframes float-clouds { from { transform: translateX(-200px); } to { transform: translateX(110vw); } }
 @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
 
-/* Flash timing for the glow */
-@keyframes thunder-pulse {
-  0%, 95%, 98%, 100% { opacity: 0; }
-  96% { opacity: 0.7; }
-  97% { opacity: 0.1; }
-  99% { opacity: 0.85; }
+@keyframes lightning-strike {
+  0%, 95%, 98%, 100% { opacity: 0; stroke-width: 0; }
+  96% { opacity: 1; stroke-width: 6; }
+  97% { opacity: 0; stroke-width: 0; }
+  99% { opacity: 0.8; stroke-width: 4; }
 }
 
 .perspective-1000 { perspective: 1000px; }
