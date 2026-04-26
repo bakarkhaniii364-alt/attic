@@ -1,3 +1,7 @@
+import React, { useState, useEffect } from 'react';
+import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { playAudio } from '../utils/audio.js';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { Heart, Flame, Award, MessageCircle, Send, Trophy, MapPin, Calendar, Star } from 'lucide-react';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 

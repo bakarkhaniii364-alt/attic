@@ -1,4 +1,7 @@
+import React, { useState } from 'react';
 import { Moon, Send, Trash2 } from 'lucide-react';
+import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { playAudio } from '../utils/audio.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 export function DreamJournal({ onClose, sfx, userId, roomProfiles = {} }) {
