@@ -96,8 +96,12 @@ function AnniversaryTimer({ anniversary }) {
 
   useEffect(() => {
     if (!anniversary) return;
+    
+    // Add validation
+    const start = new Date(anniversary);
+    if (isNaN(start.getTime())) return;
+
     const update = () => {
-      const start = new Date(anniversary);
       if (isNaN(start.getTime())) return;
       const now = new Date();
       let diff = now - start;
