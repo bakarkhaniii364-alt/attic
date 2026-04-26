@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
+import { isTestMode, sendTestBroadcast, onTestBroadcast, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 
 // Global store for the entire room's data
 let globalState = {};
@@ -23,6 +24,12 @@ export const initializeRoomSync = async (roomId) => {
   currentRoomId = roomId;
   if (!currentRoomId) return;
 
+  if (isTestMode()) {
+    isInitialized = true;
+    notifyListeners();
+    return;
+  }
+
   // 1. Fetch initial state from DB
   const { data, error } = await supabase.from('app_state').select('state').eq('room_id', currentRoomId).single();
   
@@ -42,6 +49,13 @@ export const initializeRoomSync = async (roomId) => {
 export function useGlobalSync(key, initialValue) {
   const [state, setState] = useState(initialValue);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const listener = () => setTick(t => t + 1);
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }, []);
 
   // Load initial value from globalState or localforage
   useEffect(() => {
@@ -76,7 +90,7 @@ export function useGlobalSync(key, initialValue) {
 
   // updateGlobalState with debouncing to prevent spamming the database
   const updateGlobalState = useCallback(async (valueToStore) => {
-    if (!currentRoomId || !isInitialized) return;
+    if (!currentRoomId || (!isInitialized && !isTestMode())) return;
     
     // Deep equality check before updating global store and triggering a push
     if (JSON.stringify(globalState[key]) === JSON.stringify(valueToStore)) return;
@@ -107,13 +121,17 @@ export function useGlobalSync(key, initialValue) {
       setState(valueToStore);
       globalState[key] = valueToStore;
       localforage.setItem(`sync_${key}`, valueToStore).catch(e => console.error(e));
+      if (isTestMode()) {
+        sendTestStateUpdate(key, valueToStore);
+        notifyListeners();
+      }
       updateGlobalState(valueToStore);
     }
   }, [key, state, updateGlobalState]);
 
   // 2. Realtime Sync (per-hook channel to avoid collisions)
   useEffect(() => {
-    if (!currentRoomId || !isInitialized) return;
+    if (!currentRoomId || (!isInitialized && !isTestMode())) return;
 
     const uniqueId = Math.random().toString(36).substring(2, 9);
     const channelName = `sync_${key}_${currentRoomId}_${uniqueId}`;
@@ -138,37 +156,66 @@ export function useGlobalSync(key, initialValue) {
         }
       })
       .subscribe();
+    
+    let unspentTest;
+    if (isTestMode()) {
+        unspentTest = onTestStateUpdate(key, (val) => {
+            console.log(`[TEST_SYNC] Received state update for ${key}:`, val);
+            setState(val);
+            globalState[key] = val;
+            notifyListeners();
+        });
+    }
 
     return () => {
       supabase.removeChannel(channel);
+      if (unspentTest) unspentTest();
     };
-  }, [key, state]);
+  }, [key, tick]);
 
   return [state, updateState];
 }
-
 export function useBroadcast(eventName, callback) {
   const [channel, setChannel] = useState(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (!currentRoomId || !isInitialized) return;
+    const listener = () => setTick(t => t + 1);
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }, []);
+
+  const callbackRef = useRef(callback);
+  useEffect(() => { callbackRef.current = callback; }, [callback]);
+
+  useEffect(() => {
+    if (!currentRoomId || (!isInitialized && !isTestMode())) return;
 
     // Fixed channel name for all users in this room/event
     const channelName = `room_broadcast_${currentRoomId}_${eventName}`;
     const newChannel = supabase.channel(channelName)
       .on('broadcast', { event: eventName }, ({ payload }) => {
-        if (callback) callback(payload);
+        if (callbackRef.current) callbackRef.current(payload);
       })
       .subscribe();
 
     setChannel(newChannel);
 
+    let unspentTest;
+    if (isTestMode()) {
+        unspentTest = onTestBroadcast(eventName, (payload) => {
+            if (callbackRef.current) callbackRef.current(payload);
+        });
+    }
+
     return () => {
       supabase.removeChannel(newChannel);
+      if (unspentTest) unspentTest();
     };
-  }, [eventName, callback, isInitialized]);
+  }, [eventName, tick]); // Re-subscribe if eventName OR initialization state changes
 
   const sendBroadcast = useCallback((payload) => {
+    if (isTestMode()) sendTestBroadcast(eventName, payload);
     if (channel) {
         channel.send({
           type: 'broadcast',

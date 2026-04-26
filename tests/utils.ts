@@ -7,9 +7,11 @@ import { Page } from '@playwright/test';
  * 
  * For real E2E, we should perform a real login.
  */
-export async function loginAsTestUser(page: Page, email: string) {
-  await page.goto('/signin');
-  await page.getByPlaceholder('you@love.com').fill(email);
-  await page.getByPlaceholder('••••••••').fill('password123'); // Assume standard test password
-  await page.getByRole('button', { name: 'enter attic' }).click();
+export async function loginAsTestUser(page: Page, emailOrUser: string) {
+  let user = emailOrUser;
+  if (emailOrUser.includes('@')) {
+    user = emailOrUser.includes('userB') || emailOrUser.includes('B') ? 'userB' : 'userA';
+  }
+  await page.goto(`/dashboard?test_mode=true&user=${user}`);
+  await page.waitForLoadState('networkidle');
 }

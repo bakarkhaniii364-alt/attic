@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
+import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 
 /**
  * useChatSync - Specialized hook for room-specific chat history
@@ -18,7 +19,9 @@ import { supabase } from '../lib/supabase.js';
       reactions: row.metadata?.reactions || [],
       isDeleted: row.metadata?.isDeleted || false,
       isEdited: row.metadata?.isEdited || false,
-      duration: row.metadata?.duration || null
+      duration: row.metadata?.duration || null,
+      status: row.metadata?.status || 'sent',
+      readAt: row.metadata?.readAt || null
     };
 
     // Route content to correct UI prop based on type
@@ -47,6 +50,10 @@ export function useChatSync(roomId) {
     let mounted = true;
 
     const initChat = async () => {
+      if (isTestMode()) {
+        setLoading(false);
+        return;
+      }
       // Try to load from cache first for instant UI
       const cached = await localforage.getItem(`chat_cache_${roomId}`);
       if (cached && mounted) {
@@ -123,10 +130,47 @@ export function useChatSync(roomId) {
         }
       )
       .subscribe();
+    
+    let unspentTest;
+    let unspentUpdateTest;
+    if (isTestMode()) {
+        unspentTest = onTestStateUpdate('chat_message', (payload) => {
+            setMessages((prev) => {
+                if (prev.some(m => m.id === payload.id)) return prev;
+                const mapped = mapMessage(payload);
+                return [...prev, mapped];
+            });
+        });
+        unspentUpdateTest = onTestStateUpdate('chat_message_update', (payload) => {
+            setMessages((prev) => {
+                return prev.map((m) => {
+                    if (m.id === payload.id) {
+                        // Extract metadata updates
+                        const metaUpdates = payload.metadata || {};
+                        // Map status/readAt from metadata if present
+                        const status = metaUpdates.status || m.status;
+                        const readAt = metaUpdates.readAt || m.readAt;
+                        console.log(`[TEST_SYNC] Updating message ${m.id} to status: ${status}`);
+                        
+                        return { 
+                            ...m, 
+                            ...payload,
+                            status,
+                            readAt,
+                            metadata: { ...(m.metadata || {}), ...metaUpdates } 
+                        };
+                    }
+                    return m;
+                });
+            });
+        });
+    }
 
     return () => {
       mounted = false;
       supabase.removeChannel(channel);
+      if (unspentTest) unspentTest();
+      if (unspentUpdateTest) unspentUpdateTest();
     };
   }, [roomId]);
 
@@ -155,6 +199,10 @@ export function useChatSync(roomId) {
     
     // Instantly show the message on screen!
     setMessages(prev => [...prev, mapMessage(optimisticMsg)]);
+    if (isTestMode()) {
+        sendTestStateUpdate('chat_message', optimisticMsg);
+        return optimisticMsg;
+    }
 
     try {
       if (isBlob) {
@@ -235,6 +283,12 @@ export function useChatSync(roomId) {
         delete dbUpdates.status;
         delete dbUpdates.isDeleted;
         delete dbUpdates.isEdited;
+    }
+
+    if (isTestMode()) {
+        const payload = { ...updates, id, metadata: { ...updates } };
+        sendTestStateUpdate('chat_message_update', payload);
+        return payload;
     }
 
     const { data, error } = await supabase

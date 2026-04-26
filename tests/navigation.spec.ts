@@ -25,12 +25,24 @@ test('Activities Hub to Pictionary and back', async ({ page }) => {
   
   // Select Pictionary
   await page.getByText('Pictionary', { exact: true }).click();
-  await expect(page.getByText('pictionary_game.exe')).toBeVisible();
+  
+  // Handle Setup Window
+  await expect(page.getByText('pictionary_setup.exe')).toBeVisible();
+  await page.getByRole('button', { name: /Solo Play/i }).click();
+  
+  // Verify Game Window (using flexible locator)
+  await expect(page.locator('.glass-window').filter({ hasText: /pictionary/i }).first()).toBeVisible();
   
   // Close Pictionary
   await page.getByLabel('Close').first().click();
   
-  // Verify back in Hub
-  await expect(page.getByText('pictionary_game.exe')).not.toBeAttached();
+  // Handle Confirmation Dialog
+  await page.getByRole('button', { name: /Confirm/i }).click();
+  
+  // Wait for React state to propagate and unmount
+  await page.waitForTimeout(500);
+  
+  // Verify back in Hub (wait for unmount of specific window)
+  await expect(page.locator('.glass-window').filter({ hasText: /^pictionary\.exe$/i })).toHaveCount(0, { timeout: 5000 });
   await expect(page.getByText('activities_hub.exe')).toBeVisible();
 });

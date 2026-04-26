@@ -170,6 +170,7 @@ export function ChatView({
     const unreadFromPartner = chatHistory.filter(m => m.sender === partnerId && m.status !== 'read');
     
     if (unreadFromPartner.length > 0) {
+      console.log(`[CHAT] Marking ${unreadFromPartner.length} messages as read from ${partnerId}`);
       if (isNormalized && syncUpdateMessage) {
         unreadFromPartner.forEach(m => {
           syncUpdateMessage(m.id, { status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });

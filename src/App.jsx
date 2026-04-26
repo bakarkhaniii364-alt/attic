@@ -16,6 +16,7 @@ import { useGlobalSync, initializeRoomSync } from './hooks/useSupabaseSync.js';
 import { useChatSync } from './hooks/useChatSync.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { supabase } from './lib/supabase.js';
+import { isTestMode } from './lib/testMode.js';
 
 // Lazy load heavy views
 const ChatView = lazy(() => import('./views/ChatView.jsx').then(m => ({ default: m.ChatView })));
@@ -217,7 +218,7 @@ function LivingBackground({ weather }) {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userId, partnerId } = useUserContext();
+  const { userId } = useUserContext();
 
   // 1. Auth & Session State
   const [session, setSession] = useState(null);
@@ -228,7 +229,10 @@ export default function App() {
   const [syncedRoomId, setSyncedRoomId] = useState(null);
   const [visualsReady, setVisualsReady] = useState(false); // Deferred for performance
   const [onlineUsers, setOnlineUsers] = useState({}); // Tracking presence
-  const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
+  const navigateTo = (v) => { 
+    playAudio('click', sfxEnabled); 
+    navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); 
+  };
 
   // 2. Global Sync States
   const [profile, setProfile] = useLocalStorage('user_profile', { 
@@ -236,6 +240,7 @@ export default function App() {
     emoji: '😊',
     pfp: '' // Will be set on first load if empty
   }); 
+  const partnerId = profile?.partner_id;
 
   // Initialize default PFP if not set
   useEffect(() => {
@@ -315,7 +320,7 @@ export default function App() {
   // Sync Diagnostic Log
   useEffect(() => {
     if (syncedRoomId) {
-        console.log(`[SYNC] Health Status:
+      console.log(`[SYNC] Health Status:
 - Room ID: ${syncedRoomId}
 - Profiles Synced: ${Object.keys(roomProfiles).length} (${Object.keys(roomProfiles).join(', ')})
 - Partner Profile Found: ${!!roomProfiles[partnerId]}
@@ -479,6 +484,10 @@ export default function App() {
   const initiatePeerCall = async (type) => {
     try {
       setIsRinging(false);
+      if (isTestMode()) {
+          setCallState({ ...callState, status: 'connected' });
+          return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
       localStreamRef.current = stream;
       if (!peerRef.current || peerRef.current.destroyed) throw new Error("Peer disconnected");
@@ -593,6 +602,50 @@ export default function App() {
       setVisualsReady(true); // Instant ready, elements are deferred internally
     };
 
+    const checkTestMode = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('test_mode') === 'true') {
+        const testUser = params.get('user') || 'userA';
+        const [base, suffix] = testUser.split('_');
+        const idSuffix = suffix ? `-${suffix}` : '';
+        const id1 = `00000000-0000-0000-0000-000000000001${idSuffix}`;
+        const id2 = `00000000-0000-0000-0000-000000000002${idSuffix}`;
+
+        const mockSession = {
+          user: { 
+            id: base === 'userA' ? id1 : id2,
+            user_metadata: { name: base === 'userA' ? 'Test User A' : 'Test User B' }
+          },
+          access_token: 'fake_token'
+        };
+        localStorage.setItem('attic_test_mode', 'true');
+        localStorage.setItem('attic_test_user', testUser);
+        
+        // Mock profile with partner mapping
+        const mockProfile = {
+            id: base === 'userA' ? id1 : id2,
+            name: base === 'userA' ? 'Test User A' : 'Test User B',
+            partner_id: base === 'userA' ? id2 : id1,
+            partner_name: base === 'userA' ? 'Test User B' : 'Test User A'
+        };
+        const roomSuffix = suffix ? `-${suffix}` : '';
+        const mockRoomId = `00000000-0000-0000-0000-000000000000${roomSuffix}`;
+
+        localStorage.setItem('user_profile', JSON.stringify(mockProfile));
+        setProfile(mockProfile);
+        setSession(mockSession);
+        setHasRoom(true);
+        setPendingRoomId(mockRoomId);
+        setSyncedRoomId(mockRoomId);
+        setLoading(false);
+        setCoreReady(true);
+        setVisualsReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (checkTestMode()) return;
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       if (!mounted) return;
@@ -631,7 +684,7 @@ export default function App() {
   // When we have a pending room ID and core is ready, lazily initialize the full room sync
   useEffect(() => {
     if (!coreReady || !pendingRoomId) return;
-    if (syncedRoomId === pendingRoomId) return;
+    if (syncedRoomId === pendingRoomId && !isTestMode()) return;
     let cancelled = false;
     let presenceChannel = null;
     (async () => {
@@ -687,7 +740,7 @@ export default function App() {
     };
   }, [coreReady, pendingRoomId, userId]);
 
-  const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/'); };
+  const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/dashboard'); };
   const handleAuthSuccess = async (data) => {
     if (data.name) setProfile(prev => ({ ...prev, name: data.name }));
     setSession(data.session);
@@ -699,7 +752,7 @@ export default function App() {
     // For signin, check pairing immediately and route accordingly.
     try {
       const paired = await checkRoomAndSync(data.session.user.id);
-      if (paired) navigate('/'); else navigate('/handshake');
+      if (paired) navigate('/dashboard'); else navigate('/handshake');
     } catch (err) {
       navigate('/handshake');
     }
@@ -714,7 +767,7 @@ export default function App() {
     }, 500);
     // ensure our profile is pushed to room_profiles immediately so partner sees our display name
     try { setRoomProfiles(prev => ({ ...prev, [userId]: profile })); } catch(e) {}
-    navigate('/');
+    navigate('/dashboard');
   };
   const handleShareToChat = async (text, imgData, inviteData = null) => { 
       if (syncedRoomId) {
@@ -813,7 +866,7 @@ export default function App() {
             </div>
           </div>
         }>
-          <Routes>
+          <Routes key={location.pathname}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={
               !session ? (
@@ -825,8 +878,8 @@ export default function App() {
               )
             } />
             <Route path="/login" element={<Navigate to="/" replace />} />
-            <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
-            <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/')} /></PublicRoute>} />
+            <Route path="/signup" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signup" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/dashboard')} /></PublicRoute>} />
+            <Route path="/signin" element={<PublicRoute session={session} hasRoom={hasRoom}><AuthView mode="signin" onAuthSuccess={handleAuthSuccess} onBack={() => navigate('/dashboard')} /></PublicRoute>} />
             <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
             <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 

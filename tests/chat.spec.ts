@@ -7,6 +7,10 @@ test('Real-time message delivery between two users', async ({ browser }) => {
   
   const pageA = await contextA.newPage();
   const pageB = await contextB.newPage();
+
+  // Pipe console logs to terminal for debugging
+  pageA.on('console', msg => console.log('PAGE A:', msg.text()));
+  pageB.on('console', msg => console.log('PAGE B:', msg.text()));
   
   // Note: These must be a paired couple in the DB for this to work in real E2E
   await loginAsTestUser(pageA, 'userA@example.com');
@@ -31,6 +35,9 @@ test('Typing indicator sync', async ({ browser }) => {
   
   const pageA = await contextA.newPage();
   const pageB = await contextB.newPage();
+
+  pageA.on('console', msg => console.log('PAGE A:', msg.text()));
+  pageB.on('console', msg => console.log('PAGE B:', msg.text()));
   
   await loginAsTestUser(pageA, 'userA@example.com');
   await loginAsTestUser(pageB, 'userB@example.com');
