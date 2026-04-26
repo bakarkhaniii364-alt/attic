@@ -407,33 +407,43 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
 
 
 export function ListsApp({ onClose, sfx, userId, roomProfiles = {} }) {
-  const [activeTab, setActiveTab] = useState('bucket'); 
-  const [items, setItems] = useGlobalSync('shared_lists', [ 
-    { id: 1, type: 'bucket', text: 'Visit Japan', done: false, authorId: userId }, 
-    { id: 2, type: 'bucket', text: 'Bake a cake together', done: true, authorId: userId }, 
-    { id: 3, type: 'watch', text: 'Spirited Away', done: false, authorId: userId } 
-  ]); 
+  const [activeTab, setActiveTab] = useState('watchlist'); 
+  const [lists, setLists] = useGlobalSync('shared_lists', { 
+    watchlist: [], 
+    bucketlist: [], 
+    groceries: [] 
+  }); 
   const [newItem, setNewItem] = useState('');
 
   const handleAdd = (e) => { 
     e.preventDefault(); 
     if (!newItem.trim()) return; 
     playAudio('click', sfx); 
-    setItems([...items, { id: Date.now(), type: activeTab, text: newItem, done: false, authorId: userId }]); 
+    const item = { id: Date.now(), text: newItem, done: false, authorId: userId };
+    setLists(prev => ({
+      ...prev,
+      [activeTab]: [...(prev[activeTab] || []), item]
+    }));
     setNewItem(''); 
   };
 
   const toggleDone = (id) => { 
     playAudio('click', sfx); 
-    setItems(items.map(i => i.id === id ? {...i, done: !i.done} : i)); 
+    setLists(prev => ({
+      ...prev,
+      [activeTab]: (prev[activeTab] || []).map(i => i.id === id ? {...i, done: !i.done} : i)
+    }));
   };
 
   const deleteItem = (id) => { 
     playAudio('click', sfx); 
-    setItems(items.filter(i => i.id !== id)); 
+    setLists(prev => ({
+      ...prev,
+      [activeTab]: (prev[activeTab] || []).filter(i => i.id !== id)
+    }));
   };
 
-  const currentItems = items.filter(i => i.type === activeTab);
+  const currentItems = lists[activeTab] || [];
   const getUserName = (id) => {
     if (id === userId) return 'You';
     return roomProfiles[id]?.name || 'Partner';
@@ -441,9 +451,10 @@ export function ListsApp({ onClose, sfx, userId, roomProfiles = {} }) {
 
   return (
     <RetroWindow title="shared_lists.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
-      <div className="flex border-b-2 retro-border shrink-0">
-        <button onClick={() => {playAudio('click', sfx); setActiveTab('bucket')}} className={`flex-1 py-3 font-bold ${activeTab === 'bucket' ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70'}`}>Bucket List</button>
-        <button onClick={() => {playAudio('click', sfx); setActiveTab('watch')}} className={`flex-1 py-3 font-bold border-l-2 retro-border ${activeTab === 'watch' ? 'bg-[var(--secondary)] text-white' : 'bg-white opacity-70'}`}>Watchlist</button>
+      <div className="flex border-b-2 retro-border shrink-0 overflow-x-auto no-scrollbar">
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('watchlist')}} className={`flex-1 min-w-[120px] py-3 font-bold ${activeTab === 'watchlist' ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70'}`}>Watchlist</button>
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('bucketlist')}} className={`flex-1 min-w-[120px] py-3 font-bold border-l-2 retro-border ${activeTab === 'bucketlist' ? 'bg-[var(--secondary)] text-white' : 'bg-white opacity-70'}`}>Bucket List</button>
+        <button onClick={() => {playAudio('click', sfx); setActiveTab('groceries')}} className={`flex-1 min-w-[120px] py-3 font-bold border-l-2 retro-border ${activeTab === 'groceries' ? 'bg-[var(--accent)] text-[var(--text-main)]' : 'bg-white opacity-70'}`}>Groceries</button>
       </div>
       <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-main)]">
         <div className="space-y-3">
@@ -467,7 +478,7 @@ export function ListsApp({ onClose, sfx, userId, roomProfiles = {} }) {
         </div>
       </div>
       <form onSubmit={handleAdd} className="p-3 bg-white retro-border-t flex gap-2 shrink-0">
-        <input type="text" value={newItem} onChange={e=>setNewItem(e.target.value)} placeholder={`Add to ${activeTab === 'bucket' ? 'bucket list' : 'watchlist'}...`} className="flex-1 p-3 retro-border focus:outline-none font-bold text-sm" />
+        <input type="text" value={newItem} onChange={e=>setNewItem(e.target.value)} placeholder={`Add to ${activeTab}...`} className="flex-1 p-3 retro-border focus:outline-none font-bold text-sm" />
         <RetroButton type="submit" variant="primary" className="px-6"><Send size={18}/></RetroButton>
       </form>
     </RetroWindow>
@@ -648,8 +659,7 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
                     zIndex: i + 10
                   }}
                   className="absolute w-32 sm:w-48 bg-white p-1 sm:p-2 retro-border shadow-xl cursor-grab active:cursor-grabbing group select-none"
-                >
-                   <img src={url} alt="" className="w-full h-auto pointer-events-none" />
+                <img src={url} alt="" className="w-full h-auto pointer-events-none" />
                    <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 flex gap-1">
                       <button onClick={(e) => { e.stopPropagation(); rotateImage(url); }} className="p-1 bg-white retro-border rounded-full shadow-md hover:bg-[var(--accent)]"><Brush size={12}/></button>
                    </div>
@@ -660,79 +670,6 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
                DRAG PHOTOS TO CREATE A COLLAGE ❤️
             </div>
           </div>
-        )}
-      </div>
-    </RetroWindow>
-  );
-}
-
-export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
-  const QUESTIONS = [
-    "If we could teleport anywhere for 1 hour, where would we go?",
-    "What's the first thing you noticed about me?",
-    "What's a song that always reminds you of us?",
-    "What's your favorite memory of us from this month?",
-    "If we were characters in a movie, who would we be?",
-    "What's one thing you're really looking forward to doing with me?",
-    "What's a small thing I do that makes you smile?",
-    "If we had a signature cocktail/mocktail, what would it be named?"
-  ];
-  const [data, setData] = useGlobalSync('daily_question', { qIdx: 0, answers: {} });
-  const [myAnswer, setMyAnswer] = useState('');
-  
-  const question = QUESTIONS[data.qIdx % QUESTIONS.length];
-  const myDone = !!data.answers[userId];
-  const partnerId = Object.keys(roomProfiles).find(id => id !== userId);
-  const partnerDone = partnerId && !!data.answers[partnerId];
-  const bothDone = myDone && partnerDone;
-
-  const submitAnswer = () => {
-    if (!myAnswer.trim()) return;
-    playAudio('send', sfx);
-    setData(prev => ({ ...prev, answers: { ...prev.answers, [userId]: myAnswer } }));
-  };
-
-  const nextQuestion = () => {
-    playAudio('click', sfx);
-    setData({ qIdx: (data.qIdx + 1), answers: {} });
-    setMyAnswer('');
-  };
-
-  return (
-    <RetroWindow title="daily_q.exe" onClose={onClose} className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[600px] flex flex-col">
-       <div className="flex-1 p-6 flex flex-col items-center justify-center text-center gap-6">
-          <div className="w-16 h-16 rounded-full retro-bg-accent flex items-center justify-center text-3xl shadow-inner">❓</div>
-          <h2 className="text-xl font-black leading-tight">"{question}"</h2>
-          
-          {!bothDone ? (
-             <div className="w-full space-y-4">
-                {!myDone ? (
-                   <div className="space-y-3">
-                      <textarea value={myAnswer} onChange={e=>setMyAnswer(e.target.value)} placeholder="Type your answer..." className="w-full p-4 retro-border retro-bg-window focus:outline-none resize-none h-24 font-bold" />
-                      <RetroButton variant="primary" onClick={submitAnswer} className="w-full py-3">Submit Answer</RetroButton>
-                   </div>
-                ) : (
-                   <div className="p-6 retro-border bg-white italic opacity-60">Waiting for partner to answer...</div>
-                )}
-                <div className="flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest">
-                   <span className={myDone ? 'text-green-500' : 'opacity-30'}>You: {myDone ? 'Done' : 'Pending'}</span>
-                   <span className={partnerDone ? 'text-green-500' : 'opacity-30'}>Partner: {partnerDone ? 'Done' : 'Pending'}</span>
-                </div>
-             </div>
-          ) : (
-             <div className="w-full space-y-6 animate-in zoom-in-95 duration-500">
-                <div className="grid grid-cols-1 gap-4">
-                   <div className="p-4 retro-border bg-white text-left">
-                      <p className="text-[10px] font-black uppercase text-[var(--primary)] mb-1">Your Answer:</p>
-                      <p className="font-bold">{data.answers[userId]}</p>
-                   </div>
-                   <div className="p-4 retro-border bg-white text-left">
-                      <p className="text-[10px] font-black uppercase text-[var(--secondary)] mb-1">Partner's Answer:</p>
-                      <p className="font-bold">{data.answers[partnerId] || 'No answer'}</p>
-                   </div>
-                </div>
-                <RetroButton variant="accent" onClick={nextQuestion} className="w-full py-3">Next Question</RetroButton>
-             </div>
           )}
        </div>
     </RetroWindow>

@@ -1,8 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { RetroWindow, RetroButton } from '../components/UI.jsx';
-import { playAudio } from '../utils/audio.js';
-import { useLocalStorage } from '../hooks/useLocalStorage.js';
-import { Heart, Flame, Award, MessageCircle, Send, Trophy } from 'lucide-react';
+import { Heart, Flame, Award, MessageCircle, Send, Trophy, MapPin, Calendar, Star } from 'lucide-react';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 // ── DAILY QUESTION ──
 const DAILY_QUESTIONS = [
@@ -18,37 +15,70 @@ const DAILY_QUESTIONS = [
   "What would you write in a letter to future us?", "What's a tradition you want us to start?", "What's your favorite photo of us?",
 ];
 
-export function DailyQuestion({ onClose, sfx }) {
+export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
   const today = new Date().toDateString();
   const questionIdx = Math.abs(today.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % DAILY_QUESTIONS.length;
   const question = DAILY_QUESTIONS[questionIdx];
-  const [answers, setAnswers] = useLocalStorage('daily_answers', {});
-  const [myAnswer, setMyAnswer] = useState(answers[today]?.mine || '');
-  const [submitted, setSubmitted] = useState(!!answers[today]?.mine);
+  
+  const [answers, setAnswers] = useGlobalSync('daily_answers', {});
+  const [myAnswerText, setMyAnswerText] = useState('');
+
+  const myDone = !!answers[today]?.[userId];
+  const partnerId = Object.keys(roomProfiles).find(id => id !== userId);
+  const partnerDone = partnerId && !!answers[today]?.[partnerId];
+  const bothDone = myDone && partnerDone;
 
   const submit = () => {
-    if (!myAnswer.trim()) return;
+    if (!myAnswerText.trim()) return;
     playAudio('send', sfx);
-    const partnerAnswer = "I think about this all the time... 💭";
-    setAnswers({ ...answers, [today]: { mine: myAnswer, partner: partnerAnswer, q: question } });
-    setSubmitted(true);
+    setAnswers(prev => ({
+      ...prev,
+      [today]: {
+        ...(prev[today] || {}),
+        [userId]: myAnswerText,
+        question
+      }
+    }));
   };
 
+  const partnerName = roomProfiles[partnerId]?.name || 'Partner';
+
   return (
-    <RetroWindow title="daily_question.exe" onClose={onClose} className="w-full max-w-lg" confirmOnClose hasUnsavedChanges={() => myAnswer.trim() !== ''} onSaveBeforeClose={() => { submit(); onClose && onClose(); }} sfx={sfx}>
+    <RetroWindow title="daily_question.exe" onClose={onClose} className="w-full max-w-lg" confirmOnClose hasUnsavedChanges={() => !myDone && myAnswerText.trim() !== ''} onSaveBeforeClose={() => { submit(); onClose && onClose(); }} sfx={sfx}>
       <div className="flex flex-col items-center gap-4 py-4">
-        <MessageCircle size={32} className="text-[var(--primary)]" />
-        <h2 className="font-bold text-sm uppercase opacity-50 tracking-widest">Today's Question</h2>
-        <p className="font-bold text-lg sm:text-xl text-center leading-relaxed px-4">{question}</p>
-        {!submitted ? (
-          <div className="w-full flex flex-col gap-3 mt-4">
-            <textarea value={myAnswer} onChange={e => setMyAnswer(e.target.value)} placeholder="Your answer..." className="w-full min-h-[80px] p-4 retro-border retro-bg-window focus:outline-none resize-none" />
-            <RetroButton onClick={submit} className="py-3 w-full flex items-center justify-center gap-2"><Send size={16} /> Submit</RetroButton>
+        <div className="w-16 h-16 rounded-full retro-bg-accent flex items-center justify-center text-3xl shadow-inner animate-pulse">❓</div>
+        <h2 className="font-black text-[10px] uppercase opacity-40 tracking-[0.2em]">Today's Inquiry</h2>
+        <p className="font-bold text-xl sm:text-2xl text-center leading-tight px-4 italic">"{question}"</p>
+        
+        {!bothDone ? (
+          <div className="w-full space-y-4 mt-4">
+            {!myDone ? (
+              <div className="space-y-3">
+                <textarea value={myAnswerText} onChange={e => setMyAnswerText(e.target.value)} placeholder="Type your answer..." className="w-full min-h-[100px] p-4 retro-border retro-bg-window focus:outline-none resize-none font-bold" />
+                <RetroButton variant="primary" onClick={submit} className="py-4 w-full flex items-center justify-center gap-2"><Send size={18} /> Reveal My Answer</RetroButton>
+              </div>
+            ) : (
+              <div className="p-8 retro-border bg-white text-center italic opacity-60 animate-pulse">
+                Your answer is locked in. Waiting for {partnerName} to reveal theirs...
+              </div>
+            )}
+            <div className="flex justify-center gap-6 text-[10px] font-black uppercase tracking-widest">
+               <span className={myDone ? 'text-green-500' : 'opacity-30'}>You: {myDone ? 'READY' : 'PENDING'}</span>
+               <span className={partnerDone ? 'text-green-500' : 'opacity-30'}>{partnerName}: {partnerDone ? 'READY' : 'PENDING'}</span>
+            </div>
           </div>
         ) : (
-          <div className="w-full flex flex-col gap-3 mt-4">
-            <div className="retro-border retro-bg-accent p-3"><p className="text-xs font-bold opacity-50 mb-1">You said:</p><p className="font-bold">{answers[today]?.mine}</p></div>
-            <div className="retro-border retro-bg-secondary p-3"><p className="text-xs font-bold opacity-50 mb-1">Partner said:</p><p className="font-bold">{answers[today]?.partner}</p></div>
+          <div className="w-full space-y-4 mt-4 animate-in zoom-in-95 duration-500">
+            <div className="retro-border bg-white p-4 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-1 h-full bg-[var(--primary)]" />
+               <p className="text-[10px] font-black uppercase text-[var(--primary)] mb-1">Your Perspective:</p>
+               <p className="font-bold text-lg">{answers[today][userId]}</p>
+            </div>
+            <div className="retro-border bg-white p-4 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-1 h-full bg-[var(--secondary)]" />
+               <p className="text-[10px] font-black uppercase text-[var(--secondary)] mb-1">{partnerName}'s Perspective:</p>
+               <p className="font-bold text-lg">{answers[today][partnerId]}</p>
+            </div>
           </div>
         )}
       </div>
@@ -182,60 +212,105 @@ export function LoveLanguageQuiz({ config, onBack, sfx, profile }) {
 }
 
 // ── RELATIONSHIP RESUME ──
-export function RelationshipResume({ onClose, profile, coupleData, scores, sfx, userId }) {
-  const [chatHistory] = useLocalStorage('chat_history', []);
-  const [doodles] = useLocalStorage('shared_doodles', []);
-  const [streakData] = useLocalStorage('streak_data', { count: 0, best: 0 });
+export function RelationshipResume({ onClose, profile, coupleData = {}, scores, sfx, userId, roomProfiles = {} }) {
+  const partnerId = Object.keys(roomProfiles).find(id => id !== userId);
+  const partnerProfile = roomProfiles[partnerId] || {};
 
   const anniversary = coupleData?.anniversary;
   let daysTogether = 0;
   if (anniversary) { daysTogether = Math.floor((new Date() - new Date(anniversary)) / (1000 * 60 * 60 * 24)); }
-  const totalMessages = chatHistory.length;
-  const totalDoodles = doodles.length;
-  const totalGames = Object.values(scores || {}).reduce((a, b) => a + b, 0);
-
+  
   const handleDownload = async () => {
     playAudio('click', sfx);
     const el = document.getElementById('resume-card');
     if (!el) return;
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(el, { backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-window').trim() || '#fffdf9', scale: 2 });
-      const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = `relationship_resume_${Date.now()}.png`; a.click();
+      const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
+      const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = `relationship_resume.png`; a.click();
     } catch (e) { console.error(e); }
   };
 
   return (
-    <RetroWindow title="our_story.exe" onClose={onClose} className="w-full max-w-lg h-[calc(100dvh-4rem)] max-h-[800px]" noPadding>
-      <div id="resume-card" className="flex-1 p-6 sm:p-8 bg-[var(--bg-window)] text-[var(--text-main)] overflow-y-auto">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-[var(--primary)] mb-1">Our Story</h1>
-          <p className="text-sm opacity-50 font-bold">{profile?.name || 'You'} & {coupleData?.partnerNickname || 'Partner'}</p>
-          {anniversary && <p className="text-xs opacity-40 mt-1">Since {new Date(anniversary).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>}
-        </div>
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {[
-            { label: 'Days Together', value: daysTogether, icon: '📅' },
-            { label: 'Messages Sent', value: totalMessages, icon: '💬' },
-            { label: 'Doodles Shared', value: totalDoodles, icon: '🎨' },
-            { label: 'Games Won', value: totalGames, icon: '🏆' },
-            { label: 'Login Streak', value: streakData.count, icon: '🔥' },
-            { label: 'Best Streak', value: streakData.best, icon: '⭐' },
-          ].map(s => (
-            <div key={s.label} className="retro-border p-3 text-center retro-bg-window">
-              <div className="text-2xl mb-1">{s.icon}</div>
-              <div className="text-xl font-bold text-[var(--primary)]">{s.value}</div>
-              <div className="text-[10px] font-bold uppercase opacity-50">{s.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="text-center">
-          <p className="text-[9px] font-bold text-[var(--primary)] opacity-30 uppercase tracking-widest">Generated by Attic</p>
-        </div>
-      </div>
-      <div className="p-4 retro-border-t bg-[var(--bg-main)] shrink-0">
-        <RetroButton onClick={handleDownload} className="w-full py-3 flex items-center justify-center gap-2">📥 Download as Image</RetroButton>
-      </div>
+    <RetroWindow title="our_resume.doc" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+       <div id="resume-card" className="flex-1 bg-white p-6 sm:p-12 overflow-y-auto text-[var(--text-main)]">
+          <div className="border-b-4 border-[var(--border)] pb-8 mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
+             <div>
+                <h1 className="text-4xl font-black uppercase tracking-tighter leading-none mb-2">Relationship Resume</h1>
+                <p className="font-bold opacity-40 uppercase text-[10px] tracking-[0.3em]">Established {anniversary || 'Day One'}</p>
+             </div>
+             <div className="flex -space-x-6">
+                <div className="w-20 h-20 rounded-full retro-border bg-white overflow-hidden shadow-xl z-10 hover:scale-110 transition-transform">
+                   <img src={profile?.pfp} className="w-full h-full object-cover" alt="me" />
+                </div>
+                <div className="w-20 h-20 rounded-full retro-border bg-white overflow-hidden shadow-xl hover:scale-110 transition-transform">
+                   <img src={partnerProfile?.pfp} className="w-full h-full object-cover" alt="partner" />
+                </div>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
+             <section className="space-y-6">
+                <div>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-[var(--border)] mb-4 pb-1 flex items-center gap-2"><Star size={14}/> Core Competencies</h2>
+                   <ul className="space-y-2 font-bold text-sm">
+                      <li className="flex items-center gap-2">✨ Infinite Cuddling & Emotional Support</li>
+                      <li className="flex items-center gap-2">🍕 Advanced Pizza Selection Skills</li>
+                      <li className="flex items-center gap-2">🎤 Expert Level Bad Karaoke</li>
+                      <li className="flex items-center gap-2">🕒 Professional Late Night Talking</li>
+                   </ul>
+                </div>
+                <div>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-[var(--border)] mb-4 pb-1 flex items-center gap-2"><Trophy size={14}/> High Scores</h2>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 retro-border bg-[var(--bg-main)] text-center">
+                         <p className="text-[9px] font-black uppercase opacity-50">Days Sync'd</p>
+                         <p className="text-xl font-black">{daysTogether}</p>
+                      </div>
+                      <div className="p-3 retro-border bg-[var(--bg-main)] text-center">
+                         <p className="text-[9px] font-black uppercase opacity-50">Games Won</p>
+                         <p className="text-xl font-black">{Object.values(scores || {}).reduce((a, b) => a + b, 0)}</p>
+                      </div>
+                   </div>
+                </div>
+             </section>
+             <section className="space-y-6">
+                <div>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-[var(--border)] mb-4 pb-1 flex items-center gap-2"><Calendar size={14}/> Key Milestones</h2>
+                   <div className="space-y-4">
+                      <div className="flex justify-between items-end border-b border-dashed border-[var(--border)] pb-1">
+                         <p className="text-[10px] font-black uppercase opacity-40">The Beginning</p>
+                         <p className="font-bold text-sm">{anniversary || '---'}</p>
+                      </div>
+                      <div className="flex justify-between items-end border-b border-dashed border-[var(--border)] pb-1">
+                         <p className="text-[10px] font-black uppercase opacity-40">First Collaborative Art</p>
+                         <p className="font-bold text-sm">2026-04-27</p>
+                      </div>
+                   </div>
+                </div>
+                <div className="p-4 retro-bg-accent retro-border border-dashed text-center">
+                   <p className="italic font-serif leading-relaxed text-sm">
+                      "Certified authentic connection, synchronized across all digital dimensions."
+                   </p>
+                </div>
+             </section>
+          </div>
+
+          <div className="mt-12 flex justify-around border-t-2 border-[var(--border)] pt-8">
+             <div className="text-center">
+                <div className="h-px w-32 bg-[var(--border)] mb-2"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest">{profile?.name || 'You'}</p>
+             </div>
+             <div className="text-center">
+                <div className="h-px w-32 bg-[var(--border)] mb-2"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest">{partnerProfile?.name || 'Partner'}</p>
+             </div>
+          </div>
+       </div>
+       <div className="p-4 bg-[var(--bg-main)] retro-border-t flex justify-center gap-4">
+          <RetroButton variant="primary" onClick={handleDownload} className="px-8">📥 Download PNG</RetroButton>
+          <RetroButton variant="white" onClick={() => window.print()} className="px-8">🖨️ Print Resume</RetroButton>
+       </div>
     </RetroWindow>
   );
 }
