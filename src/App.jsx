@@ -254,7 +254,12 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
 
-  const [scores, setScores] = useGlobalSync('game_scores', {});
+  const [scores, setScoresRaw] = useGlobalSync('game_scores', {});
+  const setScores = useCallback((val) => {
+    const valueToStore = val instanceof Function ? val(scores || {}) : val;
+    setScoresRaw({ ...(scores || {}), ...valueToStore });
+  }, [scores, setScoresRaw]);
+
   const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId);
   const { assets: doodles, uploadAsset: uploadDoodle } = useAssetSync(syncedRoomId, 'doodle');
@@ -799,7 +804,21 @@ export default function App() {
 
             <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} setChatHistory={setChatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} setSharedImages={setSharedImages} onlineUsers={onlineUsers} /></ProtectedRoute>} />
-            <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={null} onSaveToScrapbook={null} sfx={sfxEnabled} roomId={syncedRoomId} userId={userId} /></ProtectedRoute>} />
+            <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={async (imgData) => {
+                if (syncedRoomId) {
+                    const { base64ToBlob } = await import('./utils/file.js');
+                    const blob = base64ToBlob(imgData);
+                    await uploadDoodle(blob, 'doodle', userId);
+                    toast('Doodle shared!', 'success');
+                }
+            }} onSaveToScrapbook={async (imgData) => {
+                if (syncedRoomId) {
+                    const { base64ToBlob } = await import('./utils/file.js');
+                    const blob = base64ToBlob(imgData);
+                    await uploadImage(blob, 'scrapbook', userId);
+                    toast('Saved to Scrapbook!', 'success');
+                }
+            }} sfx={sfxEnabled} roomId={syncedRoomId} userId={userId} /></ProtectedRoute>} />
             <Route path="/shared-canvas" element={<ProtectedRoute session={session} hasRoom={hasRoom}><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/capsule" element={<ProtectedRoute session={session} hasRoom={hasRoom}><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} letters={letters} setLetters={setLetters} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
             <Route path="/lists" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
@@ -809,6 +828,7 @@ export default function App() {
                 if (syncedRoomId) {
                     const { base64ToBlob } = await import('./utils/file.js');
                     await uploadImage(base64ToBlob(imgData), 'scrapbook', userId);
+                    toast('Pixel Art saved!', 'success');
                 }
             }} userId={userId} /></ProtectedRoute>} />
             <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />

@@ -18,17 +18,8 @@ let currentChannel = null;
 /* ── E2EE UTILITIES REMOVED (Too buggy for current sync architecture) ── */
 
 export const initializeRoomSync = async (roomId) => {
-  if (currentRoomId === roomId && isInitialized && currentChannel) return;
+  if (currentRoomId === roomId && isInitialized) return;
   
-  // 0. Clean up ALL previous channels to avoid subscription collisions
-  try {
-    if (currentChannel) {
-      await supabase.removeChannel(currentChannel);
-    }
-    await supabase.removeAllChannels();
-  } catch (e) { console.warn("Realtime cleanup error", e); }
-  currentChannel = null;
-
   currentRoomId = roomId;
   if (!currentRoomId) return;
 
@@ -38,46 +29,14 @@ export const initializeRoomSync = async (roomId) => {
   if (data && data.state) {
     globalState = data.state;
   } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
-    // Row not found, create it
-    globalState = {}; // Reset for new room
+    globalState = {};
     await supabase.from('app_state').insert({ room_id: currentRoomId, state: globalState });
   } else {
-    globalState = {}; // Reset for new room
+    globalState = {};
   }
 
   isInitialized = true;
   notifyListeners();
-
-  // 2. Setup channel and add listeners BEFORE calling subscribe()
-  // Use a unique channel name to avoid collisions
-  const channelName = `sync_room_${currentRoomId}`;
-  currentChannel = supabase.channel(channelName);
-  
-  currentChannel.on('postgres_changes', { 
-    event: 'UPDATE', 
-    schema: 'public', 
-    table: 'app_state', 
-    filter: `room_id=eq.${currentRoomId}` 
-  }, (payload) => {
-    // Merge incoming state
-    if (payload.new && payload.new.state) {
-        globalState = { ...globalState, ...payload.new.state };
-        notifyListeners();
-    }
-  });
-
-  currentChannel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      console.log('[SYNC] Successfully joined room channel:', currentRoomId);
-    }
-  });
-    
-  return () => { 
-    if (currentChannel) {
-      supabase.removeChannel(currentChannel);
-      currentChannel = null;
-    }
-  };
 };
 
 export function useGlobalSync(key, initialValue) {
@@ -152,24 +111,37 @@ export function useGlobalSync(key, initialValue) {
     }
   }, [key, state, updateGlobalState]);
 
-  // When globalState updates externally, update the local React state
+  // 2. Realtime Sync (per-hook channel to avoid collisions)
   useEffect(() => {
-    const handleSync = () => {
-      const remoteValue = globalState[key];
-      if (remoteValue !== undefined) {
-        // Deep equality check to prevent "Render Storm"
-        const remoteString = JSON.stringify(remoteValue);
-        const localString = JSON.stringify(state);
-        
-        if (remoteString !== localString) {
-          setState(remoteValue);
-          localforage.setItem(`sync_${key}`, remoteValue).catch(e => console.error(e));
+    if (!currentRoomId || !isInitialized) return;
+
+    const uniqueId = Math.random().toString(36).substring(2, 9);
+    const channelName = `sync_${key}_${currentRoomId}_${uniqueId}`;
+    const channel = supabase.channel(channelName)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'app_state', 
+        filter: `room_id=eq.${currentRoomId}` 
+      }, (payload) => {
+        if (payload.new && payload.new.state) {
+            const remoteValue = payload.new.state[key];
+            if (remoteValue !== undefined) {
+                const remoteString = JSON.stringify(remoteValue);
+                const localString = JSON.stringify(state);
+                if (remoteString !== localString) {
+                    setState(remoteValue);
+                    globalState[key] = remoteValue;
+                    localforage.setItem(`sync_${key}`, remoteValue).catch(e => console.error(e));
+                }
+            }
         }
-      }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    listeners.add(handleSync);
-    if (isInitialized) handleSync();
-    return () => listeners.delete(handleSync);
   }, [key, state]);
 
   return [state, updateState];
@@ -177,27 +149,33 @@ export function useGlobalSync(key, initialValue) {
 
 export function useBroadcast(eventName, callback) {
   useEffect(() => {
-    if (!currentChannel || !isInitialized) return;
+    if (!currentRoomId || !isInitialized) return;
 
-    const sub = currentChannel.on('broadcast', { event: eventName }, ({ payload }) => {
-      if (callback) callback(payload);
-    });
+    const uniqueId = Math.random().toString(36).substring(2, 9);
+    const channel = supabase.channel(`broadcast_${eventName}_${uniqueId}`)
+      .on('broadcast', { event: eventName }, ({ payload }) => {
+        if (callback) callback(payload);
+      })
+      .subscribe();
 
     return () => {
-      // Note: Supabase's current API doesn't support easy per-listener removal 
-      // on a channel without removing the entire channel, but the closure 
-      // will correctly handle cleanup when the hook unmounts.
+      supabase.removeChannel(channel);
     };
   }, [eventName, callback, isInitialized]);
 
   const sendBroadcast = useCallback((payload) => {
-    if (currentChannel) {
-      currentChannel.send({
-        type: 'broadcast',
-        event: eventName,
-        payload
-      });
-    }
+    const channel = supabase.channel(`broadcast_sender_${eventName}_${Math.random()}`);
+    channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: eventName,
+          payload
+        }).then(() => {
+          supabase.removeChannel(channel);
+        });
+      }
+    });
   }, [eventName]);
 
   return sendBroadcast;

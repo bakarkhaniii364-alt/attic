@@ -76,7 +76,8 @@ export function useChatSync(roomId) {
     initChat();
 
     // 2. Realtime Subscription (Filtered by room_id)
-    const channelName = `room_chat_${roomId}`;
+    const uniqueId = Math.random().toString(36).substring(2, 9);
+    const channelName = `room_chat_${roomId}_${uniqueId}`;
     const channel = supabase.channel(channelName);
 
     channel
