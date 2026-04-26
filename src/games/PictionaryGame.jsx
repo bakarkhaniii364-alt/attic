@@ -8,7 +8,7 @@ import { useBroadcast } from '../hooks/useSupabaseSync.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
 export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState }) {
-  const { gameState, drawerId, word, displayWord, timeLeft } = pictionaryState;
+  const { gameState, drawerId, word, displayWord, timeLeft, currentCanvas } = pictionaryState;
   const isDrawer = userId === drawerId;
   const partnerName = profile?.partnerNickname || 'Partner';
 
@@ -45,7 +45,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
         drawerId: userId,
         word: newWord,
         displayWord: newWord.split('').map(() => '_'),
-        timeLeft: timerLength
+        timeLeft: timerLength,
+        currentCanvas: null
     });
     setUndoStack([]); 
   };
@@ -82,7 +83,23 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     if (!canvas.dataset.initialized) { canvas.width = rect.width; canvas.height = rect.height; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); canvas.dataset.initialized = 'true'; saveStateToUndo(); }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   };
-  useEffect(() => { if (gameState === 'drawing') updateCanvasResolution(); }, [gameState]);
+  useEffect(() => { 
+      if (gameState === 'drawing') updateCanvasResolution(); 
+  }, [gameState]);
+  
+  // Sync Canvas fallback for re-joining or lag
+  useEffect(() => {
+    if (!isDrawer && currentCanvas && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = currentCanvas;
+    }
+  }, [currentCanvas, isDrawer]);
 
   // Realtime Drawing Sync
   const sendDraw = useBroadcast('pictionary_draw');
@@ -178,6 +195,12 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           saveStateToUndo(); 
           sendDraw({ type: 'up' });
           sendCursor(p => ({...p, show: false}));
+
+          // Sync full canvas state to database for partner persistence
+          const canvas = canvasRef.current;
+          if (canvas) {
+            setPictionaryState(prev => ({ ...prev, currentCanvas: canvas.toDataURL() }));
+          }
       } 
   };
   const handleClear = () => { 

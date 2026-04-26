@@ -283,7 +283,7 @@ export default function App() {
   
   const [callState, setCallState] = useGlobalSync('room_call_state', { status: 'idle' });
   const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
-  const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60 });
+  const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60, currentCanvas: null });
 
   // Update room profile whenever local profile changes
   useEffect(() => {
