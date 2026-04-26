@@ -307,6 +307,27 @@ export function ChatView({
     } catch (err) { alert("Microphone access denied."); }
   };
   const stopRecording = () => { if (!isRecording || !mediaRecorderRef.current) return; setIsRecording(false); clearInterval(recordingTimerRef.current); mediaRecorderRef.current.stop(); };
+
+  // Solution: Dual-Mode Recording (Tap-to-Toggle and Hold-to-Record)
+  const handleMicDown = (e) => {
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    if (!isRecording) {
+      startRecording();
+    } else {
+      stopRecording();
+    }
+  };
+
+  const handleMicUp = () => {
+    if (isRecording) {
+      const elapsed = Date.now() - (recordingStartTimeRef.current || 0);
+      // If held for more than 500ms, stop on release (Hold mode)
+      // Otherwise, stay recording (Toggle mode)
+      if (elapsed > 500) {
+        stopRecording();
+      }
+    }
+  };
   const discardVoiceNote = () => { setVoicePreview(null); setVoicePreviewUrl(null); setVoiceBase64(null); };
   const confirmVoiceNote = async () => {
     if (!voiceBase64 || !voicePreview) return; 
@@ -647,7 +668,7 @@ export function ChatView({
                    <input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 border-2 border-[var(--border)] shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] bg-white focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} />
                  </div>
                  {!input.trim() && !editingMsgId && voicePreview === null && pendingImages.length === 0 ? (
-                   <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[2px_2px_0px_0px_var(--border)] ${isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]'}`}>
+                   <button type="button" onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[2px_2px_0px_0px_var(--border)] ${isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]'}`}>
                      <Mic size={18} className={isRecording ? 'animate-bounce' : ''} />
                    </button>
                  ) : (
