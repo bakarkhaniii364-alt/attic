@@ -13,16 +13,48 @@ import { base64ToBlob, compressImage } from '../utils/file.js';
    ═══════════════════════════════════════════════════════ */
 
 const globalAudioRef = { current: null };
-function VoiceMessagePlayer({ duration, audioUrl }) {
+function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
   const audioRef = useRef(audioUrl ? new Audio(audioUrl) : null);
+  
   useEffect(() => {
     const audio = audioRef.current;
-    if (audio) audio.onended = () => setIsPlaying(false);
+    if (!audio) return;
+    
+    // Proper playhead tracking
+    const updateTime = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+    
+    audio.addEventListener('timeupdate', updateTime);
+    audio.onended = () => { setIsPlaying(false); setProgress(0); };
+    
     const stopHandler = () => { if (globalAudioRef.current !== audioRef.current) setIsPlaying(false); };
     window.addEventListener('stopAudio', stopHandler);
-    return () => { if (audio) { audio.pause(); audio.src = ''; } window.removeEventListener('stopAudio', stopHandler); };
+    
+    return () => { 
+      if (audio) { 
+        audio.pause(); 
+        audio.removeEventListener('timeupdate', updateTime);
+        audio.src = ''; 
+      } 
+      window.removeEventListener('stopAudio', stopHandler); 
+    };
   }, [audioUrl]);
+
+  // Allow clicking the timeline to scrub
+  const handleSeek = (e) => {
+    const bounds = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - bounds.left) / bounds.width;
+    if (audioRef.current && audioRef.current.duration) {
+      audioRef.current.currentTime = percent * audioRef.current.duration;
+      setProgress(percent * 100);
+    }
+  };
+
   const togglePlay = () => {
     if (!audioRef.current) return;
     if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
@@ -33,11 +65,24 @@ function VoiceMessagePlayer({ duration, audioUrl }) {
       setIsPlaying(true);
     }
   };
+
+  // Removed the outer bg-white/50 border so it just acts as bubble content
   return (
-    <div className="flex items-center gap-3 bg-white/50 p-2 rounded-lg retro-border">
-      <button onClick={togglePlay} className="w-8 h-8 rounded-full retro-bg-accent retro-border flex items-center justify-center">{isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}</button>
-      <div className="flex-1 h-2 bg-black/10 rounded-full w-20 sm:w-24 relative overflow-hidden"><div className={`absolute top-0 left-0 h-full bg-[var(--text-main)] w-1/3 rounded-full ${isPlaying ? 'animate-pulse bg-[var(--primary)] w-full transition-all duration-1000' : ''}`}></div></div>
-      <span className="text-xs font-bold">{duration}</span>
+    <div className="flex items-center gap-2 sm:gap-3 w-48 sm:w-56">
+      <button onClick={togglePlay} className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center hover:scale-105 transition-transform ${isMe ? 'bg-white text-[var(--primary)]' : 'bg-[var(--primary)] text-white shadow-sm'}`}>
+        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+      </button>
+      
+      <div onClick={handleSeek} className="flex-1 h-2 bg-black/20 rounded-full relative overflow-hidden cursor-pointer group">
+        <div 
+          className={`absolute top-0 left-0 h-full rounded-full transition-all duration-75 ${isMe ? 'bg-white' : 'bg-[var(--text-main)]'}`} 
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+      
+      <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap ${isMe ? 'text-white opacity-90' : 'text-[var(--text-main)]'}`}>
+        {duration}
+      </span>
     </div>
   );
 }
@@ -368,6 +413,9 @@ export function ChatView({
                 const prevMsg = visibleMsgs[index - 1];
                 const nextMsg = visibleMsgs[index + 1];
 
+                // Add this line to detect if the message is at the bottom of the view
+                const isNearBottom = index >= visibleMsgs.length - 3; 
+
                 // DATA RESOLUTION
                 const isMe = msg.sender === userId;
                 const senderInfo = roomProfiles[msg.sender] || (isMe ? profile : partnerProfile) || {};
@@ -452,7 +500,7 @@ export function ChatView({
                         ) : (
                           <>
                             {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words'}`}>{formatMessage(msg.text)}</span>}
-                            {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} />}
+                            {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'game_invite' && (
                               <div className="border-2 border-[var(--border)] bg-white shadow-[2px_2px_0px_0px_var(--border)] p-3 w-64 text-[var(--text-main)] mt-1">
                                 <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-[var(--border)]/20 pb-2">
@@ -501,8 +549,9 @@ export function ChatView({
                       {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
                         <div className={`
-                          absolute top-0 z-[100] retro-bg-window retro-border shadow-2xl py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200
+                          absolute z-[100] retro-bg-window retro-border shadow-2xl py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200
                           ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
+                          ${isNearBottom ? 'bottom-0' : 'top-0'} 
                         `}>
                           <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
                           <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
