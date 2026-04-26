@@ -44,7 +44,8 @@ export function useAssetSync(roomId, assetType = null) {
     fetchAssets();
 
     // 2. Realtime Updates
-    const channel = supabase.channel(`room_assets_${roomId}`);
+    const channelName = `room_assets_${roomId}_${assetType || 'all'}`;
+    const channel = supabase.channel(channelName);
     channel
       .on(
         'postgres_changes',
@@ -56,6 +57,7 @@ export function useAssetSync(roomId, assetType = null) {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
+            // Only add if it matches our filtered type (or if we are listening to all)
             if (!assetType || payload.new.type === assetType) {
               setAssets(prev => [payload.new, ...prev]);
             }
