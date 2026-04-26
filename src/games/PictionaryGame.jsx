@@ -300,8 +300,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
         {/* Local Cursor */}
         {fakeCursor.show && isDrawer && (
-          <div className="absolute pointer-events-none z-[100]" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
-            <div className={`w-3 h-3 rounded-full border border-black/20`} style={{ backgroundColor: color, transform: 'translate(-50%, -50%)' }}></div>
+          <div className="absolute pointer-events-none z-[100] canvas-cursor" style={{ left: fakeCursor.x, top: fakeCursor.y }}>
+            <div className={`w-3 h-3 rounded-full`} style={{ backgroundColor: 'white', transform: 'translate(-50%, -50%)' }}></div>
           </div>
         )}
 

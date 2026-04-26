@@ -342,3 +342,12 @@ body {
 .preserve-3d { transform-style: preserve-3d; }
 .rotate-x-90 { transform: rotateX(90deg); }
 .rotate-x-0 { transform: rotateX(0deg); }
+
+ . c a n v a s - c u r s o r   { 
+     m i x - b l e n d - m o d e :   d i f f e r e n c e ; 
+     b a c k g r o u n d - c o l o r :   w h i t e   ! i m p o r t a n t ; 
+     b o r d e r :   n o n e   ! i m p o r t a n t ; 
+     p o i n t e r - e v e n t s :   n o n e ; 
+     z - i n d e x :   5 0 ; 
+ }  
+ 

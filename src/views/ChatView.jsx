@@ -98,6 +98,7 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
   const [activeSidebarTab, setActiveSidebarTab] = useState('media');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isTypingLocal, setIsTypingLocal] = useState(false);
   const [voicePreview, setVoicePreview] = useState(null);
   const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
   const [voiceBase64, setVoiceBase64] = useState(null);
@@ -129,11 +130,17 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
   const typingTimeoutRef = useRef(null);
   const handleInputChange = (e) => {
     setInput(e.target.value);
-    sendTyping({ userId, isTyping: true });
+    
+    if (!isTypingLocal) {
+      setIsTypingLocal(true);
+      sendTyping({ userId, isTyping: true });
+    }
+
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
+      setIsTypingLocal(false);
       sendTyping({ userId, isTyping: false });
-    }, 2000);
+    }, 1500);
   };
 
   const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
@@ -350,8 +357,8 @@ export function ChatView({ onClose, profile, partnerProfile, roomProfiles = {}, 
   const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
   const headerActions = (
     <div className="flex gap-2">
-      <button onClick={() => onStartCall('audio')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Voice Call"><Phone size={18} /></button>
-      <button onClick={() => onStartCall('video')} className="p-1 hover:bg-black/10 rounded-md transition-colors" title="Video Call"><Video size={18} /></button>
+      <button onClick={() => onStartCall('audio')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[2px_2px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Voice Call"><Phone size={18} /></button>
+      <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[2px_2px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
     </div>
   );
   const filteredMessages = safeHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));

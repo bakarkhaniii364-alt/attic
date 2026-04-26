@@ -93,7 +93,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           <div className="relative z-10 flex items-center gap-2">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} className="retro-bg-primary retro-border w-7 h-7 flex items-center justify-center hover:scale-110 active:scale-95 transition-all retro-shadow-dark">
+              <button onClick={handleCloseClick} className="p-1 ml-2 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all active:scale-95">
                 <X size={16} strokeWidth={3} />
               </button>
             )}

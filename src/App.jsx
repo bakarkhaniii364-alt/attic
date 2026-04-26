@@ -788,9 +788,19 @@ export default function App() {
             ))}
         </div>
 
-        <Suspense fallback={<AppLoader />}>
+        <Suspense fallback={
+          <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-main)] z-50">
+            <div className="border-2 border-[var(--border)] bg-[var(--bg-window)] shadow-[4px_4px_0px_0px_var(--border)] p-6 text-center animate-pulse">
+              <h2 className="font-black uppercase tracking-widest text-lg mb-2 text-[var(--text-main)]">Loading Module...</h2>
+              <div className="h-4 w-48 border-2 border-[var(--border)] p-0.5 mx-auto">
+                 <div className="h-full bg-[var(--primary)] w-2/3"></div>
+              </div>
+            </div>
+          </div>
+        }>
           <Routes>
-            <Route path="/" element={
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={
               !session ? (
                 <LandingView onTryAttic={() => navigate('/signin')} onSignIn={() => navigate('/signup')} />
               ) : !hasRoom ? (
