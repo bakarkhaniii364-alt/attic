@@ -659,6 +659,7 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
                     zIndex: i + 10
                   }}
                   className="absolute w-32 sm:w-48 bg-white p-1 sm:p-2 retro-border shadow-xl cursor-grab active:cursor-grabbing group select-none"
+                >
                 <img src={url} alt="" className="w-full h-auto pointer-events-none" />
                    <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 flex gap-1">
                       <button onClick={(e) => { e.stopPropagation(); rotateImage(url); }} className="p-1 bg-white retro-border rounded-full shadow-md hover:bg-[var(--accent)]"><Brush size={12}/></button>
