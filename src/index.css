@@ -234,8 +234,8 @@ body {
 
 .retro-border { border: 1.5px solid var(--border); }
 .retro-border-thick { border: 3px solid var(--border); }
-.retro-shadow-dark { box-shadow: 6px 6px 0px 0px var(--border); }
-.retro-shadow-primary { box-shadow: 4px 4px 0px 0px var(--primary); }
+.retro-shadow-dark { box-shadow: 3px 3px 0px 0px var(--border); }
+.retro-shadow-primary { box-shadow: 2px 2px 0px 0px var(--primary); }
 
 .mesh-bg { background-color: var(--bg-main); background-image: none !important; }
 

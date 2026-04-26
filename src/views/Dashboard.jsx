@@ -175,7 +175,7 @@ export const Unit = React.memo(({ val, label }) => {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-white border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000">
+      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-white border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000">
         
         {/* Top Half (Shows NEXT value hidden underneath) */}
         <div className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px]">
@@ -290,7 +290,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
                       )}
                       <div 
-                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] ${onlineUsers[partnerId] === 'active' ? 'bg-green-500' : 'bg-red-500'}`}
+                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 border-2 border-[var(--border)] shadow-[0.5px_0.5px_0px_0px_var(--border)] ${onlineUsers[partnerId] === 'active' ? 'bg-green-500' : 'bg-red-500'}`}
                         title={onlineUsers[partnerId] === 'active' ? 'Online' : 'Offline'}
                       ></div>
                     </div>

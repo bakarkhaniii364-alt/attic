@@ -397,8 +397,8 @@ export function ChatView({
   const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
   const headerActions = (
     <div className="flex gap-2">
-      <button onClick={() => onStartCall('audio')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[2px_2px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Voice Call"><Phone size={18} /></button>
-      <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[2px_2px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
+      <button onClick={() => onStartCall('audio')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Voice Call"><Phone size={18} /></button>
+      <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
     </div>
   );
   const filteredMessages = safeHistory.filter(m => searchQuery === '' || (m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())) || (m.type === 'image' && m.text && m.text.toLowerCase().includes(searchQuery.toLowerCase())));
@@ -490,7 +490,7 @@ export function ChatView({
 
                       <div className={`
                         relative flex flex-col group/bubble
-                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)]'} 
+                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)]'} 
                         ${msg.isDeleted ? 'bg-gray-50 border-gray-200 text-gray-400 italic shadow-none' :
                           isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
                             isMe ? (noBubble ? '' : 'bg-[var(--primary)] text-white') : (noBubble ? '' : 'bg-white text-[var(--text-main)]')}
@@ -523,14 +523,14 @@ export function ChatView({
                             {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words'}`}>{formatMessage(msg.text)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'game_invite' && (
-                              <div className="border-2 border-[var(--border)] bg-white shadow-[2px_2px_0px_0px_var(--border)] p-3 w-64 text-[var(--text-main)] mt-1">
+                              <div className="border-2 border-[var(--border)] bg-white shadow-[1px_1px_0px_0px_var(--border)] p-3 w-64 text-[var(--text-main)] mt-1">
                                 <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-[var(--border)]/20 pb-2">
                                   <Gamepad2 size={18} className="text-[var(--primary)]" />
                                   <span className="font-black text-[10px] uppercase tracking-widest">Activity Invite</span>
                                 </div>
                                 <p className="text-xs font-bold mb-4 opacity-80">{msg.text || `Join me for ${msg.gameTitle || "a game"}!`}</p>
                                 {!isMe ? (
-                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-[var(--accent)] border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button>
+                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-[var(--accent)] border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button>
                                 ) : (
                                   <div className="bg-black/5 border-2 border-dashed border-[var(--border)]/30 p-2 text-center text-[9px] font-black uppercase opacity-60">Waiting for partner...</div>
                                 )}
@@ -658,21 +658,21 @@ export function ChatView({
               {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 rounded-full"><X size={14} /></button></div>)}
               <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
-                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-[var(--border)] bg-white hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[2px_2px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
+                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-[var(--border)] bg-white hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
                    <Paperclip size={18} />
                  </button>
-                 <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 border-2 border-[var(--border)] transition-colors shadow-[2px_2px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-[var(--accent)]' : 'bg-white hover:bg-gray-100'}`}>
+                 <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 border-2 border-[var(--border)] transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-[var(--accent)]' : 'bg-white hover:bg-gray-100'}`}>
                    <Smile size={18} />
                  </button>
                  <div className="flex-1 relative flex items-center">
-                   <input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 border-2 border-[var(--border)] shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] bg-white focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} />
+                   <input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 border-2 border-[var(--border)] shadow-[inset_1px_1px_0px_rgba(0,0,0,0.05)] bg-white focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} />
                  </div>
                  {!input.trim() && !editingMsgId && voicePreview === null && pendingImages.length === 0 ? (
-                   <button type="button" onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[2px_2px_0px_0px_var(--border)] ${isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]'}`}>
+                   <button type="button" onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]'}`}>
                      <Mic size={18} className={isRecording ? 'animate-bounce' : ''} />
                    </button>
                  ) : (
-                   <button type="submit" className="p-2 sm:p-3 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all flex-shrink-0">
+                   <button type="submit" className="p-2 sm:p-3 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all flex-shrink-0">
                      <Send size={18} />
                    </button>
                  )}

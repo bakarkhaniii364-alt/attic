@@ -97,7 +97,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           <div className="relative z-10 flex items-center gap-2">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all active:scale-95">
+              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all active:scale-95">
                 <X size={16} strokeWidth={3} />
               </button>
             )}
@@ -128,7 +128,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
 // ── RetroButton ──
 export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) {
-  const base = "font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none border-2 border-[var(--border)] shadow-[2px_2px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none lowercase flex items-center justify-center gap-2";
+  const base = "font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none lowercase flex items-center justify-center gap-2";
   
   const variants = { 
     primary: "bg-[var(--primary)] text-white", 
