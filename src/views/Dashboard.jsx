@@ -92,65 +92,69 @@ const PixelPet = React.memo(({ happy, sleeping, onClick, skin }) => {
 });
 
 function AnniversaryTimer({ anniversary }) {
-  const [progress, setProgress] = useState(0);
-  const [timeTogether, setTimeTogether] = useState({ years: 0, days: 0 });
+  const [time, setTime] = useState({ years: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
     if (!anniversary || isNaN(new Date(anniversary).getTime())) return;
-    
-    const start = new Date(anniversary);
-    const now = new Date();
-    
-    // Calculate Scoreboard Time
-    const diffTime = Math.abs(now - start);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const years = Math.floor(diffDays / 365);
-    const days = diffDays % 365;
-    setTimeTogether({ years, days });
+    const start = new Date(anniversary).getTime();
 
-    // Calculate Progress Bar to NEXT anniversary
-    const currentYearAnniversary = new Date(start);
-    currentYearAnniversary.setFullYear(now.getFullYear());
-    
-    let nextAnniversary = new Date(currentYearAnniversary);
-    let lastAnniversary = new Date(currentYearAnniversary);
-    
-    if (now > currentYearAnniversary && now.toDateString() !== currentYearAnniversary.toDateString()) {
-      nextAnniversary.setFullYear(now.getFullYear() + 1);
-    } else {
-      lastAnniversary.setFullYear(now.getFullYear() - 1);
-    }
-    
-    const totalDaysInYear = (nextAnniversary - lastAnniversary) / (1000 * 60 * 60 * 24);
-    const daysPassed = (now - lastAnniversary) / (1000 * 60 * 60 * 24);
-    const percent = Math.min(100, Math.max(0, (daysPassed / totalDaysInYear) * 100));
-    
-    // Delay progress update to trigger the CSS transition
-    setTimeout(() => setProgress(percent), 300);
+    // Live ticking interval
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = Math.abs(now - start);
+
+      const daysTotal = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const years = Math.floor(daysTotal / 365);
+      const days = daysTotal % 365;
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      setTime({ years, days, hours, minutes, seconds });
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, [anniversary]);
 
   if (!anniversary) return null;
 
+  // Reusable Scoreboard Panel
+  const ScoreBlock = ({ label, value }) => (
+    <div className="flex flex-col items-center mx-0.5 sm:mx-1">
+      <div className="bg-[var(--bg-main)] retro-border border-b-4 border-r-2 px-2 py-2 sm:py-3 rounded-sm relative overflow-hidden min-w-[2.5rem] sm:min-w-[3.5rem] text-center shadow-[inset_0_3px_6px_rgba(0,0,0,0.1)]">
+        
+        {/* The horizontal split-line across the middle of retro scoreboards */}
+        <div className="absolute top-1/2 left-0 w-full h-[2px] bg-[var(--border)] opacity-30 -translate-y-1/2 z-10 shadow-[0_1px_0_rgba(255,255,255,0.5)]"></div>
+        
+        {/* The Animated Digit (Uses the 'value' as the key so React re-triggers the animation on change) */}
+        <span key={value} className="text-xl sm:text-3xl font-black text-[var(--primary)] scoreboard-digit relative z-0 tracking-tighter">
+          {String(value).padStart(2, '0')}
+        </span>
+      </div>
+      <span className="text-[8px] sm:text-[10px] font-black uppercase mt-2 opacity-60 tracking-widest">{label}</span>
+    </div>
+  );
+
   return (
-    <div className="retro-bg-window retro-border retro-shadow-dark p-5 flex flex-col items-center justify-center relative group">
-      <h3 className="font-black text-lg uppercase tracking-widest text-[var(--text-main)] mb-1">Time Together</h3>
+    <div className="retro-bg-window retro-border retro-shadow-dark p-4 flex flex-col items-center justify-center">
+      <h3 className="font-black text-xs sm:text-sm uppercase tracking-widest text-[var(--text-main)] mb-4 border-b-2 border-dashed border-[var(--border)] pb-2 w-full text-center">
+        Time Together
+      </h3>
       
-      {/* Scoreboard Animation/Text */}
-      <div className="text-3xl font-black text-[var(--primary)] group-hover:scale-110 transition-transform mb-4">
-        {timeTogether.years} <span className="text-sm opacity-60">YRS</span> {timeTogether.days} <span className="text-sm opacity-60">DAYS</span>
+      <div className="flex justify-center items-end">
+        {time.years > 0 && <ScoreBlock label="YRS" value={time.years} />}
+        <ScoreBlock label="DAYS" value={time.days} />
+        
+        <span className="text-xl sm:text-3xl font-black opacity-30 pb-5 sm:pb-7 px-0.5 animate-pulse">:</span>
+        
+        <ScoreBlock label="HRS" value={time.hours} />
+        <span className="text-xl sm:text-3xl font-black opacity-30 pb-5 sm:pb-7 px-0.5 animate-pulse">:</span>
+        
+        <ScoreBlock label="MIN" value={time.minutes} />
+        <span className="text-xl sm:text-3xl font-black opacity-30 pb-5 sm:pb-7 px-0.5 animate-pulse">:</span>
+        
+        <ScoreBlock label="SEC" value={time.seconds} />
       </div>
-      
-      {/* Theme-Responsive Animated Progress Bar */}
-      <div className="w-full h-5 bg-[var(--border)]/10 retro-border overflow-hidden relative">
-        <div 
-          className="h-full bg-[var(--primary)] transition-all duration-[1500ms] ease-out relative overflow-hidden"
-          style={{ width: `${progress}%` }}
-        >
-          {/* Shine Effect */}
-          <div className="absolute top-0 left-0 w-8 h-full bg-white/30 animate-shine"></div>
-        </div>
-      </div>
-      <p className="text-[9px] font-bold uppercase tracking-widest mt-2 opacity-50">Progress to next milestone</p>
     </div>
   );
 }
