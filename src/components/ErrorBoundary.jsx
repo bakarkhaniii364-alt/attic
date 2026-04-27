@@ -43,7 +43,7 @@ export class ErrorBoundary extends React.Component {
 
             {/* 3. Window Content: The Classic BSOD */}
             <div className="bg-[#0000aa] text-white p-6 sm:p-10 flex flex-col selection:bg-white selection:text-[#0000aa]">
-              <h1 className="text-6xl sm:text-8xl font-bold mb-6">:(</h1>
+              <h1 className="text-6xl sm:text-8xl font-bold mb-6" style={{ fontFamily: "'Silkscreen', cursive" }}>:(</h1>
               
               <p className="text-lg sm:text-2xl font-bold leading-tight mb-4">
                 Your attic ran into a problem that it couldn't handle, and now it needs to refresh.
