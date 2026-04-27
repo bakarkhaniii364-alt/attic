@@ -128,7 +128,7 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
               <button disabled={peekAvailable<=0 || disabled} onClick={usePeek} className="text-xs retro-bg-window text-[var(--text-main)] p-1 px-2 retro-border rounded flex items-center gap-1 disabled:opacity-50"><Eye size={12}/> Peek ({peekAvailable})</button>
               <button onClick={() => setFlashlightMode(f=>!f)} className={`text-xs retro-bg-window text-[var(--text-main)] p-1 px-2 retro-border rounded flex items-center gap-1 ${flashlightMode ? 'ring-2 ring-yellow-400' : ''}`}><Lightbulb size={12}/> Flashlight</button>
           </div>
-          <div className="font-bold text-[var(--primary)] mr-2 flex items-center gap-1">Combo: {combo}x {combo>1 && <span className="animate-bounce">🔥</span>}</div>
+          <div className="font-bold text-[var(--primary)] mr-2 flex items-center gap-1">Combo: <span key={combo} className="animate-score">{combo}</span>x {combo>1 && <span className="animate-bounce">🔥</span>}</div>
       </div>
 
       <div className="flex flex-col items-center pb-8 pt-4 flex-1 overflow-y-auto relative" onMouseMove={handleMouseMove} onTouchMove={(e)=>handleMouseMove(e.touches[0])}>
@@ -143,8 +143,8 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
         <div className={`flex w-full justify-between items-center px-4 sm:px-8 mb-6 font-bold text-xs sm:text-base z-30 ${flashlightMode ? 'opacity-40' : 'opacity-100'}`}>
             {config.mode === 'competitive' ? (
                 <>
-                <div className={`p-2 px-4 transition-all duration-300 ${turn === 1 ? 'retro-bg-primary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>P1: {p1Score}</div>
-                <div className={`p-2 px-4 transition-all duration-300 ${turn === 2 ? 'retro-bg-secondary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>P2: {p2Score}</div>
+                <div className={`p-2 px-4 transition-all duration-300 ${turn === 1 ? 'retro-bg-primary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>P1: <span key={p1Score} className="animate-score">{p1Score}</span></div>
+                <div className={`p-2 px-4 transition-all duration-300 ${turn === 2 ? 'retro-bg-secondary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>P2: <span key={p2Score} className="animate-score">{p2Score}</span></div>
                 </>
             ) : ( <div className="text-center w-full opacity-60">Team Effort</div>)}
         </div>

@@ -210,7 +210,12 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
             </div>
         )}
 
-        {matchType === 1 && <div className="flex w-full justify-between px-8 mb-4 font-bold text-lg"><span className="text-[var(--primary-hover)]">P1 ({p1}): {p1Wins}</span><span className="text-[var(--secondary)]">{oppName}: {p2Wins}</span></div>}
+        {matchType === 1 && (
+            <div className="flex w-full justify-between px-8 mb-4 font-bold text-lg">
+                <span className="text-[var(--primary-hover)]">P1 ({p1}): <span key={p1Wins} className="animate-score">{p1Wins}</span></span>
+                <span className="text-[var(--secondary)]">{oppName}: <span key={p2Wins} className="animate-score">{p2Wins}</span></span>
+            </div>
+        )}
 
         <div className={`mb-6 font-bold text-sm sm:text-lg px-6 py-2 retro-border retro-shadow-dark text-center w-3/4 max-w-xs ${!winData && !isDraw ? (xIsNext ? 'retro-bg-primary' : 'retro-bg-secondary') : 'retro-bg-accent'}`}>{winData ? `Round to ${winData.player}!` : isDraw ? "Round Draw!" : config.mode === 'vs_ai' ? (xIsNext ? `Your Turn (${p1})` : 'AI is thinking...') : `Player ${xIsNext ? p1 : p2}'s Turn`}</div>
         

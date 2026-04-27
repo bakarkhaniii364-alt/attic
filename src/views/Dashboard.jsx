@@ -326,11 +326,11 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
         <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2">
-          <p>TicTacToe Wins: {getScoreForUser(scores, userId, 'tictactoe')}</p>
-          <p>Pictionary Guessed: {getScoreForUser(scores, userId, 'pictionary')}</p>
-          <p>Memory Pairs: {getScoreForUser(scores, userId, 'memory')}</p>
-          <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
-          <p>Sudoku Solved: {getScoreForUser(scores, userId, 'sudoku')}</p>
+          <p>TicTacToe Wins: <span key={getScoreForUser(scores, userId, 'tictactoe')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'tictactoe')}</span></p>
+          <p>Pictionary Guessed: <span key={getScoreForUser(scores, userId, 'pictionary')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'pictionary')}</span></p>
+          <p>Memory Pairs: <span key={getScoreForUser(scores, userId, 'memory')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'memory')}</span></p>
+          <p>Wordles Solved: <span key={getScoreForUser(scores, userId, 'wordle')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'wordle')}</span></p>
+          <p>Sudoku Solved: <span key={getScoreForUser(scores, userId, 'sudoku')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'sudoku')}</span></p>
         </div>
       </RetroWindow>
 
