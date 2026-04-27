@@ -493,12 +493,13 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
   transition: transform 0.2s;
 }
 
-/* ════ CAT ANIMATIONS ════ */
-@keyframes cat-step-2 { from { background-position-x: 0; } to { background-position-x: calc(-2 * 128px); } }
-@keyframes cat-step-3 { from { background-position-x: 0; } to { background-position-x: calc(-3 * 128px); } }
-@keyframes cat-step-4 { from { background-position-x: 0; } to { background-position-x: calc(-4 * 128px); } }
-@keyframes cat-step-6 { from { background-position-x: 0; } to { background-position-x: calc(-6 * 128px); } }
-@keyframes cat-step-8 { from { background-position-x: 0; } to { background-position-x: calc(-8 * 128px); } }
-@keyframes cat-step-9 { from { background-position-x: 0; } to { background-position-x: calc(-9 * 128px); } }
-@keyframes cat-step-10 { from { background-position-x: 0; } to { background-position-x: calc(-10 * 128px); } }
-@keyframes cat-step-12 { from { background-position-x: 0; } to { background-position-x: calc(-12 * 128px); } }
+/* ════ CAT ANIMATIONS (With 64px label offset scaled to 512px) ════ */
+@keyframes cat-step-1 { from { background-position-x: -512px; } to { background-position-x: -512px; } }
+@keyframes cat-step-2 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 2 * 128px); } }
+@keyframes cat-step-3 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 3 * 128px); } }
+@keyframes cat-step-4 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 4 * 128px); } }
+@keyframes cat-step-6 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 6 * 128px); } }
+@keyframes cat-step-8 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 8 * 128px); } }
+@keyframes cat-step-9 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 9 * 128px); } }
+@keyframes cat-step-10 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 10 * 128px); } }
+@keyframes cat-step-12 { from { background-position-x: -512px; } to { background-position-x: calc(-512px - 12 * 128px); } }

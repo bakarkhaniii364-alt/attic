@@ -107,8 +107,6 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
   };
 
   // 4. ANIMATION MAPPING (cat 1.x 16x16 sheets)
-  // These indices are based on cat 16x16 with text.png
-  let yOffset = 0;
   let frames = 4;
   let row = 0;
 
@@ -116,22 +114,22 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     row = 12; // Sleep 1 (L)
     frames = 3;
   } else if (currentAction === 'hiss') {
-    row = 41;
+    row = 41; // Hiss (L)
     frames = 2;
   } else if (currentAction === 'eat') {
-    row = 20;
+    row = 20; // Eat Down
     frames = 8;
   } else if (currentAction === 'meow') {
-    row = 28;
+    row = 28; // Meow Sit
     frames = 4;
   } else if (currentAction === 'yawn') {
-    row = 32;
+    row = 32; // Yawn Sit
     frames = 8;
   } else if (currentAction === 'wash') {
-    row = 36;
+    row = 36; // Wash Sit
     frames = 8;
   } else if (currentAction === 'itch') {
-    row = 39;
+    row = 39; // Scratch (L)
     frames = 8;
   } else if (happy < 30) {
     row = 43; // Sad
@@ -149,7 +147,7 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
 
   // Display scale is 8x for 16x16 frames to reach 128px
   const scale = 8;
-  const frameWidth = 16 * scale;
+  const frameWidth = 16 * scale; // 128px
   const bgPosY = `-${row * frameWidth}px`;
   // The actual sprite sheets are 352px wide (22 frames) and 1696px tall (106 rows)
   const bgSize = `${352 * scale}px ${1696 * scale}px`;
