@@ -367,12 +367,13 @@ export default function App() {
     
     setRoomProfiles(prev => {
       const myPrev = prev[userId] || {};
-      // Strict equality check to prevent infinite loops, but deep enough to catch PFP changes
+      // Strict equality check to prevent infinite loops
       if (myPrev.name === profile.name && myPrev.pfp === profile.pfp && myPrev.emoji === profile.emoji && myPrev.mood === profile.mood) {
         return prev;
       }
       console.log(`[SYNC] Broadcasting updated profile for ${profile.name}`);
-      return { ...prev, [userId]: { ...profile } };
+      // Add a sync timestamp to force fresh broadcast even if pfp string is massive
+      return { ...prev, [userId]: { ...profile, lastUpdated: Date.now() } };
     });
   }, [profile.name, profile.pfp, profile.emoji, profile.mood, userId, setRoomProfiles]);
 

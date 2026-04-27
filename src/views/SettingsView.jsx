@@ -51,7 +51,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       const reader = new FileReader(); 
       reader.onloadend = async () => { 
         try {
-          const compressed = await compressImage(reader.result, 150, 150, 0.7);
+          const compressed = await compressImage(reader.result, 150, 150, 0.6);
           setProfile({...profile, pfp: compressed}); 
           playAudio('click', sfxEnabled); 
           toast('Profile photo updated!', 'success'); 
