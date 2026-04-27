@@ -532,11 +532,13 @@ export default function App() {
   useEffect(() => {
     if (!Array.isArray(chatHistory)) return;
     
-    if (chatHistory.length > prevChatLength.current && prevChatLength.current > 0) {
       const newMsgs = chatHistory.slice(prevChatLength.current);
       newMsgs.forEach(msg => {
         // Only notify if it's from them, notifications are ON, and the chat isn't currently open
-        if (msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
+        // Solution: If prevChatLength was 0, we are loading history, so DON'T notify. 
+        // But if prevChatLength > 0, any new message should be notified.
+        const isNewMessage = prevChatLength.current > 0;
+        if (isNewMessage && msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
           playAudio('notif', sfxEnabled);
           const id = Date.now() + Math.random();
           
@@ -786,8 +788,13 @@ export default function App() {
       setHasRoom(isPaired);
       if (isPaired) localStorage.setItem('attic_has_room', 'true');
       else localStorage.setItem('attic_has_room', 'false');
-      if (isPaired && syncedRoomId !== room.id) { 
+      if (isPaired && (syncedRoomId !== room.id || !profile.partner_id)) { 
         setSyncedRoomId(room.id); 
+        // Auto-detect and set partner ID if missing
+        const pid = room.user1_id === uid ? room.user2_id : room.user1_id;
+        if (pid && profile.partner_id !== pid) {
+            setProfile(prev => ({ ...prev, partner_id: pid }));
+        }
         await initializeRoomSync(room.id); 
       }
       return isPaired;
@@ -815,10 +822,16 @@ export default function App() {
           if (metaName && profile.name !== metaName) setProfile(prev => ({ ...prev, name: metaName }));
         } catch (e) {}
 
-        const room = roomRes.data;
         if (room) {
           setHasRoom(!!room.is_paired);
-          if (room.is_paired) setPendingRoomId(room.id);
+          if (room.is_paired) {
+              setPendingRoomId(room.id);
+              // Auto-detect and set partner ID if missing
+              const pid = room.user1_id === s.user.id ? room.user2_id : room.user1_id;
+              if (pid && profile.partner_id !== pid) {
+                  setProfile(prev => ({ ...prev, partner_id: pid }));
+              }
+          }
         } else {
           setHasRoom(false);
         }
@@ -981,8 +994,8 @@ export default function App() {
     return () => { 
       cancelled = true; 
       if (presenceChannel) supabase.removeChannel(presenceChannel);
-      window.removeEventListener('focus', () => {});
-      window.removeEventListener('blur', () => {});
+      window.removeEventListener('focus', handleVisibility);
+      window.removeEventListener('blur', handleVisibility);
     };
   }, [coreReady, pendingRoomId, userId]);
 
