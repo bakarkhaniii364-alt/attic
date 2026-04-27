@@ -107,8 +107,7 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
   return (
     <RetroWindow title="2048.exe" className="w-full max-w-lg h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
-        <span>Score: <span key={score} className="animate-score">{score}</span></span>
-        <span>Best: <span key={best} className="animate-score">{best}</span></span>
+        <span>Score: {score}</span><span>Best: {best}</span>
       </div>
       <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <div className="grid grid-cols-4 gap-2 w-full max-w-[320px] aspect-square p-2 retro-border retro-shadow-dark" style={{ backgroundColor: 'var(--bg-main)' }}>

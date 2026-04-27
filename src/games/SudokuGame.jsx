@@ -192,7 +192,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0">
         <span className="uppercase tracking-widest text-xs">Sudoku — {config.diff}</span>
         <div className="flex gap-4 items-center">
-          <span className="text-sm opacity-80">✗ <span key={mistakes} className="animate-score">{mistakes}</span></span>
+          <span className="text-sm opacity-80">✗ {mistakes}</span>
           <span className="flex items-center gap-2 font-mono">
             {formatTime(time)}
             <button onClick={() => setPaused(!paused)} className="bg-white/20 p-1 rounded hover:bg-white/40">{paused ? <Play size={14} /> : <Pause size={14} />}</button>

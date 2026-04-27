@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Calendar } from 'lucide-react';
+import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3 } from 'lucide-react';
 import { RetroWindow, RetroButton, AppIcon, useToast } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -101,14 +101,14 @@ function AnniversaryTimer({ anniversary }) {
     const start = new Date(anniversary);
     const now = new Date();
     
-    // Calculate total time
+    // Calculate Scoreboard Time
     const diffTime = Math.abs(now - start);
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     const years = Math.floor(diffDays / 365);
     const days = diffDays % 365;
     setTimeTogether({ years, days });
 
-    // Calculate progress to NEXT anniversary
+    // Calculate Progress Bar to NEXT anniversary
     const currentYearAnniversary = new Date(start);
     currentYearAnniversary.setFullYear(now.getFullYear());
     
@@ -125,30 +125,28 @@ function AnniversaryTimer({ anniversary }) {
     const daysPassed = (now - lastAnniversary) / (1000 * 60 * 60 * 24);
     const percent = Math.min(100, Math.max(0, (daysPassed / totalDaysInYear) * 100));
     
-    // Delay setting progress to trigger the smooth CSS width transition
+    // Delay progress update to trigger the CSS transition
     setTimeout(() => setProgress(percent), 300);
   }, [anniversary]);
 
-  if (!anniversary) return (
-    <div className="text-center text-xs opacity-50 font-bold py-2">
-      Set your anniversary date in Settings to start the counter!
-    </div>
-  );
+  if (!anniversary) return null;
 
   return (
-    <div className="retro-bg-window p-5 flex flex-col items-center justify-center relative group">
+    <div className="retro-bg-window retro-border retro-shadow-dark p-5 flex flex-col items-center justify-center relative group">
       <h3 className="font-black text-lg uppercase tracking-widest text-[var(--text-main)] mb-1">Time Together</h3>
+      
+      {/* Scoreboard Animation/Text */}
       <div className="text-3xl font-black text-[var(--primary)] group-hover:scale-110 transition-transform mb-4">
         {timeTogether.years} <span className="text-sm opacity-60">YRS</span> {timeTogether.days} <span className="text-sm opacity-60">DAYS</span>
       </div>
       
-      {/* ── Fixed Theme-Compliant Progress Bar ── */}
+      {/* Theme-Responsive Animated Progress Bar */}
       <div className="w-full h-5 bg-[var(--border)]/10 retro-border overflow-hidden relative">
         <div 
           className="h-full bg-[var(--primary)] transition-all duration-[1500ms] ease-out relative overflow-hidden"
           style={{ width: `${progress}%` }}
         >
-          {/* Animated Shine Overlay */}
+          {/* Shine Effect */}
           <div className="absolute top-0 left-0 w-8 h-full bg-white/30 animate-shine"></div>
         </div>
       </div>
@@ -160,7 +158,7 @@ function AnniversaryTimer({ anniversary }) {
 function UpcomingEvents({ events, anniversary }) {
   const safeEvents = Array.isArray(events) ? [...events] : [];
 
-  // Automatically inject the next anniversary into the calendar
+  // Auto-inject the upcoming anniversary
   if (anniversary && !isNaN(new Date(anniversary).getTime())) {
     const start = new Date(anniversary);
     const now = new Date();
@@ -173,23 +171,23 @@ function UpcomingEvents({ events, anniversary }) {
     safeEvents.push({ title: "Anniversary 💖", date: nextAnniversary.toISOString() });
   }
 
-  // Sort and filter past events
+  // Filter out past events and sort
   const upcoming = safeEvents
     .filter(e => e && e.date && new Date(e.date) >= new Date(new Date().setHours(0,0,0,0)))
     .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 4); // Show top 4
+    .slice(0, 4); // Display max 4
 
   return (
-    <div className="retro-bg-window p-4 flex flex-col h-full">
+    <div className="retro-bg-window retro-border retro-shadow-dark p-4 flex flex-col h-full">
       <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-[var(--border)] pb-2">
-        <Calendar size={18} className="text-[var(--primary)]" />
+        <CalendarIcon size={18} className="text-[var(--primary)]" />
         <h3 className="font-black text-sm uppercase tracking-widest text-[var(--text-main)]">Upcoming Events</h3>
       </div>
       
       <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1">
         {upcoming.length === 0 ? (
           <div className="flex-1 flex items-center justify-center opacity-50 text-xs font-bold italic text-center">
-            No events scheduled.<br/>Add them in the Calendar!
+            No events scheduled.
           </div>
         ) : (
           upcoming.map((ev, i) => {
@@ -205,6 +203,33 @@ function UpcomingEvents({ events, anniversary }) {
             );
           })
         )}
+      </div>
+    </div>
+  );
+}
+
+export function CalendarReminder() {
+  const [events] = useLocalStorage('calendar_events', []);
+  const now = new Date();
+  const upcoming = (events || [])
+    .filter(e => e && e.date && new Date(e.date) >= now)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const next = upcoming[0];
+  if (!next) return (
+    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2 text-[10px] font-bold opacity-40 uppercase tracking-widest text-center">
+      No upcoming events
+    </div>
+  );
+  const daysUntil = Math.ceil((new Date(next.date) - now) / (1000 * 60 * 60 * 24));
+  return (
+    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2">
+      <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-1">📅 upcoming</p>
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 retro-border retro-bg-primary flex items-center justify-center font-bold text-xs">{daysUntil}d</div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-xs truncate">{next.title || next.text || 'Event'}</p>
+          <p className="text-[10px] opacity-50">{new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+        </div>
       </div>
     </div>
   );
@@ -314,9 +339,9 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       </RetroWindow>
 
       <RetroWindow title="together.timer" className="md:col-span-4 h-auto">
-        <div className="flex flex-col h-full gap-3">
+        <div className="flex flex-col h-full justify-center gap-3">
           <AnniversaryTimer anniversary={safeCoupleData.anniversary} />
-          <UpcomingEvents events={safeCoupleData.events} anniversary={safeCoupleData.anniversary} />
+          <UpcomingEvents events={safeCoupleData?.events} anniversary={safeCoupleData?.anniversary} />
         </div>
       </RetroWindow>
 
@@ -326,12 +351,13 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
         <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2">
-          <p>TicTacToe Wins: <span key={getScoreForUser(scores, userId, 'tictactoe')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'tictactoe')}</span></p>
-          <p>Pictionary Guessed: <span key={getScoreForUser(scores, userId, 'pictionary')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'pictionary')}</span></p>
-          <p>Memory Pairs: <span key={getScoreForUser(scores, userId, 'memory')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'memory')}</span></p>
-          <p>Wordles Solved: <span key={getScoreForUser(scores, userId, 'wordle')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'wordle')}</span></p>
-          <p>Sudoku Solved: <span key={getScoreForUser(scores, userId, 'sudoku')} className="animate-score text-[var(--primary)]">{getScoreForUser(scores, userId, 'sudoku')}</span></p>
+          <p>TicTacToe Wins: {getScoreForUser(scores, userId, 'tictactoe')}</p>
+          <p>Pictionary Guessed: {getScoreForUser(scores, userId, 'pictionary')}</p>
+          <p>Memory Pairs: {getScoreForUser(scores, userId, 'memory')}</p>
+          <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
+          <p>Sudoku Solved: {getScoreForUser(scores, userId, 'sudoku')}</p>
         </div>
+        <CalendarReminder />
       </RetroWindow>
 
       <RetroWindow title="applications" className="md:col-span-12">
