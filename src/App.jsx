@@ -969,6 +969,7 @@ export default function App() {
         await initializeRoomSync(pendingRoomId);
         
         // Presence tracking
+        console.log("🟡 Attempting to connect to Supabase Realtime...");
         presenceChannel = supabase.channel(`presence_${pendingRoomId}`, {
           config: { presence: { key: userId } }
         });
@@ -976,6 +977,7 @@ export default function App() {
         presenceChannel
           .on('presence', { event: 'sync' }, () => {
             const newState = presenceChannel.presenceState();
+            console.log("🟢 Presence Sync:", newState); 
             const onlineMap = {};
             Object.keys(newState).forEach(id => {
                onlineMap[id] = newState[id][0]?.status || 'active';
@@ -984,6 +986,7 @@ export default function App() {
             setOnlineUsers({ ...onlineMap });
           })
           .subscribe(async (status) => {
+            console.log("🔵 Supabase Channel Status:", status);
             if (status === 'SUBSCRIBED') {
               await presenceChannel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
             }
@@ -1066,6 +1069,7 @@ export default function App() {
         <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
         {visualsReady && <LivingBackground weather={weather} />}
         {visualsReady && <WeatherOverlay weather={weather} />}
+        <ToastProvider />
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
