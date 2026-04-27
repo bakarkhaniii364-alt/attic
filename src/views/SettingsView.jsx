@@ -142,8 +142,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     }
   };
 
-  const inner = (
-    <div className="space-y-6 pb-24 relative p-4 sm:p-6">
+  const contentArea = (
+    <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-6">
       {/* Profile Section */}
       <section className="p-4 retro-bg-window retro-border border-dashed">
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><User size={20}/> user profile</h2>
@@ -257,8 +257,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                 className={`flex flex-col p-2 retro-border cursor-pointer transition-transform hover:scale-105 ${theme === t ? 'ring-2 ring-offset-2 ring-[var(--primary)]' : 'opacity-80 hover:opacity-100'} bg-[var(--bg-main)]`}
               >
                 <div className="flex justify-between items-center mb-2 px-1">
-                  <span className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-tighter">{t}</span>
-                  {theme === t && <Check size={14} className="text-[var(--primary)]" />}
+                   <span className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-tighter">{t}</span>
+                   {theme === t && <Check size={14} className="text-[var(--primary)]" />}
                 </div>
                 {/* Visual Theme Preview */}
                 <div className="flex flex-col gap-1 bg-[var(--bg-window)] p-1.5 retro-border border-dashed h-12">
@@ -288,7 +288,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         </section>
 
       {/* Danger Zone */}
-      <section className="p-4 bg-red-500/10 retro-border border-red-500/40 mt-auto">
+      <section className="p-4 bg-red-500/10 retro-border border-red-500/40">
         <h2 className="font-bold text-xl text-red-500 mb-2 flex items-center gap-2"><Trash2 size={20}/> danger zone</h2>
         <p className="text-sm opacity-70 mb-4"><strong>Unpair</strong> disconnects you (keeps data). <strong>Delete Room</strong> wipes EVERYTHING permanently.</p>
         <div className="flex flex-wrap gap-2">
@@ -296,26 +296,32 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <button onClick={handleDeleteAccount} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm"><Trash2 size={16}/> Delete Room & Data</button>
         </div>
       </section>
-
-      {/* FIXED BOTTOM BAR */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--bg-window)] border-t-2 retro-border shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-end gap-3 z-50">
-         <RetroButton onClick={handleCancel} variant="secondary" className="px-6 py-2 flex items-center gap-2">
-            <X size={16} /> Cancel
-         </RetroButton>
-         <RetroButton onClick={handleSave} variant="primary" className="px-8 py-2 flex items-center gap-2">
-            <Save size={16} /> Save Settings
-         </RetroButton>
-      </div>
     </div>
   );
 
-  if (compact) return inner;
+  const footerArea = (
+    <div className="shrink-0 p-4 bg-[var(--bg-window)] border-t-2 retro-border shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-end gap-3 z-50">
+       <RetroButton onClick={handleCancel} variant="secondary" className="px-6 py-2 flex items-center gap-2">
+          <X size={16} /> Cancel
+       </RetroButton>
+       <RetroButton onClick={handleSave} variant="primary" className="px-8 py-2 flex items-center gap-2">
+          <Save size={16} /> Save Settings
+       </RetroButton>
+    </div>
+  );
+
+  if (compact) return (
+    <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-window)]">
+       {contentArea}
+       {footerArea}
+    </div>
+  );
 
   return (
-    <RetroWindow title="control_panel.exe" onClose={handleCancel} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative overflow-hidden">
-      <div className="overflow-y-auto h-full">
-         {inner}
-      </div>
+    <RetroWindow title="control_panel.exe" onClose={handleCancel} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative overflow-hidden">
+       {contentArea}
+       {footerArea}
     </RetroWindow>
   );
 }
+
