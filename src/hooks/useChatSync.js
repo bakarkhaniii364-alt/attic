@@ -276,14 +276,17 @@ export function useChatSync(roomId) {
     const dbUpdates = { ...updates };
     if (updates.text !== undefined) { dbUpdates.content = updates.text; delete dbUpdates.text; }
     
-    // If updating metadata (like reactions or status)
-    if (updates.reactions || updates.status || updates.isDeleted || updates.isEdited) {
+    // 🔥 FIX: Define all fields that belong ONLY in the metadata JSONB column
+    const metaKeys = ['reactions', 'status', 'isDeleted', 'isEdited', 'readAt', 'duration', 'replyTo'];
+    const hasMetaUpdate = metaKeys.some(key => updates[key] !== undefined);
+
+    if (hasMetaUpdate) {
+        // Fetch current metadata so we don't overwrite existing data
         const { data: current } = await supabase.from('chat_messages').select('metadata').eq('id', id).single();
         dbUpdates.metadata = { ...(current?.metadata || {}), ...updates };
-        delete dbUpdates.reactions;
-        delete dbUpdates.status;
-        delete dbUpdates.isDeleted;
-        delete dbUpdates.isEdited;
+        
+        // Strip ALL metadata keys from the root of the Supabase update payload
+        metaKeys.forEach(key => delete dbUpdates[key]);
     }
 
     if (isTestMode()) {
