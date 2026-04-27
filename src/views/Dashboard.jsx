@@ -165,7 +165,7 @@ export const Unit = React.memo(({ val, label }) => {
       const timer = setTimeout(() => {
         setDisplayVal(val);
         setIsFlipping(false);
-      }, 400); // Slightly longer for smoother dual-flap transition
+      }, 600); // Duration of the full flip
       return () => clearTimeout(timer);
     }
   }, [val, displayVal]);
@@ -175,43 +175,39 @@ export const Unit = React.memo(({ val, label }) => {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-[var(--bg-window)] border-2 border-[var(--border)] shadow-[1.5px_1.5px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000 overflow-visible">
+      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-[var(--bg-window)] border-2 border-[var(--border)] shadow-[1.5px_1.5px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000 preserve-3d">
         
-        {/* Layer 1: TOP STATIC (The target value, hidden until flip) */}
-        <div className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-main)] opacity-10 overflow-hidden flex items-end justify-center pb-[1px] border-b border-[var(--border)]/10">
+        {/* Layer 1: TOP STATIC (Next value, revealed as flap moves) */}
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] border-b border-[var(--border)]/10">
           <span className="translate-y-1/2">{nextStr}</span>
         </div>
         
-        {/* Layer 2: BOTTOM STATIC (The current value, hidden until flip) */}
+        {/* Layer 2: BOTTOM STATIC (Current value, hidden until flap hits 180) */}
         <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-start justify-center pt-[1px]">
-          <span className="-translate-y-1/2">{nextStr}</span>
+          <span className="-translate-y-1/2">{currentStr}</span>
         </div>
 
-        {/* Layer 3: TOP FLAP (Falls forward from top to 90deg) */}
+        {/* The Animated Flap */}
         <div 
-          className={`absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] origin-bottom z-20 border-b border-[var(--border)]/20 ${isFlipping ? 'transition-all duration-[200ms] ease-in' : ''}`}
+          className={`absolute top-0 left-0 w-full h-1/2 preserve-3d origin-bottom z-20 ${isFlipping ? 'transition-transform duration-[600ms] ease-in-out' : ''}`}
           style={{ 
-            transform: isFlipping ? 'rotateX(-90deg)' : 'rotateX(0deg)',
-            backfaceVisibility: 'hidden'
+            transform: isFlipping ? 'rotateX(-180deg)' : 'rotateX(0deg)',
+            transformStyle: 'preserve-3d'
           }}
         >
-          <span className="translate-y-1/2">{currentStr}</span>
-        </div>
-
-        {/* Layer 4: BOTTOM FLAP (Falls from 90deg to bottom) */}
-        <div 
-          className={`absolute bottom-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-start justify-center pt-[1px] origin-top z-10 ${isFlipping ? 'transition-all delay-[200ms] duration-[200ms] ease-out' : 'opacity-0'}`}
-          style={{ 
-            transform: isFlipping ? 'rotateX(0deg)' : 'rotateX(90deg)',
-            backfaceVisibility: 'hidden',
-            opacity: isFlipping ? 1 : 0
-          }}
-        >
-          <span className="-translate-y-1/2">{nextStr}</span>
+          {/* Front of Flap: Old Top Half */}
+          <div className="absolute inset-0 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] backface-hidden border-b border-[var(--border)]/20" style={{ backfaceVisibility: 'hidden' }}>
+            <span className="translate-y-1/2">{currentStr}</span>
+          </div>
+          
+          {/* Back of Flap: New Bottom Half */}
+          <div className="absolute inset-0 bg-[var(--bg-window)] overflow-hidden flex items-start justify-center pt-[1px] backface-hidden" style={{ backfaceVisibility: 'hidden', transform: 'rotateX(-180deg)' }}>
+            <span className="-translate-y-1/2">{nextStr}</span>
+          </div>
         </div>
 
         {/* Center Crease/Divider */}
-        <div className="absolute top-1/2 left-0 w-full h-[1.5px] bg-[var(--border)] opacity-40 z-30 shadow-sm"></div>
+        <div className="absolute top-1/2 left-0 w-full h-[1.5px] bg-[var(--border)] opacity-30 z-30"></div>
       </div>
       <span className="text-[9px] font-bold opacity-60 uppercase mt-1.5 tracking-tighter">{label}</span>
     </div>
