@@ -488,12 +488,16 @@ export function ChatView({
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col retro-bg-window relative">
               <div className="text-center text-xs font-bold opacity-50 mb-6 retro-border-b inline-block mx-auto pb-1 mt-2">-- connection secured --</div>
-              {filteredMessages.length > viewLimit && (
+              {syncHasMore && (
                 <button
-                  onClick={() => { playAudio('click', sfx); setViewLimit(p => p + 50); }}
+                  onClick={() => { 
+                    playAudio('click', sfx); 
+                    syncLoadMore(); 
+                    setViewLimit(p => p + 50); 
+                  }}
                   className="mx-auto my-4 px-4 py-2 bg-[var(--accent)] retro-border text-xs font-bold uppercase hover:-translate-y-0.5 transition-transform"
                 >
-                  ↑ Load Older Messages ({filteredMessages.length - viewLimit} more)
+                  ↑ Load Older Messages
                 </button>
               )}
               {filteredMessages.slice(-viewLimit).map((msg, index) => {

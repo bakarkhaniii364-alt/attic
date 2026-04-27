@@ -241,7 +241,23 @@ export function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction, streaks, displayStatus = 'Offline' }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction, streaks, isPartnerAfk, lobbyState }) {
+  const partnerPresence = onlineUsers[partnerId] || {};
+  const isPartnerOnline = partnerPresence.status === 'active';
+  
+  let displayStatus = 'Offline';
+  if (isPartnerAfk) {
+      displayStatus = 'Zzz... (Away)';
+  } else if (lobbyState.players?.includes(partnerId) && lobbyState.gameId) {
+      displayStatus = `Playing ${lobbyState.gameId}`;
+  } else if (isPartnerOnline) {
+      displayStatus = 'Online';
+  } else if (partnerPresence.lastActive) {
+      const diffMins = Math.floor((Date.now() - new Date(partnerPresence.lastActive).getTime()) / 60000);
+      if (diffMins < 1) displayStatus = 'Last seen just now';
+      else if (diffMins < 60) displayStatus = `Last seen ${diffMins}m ago`;
+      else displayStatus = `Last seen ${Math.floor(diffMins/60)}h ago`;
+  }
   // SAFEGUARD: Ensure objects are never null when mapping
   const safeCoupleData = coupleData || {};
   const safeChatHistory = chatHistory || [];

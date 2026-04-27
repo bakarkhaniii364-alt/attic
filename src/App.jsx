@@ -51,7 +51,12 @@ const AppLoader = () => (
 /* ═══════════════════════════════════════════════════════
    PREMIUM FLOATING CALL HUB (Discord-Robust)
    ═══════════════════════════════════════════════════════ */
-function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteVideoRef, isRinging, type }) {
+function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteVideoRef, remoteStream, isRinging, type }) {
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current && !isRinging && type === 'video') {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, isRinging, type, remoteVideoRef]);
   const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -456,7 +461,7 @@ export default function App() {
   }, [userId, setAfkState]);
 
   const isPartnerAfk = afkState[partnerId];
-  const isPartnerOnline = !!(onlineUsers && onlineUsers[partnerId]);
+  const isPartnerOnline = onlineUsers[partnerId]?.status === 'active';
   
   // Dynamic Partner Status
   const displayStatus = isPartnerAfk ? 'Zzz... (Away)' :
@@ -497,9 +502,19 @@ export default function App() {
   const localStreamRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteAudioRef = useRef(null);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const [audioBlocked, setAudioBlocked] = useState(false);
   const lastMsgIdRef = useRef(null);
+
+  useEffect(() => {
+    if (remoteStream) {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch(e => setAudioBlocked(true));
+      }
+    }
+  }, [remoteStream]);
 
   // ── NOTIFICATION & STATUS LOGIC ──
   const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
@@ -590,15 +605,7 @@ export default function App() {
            if (localStreamRef.current) {
                call.answer(localStreamRef.current);
                call.on('stream', (rs) => { 
-                 // Solution 21 & 22: Null ref checks
-                 if(remoteAudioRef.current) { 
-                     remoteAudioRef.current.srcObject = rs; 
-                     remoteAudioRef.current.play().catch(e => {
-                         if (e.name === 'NotAllowedError') setAudioBlocked(true);
-                         console.log('Audio autoplay blocked');
-                     }); 
-                 } 
-                 if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
+                 setRemoteStream(rs);
                });
            }
         }
@@ -689,16 +696,8 @@ export default function App() {
       const call = peerRef.current.call(partnerId, stream);
       currentCallRef.current = call;
       
-      call.on('stream', (remoteStream) => {
-        // Solution 22: Null ref checks
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        if (remoteAudioRef.current) { 
-            remoteAudioRef.current.srcObject = remoteStream; 
-            remoteAudioRef.current.play().catch(e => {
-                if (e.name === 'NotAllowedError') setAudioBlocked(true);
-                console.error("Audio block", e);
-            }); 
-        }
+      call.on('stream', (rs) => {
+        setRemoteStream(rs);
       });
       
       // Solution 23: Call close event
@@ -738,14 +737,7 @@ export default function App() {
       if (currentCallRef.current && currentCallRef.current.answer) {
          currentCallRef.current.answer(stream);
          currentCallRef.current.on('stream', (rs) => { 
-           // Solution 21 & 22: Null ref checks
-           if(remoteAudioRef.current) { 
-             remoteAudioRef.current.srcObject = rs; 
-             remoteAudioRef.current.play().catch(e=>{
-               if (e.name === 'NotAllowedError') setAudioBlocked(true);
-             }); 
-           } 
-           if(remoteVideoRef.current) { remoteVideoRef.current.srcObject = rs; }
+            setRemoteStream(rs);
          });
          currentCallRef.current.on('close', () => handleEndCall());
       }
@@ -974,7 +966,10 @@ export default function App() {
             console.log("🟢 Presence Sync:", newState); 
             const onlineMap = {};
             Object.keys(newState).forEach(id => {
-               onlineMap[id] = newState[id][0]?.status || 'active';
+               onlineMap[id] = {
+                 status: newState[id][0]?.status || 'active',
+                 lastActive: newState[id][0]?.onlineAt || new Date().toISOString()
+               };
             });
             setOnlineUsers({ ...onlineMap });
           })
@@ -1087,7 +1082,6 @@ export default function App() {
         <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
         {visualsReady && <LivingBackground weather={weather} />}
         {visualsReady && <WeatherOverlay weather={weather} />}
-        <ToastProvider />
         <Confetti active={confetti} />
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
@@ -1165,6 +1159,7 @@ export default function App() {
               partnerPfp={partnerProfile.pfp}
               sfx={sfxEnabled}
               remoteVideoRef={remoteVideoRef}
+              remoteStream={remoteStream}
               isRinging={isRinging}
               isPiP={location.pathname.startsWith('/activities/')}
             />
@@ -1236,7 +1231,7 @@ export default function App() {
               ) : !hasRoom ? (
                 <Navigate to="/handshake" replace />
               ) : (
-                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendKissBroadcast} displayStatus={displayStatus} />
+                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendKissBroadcast} isPartnerAfk={isPartnerAfk} lobbyState={lobbyState} />
               )
             } />
             <Route path="/login" element={<Navigate to="/" replace />} />
