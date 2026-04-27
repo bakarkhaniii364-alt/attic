@@ -318,7 +318,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
                       )}
                       <div 
-                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 border-2 border-[var(--border)] shadow-[0.5px_0.5px_0px_0px_var(--border)] ${onlineUsers[partnerId] === 'active' ? 'bg-green-500' : 'bg-red-500'}`}
+                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-[var(--border)] transition-all ${onlineUsers[partnerId] === 'active' ? 'bg-green-400 animate-pulse shadow-[0_0_8px_#4ade80]' : 'bg-gray-400 opacity-50'}`}
                         title={onlineUsers[partnerId] === 'active' ? 'Online' : 'Offline'}
                       ></div>
                     </div>

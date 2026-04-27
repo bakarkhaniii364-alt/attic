@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Peer from 'peerjs';
-import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera } from 'lucide-react';
+import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera, Bell, X } from 'lucide-react';
 import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog, useToast } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { useUserContext } from './hooks/useUserContext.js';
@@ -449,27 +449,51 @@ export default function App() {
   const remoteAudioRef = useRef(null);
 
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const lastMsgIdRef = useRef(null);
 
+  // ── NOTIFICATION & STATUS LOGIC ──
+  const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
+  const [partnerOnlineModal, setPartnerOnlineModal] = useState(false);
+  const [textNotifications, setTextNotifications] = useState([]);
+  
+  const prevPartnerOnline = useRef(false);
+  const prevChatLength = useRef(0);
+  
+  const isPartnerOnline = !!onlineUsers[partnerId];
+
+  // 1. Partner Online Tracker
   useEffect(() => {
-    if (!Array.isArray(chatHistory) || chatHistory.length === 0) return;
-    const lastMsg = chatHistory[chatHistory.length - 1];
-    if (lastMsg.sender === partnerId && lastMsg.id !== lastMsgIdRef.current) {
-        lastMsgIdRef.current = lastMsg.id;
-        // Show notification if NOT in chat view
-        if (location.pathname !== '/chat') {
-            const newNotif = { id: lastMsg.id, text: lastMsg.text, type: lastMsg.type };
-            setNotifications(prev => [...prev, newNotif]);
-            playAudio('notif', sfxEnabled);
-            
-            // Solution 20: Robust auto-dismiss with explicit ID matching
-            setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id === lastMsg.id ? false : true));
-            }, 5000);
-        }
+    if (isPartnerOnline && !prevPartnerOnline.current && notificationsEnabled) {
+      setPartnerOnlineModal(true);
+      playAudio('notif', sfxEnabled);
+      setTimeout(() => setPartnerOnlineModal(false), 4000); // Hides after 4 seconds
     }
-  }, [chatHistory, partnerId, location.pathname, sfxEnabled]);
+    prevPartnerOnline.current = isPartnerOnline;
+  }, [isPartnerOnline, notificationsEnabled, sfxEnabled]);
+
+  // 2. Incoming Text Message Tracker
+  useEffect(() => {
+    if (!Array.isArray(chatHistory)) return;
+    
+    if (chatHistory.length > prevChatLength.current && prevChatLength.current > 0) {
+      const newMsgs = chatHistory.slice(prevChatLength.current);
+      newMsgs.forEach(msg => {
+        // Only notify if it's from them, notifications are ON, and the chat isn't currently open
+        if (msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
+          playAudio('notif', sfxEnabled);
+          const id = Date.now() + Math.random();
+          
+          setTextNotifications(prev => [...prev, { ...msg, notifId: id }]);
+          
+          // Auto-dismiss the text notification after 5 seconds
+          setTimeout(() => {
+            setTextNotifications(prev => prev.filter(n => n.notifId !== id));
+          }, 5000);
+        }
+      });
+    }
+    prevChatLength.current = chatHistory.length;
+  }, [chatHistory, location.pathname, partnerId, notificationsEnabled, sfxEnabled]);
 
   const handleEndCall = () => {
     playAudio('click', sfxEnabled);
@@ -1051,24 +1075,35 @@ export default function App() {
         
         <audio ref={remoteAudioRef} autoPlay style={{display: 'none'}} />
 
-        {/* Floating Notifications */}
-        <div className="fixed bottom-4 left-4 z-[200] flex flex-col gap-2 max-w-sm pointer-events-none">
-            {notifications.map(n => (
-                <div key={n.id} onClick={() => navigate('/chat')} className="bg-white/95 backdrop-blur-md p-3 retro-border shadow-xl animate-in slide-in-from-left-4 pointer-events-auto flex items-center gap-3 cursor-pointer transition-transform">
-                    <div className="relative">
-                            {partnerProfile.pfp ? (
-                                <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white shadow-sm" />
-                            ) : (
-                                <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
-                            )}
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border border-white animate-pulse"></div>
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-[10px] font-black uppercase opacity-40 leading-none mb-1">{partnerName}</p>
-                        <p className="text-xs font-bold line-clamp-1">{n.text || (n.type === 'image' ? '📸 Sent a photo' : n.type === 'voice' ? '🎤 Sent a voice note' : 'New message')}</p>
-                    </div>
-                </div>
-            ))}
+        {/* ── PARTNER ONLINE MODAL ── */}
+        {partnerOnlineModal && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[6000] animate-in slide-in-from-top-10 fade-in duration-500 pointer-events-none">
+            <div className="bg-[var(--primary)] text-white px-6 py-3 retro-border retro-shadow-dark flex items-center gap-3 rounded-full">
+              <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_#4ade80]"></div>
+              <span className="font-black uppercase tracking-widest text-xs">
+                {partnerName} is Online!
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ── TEXT NOTIFICATIONS STACK ── */}
+        <div className="fixed bottom-4 right-4 z-[6000] flex flex-col gap-2 pointer-events-none">
+          {textNotifications.map(notif => (
+            <div key={notif.notifId} className="bg-[var(--bg-window)] retro-border retro-shadow-dark p-3 w-64 animate-in slide-in-from-right-10 fade-in duration-300 pointer-events-auto cursor-pointer" onClick={() => navigate('/chat')}>
+              <div className="flex justify-between items-start mb-1">
+                <span className="font-black text-[10px] uppercase text-[var(--primary)] flex items-center gap-1">
+                  <Bell size={10} /> New Message
+                </span>
+                <button onClick={(e) => { e.stopPropagation(); setTextNotifications(p => p.filter(n => n.notifId !== notif.notifId)) }} className="opacity-50 hover:opacity-100">
+                  <X size={12}/>
+                </button>
+              </div>
+              <p className="text-xs truncate font-bold opacity-90">
+                {notif.type === 'text' ? notif.text : `Sent a ${notif.type}`}
+              </p>
+            </div>
+          ))}
         </div>
 
         <Suspense fallback={
@@ -1098,7 +1133,7 @@ export default function App() {
             <Route path="/password-reset" element={<ResetPasswordView sfx={true} />} />
             <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
-            <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} onlineUsers={onlineUsers} syncSendMessage={syncSendMessage} syncUpdateMessage={syncUpdateMessage} syncDeleteMessage={syncDeleteMessage} syncLoadMore={syncLoadMore} syncHasMore={syncHasMore} /></ProtectedRoute>} />
             <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={async (imgData) => {
                 if (syncedRoomId) {
