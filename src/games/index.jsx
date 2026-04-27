@@ -33,20 +33,44 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     setTimeout(() => setConfetti(false), 4000); 
   };
 
-  // Join Lobby on Mount
+  // 1. Identify if the current game is a solo game
+  const soloGames = ['wordle', 'sudoku', '2048', 'typing'];
+  const isSoloGame = soloGames.includes(gameRoute);
+
+  // 2. Handle Entry & Cleanup based on route changes
   useEffect(() => {
-    if (gameRoute && gameRoute !== '') {
+    if (!gameRoute || gameRoute === '') {
+      // User is in the Main Menu -> Clear them from the lobby
+      setLobbyState(prev => {
+        if (!prev) return { players: [], gameId: null, status: 'idle' };
+        const newPlayers = (prev.players || []).filter(p => p !== userId);
+        return { ...prev, gameId: null, players: newPlayers, status: 'waiting' };
+      });
+    } else {
+      // User clicked a game -> Add them to the lobby and set the correct gameId
       setLobbyState(prev => {
         const players = prev.players || [];
-        if (!players.includes(userId)) {
-          return { ...prev, gameId: gameRoute, players: [...players, userId], status: players.length + 1 >= 2 ? 'ready' : 'waiting' };
+        const needsJoin = !players.includes(userId);
+        const gameChanged = prev.gameId !== gameRoute;
+        
+        if (needsJoin || gameChanged) {
+          const newPlayers = needsJoin ? [...players, userId] : players;
+          // If it's a solo game, we are immediately ready. Otherwise, wait for 2 players.
+          const ready = isSoloGame || newPlayers.length >= 2;
+          
+          return { 
+            ...prev, 
+            gameId: gameRoute, 
+            players: newPlayers, 
+            status: ready ? 'ready' : 'waiting' 
+          };
         }
         return prev;
       });
     }
-  }, [gameRoute, userId, setLobbyState]);
+  }, [gameRoute, userId, setLobbyState, isSoloGame]);
 
-  // Leave Lobby on Unmount
+  // Full Unmount Cleanup
   useEffect(() => {
     return () => {
       setLobbyState(prev => {
@@ -57,8 +81,11 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     };
   }, [userId, setLobbyState]);
 
+  // 3. Fix Readiness Logic
   const partnerInLobby = (lobbyState.players || []).includes(partnerId);
-  const isReady = (lobbyState.players || []).includes(userId) && partnerInLobby;
+  
+  // You are ready if you are in the lobby AND (it's a solo game OR your partner is here)
+  const isReady = (lobbyState.players || []).includes(userId) && (isSoloGame || partnerInLobby);
 
   const startGame = () => {
     if (isReady) setLobbyState({ ...lobbyState, status: 'playing' });
