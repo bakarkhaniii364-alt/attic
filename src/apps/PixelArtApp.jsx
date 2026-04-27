@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { Download, Trash2, PaintBucket, Eraser, Pipette, MousePointer2 } from 'lucide-react';
+import { Download, Trash2, PaintBucket, Eraser, Pipette, MousePointer2, Undo, Redo } from 'lucide-react';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 const PALETTE = ['#5c3a21','#e94560','#4f9ef8','#f9e2af','#b5c99a','#ffffff','#000000','#ff6b6b','#a855f7','#14b8a6','#f97316','#ec4899'];
@@ -14,6 +14,44 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const colorInputRef = useRef(null);
+
+  // Local History State
+  const [history, setHistory] = useState([]);
+  const [historyStep, setHistoryStep] = useState(-1);
+
+  // Initialize history on first load
+  useEffect(() => {
+    if (grid && history.length === 0) {
+      setHistory([grid]);
+      setHistoryStep(0);
+    }
+  }, [grid]);
+
+  const pushToHistory = (newGrid) => {
+    const newHistory = history.slice(0, historyStep + 1);
+    newHistory.push(newGrid);
+    if (newHistory.length > 20) newHistory.shift(); 
+    setHistory(newHistory);
+    setHistoryStep(newHistory.length - 1);
+  };
+
+  const handleUndo = () => {
+    if (historyStep > 0) {
+      playAudio('click', sfx);
+      const prevStep = historyStep - 1;
+      setHistoryStep(prevStep);
+      setGrid(history[prevStep]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyStep < history.length - 1) {
+      playAudio('click', sfx);
+      const nextStep = historyStep + 1;
+      setHistoryStep(nextStep);
+      setGrid(history[nextStep]);
+    }
+  };
 
   const paint = (r, c) => {
     if (tool === 'bucket') {
@@ -41,7 +79,12 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
     setDirty(true);
   };
 
-  const clear = () => { playAudio('click', sfx); setGrid(Array(SIZE).fill(null).map(() => Array(SIZE).fill('#ffffff'))); };
+  const clear = () => { 
+    playAudio('click', sfx); 
+    const newGrid = Array(SIZE).fill(null).map(() => Array(SIZE).fill('#ffffff'));
+    setGrid(newGrid);
+    pushToHistory(newGrid);
+  };
 
   const handleExport = () => {
     playAudio('click', sfx);
@@ -76,6 +119,13 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
           <button onClick={() => setTool('bucket')} className={`p-1.5 retro-border ${tool === 'bucket' ? 'bg-white shadow-inner' : 'retro-bg-window opacity-70'}`}><PaintBucket size={14} /></button>
         </div>
 
+        <div className="h-6 w-px bg-[var(--border)] mx-1"></div>
+
+        <div className="flex gap-1">
+          <button onClick={handleUndo} disabled={historyStep <= 0} className="p-1.5 retro-border bg-white disabled:opacity-30"><Undo size={14}/></button>
+          <button onClick={handleRedo} disabled={historyStep >= history.length - 1} className="p-1.5 retro-border bg-white disabled:opacity-30"><Redo size={14}/></button>
+        </div>
+
         <RetroButton variant="white" onClick={() => { clear(); setDirty(false); }} className="px-2 py-1 text-xs ml-auto retro-border"><Trash2 size={12}/></RetroButton>
         <RetroButton onClick={handleExport} className="px-3 py-1 text-xs retro-border"><Download size={12} className="mr-1 inline"/>Save</RetroButton>
       </div>
@@ -84,8 +134,8 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
         <div 
           className={`retro-border retro-shadow-dark aspect-square w-full max-w-[480px] grid select-none cursor-crosshair`} 
           style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, cursor: tool === 'bucket' ? 'cell' : 'crosshair' }}
-          onMouseLeave={() => setIsDrawing(false)}
-          onMouseUp={() => setIsDrawing(false)}
+          onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); pushToHistory(grid); } }}
+          onMouseUp={() => { if (isDrawing) { setIsDrawing(false); pushToHistory(grid); } }}
         >
           {grid.map((row, r) => row.map((c, ci) => (
             <div key={`${r}-${ci}`}

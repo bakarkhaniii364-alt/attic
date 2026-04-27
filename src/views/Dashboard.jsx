@@ -305,6 +305,14 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       <RetroWindow title="welcome.exe" className="md:col-span-8 h-auto min-h-[12rem]">
         <div className="flex flex-col h-full justify-between gap-4">
           <div className="flex justify-between items-start">
+            {streaks?.count > 0 && (
+              <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-orange-100/80 backdrop-blur-sm retro-border px-3 py-1 rounded-full shadow-[inset_0_-2px_0_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500">
+                <Flame size={14} className={`text-orange-500 ${streaks.count > 3 ? 'animate-bounce' : ''}`} fill={streaks.count > 3 ? 'currentColor' : 'none'} />
+                <span className="font-black text-orange-700 text-[10px] tracking-widest uppercase">
+                  {streaks.count} Day{streaks.count !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-4">
               {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
               <div>
@@ -401,6 +409,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
           <AppIcon icon={<ListTodo size={28} />} label="lists" color="var(--primary)" onClick={() => nav('lists')} />
           <AppIcon icon={<CalendarIcon size={28} />} label="calendar" color="var(--accent)" onClick={() => nav('calendar')} />
           <AppIcon icon={<ImageIcon size={28} />} label="album" color="var(--bg-window)" onClick={() => nav('scrapbook')} />
+          <AppIcon icon={<FileText size={28} />} label="notes" color="#f59e0b" onClick={() => nav('notes')} />
           <AppIcon icon={<FileText size={28} />} label="our story" color="#f472b6" onClick={() => nav('resume')} />
           <AppIcon icon={<SettingsIcon size={28} />} label="settings" color="var(--accent)" onClick={() => nav('settings')} />
         </div>

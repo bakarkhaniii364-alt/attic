@@ -28,6 +28,7 @@ const ListsApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ defaul
 const CalendarApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.CalendarApp })));
 const ScrapbookApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ScrapbookApp })));
 const PixelArtApp = lazy(() => import('./apps/PixelArtApp.jsx').then(m => ({ default: m.PixelArtApp })));
+const SharedNotes = lazy(() => import('./apps/SharedNotes.jsx').then(m => ({ default: m.SharedNotes })));
 const DreamJournal = lazy(() => import('./apps/DreamJournal.jsx').then(m => ({ default: m.DreamJournal })));
 const DailyQuestion = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.DailyQuestion })));
 const MilestoneCelebration = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.MilestoneCelebration })));
@@ -335,7 +336,41 @@ export default function App() {
     setScoresRaw({ ...(scores || {}), ...sanitized });
   }, [scores, setScoresRaw]);
 
-  const [streaks, setStreaks] = useGlobalSync('user_streaks', {});
+  const [streaks, setStreaks] = useGlobalSync('user_streaks', { count: 0, lastActiveDate: null });
+  
+  // ── STREAK CALCULATION ENGINE ──
+  useEffect(() => {
+    if (!syncedRoomId || !userId) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    setStreaks(prev => {
+      // Initialize if empty
+      if (!prev || !prev.lastActiveDate) {
+        return { count: 1, lastActiveDate: today };
+      }
+      
+      if (prev.lastActiveDate === today) {
+        return prev; // Already logged today, do nothing
+      }
+
+      const lastDate = new Date(prev.lastActiveDate);
+      const currentDate = new Date(today);
+      const diffTime = Math.abs(currentDate - lastDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        // Consecutive day!
+        return { count: (prev.count || 0) + 1, lastActiveDate: today };
+      } else if (diffDays > 1) {
+        // Missed a day, reset.
+        return { count: 1, lastActiveDate: today };
+      }
+      
+      return prev;
+    });
+  }, [syncedRoomId, userId]);
+
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId);
   const { assets: doodles, uploadAsset: uploadDoodle } = useAssetSync(syncedRoomId, 'doodle');
   const { assets: sharedImages, uploadAsset: uploadImage } = useAssetSync(syncedRoomId, 'scrapbook');
@@ -1163,6 +1198,7 @@ export default function App() {
                     toast('Pixel Art saved!', 'success');
                 }
             }} userId={userId} /></ProtectedRoute>} />
+            <Route path="/notes" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SharedNotes onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} roomName={syncedRoomId} userName={profile.name} userColor={theme === 'midnight' ? '#38bdf8' : '#e94560'} /></ProtectedRoute>} />
             <Route path="/dreams" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomProfiles={roomProfiles} /></ProtectedRoute>} />
             <Route path="/daily-q" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomProfiles={roomProfiles} /></ProtectedRoute>} />
             <Route path="/resume" element={<ProtectedRoute session={session} hasRoom={hasRoom}><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomProfiles={roomProfiles} /></ProtectedRoute>} />

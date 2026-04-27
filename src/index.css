@@ -428,3 +428,33 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
   50% { transform: translateY(-60vh) scale(1.2) rotate(15deg); opacity: 0.6; }
   100% { transform: translateY(-120vh) scale(1) rotate(-15deg); opacity: 0; }
 }
+
+/* ════ TIPTAP COLLABORATION CURSORS ════ */
+.collaboration-cursor__caret {
+  border-left: 2px solid;
+  border-right: 2px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  left: -1px;
+  line-height: normal;
+  padding: 0.1rem 0.3rem;
+  position: absolute;
+  top: -1.4em;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
