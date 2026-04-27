@@ -8,16 +8,17 @@ import { getScore } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
-const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalAction }) => {
+const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, paw, hiss, eat
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isSleeping, setIsSleeping] = useState(false);
   const [sleepStartTime, setSleepStartTime] = useState(null);
-  const [petClickCount, setPetClickCount] = useState(0);
   const [lastPetTime, setLastPetTime] = useState(0);
 
   const actionTimeoutRef = useRef(null);
+  const holdTimeoutRef = useRef(null);
+  const pointerDownTimeRef = useRef(0);
   const spriteRef = useRef(null);
 
   const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9.png';
@@ -72,9 +73,10 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     return () => clearInterval(interval);
   }, [isSleeping, currentAction, isSad]);
 
-  const handleInteraction = () => {
+  const startPress = () => {
     const now = Date.now();
     setLastActivityTime(now);
+    pointerDownTimeRef.current = now;
 
     if (isSleeping) {
       setIsSleeping(false);
@@ -83,21 +85,36 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       return;
     }
 
-    if (now - lastPetTime < 300) {
-      const newCount = petClickCount + 1;
-      setPetClickCount(newCount);
-      if (newCount > 5) {
-        triggerAction('hiss', 2000);
-        setPetClickCount(0);
-        return;
-      }
-    } else {
-      setPetClickCount(1);
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
     }
 
-    setLastPetTime(now);
-    triggerAction('meow', 1500);
-    if (onClick) onClick();
+    holdTimeoutRef.current = setTimeout(() => {
+      setLastPetTime(Date.now());
+      triggerAction('paw', 1200);
+      if (onPet) onPet();
+      holdTimeoutRef.current = null;
+    }, 400);
+  };
+
+  const releasePress = () => {
+    const now = Date.now();
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+      if (now - pointerDownTimeRef.current < 400) {
+        setLastPetTime(now);
+        triggerAction('hiss', 800);
+        if (onHit) onHit();
+      }
+    }
+  };
+
+  const cancelPress = () => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
   };
 
   const getSpriteForState = () => {
@@ -148,8 +165,10 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       className={`relative cursor-pointer select-none transition-opacity ${isSleeping ? 'opacity-80' : ''}`}
       onMouseEnter={() => !isSleeping && setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
-      onMouseDown={handleInteraction}
-      title={isSleeping ? "Shh, pet is sleeping. Click to wake up!" : "Click to pet!"}
+      onPointerDown={startPress}
+      onPointerUp={releasePress}
+      onPointerLeave={cancelPress}
+      title={isSleeping ? "Shh, pet is sleeping. Hold to pet, tap to hit." : "Hold to pet, tap to hit."}
     >
       <div
         ref={spriteRef}
@@ -384,21 +403,37 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const nav = (v) => setView(v);
   const unreadDoodles = safeDoodles.filter(d => d.owner_id === partnerId && !d.isRead);
   const [petCooldown, setPetCooldown] = useState(false);
-  const [petAction, setPetAction] = useState(null); // meow, eat, etc.
+  const [petAction, setPetAction] = useState(null); // eat or other triggered external actions
   
-  const handlePetAction = (val, msg, action = null) => {
+  const handleFeed = () => {
     if (petCooldown) return;
     playAudio('click', sfx);
-    updatePetHappy(Math.min(100, (safeCoupleData.petHappy || 60) + val));
-    if (msg) toast(msg, 'success', 1500);
-    if (action) {
-      setPetAction(action);
-      setTimeout(() => setPetAction(null), 3000);
-    }
+    updatePetHappy(Math.min(100, (safeCoupleData.petHappy || 60) + 20));
+    toast('Fed the pet!', 'success', 1500);
+    setPetAction('eat');
+    setTimeout(() => setPetAction(null), 3000);
     setPetCooldown(true);
     setTimeout(() => setPetCooldown(false), 2000);
   };
-  
+
+  const handlePet = () => {
+    if (petCooldown) return;
+    playAudio('click', sfx);
+    updatePetHappy(Math.min(100, (safeCoupleData.petHappy || 60) + 10));
+    toast('Petted the pet!', 'success', 1200);
+    setPetCooldown(true);
+    setTimeout(() => setPetCooldown(false), 2000);
+  };
+
+  const handleHit = () => {
+    if (petCooldown) return;
+    playAudio('click', sfx);
+    updatePetHappy(Math.max(0, (safeCoupleData.petHappy || 60) - 5));
+    toast('Ouch... that was a hit.', 'warning', 1400);
+    setPetCooldown(true);
+    setTimeout(() => setPetCooldown(false), 2000);
+  };
+
   const partnerName = partnerProfile?.name || safeCoupleData.partnerNickname || 'Partner';
   const petSkin = safeCoupleData.petSkin || '/assets/cat 1.9.png';
   const petHappy = safeCoupleData.petHappy ?? 60;
@@ -483,13 +518,10 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
-          <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onClick={() => handlePetAction(5)} />
+          <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
           <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
-          <div className="flex flex-wrap gap-2 w-full mt-4">
-            <RetroButton variant="secondary" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(20, 'Fed the pet!', 'eat')}>Feed</RetroButton>
-            <RetroButton variant="accent" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10, 'Petted the pet!', 'meow')}>Pet</RetroButton>
-            <RetroButton variant="secondary" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10, 'Washed the pet!', 'wash')}>Wash</RetroButton>
-            <RetroButton variant="accent" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10, 'Played with the pet!', 'paw')}>Play</RetroButton>
+          <div className="flex gap-2 w-full mt-4">
+            <RetroButton variant="secondary" className="flex-1 py-2 text-xs" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
           </div>
         </div>
       </RetroWindow>
