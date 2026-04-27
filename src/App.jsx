@@ -1008,21 +1008,24 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [coreReady, theme]);
 
-  // When we have a pending room ID and core is ready, lazily initialize the full room sync
   useEffect(() => {
     if (!coreReady || !pendingRoomId || !userId) return;
     if (syncedRoomId === pendingRoomId && !isTestMode()) return;
+    
+    const handleVisibility = () => {
+      if (globalChannelRef.current?.state === 'joined') {
+        globalChannelRef.current.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+      }
+    };
+
     let cancelled = false;
-    let presenceChannel = null;
     (async () => {
       try {
-        // give the UI a tick before starting heavy sync
         await new Promise(r => setTimeout(r, 200));
         if (cancelled) return;
         setSyncedRoomId(pendingRoomId);
         await initializeRoomSync(pendingRoomId);
         
-        // 🔥 UNIFIED REALTIME CHANNEL (Presence + Kisses) 🔥
         console.log("🟡 Attempting to connect to Unified Room Channel...");
         const channel = supabase.channel(`room_${pendingRoomId}`, {
           config: { 
@@ -1032,10 +1035,8 @@ export default function App() {
         });
 
         channel
-          // 1. Handle Online/Offline Status
           .on('presence', { event: 'sync' }, () => {
             const newState = channel.presenceState();
-            console.log("🟢 Presence Sync:", newState); 
             const onlineMap = {};
             Object.keys(newState).forEach(id => {
                onlineMap[id] = {
@@ -1045,7 +1046,6 @@ export default function App() {
             });
             setOnlineUsers({ ...onlineMap });
           })
-          // 2. Handle Incoming Kisses (Interaction)
           .on('broadcast', { event: 'interaction' }, (payload) => {
              console.log('[INTERACTION] Received:', payload, 'Current PartnerId:', partnerId);
              if (payload.payload.type === 'kiss' && payload.payload.from === partnerId) {
@@ -1055,10 +1055,9 @@ export default function App() {
                 if (payload.payload.timestamp) localStorage.setItem('last_seen_kiss', payload.payload.timestamp);
                 setTimeout(() => setShowKiss(false), 4500);
              }
-             // 🔥 NEW: Floating Doodles
              if (payload.payload.type === 'doodle_alert' && payload.payload.from === partnerId) {
                 setFloatingDoodles(prev => [...prev, payload.payload.imgData]);
-                playAudio('notif', sfxEnabled); // Ping sound!
+                playAudio('notif', sfxEnabled);
              }
           })
           .subscribe(async (status) => {
@@ -1069,12 +1068,6 @@ export default function App() {
           });
 
         globalChannelRef.current = channel;
-
-        const handleVisibility = () => {
-          if (channel.state === 'joined') {
-            channel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
-          }
-        };
         window.addEventListener('focus', handleVisibility);
         window.addEventListener('blur', handleVisibility);
       } catch (err) {
@@ -1087,7 +1080,7 @@ export default function App() {
       window.removeEventListener('focus', handleVisibility);
       window.removeEventListener('blur', handleVisibility);
     };
-  }, [coreReady, pendingRoomId, userId, partnerId]);
+  }, [coreReady, pendingRoomId, userId, partnerId, syncedRoomId]);
 
   const sendKissBroadcast = () => {
     const now = Date.now().toString();
