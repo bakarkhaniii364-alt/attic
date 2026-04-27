@@ -347,10 +347,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       <RetroWindow title="together.timer" className="md:col-span-4 h-auto">
         <div className="flex flex-col h-full justify-center gap-3">
           <AnniversaryTimer anniversary={coupleData.anniversary} />
-          <div className="flex flex-wrap gap-2 justify-center mt-2 border-t border-dashed border-[var(--border)] pt-3">
-            <p className="w-full text-center mb-1 font-bold text-[10px] opacity-50 uppercase tracking-widest">my mood</p>
-            {['😊', '😴', '🥺', '😡', '🥰', '😤'].map(m => (<button key={m} onClick={() => { playAudio('click', sfx); setMood(m); }} className={`text-lg w-7 h-7 rounded-full retro-border flex items-center justify-center transition-transform hover:scale-110 ${mood === m ? 'retro-bg-accent retro-shadow-dark' : 'retro-bg-window'}`}>{m}</button>))}
-          </div>
+          <CalendarReminder />
         </div>
       </RetroWindow>
 
@@ -366,7 +363,6 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
           <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
           <p>Sudoku Solved: {getScoreForUser(scores, userId, 'sudoku')}</p>
         </div>
-        <CalendarReminder />
       </RetroWindow>
 
       <RetroWindow title="applications" className="md:col-span-12">
