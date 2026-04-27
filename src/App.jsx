@@ -467,7 +467,9 @@ export default function App() {
   // ── THE KISS RECEIVER ──
   const [showKiss, setShowKiss] = useState(false);
   const sendInteraction = useBroadcast('interaction', (payload) => {
+    console.log('[INTERACTION] Received:', payload, 'Current PartnerId:', partnerId);
     if (payload.from === partnerId && payload.type === 'kiss') {
+      console.log('[KISS] Animation Triggered!');
       setShowKiss(true);
       playAudio('notif', sfxEnabled);
       // Update local storage so we don't trigger the "offline" flurry for this one
@@ -532,25 +534,23 @@ export default function App() {
   useEffect(() => {
     if (!Array.isArray(chatHistory)) return;
     
-      const newMsgs = chatHistory.slice(prevChatLength.current);
-      newMsgs.forEach(msg => {
-        // Only notify if it's from them, notifications are ON, and the chat isn't currently open
-        // Solution: If prevChatLength was 0, we are loading history, so DON'T notify. 
-        // But if prevChatLength > 0, any new message should be notified.
-        const isNewMessage = prevChatLength.current > 0;
-        if (isNewMessage && msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
-          playAudio('notif', sfxEnabled);
-          const id = Date.now() + Math.random();
-          
-          setTextNotifications(prev => [...prev, { ...msg, notifId: id }]);
-          
-          // Auto-dismiss the text notification after 5 seconds
-          setTimeout(() => {
-            setTextNotifications(prev => prev.filter(n => n.notifId !== id));
-          }, 5000);
-        }
-      });
-    }
+    const newMsgs = chatHistory.slice(prevChatLength.current);
+    newMsgs.forEach(msg => {
+      // Only notify if it's from them, notifications are ON, and the chat isn't currently open
+      const isNewMessage = prevChatLength.current > 0;
+      if (isNewMessage && msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
+        console.log(`[NOTIF] Triggering alert for message from ${msg.sender}`);
+        playAudio('notif', sfxEnabled);
+        const id = Date.now() + Math.random();
+        
+        setTextNotifications(prev => [...prev, { ...msg, notifId: id }]);
+        
+        // Auto-dismiss the text notification after 5 seconds
+        setTimeout(() => {
+          setTextNotifications(prev => prev.filter(n => n.notifId !== id));
+        }, 5000);
+      }
+    });
     prevChatLength.current = chatHistory.length;
   }, [chatHistory, location.pathname, partnerId, notificationsEnabled, sfxEnabled]);
 
@@ -828,7 +828,9 @@ export default function App() {
               setPendingRoomId(room.id);
               // Auto-detect and set partner ID if missing
               const pid = room.user1_id === s.user.id ? room.user2_id : room.user1_id;
+              console.log(`[INIT] Room: ${room.id}, My ID: ${s.user.id}, Detected Partner: ${pid}`);
               if (pid && profile.partner_id !== pid) {
+                  console.log(`[INIT] Updating profile with partner_id: ${pid}`);
                   setProfile(prev => ({ ...prev, partner_id: pid }));
               }
           }
