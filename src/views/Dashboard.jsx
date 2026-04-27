@@ -152,8 +152,9 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
   const labelOffset = 80 * scale; // 320px offset for the 80px margin on the left
   const bgPosY = `-${row * frameSize}px`;
   
-  // The actual sprite sheets are 352px wide (11 columns of 32px) and 1696px tall (53 rows of 32px)
-  const bgSize = `${352 * scale}px auto`; 
+  // The actual sprite sheets are 432px wide (80px margin + 11 columns of 32px)
+  const bgWidth = 432 * scale; // 1728px
+  const bgSize = `${bgWidth}px auto`; 
 
   // WEB ANIMATIONS API: Self-contained dynamic steps!
   useEffect(() => {
@@ -188,6 +189,7 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
           backgroundSize: bgSize,
           backgroundPositionY: bgPosY,
           backgroundPositionX: `-${labelOffset}px`,
+          backgroundRepeat: 'no-repeat',
           imageRendering: 'pixelated'
         }} 
       />
