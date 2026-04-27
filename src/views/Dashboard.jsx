@@ -119,20 +119,21 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
 
   const getSpriteForState = () => {
     if (isSleeping) {
-      const selectedRow = sleepRows[Math.floor(Date.now() / 1200) % sleepRows.length];
-      return { row: selectedRow, frames: 2, duration: 900 };
+      // Toggle between Sleep Row 13 (2 frames) and Row 14 (3 frames)
+      const isAlt = (Math.floor(Date.now() / 10000) % 2 === 0);
+      return { row: isAlt ? 13 : 14, frames: isAlt ? 2 : 3, duration: 1000 };
     }
 
     if (currentAction === 'hiss') return { row: 41, frames: 2, duration: 500 };
     if (currentAction === 'eat') return { row: 20, frames: 8, duration: 1000 };
-    if (currentAction === 'meow') return { row: 28, frames: 3, duration: 700 };
+    if (currentAction === 'meow') return { row: 28, frames: 4, duration: 700 };
     if (currentAction === 'yawn') return { row: 32, frames: 8, duration: 1100 };
     if (currentAction === 'wash') return { row: 36, frames: 8, duration: 1000 };
     if (currentAction === 'paw') return { row: 45, frames: 9, duration: 900 };
 
-    if (isSad) return { row: 0, frames: 6, duration: 1400 };
-    if (isPartnerAfk) return { row: 1, frames: 8, duration: 1200 };
-    if (isHovering) return { row: 0, frames: 6, duration: 1200 };
+    if (isSad) return { row: 43, frames: 1, duration: 1000 };
+    if (isPartnerAfk) return { row: 2, frames: 6, duration: 1200 };
+    if (isHovering) return { row: 1, frames: 8, duration: 1200 };
 
     return { row: 0, frames: 6, duration: 1400 };
   };
@@ -140,25 +141,24 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   const { row, frames, duration } = getSpriteForState();
 
   const scale = 4;
-  const frameSize = 32 * scale;
-  const labelOffset = 80 * scale;
+  const frameSize = 32 * scale; // 128px
+  const labelOffset = 80 * scale; // 320px
   const bgPosY = `-${row * frameSize}px`;
-  const bgWidth = 432 * scale;
+  const bgWidth = 432 * scale; // 1728px
   const bgSize = `${bgWidth}px auto`;
 
   useEffect(() => {
     if (!spriteRef.current || frames <= 1) return;
-    const endX = labelOffset + (frames - 1) * frameSize;
     const animation = spriteRef.current.animate([
       { backgroundPositionX: `-${labelOffset}px` },
-      { backgroundPositionX: `-${endX}px` }
+      { backgroundPositionX: `-${labelOffset + (frames * frameSize)}px` }
     ], {
       duration,
       easing: `steps(${frames})`,
       iterations: Infinity
     });
     return () => animation.cancel();
-  }, [frames, duration, frameSize, labelOffset]);
+  }, [row, frames, duration, frameSize, labelOffset]);
 
   return (
     <div
