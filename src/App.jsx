@@ -520,7 +520,6 @@ export default function App() {
   
 
   // 1. Partner Online Tracker
-  const isPartnerOnline = !!(onlineUsers && onlineUsers[partnerId]);
 
   useEffect(() => {
     if (isPartnerOnline && prevPartnerOnline.current === false && notificationsEnabled) {
