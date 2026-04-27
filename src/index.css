@@ -377,3 +377,13 @@ canvas, input, textarea {
   height: 24px;
   border-radius: 2px;
 }
+
+/* ════ PROGRESS BAR ANIMATIONS ════ */
+@keyframes slide-right {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(300%) skewX(-20deg); }
+}
+
+.animate-shine {
+  animation: slide-right 2.5s infinite ease-in-out;
+}
