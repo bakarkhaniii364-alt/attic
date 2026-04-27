@@ -175,6 +175,7 @@ export function ChatView({
   const [pendingImages, setPendingImages] = useState([]);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // TYPING INDICATOR LOGIC
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
@@ -187,6 +188,12 @@ export function ChatView({
   const typingTimeoutRef = useRef(null);
   const handleInputChange = (e) => {
     setInput(e.target.value);
+    
+    // Auto-resize logic: Reset height, then set to scrollHeight capped at ~3 lines (72px)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 72)}px`;
+    }
     
     if (!isTypingLocal) {
       setIsTypingLocal(true);
@@ -203,6 +210,13 @@ export function ChatView({
   const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
 
   const handleKeyDown = (e) => {
+    // Send on Enter (but allow Shift+Enter for new lines)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(e);
+      return;
+    }
+    
     if (e.key === 'ArrowUp' && !input && !editingMsgId) {
       const myMsgs = safeHistory.filter(m => m.sender === userId && m.type === 'text' && !m.isDeleted);
       if (myMsgs.length > 0) {
@@ -212,19 +226,11 @@ export function ChatView({
         e.preventDefault();
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey && editingMsgId) {
-      handleSend(e);
-      e.preventDefault();
-    }
     if (e.key === 'Escape') {
-      if (editingMsgId) {
-        setEditingMsgId(null);
-        setInput('');
-      } else if (replyingTo) {
-        setReplyingTo(null);
-      } else if (activeOptions) {
-        setActiveOptions(null);
-      }
+      setEditingMsgId(null);
+      setInput('');
+      setReplyingTo(null);
+      if (textareaRef.current) textareaRef.current.style.height = 'auto'; // Reset height
     }
   };
 
@@ -328,6 +334,7 @@ export function ChatView({
       }
     }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
     sendTyping({ userId, isTyping: false });
   };
 
@@ -580,7 +587,7 @@ export function ChatView({
                           <span className="flex items-center gap-2 opacity-50"><Ban size={12} /> message deleted</span>
                         ) : (
                           <>
-                            {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
+                            {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'game_invite' && (
                               <div className="border-2 border-[var(--border)] bg-white shadow-[1px_1px_0px_0px_var(--border)] p-3 w-64 text-[var(--text-main)] mt-1">
@@ -614,7 +621,7 @@ export function ChatView({
                             {msg.type === 'image' && (
                               <div className="flex flex-col gap-2">
                                 <img src={msg.url} alt="" onClick={() => setViewerContext({ urls: [msg.url], index: 0, isOpen: true })} className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:brightness-95 transition-all`} />
-                                {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
+                                {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
                               </div>
                             )}
                             {msg.type === 'image_group' && (
@@ -733,8 +740,18 @@ export function ChatView({
                  <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 border-2 border-[var(--border)] transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-[var(--accent)]' : 'bg-white hover:bg-gray-100'}`}>
                    <Smile size={18} />
                  </button>
-                 <div className="flex-1 relative flex items-center">
-                   <input type="text" value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} disabled={isRecording || voicePreview !== null} className={`w-full p-2 sm:p-3 border-2 border-[var(--border)] shadow-[inset_1px_1px_0px_rgba(0,0,0,0.05)] bg-white focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : ''}`} />
+                 <div className="flex-1 relative flex items-center bg-white border-2 border-[var(--border)] shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                   <textarea 
+                     ref={textareaRef}
+                     rows={1}
+                     value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} 
+                     onChange={handleInputChange} 
+                     onKeyDown={handleKeyDown} 
+                     placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} 
+                     disabled={isRecording || voicePreview !== null} 
+                     className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent'}`} 
+                     style={{ minHeight: '44px', maxHeight: '72px' }}
+                   />
                  </div>
                  {!input.trim() && !editingMsgId && voicePreview === null && pendingImages.length === 0 ? (
                    <button type="button" onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]'}`}>

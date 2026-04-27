@@ -92,125 +92,116 @@ const PixelPet = React.memo(({ happy, sleeping, onClick, skin }) => {
 });
 
 function AnniversaryTimer({ anniversary }) {
-  const [time, setTime] = useState({ years: 0, days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [elapsed, setElapsed] = useState(null);
 
   useEffect(() => {
-    if (!anniversary || isNaN(new Date(anniversary).getTime())) return;
-    const start = new Date(anniversary).getTime();
+    if (!anniversary) return;
+    
+    // Add validation
+    const start = new Date(anniversary);
+    if (isNaN(start.getTime())) return;
 
-    // Live ticking interval
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const diff = Math.abs(now - start);
+    const update = () => {
+      if (isNaN(start.getTime())) return;
+      const now = new Date();
+      let diff = now - start;
+      if (diff < 0) diff = 0;
 
-      const daysTotal = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const years = Math.floor(daysTotal / 365);
-      const days = daysTotal % 365;
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / 1000 / 60) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-
-      setTime({ years, days, hours, minutes, seconds });
-    }, 1000);
-
-    return () => clearInterval(timer);
+      const totalDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const years = Math.floor(totalDays / 365);
+      const months = Math.floor((totalDays % 365) / 30);
+      const days = totalDays % 30;
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      // Solution 26: Sanitize results
+      setElapsed({ 
+          years: Math.max(0, years), 
+          months: Math.max(0, months), 
+          days: Math.max(0, days), 
+          hours: Math.max(0, hours), 
+          minutes: Math.max(0, minutes), 
+          seconds: Math.max(0, seconds), 
+          totalDays: Math.max(0, totalDays) 
+      });
+    };
+    update();
+    const iv = setInterval(update, 1000);
+    return () => clearInterval(iv);
   }, [anniversary]);
 
-  if (!anniversary) return null;
-
-  // Reusable Scoreboard Panel
-  const ScoreBlock = ({ label, value }) => (
-    <div className="flex flex-col items-center mx-0.5 sm:mx-1">
-      <div className="bg-[var(--bg-main)] retro-border border-b-4 border-r-2 px-2 py-2 sm:py-3 rounded-sm relative overflow-hidden min-w-[2.5rem] sm:min-w-[3.5rem] text-center shadow-[inset_0_3px_6px_rgba(0,0,0,0.1)]">
-        
-        {/* The horizontal split-line across the middle of retro scoreboards */}
-        <div className="absolute top-1/2 left-0 w-full h-[2px] bg-[var(--border)] opacity-30 -translate-y-1/2 z-10 shadow-[0_1px_0_rgba(255,255,255,0.5)]"></div>
-        
-        {/* The Animated Digit (Uses the 'value' as the key so React re-triggers the animation on change) */}
-        <span key={value} className="text-xl sm:text-3xl font-black text-[var(--primary)] scoreboard-digit relative z-0 tracking-tighter">
-          {String(value).padStart(2, '0')}
-        </span>
+  if (!anniversary) {
+    return (
+      <div className="text-center text-xs opacity-50 font-bold py-2">
+        Set your anniversary date in Settings to start the counter!
       </div>
-      <span className="text-[8px] sm:text-[10px] font-black uppercase mt-2 opacity-60 tracking-widest">{label}</span>
-    </div>
-  );
-
-  return (
-    <div className="retro-bg-window retro-border retro-shadow-dark p-4 flex flex-col items-center justify-center">
-      <h3 className="font-black text-xs sm:text-sm uppercase tracking-widest text-[var(--text-main)] mb-4 border-b-2 border-dashed border-[var(--border)] pb-2 w-full text-center">
-        Time Together
-      </h3>
-      
-      <div className="flex justify-center items-end">
-        {time.years > 0 && <ScoreBlock label="YRS" value={time.years} />}
-        <ScoreBlock label="DAYS" value={time.days} />
-        
-        <span className="text-xl sm:text-3xl font-black opacity-30 pb-5 sm:pb-7 px-0.5 animate-pulse">:</span>
-        
-        <ScoreBlock label="HRS" value={time.hours} />
-        <span className="text-xl sm:text-3xl font-black opacity-30 pb-5 sm:pb-7 px-0.5 animate-pulse">:</span>
-        
-        <ScoreBlock label="MIN" value={time.minutes} />
-        <span className="text-xl sm:text-3xl font-black opacity-30 pb-5 sm:pb-7 px-0.5 animate-pulse">:</span>
-        
-        <ScoreBlock label="SEC" value={time.seconds} />
-      </div>
-    </div>
-  );
-}
-
-function UpcomingEvents({ events, anniversary }) {
-  const safeEvents = Array.isArray(events) ? [...events] : [];
-
-  // Auto-inject the upcoming anniversary
-  if (anniversary && !isNaN(new Date(anniversary).getTime())) {
-    const start = new Date(anniversary);
-    const now = new Date();
-    let nextAnniversary = new Date(start);
-    nextAnniversary.setFullYear(now.getFullYear());
-    
-    if (now > nextAnniversary && now.toDateString() !== nextAnniversary.toDateString()) {
-      nextAnniversary.setFullYear(now.getFullYear() + 1);
-    }
-    safeEvents.push({ title: "Anniversary 💖", date: nextAnniversary.toISOString() });
+    );
   }
 
-  // Filter out past events and sort
-  const upcoming = safeEvents
-    .filter(e => e && e.date && new Date(e.date) >= new Date(new Date().setHours(0,0,0,0)))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 4); // Display max 4
+  if (!elapsed) return null;
 
   return (
-    <div className="retro-bg-window retro-border retro-shadow-dark p-4 flex flex-col h-full">
-      <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-[var(--border)] pb-2">
-        <CalendarIcon size={18} className="text-[var(--primary)]" />
-        <h3 className="font-black text-sm uppercase tracking-widest text-[var(--text-main)]">Upcoming Events</h3>
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-wrap justify-center gap-1">
+        {elapsed.years > 0 && <Unit val={elapsed.years} label="yr" />}
+        {(elapsed.years > 0 || elapsed.months > 0) && <Unit val={elapsed.months} label="mo" />}
+        <Unit val={elapsed.days} label="d" />
+        <Unit val={elapsed.hours} label="h" />
+        <Unit val={elapsed.minutes} label="m" />
+        <Unit val={elapsed.seconds} label="s" />
       </div>
-      
-      <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1">
-        {upcoming.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center opacity-50 text-xs font-bold italic text-center">
-            No events scheduled.
-          </div>
-        ) : (
-          upcoming.map((ev, i) => {
-            const d = new Date(ev.date);
-            const isToday = d.toDateString() === new Date().toDateString();
-            return (
-              <div key={i} className={`p-2 retro-border text-xs flex justify-between items-center ${isToday ? 'bg-[var(--primary)] text-[var(--text-on-primary)] animate-pulse' : 'bg-[var(--bg-main)] text-[var(--text-main)]'}`}>
-                <span className="font-bold truncate pr-2">{ev.title}</span>
-                <span className="font-black opacity-80 whitespace-nowrap">
-                  {isToday ? 'TODAY!' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </span>
-              </div>
-            );
-          })
-        )}
-      </div>
+      <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">{elapsed.totalDays} days together</p>
     </div>
   );
 }
+
+export const Unit = React.memo(({ val, label }) => {
+  const [displayVal, setDisplayVal] = useState(val);
+  const [isFlipping, setIsFlipping] = useState(false);
+
+  useEffect(() => {
+    if (val !== displayVal) {
+      setIsFlipping(true);
+      const timer = setTimeout(() => {
+        setDisplayVal(val);
+        setIsFlipping(false);
+      }, 300); // Syncs with the CSS transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [val, displayVal]);
+
+  const currentStr = String(displayVal).padStart(2, '0');
+  const nextStr = String(val).padStart(2, '0');
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-white border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000">
+        
+        {/* Top Half (Shows NEXT value hidden underneath) */}
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px]">
+          <span className="translate-y-1/2">{nextStr}</span>
+        </div>
+        
+        {/* Bottom Half (Shows CURRENT value) */}
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-white overflow-hidden flex items-start justify-center pt-[1px]">
+          <span className="-translate-y-1/2">{currentStr}</span>
+        </div>
+
+        {/* The Flipping Flap (Drops down to cover the bottom) */}
+        <div 
+          className={`absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] origin-bottom z-10 ${isFlipping ? 'transition-transform duration-300 ease-in-out' : ''}`}
+          style={{ transform: isFlipping ? 'rotateX(-90deg)' : 'rotateX(0deg)' }}
+        >
+          <span className="translate-y-1/2">{currentStr}</span>
+        </div>
+
+        {/* Center Crease/Divider */}
+        <div className="absolute top-1/2 left-0 w-full h-px bg-[var(--border)] opacity-30 z-20"></div>
+      </div>
+      <span className="text-[9px] font-bold opacity-50 uppercase mt-1.5">{label}</span>
+    </div>
+  );
+});
 
 export function CalendarReminder() {
   const [events] = useLocalStorage('calendar_events', []);
@@ -344,8 +335,11 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title="together.timer" className="md:col-span-4 h-auto">
         <div className="flex flex-col h-full justify-center gap-3">
-          <AnniversaryTimer anniversary={safeCoupleData.anniversary} />
-          <UpcomingEvents events={safeCoupleData?.events} anniversary={safeCoupleData?.anniversary} />
+          <AnniversaryTimer anniversary={coupleData.anniversary} />
+          <div className="flex flex-wrap gap-2 justify-center mt-2 border-t border-dashed border-[var(--border)] pt-3">
+            <p className="w-full text-center mb-1 font-bold text-[10px] opacity-50 uppercase tracking-widest">my mood</p>
+            {['😊', '😴', '🥺', '😡', '🥰', '😤'].map(m => (<button key={m} onClick={() => { playAudio('click', sfx); setMood(m); }} className={`text-lg w-7 h-7 rounded-full retro-border flex items-center justify-center transition-transform hover:scale-110 ${mood === m ? 'retro-bg-accent retro-shadow-dark' : 'retro-bg-window'}`}>{m}</button>))}
+          </div>
         </div>
       </RetroWindow>
 

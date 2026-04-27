@@ -378,15 +378,27 @@ canvas, input, textarea {
   border-radius: 2px;
 }
 
-/* ════ MECHANICAL SCOREBOARD FLIP ════ */
-@keyframes flap-down {
-  0% { transform: rotateX(90deg); opacity: 0.5; }
-  100% { transform: rotateX(0deg); opacity: 1; }
+/* ════ TEXT WRAPPING & AUTO-RESIZE FIXES ════ */
+/* Apply this to chat bubbles, list items, and journal entries */
+.break-words {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
-.scoreboard-digit {
-  animation: flap-down 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  transform-origin: bottom center;
-  transform-style: preserve-3d;
-  display: inline-block;
+/* Preserves line breaks from textareas */
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+/* Custom mini-scrollbar for textareas */
+textarea::-webkit-scrollbar { width: 6px; }
+textarea::-webkit-scrollbar-track { background: transparent; }
+textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Global fix for utility app lists to ensure they don't break flex layouts */
+.max-w-full-break {
+  max-width: 100%;
+  min-width: 0; /* Prevents flex children from stretching past parent */
 }

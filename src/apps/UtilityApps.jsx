@@ -348,7 +348,7 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
                <p className="text-xs opacity-40 mt-2">{new Date(readingLetter.id || Date.now()).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
              </div>
 
-             <p className="font-serif text-lg leading-loose whitespace-pre-wrap" style={{ color: '#3a2f26' }}>{readingLetter.text}</p>
+             <p className="font-serif text-lg leading-loose whitespace-pre-wrap break-words max-w-full-break" style={{ color: '#3a2f26' }}>{readingLetter.text}</p>
              <p className="text-right italic font-bold mt-8" style={{ color: '#8b7355' }}>— {readingLetter.senderId === userId ? 'You' : 'Partner'} 💌</p>
           </div>
           <div className="flex gap-2 p-3 retro-border-t bg-[var(--bg-main)] shrink-0">
@@ -466,8 +466,8 @@ export function ListsApp({ onClose, sfx, userId, roomProfiles = {} }) {
               <button onClick={() => toggleDone(item.id)} className={`w-6 h-6 retro-border flex items-center justify-center transition-colors ${item.done ? 'bg-green-400' : 'bg-white'}`}>
                 {item.done && <Check size={14} className="text-white" />}
               </button>
-              <div className="flex-1 flex flex-col">
-                <span className={`font-bold transition-all ${item.done ? 'line-through opacity-40' : ''}`}>{item.text}</span>
+              <div className="flex-1 flex flex-col min-w-0">
+                <span className={`font-bold transition-all break-words whitespace-pre-wrap max-w-full-break flex-1 ${item.done ? 'line-through opacity-40' : ''}`}>{item.text}</span>
                 <span className="text-[8px] font-black uppercase opacity-40 tracking-tighter mt-0.5">Added by {getUserName(item.authorId)}</span>
               </div>
               <button onClick={() => deleteItem(item.id)} className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-50 text-red-400 transition-all">

@@ -46,8 +46,8 @@ export function DreamJournal({ onClose, sfx, userId, roomProfiles = {} }) {
                 <span className="text-[10px] font-black uppercase opacity-40">By {getUserName(e.authorId)} • {e.date}</span>
                 <button onClick={() => deleteDream(e.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
               </div>
-              <p className="font-serif leading-relaxed text-[var(--text-main)]">{e.text}</p>
-              {e.interpretation && <p className="text-sm italic opacity-60 mt-2 border-t border-dashed pt-2 border-[var(--border)]">💭 {e.interpretation}</p>}
+              <p className="font-serif leading-relaxed text-[var(--text-main)] break-words whitespace-pre-wrap max-w-full-break">{e.text}</p>
+              {e.interpretation && <p className="text-sm italic opacity-60 mt-2 border-t border-dashed pt-2 border-[var(--border)] break-words whitespace-pre-wrap max-w-full-break">💭 {e.interpretation}</p>}
             </div>
           ))}
         </div>
