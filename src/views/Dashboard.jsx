@@ -257,15 +257,10 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const hr = new Date().getHours(); const isSleeping = hr < 6 || hr > 22;
   
   const handleSendKiss = () => {
-    if (Date.now() - lastActionTime < 3000) return toast('Whoa there, slow down!', 'info');
+    if (Date.now() - lastActionTime < 3000) return;
     setLastActionTime(Date.now());
     playAudio('click', sfxEnabled);
-    
-    // Instantly fires over websockets to your partner
-    if (sendInteraction) {
-      sendInteraction({ type: 'kiss', from: userId });
-      toast('Kiss sent! 💖', 'success');
-    }
+    if (sendInteraction) sendInteraction({ type: 'kiss', from: userId });
   };
 
   const nav = (v) => setView(v);
@@ -334,17 +329,15 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                 </div>
               </div>
             </div>
-            <div className="retro-bg-window retro-border retro-shadow-dark p-3 flex flex-col items-center justify-center gap-2 min-w-[100px]">
-              <p className="text-[9px] font-black uppercase opacity-40 tracking-widest text-center">Love</p>
-              <button 
-                onClick={handleSendKiss} 
-                className="p-3 retro-bg-window retro-border hover:bg-[var(--primary)] hover:text-white transition-all flex flex-col items-center justify-center gap-1 group shadow-[1px_1px_0px_0px_var(--border)]"
-                title="Send a kiss!"
-              >
-                <Heart size={20} className="text-[var(--primary)] group-hover:text-white group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] font-black uppercase">Kiss</span>
-              </button>
-            </div>
+            <button 
+              onClick={handleSendKiss} 
+              disabled={Date.now() - lastActionTime < 3000}
+              className={`p-2 w-16 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'retro-bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none'}`} 
+              title="Send a kiss!"
+            >
+              <Heart size={24} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-[var(--border)]' : 'text-[var(--primary)]'} />
+              <span className="text-[10px] font-bold mt-1 uppercase">Kiss</span>
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-dashed border-[var(--border)] mt-auto">
