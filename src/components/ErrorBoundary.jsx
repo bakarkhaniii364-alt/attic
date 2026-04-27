@@ -3,43 +3,61 @@ import React from 'react';
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
+    // Update state so the next render shows the fallback UI.
     return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[FATAL_UI_ERROR]', error, errorInfo);
+    // You can also log the error to an error reporting service here
+    console.error("Attic Crash:", error, errorInfo);
+    this.setState({ errorInfo });
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[100dvh] flex flex-col items-center justify-center p-8 bg-[#fffdf9] text-center">
-          <div className="w-16 h-16 bg-red-100 border-2 border-red-500 flex items-center justify-center mb-6 rounded-lg shadow-[4px_4px_0px_0px_#ef4444]">
-            <span className="text-2xl">⚠️</span>
+        <div className="fixed inset-0 z-[9999] bg-[#0000aa] text-white font-mono p-8 sm:p-16 flex flex-col items-start justify-center overflow-y-auto selection:bg-white selection:text-[#0000aa]">
+          <div className="max-w-4xl mx-auto w-full space-y-6 animate-in fade-in duration-300">
+            
+            <h1 className="text-7xl sm:text-9xl font-bold mb-8">:(</h1>
+            
+            <p className="text-xl sm:text-3xl font-bold leading-tight">
+              Your attic ran into a problem that it couldn't handle, and now it needs to refresh.
+            </p>
+            
+            <p className="text-lg sm:text-xl opacity-90">
+              You can look for the error in the console.
+            </p>
+
+            {/* The Error Output Box */}
+            <div className="mt-8 p-4 bg-black/20 border-2 border-dashed border-white/40 text-sm overflow-x-auto backdrop-blur-sm">
+              <p className="font-bold text-red-300">
+                {this.state.error && this.state.error.toString()}
+              </p>
+              <pre className="mt-2 text-[11px] sm:text-xs opacity-70 whitespace-pre-wrap leading-relaxed">
+                {this.state.errorInfo && this.state.errorInfo.componentStack}
+              </pre>
+            </div>
+
+            {/* Refresh Button */}
+            <div className="pt-8">
+                <button
+                onClick={() => window.location.reload()}
+                className="px-8 py-3 bg-white text-[#0000aa] font-black uppercase tracking-widest hover:bg-gray-200 transition-colors border-2 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)] active:translate-y-[2px] active:shadow-none"
+                >
+                Restart Attic
+                </button>
+            </div>
+
           </div>
-          <h1 className="text-xl font-black uppercase tracking-tight text-red-600 mb-2">Module Crash Detected</h1>
-          <p className="text-sm font-bold opacity-60 max-w-xs mb-8">
-            The view failed to render. This can happen due to a connection drop or a runtime error.
-          </p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-red-500 text-white font-black uppercase text-xs tracking-widest retro-border shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-0.5 hover:shadow-none transition-all"
-          >
-            Reload Attic
-          </button>
-          {process.env.NODE_ENV === 'development' && (
-            <pre className="mt-8 p-4 bg-black text-green-400 text-[10px] text-left overflow-auto max-w-full retro-border">
-              {this.state.error?.toString()}
-            </pre>
-          )}
         </div>
       );
     }
 
-    return this.props.children;
+    return this.props.children; 
   }
 }
