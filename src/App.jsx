@@ -804,45 +804,56 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
     const init = async () => {
-      // Step 1: Parallelize session fetch and initial room check
-      const [sessionRes, roomRes] = await Promise.all([
-        supabase.auth.getSession(),
-        supabase.rpc('get_my_room')
-      ]);
+      try {
+        // Step 1: Parallelize session fetch and initial room check
+        const [sessionRes, roomRes] = await Promise.all([
+          supabase.auth.getSession(),
+          supabase.rpc('get_my_room')
+        ]);
 
-      if (!mounted) return;
-      const s = sessionRes.data?.session || null;
-      setSession(s);
-      
-      if (s) {
-        // populate local profile name
-        try {
-          const metaName = s.user?.user_metadata?.name;
-          if (metaName && profile.name !== metaName) setProfile(prev => ({ ...prev, name: metaName }));
-        } catch (e) {}
+        if (!mounted) return;
+        const s = sessionRes.data?.session || null;
+        setSession(s);
+        
+        if (s) {
+          // populate local profile name
+          try {
+            const metaName = s.user?.user_metadata?.name;
+            if (metaName && profile.name !== metaName) setProfile(prev => ({ ...prev, name: metaName }));
+          } catch (e) {}
 
-        if (room) {
-          setHasRoom(!!room.is_paired);
-          if (room.is_paired) {
-              setPendingRoomId(room.id);
-              // Auto-detect and set partner ID if missing
-              const pid = room.user1_id === s.user.id ? room.user2_id : room.user1_id;
-              console.log(`[INIT] Room: ${room.id}, My ID: ${s.user.id}, Detected Partner: ${pid}`);
-              if (pid && profile.partner_id !== pid) {
-                  console.log(`[INIT] Updating profile with partner_id: ${pid}`);
-                  setProfile(prev => ({ ...prev, partner_id: pid }));
-              }
+          const room = roomRes.data;
+          if (room) {
+            setHasRoom(!!room.is_paired);
+            if (room.is_paired) {
+                setPendingRoomId(room.id);
+                // Auto-detect and set partner ID if missing
+                const pid = room.user1_id === s.user.id ? room.user2_id : room.user1_id;
+                console.log(`[INIT] Room: ${room.id}, My ID: ${s.user.id}, Detected Partner: ${pid}`);
+                if (pid && profile.partner_id !== pid) {
+                    console.log(`[INIT] Updating profile with partner_id: ${pid}`);
+                    setProfile(prev => ({ ...prev, partner_id: pid }));
+                }
+            }
+          } else {
+            setHasRoom(false);
           }
         } else {
           setHasRoom(false);
         }
-      } else {
-        setHasRoom(false);
+      } catch (err) {
+        console.error("Initialization error:", err);
+        if (mounted) {
+          setSession(null);
+          setHasRoom(false);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          setCoreReady(true);
+          setVisualsReady(true); // Instant ready, elements are deferred internally
+        }
       }
-      
-      setLoading(false);
-      setCoreReady(true);
-      setVisualsReady(true); // Instant ready, elements are deferred internally
     };
 
     const checkTestMode = () => {
