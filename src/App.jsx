@@ -520,8 +520,10 @@ export default function App() {
   
 
   // 1. Partner Online Tracker
+  const isPartnerOnline = !!(onlineUsers && onlineUsers[partnerId]);
+
   useEffect(() => {
-    if (isPartnerOnline && !prevPartnerOnline.current && notificationsEnabled) {
+    if (isPartnerOnline && prevPartnerOnline.current === false && notificationsEnabled) {
       setPartnerOnlineModal(true);
       playAudio('notif', sfxEnabled);
       setTimeout(() => setPartnerOnlineModal(false), 4000); // Hides after 4 seconds
@@ -954,7 +956,7 @@ export default function App() {
 
   // When we have a pending room ID and core is ready, lazily initialize the full room sync
   useEffect(() => {
-    if (!coreReady || !pendingRoomId) return;
+    if (!coreReady || !pendingRoomId || !userId) return;
     if (syncedRoomId === pendingRoomId && !isTestMode()) return;
     let cancelled = false;
     let presenceChannel = null;
@@ -976,15 +978,10 @@ export default function App() {
             const newState = presenceChannel.presenceState();
             const onlineMap = {};
             Object.keys(newState).forEach(id => {
-               onlineMap[id] = newState[id][0]?.status || 'online';
+               onlineMap[id] = newState[id][0]?.status || 'active';
             });
-            setOnlineUsers(onlineMap);
-          })
-          .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-            console.log('join', key, newPresences);
-          })
-          .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-            console.log('leave', key, leftPresences);
+            // Solution: Force re-render with new object
+            setOnlineUsers({ ...onlineMap });
           })
           .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
@@ -993,7 +990,7 @@ export default function App() {
           });
 
         const handleVisibility = () => {
-          if (presenceChannel) {
+          if (presenceChannel && presenceChannel.state === 'joined') {
             presenceChannel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
           }
         };

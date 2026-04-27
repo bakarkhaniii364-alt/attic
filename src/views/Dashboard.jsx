@@ -247,7 +247,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const safeChatHistory = chatHistory || [];
   const safeDoodles = doodles || [];
   
-  const unreadChatCount = safeChatHistory.filter(m => m.sender === partnerId && m.status !== 'read' && !m.isDeleted).length;
+  const unreadChatCount = safeChatHistory.filter(m => m.sender === partnerId && (!m.status || m.status !== 'read') && !m.isDeleted).length;
   const updatePetHappy = (val) => setCoupleData({ ...safeCoupleData, petHappy: val });
   const mood = profile?.mood || '😊';
   const setMood = (m) => setProfile(prev => ({ ...prev, mood: m }));

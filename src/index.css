@@ -415,18 +415,16 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
 .floating-heart {
   position: absolute;
   bottom: -10vh; /* Start slightly off-screen at the bottom */
-  color: #ff4d4d; /* Bright red/pink */
-  opacity: 0;
-  animation: float-heart 4s ease-in forwards;
-  filter: drop-shadow(0 0 10px rgba(255,255,255,0.3));
+  animation: floatUp 4.5s ease-in-out forwards;
+  will-change: transform, opacity;
   user-select: none;
 }
 
-@keyframes float-heart {
-  0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
-  15% { opacity: 0.7; }
-  50% { transform: translateY(-60vh) scale(1.2) rotate(15deg); opacity: 0.6; }
-  100% { transform: translateY(-120vh) scale(1) rotate(-15deg); opacity: 0; }
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(0.5) rotate(-10deg); opacity: 0; }
+  20% { opacity: 1; transform: translateY(-20vh) scale(1.2) rotate(10deg); }
+  80% { opacity: 0.8; transform: translateY(-80vh) scale(1) rotate(-10deg); }
+  100% { opacity: 0; transform: translateY(-110vh) scale(0.5) rotate(10deg); }
 }
 
 /* ════ TIPTAP COLLABORATION CURSORS ════ */

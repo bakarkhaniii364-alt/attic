@@ -196,7 +196,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>
-              <input type="date" value={coupleData.anniversary || ''} onChange={(e) => { setCoupleData({...coupleData, anniversary: e.target.value}); toast('Anniversary date updated!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
+              <input type="date" value={coupleData.anniversary || ''} onChange={(e) => { setCoupleData(prev => ({ ...prev, anniversary: e.target.value })); toast('Anniversary date updated!', 'success'); }} className="w-full p-2 retro-border retro-bg-window focus:outline-none cursor-pointer font-bold" />
             </div>
           </div>
         </section>
