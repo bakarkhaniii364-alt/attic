@@ -29,18 +29,29 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
   const [perfectWin, setPerfectWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showCountdown, setShowCountdown] = useState(true);
+  const [mastermindPhase, setMastermindPhase] = useState(config.mode === 'competitive' ? 'SETUP' : 'PLAYING');
+  const [customTarget, setCustomTarget] = useState('');
 
   const [stats, setStats] = useLocalStorage('wordle_stats', { played: 0, won: 0, streak: 0, maxStreak: 0, guessDistribution: [0,0,0,0,0,0] });
 
   useEffect(() => { 
       let isMounted = true; 
+      if (config.mode === 'competitive') return; // Handled by setup phase
       if (config.category === 'custom' && config.customWord) {
           setTargetWord(config.customWord.toUpperCase());
       } else {
           fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { if (isMounted) setTargetWord(w.toUpperCase()) }); 
       }
       return () => { isMounted = false; }; 
-  }, [config.category, config.diff, config.customWord, wordLen]);
+  }, [config.category, config.diff, config.customWord, wordLen, config.mode]);
+
+  const handleSetMastermindWord = () => {
+      if (customTarget.length === wordLen) {
+          setTargetWord(customTarget.toUpperCase());
+          setMastermindPhase('PLAYING');
+          playAudio('click', sfx);
+      }
+  };
 
   const updateStats = (won, attempts) => {
       setStats(prev => {
@@ -206,7 +217,29 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
           </span>
       </div>
 
-      <div className="flex flex-col items-center flex-1 overflow-y-auto py-6">
+      {mastermindPhase === 'SETUP' ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-pattern-grid">
+              <div className="w-16 h-16 bg-[var(--primary)] retro-border flex items-center justify-center text-white mb-6 shadow-[0_0_20px_var(--primary)]">
+                  <Activity size={32} />
+              </div>
+              <h2 className="text-2xl font-black uppercase tracking-widest mb-4">Mastermind Mode</h2>
+              <p className="font-bold text-xs opacity-60 uppercase mb-8 leading-relaxed">Enter a secret {wordLen}-letter word<br/>for your partner to guess!</p>
+              
+              <input 
+                type="password" 
+                maxLength={wordLen} 
+                value={customTarget} 
+                onChange={(e) => setCustomTarget(e.target.value.replace(/[^A-Za-z]/g, ''))}
+                placeholder="*****"
+                className="w-full max-w-[200px] text-center font-black text-4xl tracking-[0.5em] p-4 retro-border shadow-inner uppercase mb-6 bg-white focus:outline-none focus:ring-4 focus:ring-[var(--primary)]/20"
+              />
+              
+              <RetroButton onClick={handleSetMastermindWord} disabled={customTarget.length !== wordLen} className="px-12 py-4 text-base">
+                  SET SECRET WORD
+              </RetroButton>
+          </div>
+      ) : (
+          <div className="flex flex-col items-center flex-1 overflow-y-auto py-6">
         
         {config.mode === 'competitive' && gameStatus === "playing" && ( 
             <div className={`mb-6 font-bold text-sm px-6 py-2 shadow-sm retro-border transition-colors duration-300 ${turn === 1 ? 'bg-[var(--primary)] text-white' : 'bg-[var(--secondary)] text-white'}`}>Player {turn}'s Guess</div> 

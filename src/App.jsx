@@ -443,6 +443,27 @@ export default function App() {
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
 
+  // ── NEW: AFK & PRESENCE TRACKING ──
+  const [afkState, setAfkState] = useGlobalSync('afk_tracker', { [userId]: false, [partnerId]: false });
+  const [lobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null });
+
+  // Detect if user switches tabs
+  useEffect(() => {
+    if (!userId) return;
+    const handleVisibility = () => setAfkState(prev => ({ ...prev, [userId]: document.hidden }));
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [userId, setAfkState]);
+
+  const isPartnerAfk = afkState[partnerId];
+  const isPartnerOnline = (onlineUsers || {})[partnerId];
+  
+  // Dynamic Partner Status
+  const displayStatus = isPartnerAfk ? 'Zzz... (Away)' :
+                        (lobbyState.players?.includes(partnerId) && lobbyState.gameId) 
+                        ? `Playing ${lobbyState.gameId}` 
+                        : isPartnerOnline ? 'Online' : 'Offline';
+
   // ── THE KISS RECEIVER ──
   const [showKiss, setShowKiss] = useState(false);
   const sendInteraction = useBroadcast('interaction', (payload) => {
@@ -1047,6 +1068,14 @@ export default function App() {
           </div>
         )}
 
+        {/* ── AFK OVERLAY ── */}
+        {isPartnerAfk && (
+          <div className="fixed inset-0 bg-black/40 z-[8000] pointer-events-none flex flex-col items-center justify-center animate-in fade-in duration-700 backdrop-blur-[2px]">
+            <h2 className="text-white font-black text-6xl animate-pulse tracking-[0.2em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] lowercase" style={{ fontFamily: '"Pixelify Sans", sans-serif' }}>zzz...</h2>
+            <p className="text-white font-bold mt-2 bg-black/30 px-4 py-1.5 retro-border border-white/20 text-[10px] uppercase tracking-widest">{partnerName} is away</p>
+          </div>
+        )}
+
         {incomingCall && (
           <div className="fixed inset-0 z-[6000] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
             <div className="bg-white/95 retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
@@ -1077,22 +1106,25 @@ export default function App() {
         )}
 
         {callState.status !== 'idle' && callState.status !== 'rejected' && (callState.callerId === userId || callState.status === 'connected' || callState.status === 'accepted') && (
-          <PremiumCallHub
-            type={callState.type}
-            callDuration={callDuration}
-            isMuted={isMuted}
-            isDeafened={isDeafened}
-            isCameraOff={isCameraOff}
-            onMicToggle={() => { setIsMuted(!isMuted); if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => t.enabled = isMuted); }}
-            onDeafenToggle={() => setIsDeafened(!isDeafened)}
-            onCameraToggle={() => { setIsCameraOff(!isCameraOff); if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => t.enabled = isCameraOff); }}
-            onEndCall={handleEndCall}
-            partnerName={partnerName}
-            partnerPfp={partnerProfile.pfp}
-            sfx={sfxEnabled}
-            remoteVideoRef={remoteVideoRef}
-            isRinging={isRinging}
-          />
+          <div className={`transition-all duration-500 ease-in-out ${location.pathname.startsWith('/activities/') ? 'fixed bottom-4 right-4 w-56 sm:w-64 z-[9999] scale-90 sm:scale-100 origin-bottom-right' : ''}`}>
+            <PremiumCallHub
+              type={callState.type}
+              callDuration={callDuration}
+              isMuted={isMuted}
+              isDeafened={isDeafened}
+              isCameraOff={isCameraOff}
+              onMicToggle={() => { setIsMuted(!isMuted); if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => t.enabled = isMuted); }}
+              onDeafenToggle={() => setIsDeafened(!isDeafened)}
+              onCameraToggle={() => { setIsCameraOff(!isCameraOff); if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => t.enabled = isCameraOff); }}
+              onEndCall={handleEndCall}
+              partnerName={partnerName}
+              partnerPfp={partnerProfile.pfp}
+              sfx={sfxEnabled}
+              remoteVideoRef={remoteVideoRef}
+              isRinging={isRinging}
+              isPiP={location.pathname.startsWith('/activities/')}
+            />
+          </div>
         )}
         
         {audioBlocked && (
@@ -1160,7 +1192,7 @@ export default function App() {
               ) : !hasRoom ? (
                 <Navigate to="/handshake" replace />
               ) : (
-                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendInteraction} />
+                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendInteraction} displayStatus={displayStatus} />
               )
             } />
             <Route path="/login" element={<Navigate to="/" replace />} />
@@ -1211,7 +1243,7 @@ export default function App() {
                     await uploadImage(file, 'scrapbook', userId);
                     toast('Saved to Scrapbook!', 'success');
                 }
-            }} profile={profile} userId={userId} partnerId={partnerId} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} /></ProtectedRoute>} />
+            }} profile={profile} userId={userId} partnerId={partnerId} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} syncedRoomId={syncedRoomId} /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

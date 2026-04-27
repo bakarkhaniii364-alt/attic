@@ -157,7 +157,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   }, [xIsNext, board, winData, isDraw, config]);
 
   const handlePlacePiece = (i, player) => {
-    playAudio('click', sfx); let newBoard = [...board]; let newQueue = [...pieceQueue];
+    playAudio('chalk', sfx); let newBoard = [...board]; let newQueue = [...pieceQueue];
     if (config.mode === 'memory') {
       const maxPieces = size === 3 ? 3 : 4;
       const playerPieces = newQueue.filter(p => p.player === player);

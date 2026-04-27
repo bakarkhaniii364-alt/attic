@@ -16,7 +16,7 @@ import { Game2048 } from './Game2048.jsx';
 import { TypingRace } from './TypingRace.jsx';
 import { WouldYouRather } from './WouldYouRather.jsx';
 
-export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId, pictionaryState, setPictionaryState, onSaveToScrapbook }) {
+export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId, pictionaryState, setPictionaryState, onSaveToScrapbook, syncedRoomId }) {
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   
@@ -64,6 +64,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     if (isReady) setLobbyState({ ...lobbyState, status: 'playing' });
   };
 
+  const [view, setView] = useState('arcade'); // 'arcade' or 'scores'
+
   const renderGame = () => {
     const commonProps = { 
         sfx, 
@@ -75,13 +77,13 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         onShareToChat, 
         onSaveToScrapbook, 
         profile,
-        config: { mode: 'competitive', diff: 'medium', category: 'animals' } // Default config for co-op start
+        roomId: syncedRoomId || 'global' // roomId for scrapbook sync
     };
 
     switch (gameRoute) {
-      case 'tictactoe': return <TicTacToe {...commonProps} config={{ ...commonProps.config, mode: '1v1_local', size: 3 }} />;
+      case 'tictactoe': return <TicTacToe {...commonProps} />;
       case 'pictionary': return <PictionaryGame {...commonProps} gameState={pictionaryState} setGameState={setPictionaryState} />;
-      case 'memory': return <MemoryGame {...commonProps} />;
+      case 'memory': return <MemoryGame {...commonProps} roomId={commonProps.roomId} />;
       case 'wordle': return <WordleClone {...commonProps} />;
       case 'sudoku': return <Sudoku {...commonProps} />;
       case 'chess': return <ChessEngine {...commonProps} />;
@@ -97,37 +99,60 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   if (!gameRoute || gameRoute === '') {
     const games = [
       { id: 'pictionary', title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5' },
-      { id: 'tictactoe', title: 'Tic-Tac-Toe', desc: 'Classic 3x3. Try Memory Fading mode.', color: '#ef4444' },
+      { id: 'tictactoe', title: 'Tic-Tac-Toe', desc: 'Classic 3x3 match.', color: '#ef4444' },
       { id: 'memory', title: 'Memory Match', desc: 'Flip cards and find pairs.', color: '#3b82f6' },
-      { id: 'wordle', title: 'Retro Word', desc: 'Guess the hidden word.', color: '#fef3c7' },
-      { id: 'sudoku', title: 'Sudoku', desc: 'Logic puzzles. Race or Share.', color: '#fca5a5' },
-      { id: 'chess', title: 'Chess', desc: 'Full rules engine. Standard or Sandbox.', color: '#bfdbfe' },
+      { id: 'wordle', title: 'Retro Word', desc: 'Guess the hidden word.', color: '#fbbf24' },
+      { id: 'sudoku', title: 'Sudoku', desc: 'Logic puzzles.', color: '#fca5a5' },
+      { id: 'chess', title: 'Chess', desc: 'Standard or Sandbox.', color: '#bfdbfe' },
       { id: 'quiz', title: 'Couples Quiz', desc: 'How well do you know them?', color: '#fde68a' },
       { id: '2048', title: '2048', desc: 'Merge tiles. Reach 2048!', color: '#a855f7' },
       { id: 'typing', title: 'Typing Race', desc: 'Type fast. Beat your WPM.', color: '#14b8a6' },
       { id: 'wyr', title: 'Would You Rather', desc: 'See if you match!', color: '#ec4899' },
-      { id: 'love', title: 'Love Language', desc: 'Discover your love style.', color: '#f472b6' },
-      { id: 'watch', title: 'Sync Watcher', desc: 'Watch YT together.', color: '#c084fc' }
     ];
 
     return (
-      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden" noPadding>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-8 overflow-y-auto h-full bg-[var(--bg-window)]">
-          {games.map(game => (
-            <div 
-              key={game.id} 
-              onClick={() => navigate(`/activities/${game.id}`)} 
-              className="p-6 bg-white border-2 border-[var(--border)] shadow-[3px_3px_0px_0px_var(--border)] cursor-pointer hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_var(--border)] transition-all flex flex-col items-start text-left min-h-[140px] relative overflow-hidden"
-            >
-              <div 
-                className="w-8 h-8 border-2 border-[var(--border)] mb-4" 
-                style={{ backgroundColor: game.color }}
-              />
-              <h3 className="font-black text-xl leading-none mb-2 text-[var(--border)]">{game.title}</h3>
-              <p className="text-xs font-bold opacity-60 leading-relaxed text-[var(--border)] max-w-[200px]">{game.desc}</p>
-            </div>
-          ))}
+      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden flex flex-col" noPadding>
+        {/* Toggle Bar */}
+        <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
+           <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
+           <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>High Scores</button>
         </div>
+
+        {view === 'scores' ? (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[var(--bg-window)] text-[var(--text-main)]">
+             <div className="max-w-2xl mx-auto border-4 border-double border-[var(--border)] p-4 sm:p-8 bg-pattern-grid relative">
+                <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 uppercase tracking-[0.3em]">Hall of Fame</h2>
+                <div className="space-y-4">
+                  {Object.entries(scores || {}).map(([game, data]) => (
+                    <div key={game} className="flex flex-col sm:flex-row items-center justify-between bg-white retro-border p-4 shadow-[4px_4px_0_var(--border)] gap-4">
+                      <span className="font-black text-xl uppercase tracking-widest text-[var(--primary)]">{game}</span>
+                      <div className="flex gap-6 font-bold text-lg">
+                        <span className="flex flex-col items-center">You: <span className="text-2xl">{data[userId] || 0}</span></span>
+                        <span className="flex flex-col items-center">Partner: <span className="text-2xl">{data[partnerId] || 0}</span></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 p-4 pb-12 overflow-y-auto h-full bg-[var(--bg-main)]">
+            {games.map(game => (
+              <button 
+                key={game.id} 
+                onClick={() => { playAudio('click', sfx); navigate(`/activities/${game.id}`); }}
+                className="flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark hover:-translate-y-1 transition-all group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-current" style={{ color: game.color }}></div>
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-3 retro-border shadow-inner" style={{ backgroundColor: game.color }}>
+                   <Gamepad2 size={24} className="text-white" />
+                </div>
+                <h3 className="font-black text-sm uppercase tracking-tighter mb-1 text-center">{game.title}</h3>
+                <p className="text-[9px] opacity-50 text-center leading-tight">{game.desc}</p>
+              </button>
+            ))}
+          </div>
+        )}
       </RetroWindow>
     );
   }

@@ -4,14 +4,14 @@ import { playAudio } from '../utils/audio.js';
 import { Keyboard } from 'lucide-react';
 
 const PASSAGES = [
-  "love is patient love is kind it does not envy it does not boast",
-  "the best thing to hold onto in life is each other",
-  "you are my today and all of my tomorrows",
-  "in all the world there is no heart for me like yours",
-  "wherever you are is my home my only home",
-  "i have found the one whom my soul loves",
-  "every love story is beautiful but ours is my favorite",
-  "you are the sun in my day the wind in my sky",
+  "I love you without knowing how, or when, or from where. I love you simply, without problems or pride.",
+  "Whatever our souls are made of, his and mine are the same. He's more myself than I am.",
+  "I have died every day waiting for you. Darling, don't be afraid I have loved you for a thousand years.",
+  "You have bewitched me, body and soul, and I love, I love, I love you. I never wish to be parted from you.",
+  "I saw that you were perfect, and so I loved you. Then I saw that you were not perfect and I loved you even more.",
+  "In all the world, there is no heart for me like yours. In all the world, there is no love for you like mine.",
+  "You are my heart, my life, my one and only thought. I love you more than words can express.",
+  "Grow old along with me! The best is yet to be, the last of life, for which the first was made.",
 ];
 
 export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToChat, profile }) {

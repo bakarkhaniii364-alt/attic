@@ -336,8 +336,8 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         <p className="text-sm font-bold truncate max-w-[120px] leading-none">
                           {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
                         </p>
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${onlineUsers[partnerId] ? 'bg-blue-400 text-white' : 'bg-gray-200 opacity-50'}`}>
-                          {onlineUsers[partnerId] === 'active' ? 'online' : onlineUsers[partnerId] === 'idle' ? 'away' : 'offline'}
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : onlineUsers[partnerId] ? 'bg-blue-400 text-white' : 'bg-gray-200 opacity-50'}`}>
+                          {displayStatus.toLowerCase()}
                         </span>
                       </div>
                     </div>

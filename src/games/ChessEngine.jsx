@@ -78,7 +78,7 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
       try {
           const move = chess.move(moveObj);
           if (move) {
-              playAudio('click', sfx);
+              playAudio('wood_thud', sfx);
               setFen(chess.fen());
               setHistory(chess.history({ verbose: true }));
               setSelectedSq(null);

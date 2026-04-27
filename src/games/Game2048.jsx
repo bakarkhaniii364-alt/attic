@@ -60,7 +60,7 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
     if (gameOver) return;
     const { grid: newGrid, moved } = moveGrid(grid, dir);
     if (!moved) return;
-    playAudio('click', sfx);
+    playAudio('electronic_slide', sfx);
     const newScore = getScore2048(newGrid);
     setGrid(newGrid); setScore(newScore);
     if (newScore > best) { setBest(newScore); localStorage.setItem('2048_best', String(newScore)); }

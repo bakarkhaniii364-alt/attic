@@ -3,7 +3,8 @@ import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
-import { Star, RefreshCw, Eye, Lightbulb } from 'lucide-react';
+import { Star, RefreshCw, Eye, Lightbulb, Image as ImageIcon } from 'lucide-react';
+import { useAssetSync } from '../hooks/useAssetSync.js';
 
 const DECKS = {
     emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔'],
@@ -11,7 +12,8 @@ const DECKS = {
     food: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝']
 };
 
-export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
+export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, roomId }) {
+  const { assets } = useAssetSync(roomId || 'global', 'scrapbook');
   const [cards, setCards] = useState([]); 
   const [flipped, setFlipped] = useState([]); 
   const [solved, setSolved] = useState([]); 
@@ -40,10 +42,17 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
   }, [timerActive]);
 
   const shuffleCards = () => { 
-      const deck = DECKS[config.category] || DECKS.emojis;
+      const fallbackDeck = DECKS[config.category] || DECKS.emojis;
       const pairCount = config.diff === 'easy' ? 8 : config.diff === 'medium' ? 12 : 16;
-      let selectedDeck = [...deck].sort(() => Math.random() - 0.5).slice(0, pairCount);
-      const shuffled = [...selectedDeck, ...selectedDeck].sort(() => Math.random() - 0.5).map((emoji, id) => ({ id, emoji })); 
+      
+      // Scrapbook Mode: Use assets if we have at least 8 images
+      const useScrapbook = assets && assets.length >= 8;
+      const baseDeck = useScrapbook ? assets.slice(0, pairCount).map(a => ({ content: a.url, isImage: true })) : fallbackDeck.slice(0, pairCount).map(e => ({ content: e, isImage: false }));
+
+      const shuffled = [...baseDeck, ...baseDeck]
+          .sort(() => Math.random() - 0.5)
+          .map((item, id) => ({ id, ...item })); 
+
       setCards(shuffled); setFlipped([]); setSolved([]); setTurn(1); setP1Score(0); setP2Score(0); setMoves(0); setTime(0); setTimerActive(true); setCombo(1); setPeekAvailable(2); setGameOverOverlay(false);
   };
 
@@ -56,7 +65,7 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
     if (newFlipped.length === 2) {
       setMoves(m => m+1);
       setDisabled(true); 
-      const match = cards[newFlipped[0]].emoji === cards[newFlipped[1]].emoji;
+      const match = cards[newFlipped[0]].content === cards[newFlipped[1]].content;
       
       setTimeout(() => {
         if (match) {
@@ -160,9 +169,13 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
                             <div className="absolute inset-2 border-2 border-dashed opacity-30 rounded-sm" style={{ borderColor: 'var(--bg-window)' }}></div>
                             <Star size={24} style={{ color: 'var(--bg-window)', opacity: 0.6 }}/>
                         </div>
-                        {/* BACK — card face (emoji, visible when flipped) */}
-                        <div className="absolute inset-0 backface-hidden rotate-y-180 retro-border flex items-center justify-center" style={{ backgroundColor: 'var(--bg-window)' }}>
-                            <span>{card.emoji}</span>
+                        {/* BACK — card face (content, visible when flipped) */}
+                        <div className="absolute inset-0 backface-hidden rotate-y-180 retro-border flex items-center justify-center overflow-hidden" style={{ backgroundColor: 'var(--bg-window)' }}>
+                            {card.isImage ? (
+                                <img src={card.content} alt="memory" className="w-full h-full object-cover" />
+                            ) : (
+                                <span>{card.content}</span>
+                            )}
                         </div>
                     </div>
                 </div>
