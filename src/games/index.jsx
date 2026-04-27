@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { playAudio } from '../utils/audio.js';
 
 // Games
 import { TicTacToe } from './TicTacToeGame.jsx';
