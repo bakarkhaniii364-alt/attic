@@ -456,7 +456,7 @@ export default function App() {
   }, [userId, setAfkState]);
 
   const isPartnerAfk = afkState[partnerId];
-  const isPartnerOnline = (onlineUsers || {})[partnerId];
+  const isPartnerOnline = !!(onlineUsers && onlineUsers[partnerId]);
   
   // Dynamic Partner Status
   const displayStatus = isPartnerAfk ? 'Zzz... (Away)' :
@@ -518,7 +518,6 @@ export default function App() {
   const prevPartnerOnline = useRef(false);
   const prevChatLength = useRef(0);
   
-  const isPartnerOnline = !!onlineUsers[partnerId];
 
   // 1. Partner Online Tracker
   useEffect(() => {
