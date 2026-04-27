@@ -464,19 +464,8 @@ export default function App() {
                         ? `Playing ${lobbyState.gameId}` 
                         : isPartnerOnline ? 'Online' : 'Offline';
 
-  // ── THE KISS RECEIVER ──
+  // ── THE KISS RECEIVER (Part of Unified Channel below) ──
   const [showKiss, setShowKiss] = useState(false);
-  const sendInteraction = useBroadcast('interaction', (payload) => {
-    console.log('[INTERACTION] Received:', payload, 'Current PartnerId:', partnerId);
-    if (payload.from === partnerId && payload.type === 'kiss') {
-      console.log('[KISS] Animation Triggered!');
-      setShowKiss(true);
-      playAudio('notif', sfxEnabled);
-      // Update local storage so we don't trigger the "offline" flurry for this one
-      if (payload.timestamp) localStorage.setItem('last_seen_kiss', payload.timestamp);
-      setTimeout(() => setShowKiss(false), 4500);
-    }
-  });
 
   // ── OFFLINE KISS DETECTION ──
   useEffect(() => {
@@ -502,6 +491,8 @@ export default function App() {
   const peerRef = useRef(null);
   const currentCallRef = useRef(null);
   const ringingIntervalRef = useRef(null);
+  const lastActionTimeRef = useRef(0);
+  const globalChannelRef = useRef(null);
   const callTimerRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -829,7 +820,7 @@ export default function App() {
             if (room.is_paired) {
                 setPendingRoomId(room.id);
                 // Auto-detect and set partner ID if missing
-                const pid = room.user1_id === s.user.id ? room.user2_id : room.user1_id;
+                const pid = room.creator_id === s.user.id ? room.partner_id : room.creator_id;
                 console.log(`[INIT] Room: ${room.id}, My ID: ${s.user.id}, Detected Partner: ${pid}`);
                 if (pid && profile.partner_id !== pid) {
                     console.log(`[INIT] Updating profile with partner_id: ${pid}`);
@@ -967,33 +958,49 @@ export default function App() {
         setSyncedRoomId(pendingRoomId);
         await initializeRoomSync(pendingRoomId);
         
-        // Presence tracking
-        console.log("🟡 Attempting to connect to Supabase Realtime...");
-        presenceChannel = supabase.channel(`presence_${pendingRoomId}`, {
-          config: { presence: { key: userId } }
+        // 🔥 UNIFIED REALTIME CHANNEL (Presence + Kisses) 🔥
+        console.log("🟡 Attempting to connect to Unified Room Channel...");
+        const channel = supabase.channel(`room_${pendingRoomId}`, {
+          config: { 
+            presence: { key: userId },
+            broadcast: { self: false }
+          }
         });
 
-        presenceChannel
+        channel
+          // 1. Handle Online/Offline Status
           .on('presence', { event: 'sync' }, () => {
-            const newState = presenceChannel.presenceState();
+            const newState = channel.presenceState();
             console.log("🟢 Presence Sync:", newState); 
             const onlineMap = {};
             Object.keys(newState).forEach(id => {
                onlineMap[id] = newState[id][0]?.status || 'active';
             });
-            // Solution: Force re-render with new object
             setOnlineUsers({ ...onlineMap });
           })
+          // 2. Handle Incoming Kisses (Interaction)
+          .on('broadcast', { event: 'interaction' }, (payload) => {
+             console.log('[INTERACTION] Received:', payload, 'Current PartnerId:', partnerId);
+             if (payload.payload.type === 'kiss' && payload.payload.from === partnerId) {
+                console.log('[KISS] Animation Triggered!');
+                setShowKiss(true);
+                playAudio('notif', sfxEnabled);
+                if (payload.payload.timestamp) localStorage.setItem('last_seen_kiss', payload.payload.timestamp);
+                setTimeout(() => setShowKiss(false), 4500);
+             }
+          })
           .subscribe(async (status) => {
-            console.log("🔵 Supabase Channel Status:", status);
+            console.log("🔵 Unified Channel Status:", status);
             if (status === 'SUBSCRIBED') {
-              await presenceChannel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+              await channel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
             }
           });
 
+        globalChannelRef.current = channel;
+
         const handleVisibility = () => {
-          if (presenceChannel && presenceChannel.state === 'joined') {
-            presenceChannel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+          if (channel.state === 'joined') {
+            channel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
           }
         };
         window.addEventListener('focus', handleVisibility);
@@ -1004,11 +1011,23 @@ export default function App() {
     })();
     return () => { 
       cancelled = true; 
-      if (presenceChannel) supabase.removeChannel(presenceChannel);
+      if (globalChannelRef.current) supabase.removeChannel(globalChannelRef.current);
       window.removeEventListener('focus', handleVisibility);
       window.removeEventListener('blur', handleVisibility);
     };
-  }, [coreReady, pendingRoomId, userId]);
+  }, [coreReady, pendingRoomId, userId, partnerId]);
+
+  const sendKissBroadcast = () => {
+    const now = Date.now().toString();
+    if (globalChannelRef.current && globalChannelRef.current.state === 'joined') {
+       globalChannelRef.current.send({
+          type: 'broadcast',
+          event: 'interaction',
+          payload: { type: 'kiss', from: userId, timestamp: now }
+       });
+    }
+    setCoupleData(prev => ({ ...prev, lastKissFrom: userId, lastKissTimestamp: now }));
+  };
 
   const handleLogout = async () => { await supabase.auth.signOut(); localStorage.clear(); setSession(null); setHasRoom(false); navigate('/dashboard'); };
   const handleAuthSuccess = async (data) => {
@@ -1217,7 +1236,7 @@ export default function App() {
               ) : !hasRoom ? (
                 <Navigate to="/handshake" replace />
               ) : (
-                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendInteraction} displayStatus={displayStatus} />
+                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendKissBroadcast} displayStatus={displayStatus} />
               )
             } />
             <Route path="/login" element={<Navigate to="/" replace />} />
