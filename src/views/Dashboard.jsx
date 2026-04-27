@@ -241,7 +241,7 @@ export function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction, streaks, displayStatus = 'Offline' }) {
   // SAFEGUARD: Ensure objects are never null when mapping
   const safeCoupleData = coupleData || {};
   const safeChatHistory = chatHistory || [];
