@@ -10,7 +10,7 @@ import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
 const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
-  const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, paw, hiss, eat
+  const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, paw, hiss, eat, stretch, scratch, walk
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isSleeping, setIsSleeping] = useState(false);
   const [sleepStartTime, setSleepStartTime] = useState(null);
@@ -25,7 +25,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   const isSad = !isSleeping && happy < 30;
 
   const sleepRows = [12, 13, 14, 15, 16, 17, 18, 19];
-  const randomIdleActions = ['yawn', 'wash', 'paw'];
+  const randomIdleActions = ['yawn', 'wash', 'paw', 'stretch', 'scratch', 'walk'];
 
   useEffect(() => {
     setIsSleeping(false);
@@ -130,6 +130,9 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
     if (currentAction === 'yawn') return { row: 32, frames: 8, duration: 1100 };
     if (currentAction === 'wash') return { row: 36, frames: 8, duration: 1000 };
     if (currentAction === 'paw') return { row: 45, frames: 9, duration: 900 };
+    if (currentAction === 'stretch') return { row: 3, frames: 8, duration: 1200 };
+    if (currentAction === 'scratch') return { row: 39, frames: 8, duration: 1000 };
+    if (currentAction === 'walk') return { row: 7, frames: 9, duration: 1200 };
 
     if (isSad) return { row: 43, frames: 1, duration: 1000 };
     if (isPartnerAfk) return { row: 2, frames: 6, duration: 1200 };
