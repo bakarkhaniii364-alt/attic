@@ -225,8 +225,9 @@ export function useBroadcast(eventName, callback) {
   useEffect(() => {
     if (!currentRoomId || (!isInitialized && !isTestMode())) return;
 
-    // Fixed channel name for all users in this room/event
-    const channelName = `room_broadcast_${currentRoomId}_${eventName}`;
+    // Unique channel name for this specific hook instance to prevent subscribe() crashes
+    const uniqueId = Math.random().toString(36).substring(7);
+    const channelName = `room_broadcast_${currentRoomId}_${eventName}_${uniqueId}`;
     const newChannel = supabase.channel(channelName)
       .on('broadcast', { event: eventName }, ({ payload }) => {
         if (callbackRef.current) callbackRef.current(payload);

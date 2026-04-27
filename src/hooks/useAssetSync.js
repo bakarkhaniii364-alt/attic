@@ -43,8 +43,9 @@ export function useAssetSync(roomId, assetType = null) {
 
     fetchAssets();
 
-    // 2. Realtime Updates
-    const channelName = `room_assets_${roomId}_${assetType || 'all'}`;
+    // 2. Realtime Updates (Appended a random string to guarantee a unique channel per mount)
+    const uniqueId = Math.random().toString(36).substring(7);
+    const channelName = `room_assets_${roomId}_${assetType || 'all'}_${uniqueId}`;
     const channel = supabase.channel(channelName);
     channel
       .on(
