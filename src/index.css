@@ -5,9 +5,9 @@
 
 /* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
-  --bg-main: #f9e2cf;       /* Richer, warmer peach background */
-  --bg-pattern: #d4b499;    /* Highly visible grid lines (Desert Sand) */
-  --bg-window: #fffdf9;     /* Pure paper-white windows */
+  --bg-main: #f9e2cf;
+  --bg-pattern: #b48e6c;    /* Sharper contrast */
+  --bg-window: #fffdf9;
   --bg-header: #f9e2af;     /* Light cream headers */
   --border: #5c3a21;        /* Thick retro brown borders */
   --text-on-border: #ffffff;
@@ -25,7 +25,7 @@
 /* ════ THEMES ════ */
 [data-theme="matcha"] {
   --bg-main: #e8eedf;
-  --bg-pattern: #c0cfb1;
+  --bg-pattern: #9dab86;
   --bg-window: #f9faf7;
   --bg-header: #c0cfb1;
   --border: #2d4a22;
@@ -43,7 +43,7 @@
 
 [data-theme="midnight"] {
   --bg-main: #0f172a;
-  --bg-pattern: #1e293b;
+  --bg-pattern: #334155;
   --bg-window: #0b0f19;
   --bg-header: var(--border);
   --border: #94a3b8;
@@ -61,7 +61,7 @@
 
 [data-theme="cyberpunk"] {
   --bg-main: #050505;
-  --bg-pattern: #1f1f1f;
+  --bg-pattern: #333333;
   --bg-window: #000000;
   --bg-header: var(--border);
   --border: #fcee0a;
@@ -79,7 +79,7 @@
 
 [data-theme="synthwave"] {
   --bg-main: #2b0f4c;
-  --bg-pattern: #3c156b;
+  --bg-pattern: #511c91;
   --bg-window: #1a0b2e;
   --bg-header: var(--border);
   --border: #ff007f;
@@ -97,7 +97,7 @@
 
 [data-theme="minimal"] {
   --bg-main: #f4f4f5;
-  --bg-pattern: #d4d4d8;
+  --bg-pattern: #a1a1aa;
   --bg-window: #ffffff;
   --bg-header: #d4d4d8;
   --border: #18181b;
@@ -115,7 +115,7 @@
 
 [data-theme="monochrome"] {
   --bg-main: #000000;
-  --bg-pattern: #262626;
+  --bg-pattern: #404040;
   --bg-window: #0a0a0a;
   --bg-header: var(--border);
   --border: #ffffff;
@@ -133,7 +133,7 @@
 
 [data-theme="hawkins"] {
   --bg-main: #0a0a0a;
-  --bg-pattern: #260a0a;
+  --bg-pattern: #450a0a;
   --bg-window: #000000;
   --bg-header: var(--border);
   --border: #dc2626;
@@ -151,7 +151,7 @@
 
 [data-theme="lavender"] {
   --bg-main: #eef2ff;
-  --bg-pattern: #c7d2fe;
+  --bg-pattern: #9daaf2;
   --bg-window: #ffffff;
   --bg-header: #c7d2fe;
   --border: #4c1d95;
@@ -169,7 +169,7 @@
 
 [data-theme="coffee"] {
   --bg-main: #eaddcf;
-  --bg-pattern: #d0bda9;
+  --bg-pattern: #a68b71;
   --bg-window: #f4ebe1;
   --bg-header: #d0bda9;
   --border: #3e2723;
@@ -187,7 +187,7 @@
 
 [data-theme="nord"] {
   --bg-main: #2e3440;
-  --bg-pattern: #434c5e;
+  --bg-pattern: #4c566a;
   --bg-window: #242933;
   --bg-header: var(--border);
   --border: #eceff4;
@@ -224,8 +224,8 @@ body {
 .bg-pattern-grid {
   background-color: transparent !important;
   background-image: 
-    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 32px),
-    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 2px, transparent 2px, transparent 32px) !important;
+    repeating-linear-gradient(to right, var(--bg-pattern) 0, var(--bg-pattern) 4px, transparent 4px, transparent 32px),
+    repeating-linear-gradient(to bottom, var(--bg-pattern) 0, var(--bg-pattern) 4px, transparent 4px, transparent 32px) !important;
 }
 
 ::-webkit-scrollbar { width: 12px; }
