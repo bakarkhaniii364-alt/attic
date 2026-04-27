@@ -296,6 +296,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
             </div>
         )}
       </div>
+      )}
 
       {gameStatus === "playing" && (
          <div className="bg-[var(--border)] p-3 pb-8 retro-border-t">
