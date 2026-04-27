@@ -647,14 +647,21 @@ export default function App() {
 
   useEffect(() => {
     if (!userId) return;
+    
+    let retryCount = 0; // Track how many times we've failed
+    let retryTimeout = null;
+
     const initPeer = () => {
-      // Solution 4: Destroy old instance before re-initializing
+      // Gracefully disconnect from signaling server before destroying
       if (peerRef.current && !peerRef.current.destroyed) {
-          try { peerRef.current.destroy(); } catch(e) {}
+          try { 
+              peerRef.current.disconnect(); 
+              peerRef.current.destroy(); 
+          } catch(e) {}
       }
 
       const peer = new Peer(userId, { 
-        debug: 1,
+        debug: 1, // Keep debug low to prevent console spam
         config: { iceServers: [
           { urls: 'stun:stun.l.google.com:19302' }, 
           { urls: 'stun:stun1.l.google.com:19302' },
@@ -663,42 +670,58 @@ export default function App() {
           { urls: 'stun:stun4.l.google.com:19302' },
         ] }
       });
+      
       peerRef.current = peer;
+
+      // Successfully connected to signaling server
+      peer.on('open', () => {
+          console.log("[PeerJS] Connected successfully. ID active.");
+          retryCount = 0; // Reset backoff counter on success
+      });
+
       peer.on('call', (call) => { 
         currentCallRef.current = call; 
-        // Solution 23: Clean up on remote disconnect
         call.on('close', () => handleEndCall());
         call.on('error', () => handleEndCall());
 
         const currentStatus = callStateRef.current.status;
-        
-        // If we somehow already accepted it, answer immediately
         if (currentStatus === 'connected' || currentStatus === 'accepted') {
            if (localStreamRef.current) {
                call.answer(localStreamRef.current);
-               call.on('stream', (rs) => { 
-                 setRemoteStream(rs);
-               });
+               call.on('stream', (rs) => { setRemoteStream(rs); });
            }
         }
       });
+
       peer.on('error', (err) => {
-        // Handle network drops
-        if (err.type === 'disconnected' || err.type === 'network') {
-            if (peerRef.current) peerRef.current.destroy();
-            setTimeout(initPeer, 3000);
-        }
-        // Handle "ID is taken" ghost connections (Hot Reloading fix)
-        if (err.type === 'unavailable-id') {
-            console.warn("Peer ID taken (likely ghost connection). Retrying in 2s...");
-            if (peerRef.current) peerRef.current.destroy();
-            setTimeout(initPeer, 2000);
+        // Handle all network drops and taken IDs with Exponential Backoff
+        if (err.type === 'disconnected' || err.type === 'network' || err.type === 'unavailable-id') {
+            retryCount++;
+            
+            // Calculate delay: 2s, 4s, 8s, 16s... (Max 15 seconds)
+            const delay = Math.min(2000 * Math.pow(2, retryCount), 15000); 
+            console.warn(`[PeerJS] ${err.type}. Retrying in ${delay/1000}s...`);
+            
+            if (peerRef.current) {
+                try { peerRef.current.disconnect(); peerRef.current.destroy(); } catch(e){}
+            }
+            
+            if (retryTimeout) clearTimeout(retryTimeout);
+            retryTimeout = setTimeout(initPeer, delay);
         }
       });
     };
+
     initPeer();
-    return () => { if (peerRef.current) peerRef.current.destroy(); };
-  }, [userId]); // Removed calling dependency to keep peer alive
+
+    // Cleanup on unmount
+    return () => { 
+        if (retryTimeout) clearTimeout(retryTimeout);
+        if (peerRef.current) {
+            try { peerRef.current.disconnect(); peerRef.current.destroy(); } catch(e) {}
+        }
+    };
+  }, [userId]); // Removed calling dependency
 
   // NEW: Robust Call State Machine
   useEffect(() => {
