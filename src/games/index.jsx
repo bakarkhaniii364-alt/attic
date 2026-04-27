@@ -82,6 +82,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
   const renderGame = () => {
     const commonProps = { 
+        config: { diff: 'easy', mode: '1v1_local', category: 'emojis', matchType: 1 },
         sfx, userId, partnerId, setScores, onWin: handleWin,
         onBack: () => navigate('/activities'), 
         onShareToChat, onSaveToScrapbook, profile,

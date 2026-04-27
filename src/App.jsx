@@ -683,10 +683,16 @@ export default function App() {
         }
       });
       peer.on('error', (err) => {
+        // Handle network drops
         if (err.type === 'disconnected' || err.type === 'network') {
-            // Solution 4: Force destroy on retry
             if (peerRef.current) peerRef.current.destroy();
             setTimeout(initPeer, 3000);
+        }
+        // Handle "ID is taken" ghost connections (Hot Reloading fix)
+        if (err.type === 'unavailable-id') {
+            console.warn("Peer ID taken (likely ghost connection). Retrying in 2s...");
+            if (peerRef.current) peerRef.current.destroy();
+            setTimeout(initPeer, 2000);
         }
       });
     };
