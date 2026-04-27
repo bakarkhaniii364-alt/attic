@@ -10,23 +10,23 @@ import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
 const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
-  const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, itch, hiss, eat, sleep
+  const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, paw, hiss, eat
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isSleeping, setIsSleeping] = useState(false);
   const [sleepStartTime, setSleepStartTime] = useState(null);
   const [petClickCount, setPetClickCount] = useState(0);
   const [lastPetTime, setLastPetTime] = useState(0);
 
-  // Track the action timeout to prevent overlapping state resets
   const actionTimeoutRef = useRef(null);
-  // Hook the animation directly to the DOM node
-  const spriteRef = useRef(null); 
+  const spriteRef = useRef(null);
 
   const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9.png';
+  const isSad = !isSleeping && happy < 30;
 
-  // 1. SLEEP/WAKE LOGIC
+  const sleepRows = [12, 13, 14, 15, 16, 17, 18, 19];
+  const randomIdleActions = ['yawn', 'wash', 'paw'];
+
   useEffect(() => {
-    // Wake up on login (mount)
     setIsSleeping(false);
     setLastActivityTime(Date.now());
 
@@ -35,22 +35,20 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       const hr = new Date().getHours();
       const isNight = hr < 6 || hr > 22;
 
-      // Auto-sleep at night after 2 mins of inactivity
       if (isNight && !isSleeping && (now - lastActivityTime > 120000)) {
         setIsSleeping(true);
         setSleepStartTime(now);
       }
 
-      // Auto-wake after 4 hours of sleep
       if (isSleeping && sleepStartTime && (now - sleepStartTime > 4 * 60 * 60 * 1000)) {
         setIsSleeping(false);
         setLastActivityTime(now);
       }
     }, 10000);
+
     return () => clearInterval(interval);
   }, [isSleeping, lastActivityTime, sleepStartTime]);
 
-  // SAFE TIMEOUT HELPER
   const triggerAction = (actionName, duration) => {
     setCurrentAction(actionName);
     if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
@@ -59,24 +57,21 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     }, duration);
   };
 
-  // 2. RANDOM IDLE BEHAVIORS & EXTERNAL ACTIONS
   useEffect(() => {
     if (externalAction) triggerAction(externalAction, 3000);
   }, [externalAction]);
 
   useEffect(() => {
-    if (isSleeping || currentAction !== 'idle') return;
+    if (isSleeping || currentAction !== 'idle' || isSad) return;
     const interval = setInterval(() => {
-      if (Math.random() > 0.95) { // 5% chance every 10s
-        const actions = ['yawn', 'wash', 'itch'];
-        const randomAction = actions[Math.floor(Math.random() * actions.length)];
+      if (Math.random() > 0.95) {
+        const randomAction = randomIdleActions[Math.floor(Math.random() * randomIdleActions.length)];
         triggerAction(randomAction, 3000);
       }
     }, 10000);
     return () => clearInterval(interval);
-  }, [isSleeping, currentAction]);
+  }, [isSleeping, currentAction, isSad]);
 
-  // 3. INTERACTION
   const handleInteraction = () => {
     const now = Date.now();
     setLastActivityTime(now);
@@ -88,7 +83,6 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       return;
     }
 
-    // Check for rapid clicking (Aggressive Petting)
     if (now - lastPetTime < 300) {
       const newCount = petClickCount + 1;
       setPetClickCount(newCount);
@@ -100,76 +94,54 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     } else {
       setPetClickCount(1);
     }
-    setLastPetTime(now);
 
-    // Normal pet meow
+    setLastPetTime(now);
     triggerAction('meow', 1500);
     if (onClick) onClick();
   };
 
-  // 4. ANIMATION MAPPING (cat 1.x 32x32 sheets, 53 rows)
-  let frames = 4;
-  let row = 0;
-
-  if (isSleeping) {
-    row = 12; // Sleep
-    frames = 3;
-  } else if (currentAction === 'hiss') {
-    row = 41; // Hiss
-    frames = 2;
-  } else if (currentAction === 'eat') {
-    row = 20; // Eat
-    frames = 8;
-  } else if (currentAction === 'meow') {
-    row = 28; // Meow
-    frames = 4;
-  } else if (currentAction === 'yawn') {
-    row = 32; // Yawn
-    frames = 8;
-  } else if (currentAction === 'wash') {
-    row = 36; // Wash
-    frames = 8;
-  } else if (currentAction === 'itch') {
-    row = 39; // Scratch
-    frames = 8;
-  } else if (happy < 30) {
-    row = 43; // Sad
-    frames = 1;
-  } else if (isPartnerAfk) {
-    row = 2; // Lie down
-    frames = 6;
-  } else if (isHovering) {
-    row = 1; // Stand
-    frames = 8;
-  } else {
-    row = 0; // Sit
-    frames = 6;
-  }
-
-  // Display scale is 4x for 32x32 frames to reach 128px
-  const scale = 4;
-  const frameSize = 32 * scale; // 128px
-  const labelOffset = 80 * scale; // 320px offset for the 80px margin on the left
-  const bgPosY = `-${row * frameSize}px`;
-  
-  // The actual sprite sheets are 432px wide (80px margin + 11 columns of 32px)
-  const bgWidth = 432 * scale; // 1728px
-  const bgSize = `${bgWidth}px auto`; 
-
-  // WEB ANIMATIONS API: Self-contained dynamic steps!
-  useEffect(() => {
-    if (spriteRef.current && frames > 1) {
-      const animation = spriteRef.current.animate([
-        { backgroundPositionX: `-${labelOffset}px` },
-        { backgroundPositionX: `-${labelOffset + (frames * 32 * scale)}px` }
-      ], {
-        duration: frames * 150,
-        easing: `steps(${frames})`,
-        iterations: Infinity
-      });
-      return () => animation.cancel();
+  const getSpriteForState = () => {
+    if (isSleeping) {
+      const selectedRow = sleepRows[Math.floor(Date.now() / 1200) % sleepRows.length];
+      return { row: selectedRow, frames: 2, duration: 900 };
     }
-  }, [frames, scale, labelOffset]);
+
+    if (currentAction === 'hiss') return { row: 41, frames: 2, duration: 500 };
+    if (currentAction === 'eat') return { row: 20, frames: 8, duration: 1000 };
+    if (currentAction === 'meow') return { row: 28, frames: 3, duration: 700 };
+    if (currentAction === 'yawn') return { row: 32, frames: 8, duration: 1100 };
+    if (currentAction === 'wash') return { row: 36, frames: 8, duration: 1000 };
+    if (currentAction === 'paw') return { row: 45, frames: 9, duration: 900 };
+
+    if (isSad) return { row: 0, frames: 6, duration: 1400 };
+    if (isPartnerAfk) return { row: 1, frames: 8, duration: 1200 };
+    if (isHovering) return { row: 0, frames: 6, duration: 1200 };
+
+    return { row: 0, frames: 6, duration: 1400 };
+  };
+
+  const { row, frames, duration } = getSpriteForState();
+
+  const scale = 4;
+  const frameSize = 32 * scale;
+  const labelOffset = 80 * scale;
+  const bgPosY = `-${row * frameSize}px`;
+  const bgWidth = 432 * scale;
+  const bgSize = `${bgWidth}px auto`;
+
+  useEffect(() => {
+    if (!spriteRef.current || frames <= 1) return;
+    const endX = labelOffset + (frames - 1) * frameSize;
+    const animation = spriteRef.current.animate([
+      { backgroundPositionX: `-${labelOffset}px` },
+      { backgroundPositionX: `-${endX}px` }
+    ], {
+      duration,
+      easing: `steps(${frames})`,
+      iterations: Infinity
+    });
+    return () => animation.cancel();
+  }, [frames, duration, frameSize, labelOffset]);
 
   return (
     <div
@@ -179,9 +151,9 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       onMouseDown={handleInteraction}
       title={isSleeping ? "Shh, pet is sleeping. Click to wake up!" : "Click to pet!"}
     >
-      <div 
+      <div
         ref={spriteRef}
-        className="cat-sprite" 
+        className="cat-sprite"
         style={{
           width: `${frameSize}px`,
           height: `${frameSize}px`,
@@ -191,9 +163,17 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
           backgroundPositionX: `-${labelOffset}px`,
           backgroundRepeat: 'no-repeat',
           imageRendering: 'pixelated'
-        }} 
+        }}
       />
-      {isSleeping && <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>}
+      {isSleeping && (
+        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>
+      )}
+      {isSad && !isSleeping && (
+        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-cyan-100 drop-shadow-md">
+          <span>:(</span>
+          <span className="text-[10px] opacity-80">sad</span>
+        </div>
+      )}
       {currentAction === 'meow' && (
         <svg width="24" height="24" viewBox="0 0 16 16" className="absolute -top-4 right-0 animate-bounce drop-shadow-md">
           <path d="M4,2 L7,2 L7,3 L9,3 L9,2 L12,2 L12,3 L14,3 L14,6 L13,6 L13,8 L12,8 L12,10 L11,10 L11,11 L10,11 L10,12 L9,12 L9,13 L7,13 L7,12 L6,12 L6,11 L5,11 L5,10 L4,10 L4,8 L3,8 L3,6 L2,6 L2,3 Z" fill="#ff4d4d" />
@@ -505,7 +485,12 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
         <div className="flex flex-col items-center text-center h-full justify-between">
           <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onClick={() => handlePetAction(5)} />
           <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
-          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(20, 'Fed the pet!', 'eat')}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10)}>Pet</RetroButton></div>
+          <div className="flex flex-wrap gap-2 w-full mt-4">
+            <RetroButton variant="secondary" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(20, 'Fed the pet!', 'eat')}>Feed</RetroButton>
+            <RetroButton variant="accent" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10, 'Petted the pet!', 'meow')}>Pet</RetroButton>
+            <RetroButton variant="secondary" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10, 'Washed the pet!', 'wash')}>Wash</RetroButton>
+            <RetroButton variant="accent" className="flex-1 min-w-[8rem] py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10, 'Played with the pet!', 'paw')}>Play</RetroButton>
+          </div>
         </div>
       </RetroWindow>
 
