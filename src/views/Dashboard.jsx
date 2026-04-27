@@ -151,8 +151,8 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
   const scale = 8;
   const frameWidth = 16 * scale;
   const bgPosY = `-${row * frameWidth}px`;
-  // Width of the sheet is max 32 frames (512px original)
-  const bgSize = `${512 * scale}px ${1024 * scale}px`;
+  // The actual sprite sheets are 352px wide (22 frames) and 1696px tall (106 rows)
+  const bgSize = `${352 * scale}px ${1696 * scale}px`;
 
   return (
     <div
