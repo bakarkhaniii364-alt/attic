@@ -107,30 +107,30 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     if (onClick) onClick();
   };
 
-  // 4. ANIMATION MAPPING (cat 1.x 16x16 sheets)
+  // 4. ANIMATION MAPPING (cat 1.x 32x32 sheets, 53 rows)
   let frames = 4;
   let row = 0;
 
   if (isSleeping) {
-    row = 12; // Sleep 1 (L)
+    row = 12; // Sleep
     frames = 3;
   } else if (currentAction === 'hiss') {
-    row = 41; // Hiss (L)
+    row = 41; // Hiss
     frames = 2;
   } else if (currentAction === 'eat') {
-    row = 20; // Eat Down
+    row = 20; // Eat
     frames = 8;
   } else if (currentAction === 'meow') {
-    row = 28; // Meow Sit
+    row = 28; // Meow
     frames = 4;
   } else if (currentAction === 'yawn') {
-    row = 32; // Yawn Sit
+    row = 32; // Yawn
     frames = 8;
   } else if (currentAction === 'wash') {
-    row = 36; // Wash Sit
+    row = 36; // Wash
     frames = 8;
   } else if (currentAction === 'itch') {
-    row = 39; // Scratch (L)
+    row = 39; // Scratch
     frames = 8;
   } else if (happy < 30) {
     row = 43; // Sad
@@ -146,21 +146,21 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     frames = 6;
   }
 
-  // Display scale is 8x for 16x16 frames to reach 128px
-  const scale = 8;
-  const frameWidth = 16 * scale; // 128px
-  const labelOffset = 64 * scale; // 512px offset for labels on the left
-  const bgPosY = `-${row * frameWidth}px`;
+  // Display scale is 4x for 32x32 frames to reach 128px
+  const scale = 4;
+  const frameSize = 32 * scale; // 128px
+  const labelOffset = 80 * scale; // 320px offset for the 80px margin on the left
+  const bgPosY = `-${row * frameSize}px`;
   
-  // Using 'auto' for height prevents squashing custom skins
+  // The actual sprite sheets are 352px wide (11 columns of 32px) and 1696px tall (53 rows of 32px)
   const bgSize = `${352 * scale}px auto`; 
 
-  // WEB ANIMATIONS API: Self-contained dynamic steps without external CSS keyframes!
+  // WEB ANIMATIONS API: Self-contained dynamic steps!
   useEffect(() => {
     if (spriteRef.current && frames > 1) {
       const animation = spriteRef.current.animate([
         { backgroundPositionX: `-${labelOffset}px` },
-        { backgroundPositionX: `-${labelOffset + (frames * frameWidth)}px` }
+        { backgroundPositionX: `-${labelOffset + (frames * 32 * scale)}px` }
       ], {
         duration: frames * 150,
         easing: `steps(${frames})`,
@@ -168,7 +168,7 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       });
       return () => animation.cancel();
     }
-  }, [frames, frameWidth, labelOffset]);
+  }, [frames, scale, labelOffset]);
 
   return (
     <div
@@ -182,12 +182,13 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
         ref={spriteRef}
         className="cat-sprite" 
         style={{
-          width: `${frameWidth}px`,
-          height: `${frameWidth}px`,
+          width: `${frameSize}px`,
+          height: `${frameSize}px`,
           backgroundImage: `url('${bgImage}')`,
           backgroundSize: bgSize,
           backgroundPositionY: bgPosY,
-          backgroundPositionX: `-${labelOffset}px` // Initial state (skip labels)
+          backgroundPositionX: `-${labelOffset}px`,
+          imageRendering: 'pixelated'
         }} 
       />
       {isSleeping && <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>}
