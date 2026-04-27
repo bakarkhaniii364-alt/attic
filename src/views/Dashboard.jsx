@@ -10,7 +10,6 @@ import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
 const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
-  const [isPressing, setIsPressing] = useState(false);
   const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, itch, hiss, eat, sleep
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isSleeping, setIsSleeping] = useState(false);
@@ -18,8 +17,12 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
   const [petClickCount, setPetClickCount] = useState(0);
   const [lastPetTime, setLastPetTime] = useState(0);
 
+  // Track the action timeout to prevent overlapping state resets
+  const actionTimeoutRef = useRef(null);
+  // Hook the animation directly to the DOM node
+  const spriteRef = useRef(null); 
+
   const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9.png';
-  const isAltSkin = bgImage.includes('cat 1'); // New sheets 1.x are 16x16
 
   // 1. SLEEP/WAKE LOGIC
   useEffect(() => {
@@ -47,13 +50,18 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     return () => clearInterval(interval);
   }, [isSleeping, lastActivityTime, sleepStartTime]);
 
+  // SAFE TIMEOUT HELPER
+  const triggerAction = (actionName, duration) => {
+    setCurrentAction(actionName);
+    if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
+    actionTimeoutRef.current = setTimeout(() => {
+      setCurrentAction('idle');
+    }, duration);
+  };
+
   // 2. RANDOM IDLE BEHAVIORS & EXTERNAL ACTIONS
   useEffect(() => {
-    if (externalAction) {
-      setCurrentAction(externalAction);
-      const timer = setTimeout(() => setCurrentAction('idle'), 3000);
-      return () => clearTimeout(timer);
-    }
+    if (externalAction) triggerAction(externalAction, 3000);
   }, [externalAction]);
 
   useEffect(() => {
@@ -62,14 +70,13 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       if (Math.random() > 0.95) { // 5% chance every 10s
         const actions = ['yawn', 'wash', 'itch'];
         const randomAction = actions[Math.floor(Math.random() * actions.length)];
-        setCurrentAction(randomAction);
-        setTimeout(() => setCurrentAction('idle'), 3000);
+        triggerAction(randomAction, 3000);
       }
     }, 10000);
     return () => clearInterval(interval);
   }, [isSleeping, currentAction]);
 
-  // 3. AGGRESSIVE PETTING (HISS)
+  // 3. INTERACTION
   const handleInteraction = () => {
     const now = Date.now();
     setLastActivityTime(now);
@@ -77,32 +84,26 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
     if (isSleeping) {
       setIsSleeping(false);
       setSleepStartTime(null);
-      setCurrentAction('yawn');
-      setTimeout(() => setCurrentAction('idle'), 2000);
+      triggerAction('yawn', 2000);
       return;
     }
 
-    // Check for rapid clicking
+    // Check for rapid clicking (Aggressive Petting)
     if (now - lastPetTime < 300) {
       const newCount = petClickCount + 1;
       setPetClickCount(newCount);
       if (newCount > 5) {
-        setCurrentAction('hiss');
-        playAudio('click', true); // Maybe a hiss sound if added later
-        setTimeout(() => {
-          setCurrentAction('idle');
-          setPetClickCount(0);
-        }, 2000);
+        triggerAction('hiss', 2000);
+        setPetClickCount(0);
         return;
       }
     } else {
-      setPetClickCount(0);
+      setPetClickCount(1);
     }
     setLastPetTime(now);
 
     // Normal pet meow
-    setCurrentAction('meow');
-    setTimeout(() => setCurrentAction('idle'), 1500);
+    triggerAction('meow', 1500);
     if (onClick) onClick();
   };
 
@@ -148,9 +149,26 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
   // Display scale is 8x for 16x16 frames to reach 128px
   const scale = 8;
   const frameWidth = 16 * scale; // 128px
+  const labelOffset = 64 * scale; // 512px offset for labels on the left
   const bgPosY = `-${row * frameWidth}px`;
-  // The actual sprite sheets are 352px wide (22 frames) and 1696px tall (106 rows)
-  const bgSize = `${352 * scale}px ${1696 * scale}px`;
+  
+  // Using 'auto' for height prevents squashing custom skins
+  const bgSize = `${352 * scale}px auto`; 
+
+  // WEB ANIMATIONS API: Self-contained dynamic steps without external CSS keyframes!
+  useEffect(() => {
+    if (spriteRef.current && frames > 1) {
+      const animation = spriteRef.current.animate([
+        { backgroundPositionX: `-${labelOffset}px` },
+        { backgroundPositionX: `-${labelOffset + (frames * frameWidth)}px` }
+      ], {
+        duration: frames * 150,
+        easing: `steps(${frames})`,
+        iterations: Infinity
+      });
+      return () => animation.cancel();
+    }
+  }, [frames, frameWidth, labelOffset]);
 
   return (
     <div
@@ -160,12 +178,18 @@ const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalActio
       onMouseDown={handleInteraction}
       title={isSleeping ? "Shh, pet is sleeping. Click to wake up!" : "Click to pet!"}
     >
-      <div className="cat-sprite" style={{
-        backgroundImage: `url('${bgImage}')`,
-        backgroundSize: bgSize,
-        backgroundPositionY: bgPosY,
-        animation: `cat-step-${frames} ${frames * 0.15}s steps(${frames}) infinite`
-      }} />
+      <div 
+        ref={spriteRef}
+        className="cat-sprite" 
+        style={{
+          width: `${frameWidth}px`,
+          height: `${frameWidth}px`,
+          backgroundImage: `url('${bgImage}')`,
+          backgroundSize: bgSize,
+          backgroundPositionY: bgPosY,
+          backgroundPositionX: `-${labelOffset}px` // Initial state (skip labels)
+        }} 
+      />
       {isSleeping && <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>}
       {currentAction === 'meow' && (
         <svg width="24" height="24" viewBox="0 0 16 16" className="absolute -top-4 right-0 animate-bounce drop-shadow-md">
