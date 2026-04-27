@@ -526,7 +526,7 @@ export function ChatView({
 
                 return (
                   <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-                    <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[85%] md:max-w-[80%] relative transition-all duration-500 ${isHighlighted ? 'scale-105 brightness-110 z-30' : ''} ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
+                    <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[70%] relative transition-all duration-500 ${isHighlighted ? 'scale-105 brightness-110 z-30' : ''} ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
                       {!msg.isDeleted && !isCallLog && (
                         <div className={`
                           absolute top-1/2 -translate-y-1/2 transition-all duration-300 z-20
