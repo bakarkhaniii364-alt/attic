@@ -241,7 +241,7 @@ export function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {} }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction }) {
   // SAFEGUARD: Ensure objects are never null when mapping
   const safeCoupleData = coupleData || {};
   const safeChatHistory = chatHistory || [];
@@ -251,11 +251,23 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const updatePetHappy = (val) => setCoupleData({ ...safeCoupleData, petHappy: val });
   const mood = profile?.mood || '😊';
   const setMood = (m) => setProfile(prev => ({ ...prev, mood: m }));
-  const [pokeActive, setPokeActive] = useState(false);
+  const [lastActionTime, setLastActionTime] = useState(0);
   const toast = useToast();
   const streak = useLocalStorage('streak_data', { count: 0, best: 0 })[0];
   const hr = new Date().getHours(); const isSleeping = hr < 6 || hr > 22;
-  const handlePoke = () => { playAudio('click', sfx); setPokeActive(true); setTriggerShake(true); toast('Poke sent to partner!', 'success'); setTimeout(() => setPokeActive(false), 2000); };
+  
+  const handleSendKiss = () => {
+    if (Date.now() - lastActionTime < 3000) return toast('Whoa there, slow down!', 'info');
+    setLastActionTime(Date.now());
+    playAudio('click', sfxEnabled);
+    
+    // Instantly fires over websockets to your partner
+    if (sendInteraction) {
+      sendInteraction({ type: 'kiss', from: userId });
+      toast('Kiss sent! 💖', 'success');
+    }
+  };
+
   const nav = (v) => setView(v);
   const unreadDoodles = safeDoodles.filter(d => d.owner_id === partnerId && !d.isRead);
   const [petCooldown, setPetCooldown] = useState(false);
@@ -322,10 +334,19 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                 </div>
               </div>
             </div>
-            <button onClick={handlePoke} className={`p-2 retro-border flex flex-col items-center justify-center transition-all ${pokeActive ? 'retro-bg-primary' : 'retro-bg-window retro-shadow-dark'}`} title="Send a poke!"><Hand size={24} className={pokeActive ? 'animate-bounce' : ''} /><span className="text-[10px] font-bold mt-1">POKE</span></button>
+            <div className="retro-bg-window retro-border retro-shadow-dark p-3 flex flex-col items-center justify-center gap-2 min-w-[100px]">
+              <p className="text-[9px] font-black uppercase opacity-40 tracking-widest text-center">Love</p>
+              <button 
+                onClick={handleSendKiss} 
+                className="p-3 retro-bg-window retro-border hover:bg-[var(--primary)] hover:text-white transition-all flex flex-col items-center justify-center gap-1 group shadow-[1px_1px_0px_0px_var(--border)]"
+                title="Send a kiss!"
+              >
+                <Heart size={20} className="text-[var(--primary)] group-hover:text-white group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] font-black uppercase">Kiss</span>
+              </button>
+            </div>
           </div>
 
-          {pokeActive && <p className="text-xs font-bold text-[var(--primary)] animate-pulse">Poke sent!</p>}
           <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-dashed border-[var(--border)] mt-auto">
             <WeatherWidget compact />
             <div className="flex gap-2">

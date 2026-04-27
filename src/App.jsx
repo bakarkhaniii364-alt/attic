@@ -12,7 +12,7 @@ import { StrayTray } from './components/LofiPlayer.jsx';
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { LegalView } from './views/LegalView.jsx';
 import { Dashboard } from './views/Dashboard.jsx';
-import { useGlobalSync, initializeRoomSync } from './hooks/useSupabaseSync.js';
+import { useGlobalSync, initializeRoomSync, useBroadcast } from './hooks/useSupabaseSync.js';
 import { useChatSync } from './hooks/useChatSync.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { supabase } from './lib/supabase.js';
@@ -406,6 +406,16 @@ export default function App() {
 
   const [viewingDoodle, setViewingDoodle] = useState(null);  
   const [replyDoodle, setReplyDoodle] = useState(null);
+
+  // ── THE KISS RECEIVER ──
+  const [showKiss, setShowKiss] = useState(false);
+  const sendInteraction = useBroadcast('interaction', (payload) => {
+    if (payload.from === partnerId && payload.type === 'kiss') {
+      setShowKiss(true);
+      playAudio('notif', sfxEnabled);
+      setTimeout(() => setShowKiss(false), 4500);
+    }
+  });
 
   // 3. Calling System
   const [calling, setCalling] = useState(null);
@@ -943,6 +953,26 @@ export default function App() {
         {confirmDialog && <ConfirmDialog {...confirmDialog} sfx={sfxEnabled} />}
         {session && hasRoom && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
 
+        {/* ── THE KISS RENDERER ── */}
+        {showKiss && (
+          <div className="kiss-container">
+            {[...Array(30)].map((_, i) => (
+              <div 
+                key={i} 
+                className="floating-heart" 
+                style={{ 
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 1.5}s`,
+                  fontSize: `${1.5 + Math.random() * 2.5}rem`,
+                  opacity: 0.3 + Math.random() * 0.4
+                }}
+              >
+                {Math.random() > 0.5 ? '💖' : '💗'}
+              </div>
+            ))}
+          </div>
+        )}
+
         {incomingCall && (
           <div className="fixed inset-0 z-[6000] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
             <div className="bg-white/95 retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
@@ -1045,7 +1075,7 @@ export default function App() {
               ) : !hasRoom ? (
                 <Navigate to="/handshake" replace />
               ) : (
-                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} />
+                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendInteraction} />
               )
             } />
             <Route path="/login" element={<Navigate to="/" replace />} />
