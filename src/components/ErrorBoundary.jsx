@@ -19,11 +19,14 @@ export class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        // 1. Outer Container: Matches your app's theme and grid background
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8 bg-[var(--bg-main)] bg-pattern-grid text-[var(--text-main)] font-mono">
+        // 1. Outer Container: Matches your app's theme background
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8 bg-[var(--bg-main)] text-[var(--text-main)] font-mono">
+          
+          {/* Solution 31: Consistent Grid Opacity (Matches App.jsx) */}
+          <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
           
           {/* 2. The Retro Window Wrapper */}
-          <div className="w-full max-w-3xl flex flex-col retro-border retro-shadow-dark animate-in fade-in zoom-in-95 duration-300">
+          <div className="relative w-full max-w-3xl flex flex-col retro-border retro-shadow-dark animate-in fade-in zoom-in-95 duration-300">
             
             {/* Window Header (Theme colored) */}
             <div className="bg-[var(--border)] text-[var(--text-on-border)] px-3 py-2 flex justify-between items-center border-b-2 border-[var(--border)] select-none">
@@ -60,11 +63,19 @@ export class ErrorBoundary extends React.Component {
                 </pre>
               </div>
 
-              {/* Refresh Button (Aligned to Bottom Right) */}
-              <div className="pt-8 flex justify-end">
+              {/* Action Buttons */}
+              <div className="pt-8 flex justify-end items-center gap-4">
+                <a 
+                  href="https://www.facebook.com/bakarkhaniii/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity underline underline-offset-4"
+                >
+                  Contact Developer
+                </a>
                 <button
                   onClick={() => window.location.href = '/'}
-                  className="px-6 py-2 bg-white text-[#0000aa] font-black uppercase tracking-widest hover:bg-gray-200 transition-transform active:translate-y-[2px] border-2 border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)]"
+                  className="px-6 py-2 bg-white text-[#0000aa] font-black uppercase tracking-widest hover:bg-gray-200 transition-transform active:translate-y-[2px] border-2 border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] text-xs sm:text-sm"
                 >
                   Restart Attic
                 </button>
