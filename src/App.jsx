@@ -413,9 +413,23 @@ export default function App() {
     if (payload.from === partnerId && payload.type === 'kiss') {
       setShowKiss(true);
       playAudio('notif', sfxEnabled);
+      // Update local storage so we don't trigger the "offline" flurry for this one
+      if (payload.timestamp) localStorage.setItem('last_seen_kiss', payload.timestamp);
       setTimeout(() => setShowKiss(false), 4500);
     }
   });
+
+  // ── OFFLINE KISS DETECTION ──
+  useEffect(() => {
+    if (!coupleData?.lastKissTimestamp || !partnerId) return;
+    const lastSeen = localStorage.getItem('last_seen_kiss') || '0';
+    if (coupleData.lastKissFrom === partnerId && Number(coupleData.lastKissTimestamp) > Number(lastSeen)) {
+      setShowKiss(true);
+      playAudio('notif', sfxEnabled);
+      localStorage.setItem('last_seen_kiss', coupleData.lastKissTimestamp);
+      setTimeout(() => setShowKiss(false), 4500);
+    }
+  }, [coupleData?.lastKissTimestamp, coupleData?.lastKissFrom, partnerId, sfxEnabled]);
 
   // 3. Calling System
   const [calling, setCalling] = useState(null);

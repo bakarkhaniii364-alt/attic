@@ -258,9 +258,19 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   
   const handleSendKiss = () => {
     if (Date.now() - lastActionTime < 3000) return;
-    setLastActionTime(Date.now());
+    const now = Date.now().toString();
+    setLastActionTime(Number(now));
     playAudio('click', sfxEnabled);
-    if (sendInteraction) sendInteraction({ type: 'kiss', from: userId });
+    
+    // 1. Instant broadcast (ephemeral flurry for active session)
+    if (sendInteraction) sendInteraction({ type: 'kiss', from: userId, timestamp: now });
+    
+    // 2. Persistent update (offline flurry for next session)
+    setCoupleData(prev => ({
+      ...prev,
+      lastKissFrom: userId,
+      lastKissTimestamp: now
+    }));
   };
 
   const nav = (v) => setView(v);
