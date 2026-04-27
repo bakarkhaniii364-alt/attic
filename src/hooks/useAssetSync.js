@@ -112,8 +112,13 @@ export function useAssetSync(roomId, assetType = null) {
       .single();
 
     if (assetError) {
-      console.error('[ASSETS] DB save error:', assetError);
-      throw assetError;
+      console.error('[ASSETS] DB save error details:', {
+        code: assetError.code,
+        message: assetError.message,
+        details: assetError.details,
+        hint: assetError.hint
+      });
+      throw new Error(assetError.message);
     }
 
     return assetData;

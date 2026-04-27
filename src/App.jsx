@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Peer from 'peerjs';
-import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera, Bell, X } from 'lucide-react';
-import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog, useToast } from './components/UI.jsx';
+import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera, Bell, X, Mail, Heart, Download, MessageSquare, PenTool } from 'lucide-react';
+import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog, useToast, RetroWindow, RetroButton } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { useUserContext } from './hooks/useUserContext.js';
 import { playAudio } from './utils/audio.js';
@@ -245,6 +245,74 @@ function LivingBackground({ weather }) {
   );
 }
 
+/* ════ FLOATING ENVELOPE COMPONENT ════ */
+function FloatingEnvelope({ doodle, onClick }) {
+  // Randomize the starting position slightly so multiple envelopes don't overlap perfectly
+  const randomX = Math.floor(Math.random() * 60) + 20; 
+  const randomY = Math.floor(Math.random() * 60) + 20;
+
+  return (
+    <div 
+      className="envelope-wrapper drop-shadow-xl"
+      style={{ top: `${randomY}vh`, left: `${randomX}vw` }}
+      onClick={() => onClick(doodle)}
+    >
+      <div className="relative">
+        <Mail size={64} className="text-white fill-[var(--primary)]" />
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white animate-pulse">
+          NEW!
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ════ DOODLE RECEIVER MODAL ════ */
+function DoodleReceiverModal({ doodleData, onClose, onScrapbook, onRedoodle, onReply }) {
+  const [hearted, setHearted] = useState(false);
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = doodleData;
+    link.download = `doodle_from_partner_${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleHeart = () => {
+    if (hearted) return;
+    setHearted(true);
+    onScrapbook(doodleData);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <RetroWindow title="incoming_doodle.exe" onClose={onClose} className="max-w-md w-full">
+        <div className="flex flex-col items-center p-4 bg-white retro-border shadow-inner">
+          <img src={doodleData} alt="Received Doodle" className="w-full aspect-square object-contain bg-gray-50 border-2 border-dashed border-gray-300 mb-6" style={{ imageRendering: 'pixelated' }} />
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <RetroButton onClick={handleHeart} className={`flex items-center justify-center gap-2 py-3 ${hearted ? 'bg-pink-100 border-pink-400 text-pink-600' : 'bg-white'}`}>
+              <Heart size={18} className={hearted ? "fill-pink-500 text-pink-500 animate-bounce" : ""} />
+              {hearted ? 'Saved!' : 'Heart'}
+            </RetroButton>
+            <RetroButton onClick={() => onRedoodle(doodleData)} variant="primary" className="flex items-center justify-center gap-2 py-3">
+              <PenTool size={18} /> Redoodle
+            </RetroButton>
+            <RetroButton onClick={() => onReply(doodleData)} className="flex items-center justify-center gap-2 py-3 bg-blue-50 border-blue-300">
+              <MessageSquare size={18} /> Reply
+            </RetroButton>
+            <RetroButton onClick={handleDownload} className="flex items-center justify-center gap-2 py-3 bg-gray-100">
+              <Download size={18} /> Save Device
+            </RetroButton>
+          </div>
+        </div>
+      </RetroWindow>
+    </div>
+  );
+}
+
+
 /* ═══════════════════════════════════════════════════════
    APP — THE MAIN ENTRY POINT
    ═══════════════════════════════════════════════════════ */
@@ -294,6 +362,10 @@ export default function App() {
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [milestoneShown, setMilestoneShown] = useState(false);
+
+  // 3. Doodle Interaction States
+  const [floatingDoodles, setFloatingDoodles] = useState([]);
+  const [activeDoodleView, setActiveDoodleView] = useState(null);
 
   // ── CUSTOM DIFFERENCE CURSOR LOGIC ──
   useEffect(() => {
@@ -983,6 +1055,11 @@ export default function App() {
                 if (payload.payload.timestamp) localStorage.setItem('last_seen_kiss', payload.payload.timestamp);
                 setTimeout(() => setShowKiss(false), 4500);
              }
+             // 🔥 NEW: Floating Doodles
+             if (payload.payload.type === 'doodle_alert' && payload.payload.from === partnerId) {
+                setFloatingDoodles(prev => [...prev, payload.payload.imgData]);
+                playAudio('notif', sfxEnabled); // Ping sound!
+             }
           })
           .subscribe(async (status) => {
             console.log("🔵 Unified Channel Status:", status);
@@ -1213,6 +1290,46 @@ export default function App() {
           ))}
         </div>
 
+        {/* ── FLOATING DOODLES LAYER ── */}
+        {floatingDoodles.length > 0 && (
+          <div className="floating-envelope-container">
+            {floatingDoodles.map((doodleData, idx) => (
+               <FloatingEnvelope 
+                 key={idx} 
+                 doodle={doodleData} 
+                 onClick={(data) => {
+                   playAudio('click', sfxEnabled);
+                   setActiveDoodleView(data);
+                   setFloatingDoodles(prev => prev.filter((_, i) => i !== idx)); 
+                 }} 
+               />
+            ))}
+          </div>
+        )}
+
+        {/* ── DOODLE VIEWER MODAL ── */}
+        {activeDoodleView && (
+          <DoodleReceiverModal 
+            doodleData={activeDoodleView}
+            onClose={() => setActiveDoodleView(null)}
+            onScrapbook={async (imgData) => {
+               const { base64ToBlob } = await import('./utils/file.js');
+               const blob = base64ToBlob(imgData);
+               await uploadImage(blob, 'scrapbook', userId);
+               toast('Saved to Scrapbook!', 'success');
+            }}
+            onRedoodle={(imgData) => {
+               setActiveDoodleView(null);
+               setReplyDoodle(imgData);
+               navigateTo('doodle');
+            }}
+            onReply={(imgData) => {
+               setActiveDoodleView(null);
+               navigateTo('chat');
+            }}
+          />
+        )}
+
         <Suspense fallback={
           <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-main)] z-50">
             <div className="border-2 border-[var(--border)] bg-[var(--bg-window)] shadow-[2px_2px_0px_0px_var(--border)] p-6 text-center animate-pulse">
@@ -1244,10 +1361,24 @@ export default function App() {
             <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} onlineUsers={onlineUsers} syncSendMessage={syncSendMessage} syncUpdateMessage={syncUpdateMessage} syncDeleteMessage={syncDeleteMessage} syncLoadMore={syncLoadMore} syncHasMore={syncHasMore} /></ProtectedRoute>} />
             <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={async (imgData) => {
                 if (syncedRoomId) {
-                    const { base64ToBlob } = await import('./utils/file.js');
-                    const blob = base64ToBlob(imgData);
-                    await uploadDoodle(blob, 'doodle', userId);
-                    toast('Doodle shared!', 'success');
+                    try {
+                        const { base64ToBlob } = await import('./utils/file.js');
+                        const blob = base64ToBlob(imgData);
+                        await uploadDoodle(blob, 'doodle', userId);
+                        
+                        if (globalChannelRef.current && globalChannelRef.current.state === 'joined') {
+                           globalChannelRef.current.send({
+                              type: 'broadcast',
+                              event: 'interaction',
+                              payload: { type: 'doodle_alert', from: userId, imgData: imgData }
+                           });
+                        }
+                        
+                        toast('Doodle shared!', 'success');
+                    } catch (e) {
+                        console.error(e);
+                        toast("Failed to send doodle", "error");
+                    }
                 }
             }} onSaveToScrapbook={async (imgData) => {
                 if (syncedRoomId) {

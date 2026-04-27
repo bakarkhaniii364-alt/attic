@@ -456,3 +456,49 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
 .ProseMirror:focus {
   outline: none;
 }
+
+/* ════ FLOATING ENVELOPE ════ */
+@keyframes floatAcross {
+  0% { transform: translate(-10vw, 110vh) rotate(-15deg) scale(0.5); opacity: 0; }
+  10% { opacity: 1; }
+  50% { transform: translate(40vw, 50vh) rotate(5deg) scale(1.2); }
+  90% { opacity: 1; }
+  100% { transform: translate(110vw, -10vh) rotate(20deg) scale(0.8); opacity: 0; }
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-15px) rotate(5deg); }
+}
+
+.floating-envelope-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  overflow: hidden;
+}
+
+.envelope-wrapper {
+  position: absolute;
+  pointer-events: auto; /* So it can be clicked */
+  cursor: pointer;
+  animation: bob 3s ease-in-out infinite; 
+  will-change: transform;
+}
+
+.envelope-wrapper:hover {
+  animation-play-state: paused;
+  transform: scale(1.1) !important;
+  transition: transform 0.2s;
+}
+
+/* ════ CAT ANIMATIONS ════ */
+@keyframes cat-step-2 { from { background-position-x: 0; } to { background-position-x: calc(-2 * 128px); } }
+@keyframes cat-step-3 { from { background-position-x: 0; } to { background-position-x: calc(-3 * 128px); } }
+@keyframes cat-step-4 { from { background-position-x: 0; } to { background-position-x: calc(-4 * 128px); } }
+@keyframes cat-step-6 { from { background-position-x: 0; } to { background-position-x: calc(-6 * 128px); } }
+@keyframes cat-step-8 { from { background-position-x: 0; } to { background-position-x: calc(-8 * 128px); } }
+@keyframes cat-step-9 { from { background-position-x: 0; } to { background-position-x: calc(-9 * 128px); } }
+@keyframes cat-step-10 { from { background-position-x: 0; } to { background-position-x: calc(-10 * 128px); } }
+@keyframes cat-step-12 { from { background-position-x: 0; } to { background-position-x: calc(-12 * 128px); } }

@@ -8,81 +8,168 @@ import { getScore } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
-const PixelPet = React.memo(({ happy, sleeping, onClick, skin }) => {
+const PixelPet = React.memo(({ happy, onClick, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [isPressing, setIsPressing] = useState(false);
+  const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, itch, hiss, eat, sleep
+  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [isSleeping, setIsSleeping] = useState(false);
+  const [sleepStartTime, setSleepStartTime] = useState(null);
+  const [petClickCount, setPetClickCount] = useState(0);
+  const [lastPetTime, setLastPetTime] = useState(0);
 
-  const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/Cat Sprite Sheet.png';
-  const isAltSkin = bgImage.includes('cat 1');
+  const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9.png';
+  const isAltSkin = bgImage.includes('cat 1'); // New sheets 1.x are 16x16
 
-  // Frame size is 128px (scaled by 4 from 32px)
-  const frameScale = 4;
+  // 1. SLEEP/WAKE LOGIC
+  useEffect(() => {
+    // Wake up on login (mount)
+    setIsSleeping(false);
+    setLastActivityTime(Date.now());
 
-  // Background sizes
-  const bgSizeX = isAltSkin ? 352 * frameScale : 256 * frameScale;
-  const bgSizeY = isAltSkin ? 1696 * frameScale : 320 * frameScale;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const hr = new Date().getHours();
+      const isNight = hr < 6 || hr > 22;
 
+      // Auto-sleep at night after 2 mins of inactivity
+      if (isNight && !isSleeping && (now - lastActivityTime > 120000)) {
+        setIsSleeping(true);
+        setSleepStartTime(now);
+      }
+
+      // Auto-wake after 4 hours of sleep
+      if (isSleeping && sleepStartTime && (now - sleepStartTime > 4 * 60 * 60 * 1000)) {
+        setIsSleeping(false);
+        setLastActivityTime(now);
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isSleeping, lastActivityTime, sleepStartTime]);
+
+  // 2. RANDOM IDLE BEHAVIORS & EXTERNAL ACTIONS
+  useEffect(() => {
+    if (externalAction) {
+      setCurrentAction(externalAction);
+      const timer = setTimeout(() => setCurrentAction('idle'), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [externalAction]);
+
+  useEffect(() => {
+    if (isSleeping || currentAction !== 'idle') return;
+    const interval = setInterval(() => {
+      if (Math.random() > 0.95) { // 5% chance every 10s
+        const actions = ['yawn', 'wash', 'itch'];
+        const randomAction = actions[Math.floor(Math.random() * actions.length)];
+        setCurrentAction(randomAction);
+        setTimeout(() => setCurrentAction('idle'), 3000);
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isSleeping, currentAction]);
+
+  // 3. AGGRESSIVE PETTING (HISS)
+  const handleInteraction = () => {
+    const now = Date.now();
+    setLastActivityTime(now);
+
+    if (isSleeping) {
+      setIsSleeping(false);
+      setSleepStartTime(null);
+      setCurrentAction('yawn');
+      setTimeout(() => setCurrentAction('idle'), 2000);
+      return;
+    }
+
+    // Check for rapid clicking
+    if (now - lastPetTime < 300) {
+      const newCount = petClickCount + 1;
+      setPetClickCount(newCount);
+      if (newCount > 5) {
+        setCurrentAction('hiss');
+        playAudio('click', true); // Maybe a hiss sound if added later
+        setTimeout(() => {
+          setCurrentAction('idle');
+          setPetClickCount(0);
+        }, 2000);
+        return;
+      }
+    } else {
+      setPetClickCount(0);
+    }
+    setLastPetTime(now);
+
+    // Normal pet meow
+    setCurrentAction('meow');
+    setTimeout(() => setCurrentAction('idle'), 1500);
+    if (onClick) onClick();
+  };
+
+  // 4. ANIMATION MAPPING (cat 1.x 16x16 sheets)
+  // These indices are based on cat 16x16 with text.png
+  let yOffset = 0;
   let frames = 4;
-  let yOffset = 0; // Row index
+  let row = 0;
 
-  if (isAltSkin) {
-    if (sleeping) {
-      yOffset = 31; // Common row for sleep in 53-row sheets
-      frames = 4;
-    } else if (isPressing) {
-      yOffset = 21; // Purr/excited
-      frames = 8;
-    } else if (isHovering) {
-      yOffset = 18; // Wag/attention
-      frames = 8;
-    } else if (happy > 70) {
-      yOffset = 8; // Run
-      frames = 8;
-    } else {
-      yOffset = 0; // Idle
-      frames = 4;
-    }
+  if (isSleeping) {
+    row = 12; // Sleep 1 (L)
+    frames = 3;
+  } else if (currentAction === 'hiss') {
+    row = 41;
+    frames = 2;
+  } else if (currentAction === 'eat') {
+    row = 20;
+    frames = 8;
+  } else if (currentAction === 'meow') {
+    row = 28;
+    frames = 4;
+  } else if (currentAction === 'yawn') {
+    row = 32;
+    frames = 8;
+  } else if (currentAction === 'wash') {
+    row = 36;
+    frames = 8;
+  } else if (currentAction === 'itch') {
+    row = 39;
+    frames = 8;
+  } else if (happy < 30) {
+    row = 43; // Sad
+    frames = 1;
+  } else if (isPartnerAfk) {
+    row = 2; // Lie down
+    frames = 6;
+  } else if (isHovering) {
+    row = 1; // Stand
+    frames = 8;
   } else {
-    // Default skin
-    if (sleeping) {
-      yOffset = 4;
-      frames = 4;
-    } else if (isPressing) {
-      yOffset = 7;
-      frames = 8;
-    } else if (isHovering) {
-      yOffset = 5;
-      frames = 8;
-    } else if (happy > 70) {
-      yOffset = 5;
-      frames = 8;
-    } else {
-      yOffset = 0;
-      frames = 4;
-    }
+    row = 0; // Sit
+    frames = 6;
   }
 
-  const bgPosY = `-${yOffset * 128}px`;
+  // Display scale is 8x for 16x16 frames to reach 128px
+  const scale = 8;
+  const frameWidth = 16 * scale;
+  const bgPosY = `-${row * frameWidth}px`;
+  // Width of the sheet is max 32 frames (512px original)
+  const bgSize = `${512 * scale}px ${1024 * scale}px`;
 
   return (
     <div
-      className={`relative cursor-pointer select-none transition-opacity ${sleeping ? 'opacity-80' : ''}`}
-      onMouseEnter={() => !sleeping && setIsHovering(true)}
-      onMouseLeave={() => { setIsHovering(false); setIsPressing(false); }}
-      onMouseDown={() => !sleeping && setIsPressing(true)}
-      onMouseUp={() => { setIsPressing(false); if (onClick) onClick(); }}
-      onTouchStart={() => !sleeping && setIsPressing(true)}
-      onTouchEnd={() => { setIsPressing(false); if (onClick) onClick(); }}
-      title={sleeping ? "Shh, pet is sleeping" : "Click to pet!"}
+      className={`relative cursor-pointer select-none transition-opacity ${isSleeping ? 'opacity-80' : ''}`}
+      onMouseEnter={() => !isSleeping && setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      onMouseDown={handleInteraction}
+      title={isSleeping ? "Shh, pet is sleeping. Click to wake up!" : "Click to pet!"}
     >
       <div className="cat-sprite" style={{
         backgroundImage: `url('${bgImage}')`,
-        backgroundSize: `${bgSizeX}px ${bgSizeY}px`,
+        backgroundSize: bgSize,
         backgroundPositionY: bgPosY,
         animation: `cat-step-${frames} ${frames * 0.15}s steps(${frames}) infinite`
       }} />
-      {sleeping && <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>}
-      {isPressing && !sleeping && (
+      {isSleeping && <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>}
+      {currentAction === 'meow' && (
         <svg width="24" height="24" viewBox="0 0 16 16" className="absolute -top-4 right-0 animate-bounce drop-shadow-md">
           <path d="M4,2 L7,2 L7,3 L9,3 L9,2 L12,2 L12,3 L14,3 L14,6 L13,6 L13,8 L12,8 L12,10 L11,10 L11,11 L10,11 L10,12 L9,12 L9,13 L7,13 L7,12 L6,12 L6,11 L5,11 L5,10 L4,10 L4,8 L3,8 L3,6 L2,6 L2,3 Z" fill="#ff4d4d" />
         </svg>
@@ -292,18 +379,23 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const nav = (v) => setView(v);
   const unreadDoodles = safeDoodles.filter(d => d.owner_id === partnerId && !d.isRead);
   const [petCooldown, setPetCooldown] = useState(false);
+  const [petAction, setPetAction] = useState(null); // meow, eat, etc.
   
-  const handlePetAction = (val, msg) => {
-    if (petCooldown || isSleeping) return;
+  const handlePetAction = (val, msg, action = null) => {
+    if (petCooldown) return;
     playAudio('click', sfx);
     updatePetHappy(Math.min(100, (safeCoupleData.petHappy || 60) + val));
     if (msg) toast(msg, 'success', 1500);
+    if (action) {
+      setPetAction(action);
+      setTimeout(() => setPetAction(null), 3000);
+    }
     setPetCooldown(true);
     setTimeout(() => setPetCooldown(false), 2000);
   };
   
   const partnerName = partnerProfile?.name || safeCoupleData.partnerNickname || 'Partner';
-  const petSkin = safeCoupleData.petSkin || '/assets/Cat Sprite Sheet.png';
+  const petSkin = safeCoupleData.petSkin || '/assets/cat 1.9.png';
   const petHappy = safeCoupleData.petHappy ?? 60;
   const petName = safeCoupleData.petName || 'pet';
 
@@ -386,9 +478,9 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
-          <PixelPet skin={coupleData.petSkin} happy={coupleData.petHappy} sleeping={isSleeping} onClick={() => handlePetAction(10)} />
-          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${coupleData.petHappy}%` }}></div></div></div>
-          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={isSleeping || petCooldown} onClick={() => handlePetAction(20, 'Fed the pet!')}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={isSleeping || petCooldown} onClick={() => handlePetAction(10)}>Pet</RetroButton></div>
+          <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onClick={() => handlePetAction(5)} />
+          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
+          <div className="flex gap-2 w-full mt-4"><RetroButton variant="secondary" className="flex-1 py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(20, 'Fed the pet!', 'eat')}>Feed</RetroButton><RetroButton variant="accent" className="flex-1 py-1 text-xs" disabled={petCooldown} onClick={() => handlePetAction(10)}>Pet</RetroButton></div>
         </div>
       </RetroWindow>
 
