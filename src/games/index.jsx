@@ -23,89 +23,69 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   
   // Unified Lobby State
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'waiting' });
+  const [view, setView] = useState('arcade');
+
+  // Categorize single player games to completely bypass the lobby
+  const soloGames = ['wordle', 'sudoku', '2048', 'typing'];
+  const isSoloGame = soloGames.includes(gameRoute);
 
   const handleWin = () => { 
     if (sfx) {
-      const winAudio = new Audio('/assets/win.mp3');
-      winAudio.volume = 0.5;
-      winAudio.play().catch(e => console.log('SFX block'));
+      try {
+        const winAudio = new Audio('/assets/win.mp3');
+        winAudio.volume = 0.5;
+        winAudio.play().catch(() => {});
+      } catch (e) {}
     }
     setConfetti(true); 
     setTimeout(() => setConfetti(false), 4000); 
   };
 
-  // 1. Identify if the current game is a solo game
-  const soloGames = ['wordle', 'sudoku', '2048', 'typing'];
-  const isSoloGame = soloGames.includes(gameRoute);
+  // Safe Navigation Wrapper
+  const handleGameClick = (gameId) => {
+    try { playAudio('click', sfx); } catch(e) {}
+    navigate(`/activities/${gameId}`);
+  };
 
-  // 2. Handle Entry & Cleanup based on route changes
+  // Safe Lobby Joining & Cleanup
   useEffect(() => {
     if (!gameRoute || gameRoute === '') {
-      // User is in the Main Menu -> Clear them from the lobby
+      // We are on the menu. Clean up our presence in the lobby.
       setLobbyState(prev => {
-        if (!prev) return { players: [], gameId: null, status: 'idle' };
-        const newPlayers = (prev.players || []).filter(p => p !== userId);
-        return { ...prev, gameId: null, players: newPlayers, status: 'waiting' };
+        const p = prev?.players || [];
+        if (!p.includes(userId)) return prev; // Strict bailout to prevent infinite loops
+        const newPlayers = p.filter(id => id !== userId);
+        return { ...prev, players: newPlayers, gameId: null, status: newPlayers.length < 2 ? 'waiting' : prev?.status };
       });
-    } else {
-      // User clicked a game -> Add them to the lobby and set the correct gameId
+    } else if (!isSoloGame) {
+      // We clicked a multiplayer game. Join the lobby.
       setLobbyState(prev => {
-        const players = prev.players || [];
-        const needsJoin = !players.includes(userId);
-        const gameChanged = prev.gameId !== gameRoute;
+        const p = prev?.players || [];
+        const isDifferentGame = prev?.gameId !== gameRoute;
         
-        if (needsJoin || gameChanged) {
-          const newPlayers = needsJoin ? [...players, userId] : players;
-          // If it's a solo game, we are immediately ready. Otherwise, wait for 2 players.
-          const ready = isSoloGame || newPlayers.length >= 2;
-          
-          return { 
-            ...prev, 
-            gameId: gameRoute, 
-            players: newPlayers, 
-            status: ready ? 'ready' : 'waiting' 
-          };
+        if (!p.includes(userId) || isDifferentGame) {
+          const newPlayers = isDifferentGame ? [userId] : Array.from(new Set([...p, userId]));
+          return { ...prev, gameId: gameRoute, players: newPlayers, status: newPlayers.length >= 2 ? 'ready' : 'waiting' };
         }
         return prev;
       });
     }
   }, [gameRoute, userId, setLobbyState, isSoloGame]);
 
-  // Full Unmount Cleanup
-  useEffect(() => {
-    return () => {
-      setLobbyState(prev => {
-        if (!prev) return { players: [], gameId: null, status: 'idle' };
-        const newPlayers = (prev.players || []).filter(p => p !== userId);
-        return { ...prev, players: newPlayers, status: newPlayers.length < 2 ? 'waiting' : prev.status };
-      });
-    };
-  }, [userId, setLobbyState]);
-
-  // 3. Fix Readiness Logic
-  const partnerInLobby = (lobbyState.players || []).includes(partnerId);
-  
-  // You are ready if you are in the lobby AND (it's a solo game OR your partner is here)
-  const isReady = (lobbyState.players || []).includes(userId) && (isSoloGame || partnerInLobby);
+  const currentPlayers = lobbyState?.players || [];
+  const partnerInLobby = currentPlayers.includes(partnerId);
+  const isReady = currentPlayers.includes(userId) && partnerInLobby;
 
   const startGame = () => {
-    if (isReady) setLobbyState({ ...lobbyState, status: 'playing' });
+    if (isReady) setLobbyState(prev => ({ ...prev, status: 'playing' }));
   };
-
-  const [view, setView] = useState('arcade'); // 'arcade' or 'scores'
 
   const renderGame = () => {
     const commonProps = { 
-        sfx, 
-        userId, 
-        partnerId, 
-        setScores, 
-        onWin: handleWin,
+        sfx, userId, partnerId, setScores, onWin: handleWin,
         onBack: () => navigate('/activities'), 
-        onShareToChat, 
-        onSaveToScrapbook, 
-        profile,
-        roomId: syncedRoomId || 'global' // roomId for scrapbook sync
+        onShareToChat, onSaveToScrapbook, profile,
+        roomId: syncedRoomId || 'global'
     };
 
     switch (gameRoute) {
@@ -123,7 +103,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     }
   };
 
-  // 1. Arcade Menu (No specific game selected)
+  // 1. Arcade Menu
   if (!gameRoute || gameRoute === '') {
     const games = [
       { id: 'pictionary', title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5' },
@@ -140,7 +120,6 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
     return (
       <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden flex flex-col" noPadding>
-        {/* Toggle Bar */}
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
            <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>High Scores</button>
@@ -168,7 +147,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
             {games.map(game => (
               <button 
                 key={game.id} 
-                onClick={() => { playAudio('click', sfx); navigate(`/activities/${game.id}`); }}
+                onClick={() => handleGameClick(game.id)}
                 className="flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark hover:-translate-y-1 transition-all group relative overflow-hidden"
               >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-current" style={{ color: game.color }}></div>
@@ -185,8 +164,19 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     );
   }
 
-  // 2. The Lobby (Waiting for partner or ready to start)
-  if (lobbyState.status === 'waiting' || lobbyState.status === 'ready') {
+  // 2. Active Game State (Solo Games instantly skip the lobby and land here)
+  if (isSoloGame || lobbyState?.status === 'playing') {
+    return (
+      <RetroWindow title={`${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)]" noPadding>
+         <div className="h-full bg-[var(--bg-window)] overflow-y-auto">
+            {renderGame()}
+         </div>
+      </RetroWindow>
+    );
+  }
+
+  // 3. Multiplayer Lobby (Waiting for partner or ready to start)
+  if (lobbyState?.status === 'waiting' || lobbyState?.status === 'ready') {
     return (
       <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-2xl">
          <div className="flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-main)] retro-border retro-shadow-dark">
@@ -194,7 +184,6 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
             <p className="text-sm font-bold opacity-70 mb-8 uppercase tracking-widest">{gameRoute}</p>
 
             <div className="flex gap-8 items-center justify-center mb-10 w-full">
-               {/* Player 1 (You) */}
                <div className="flex flex-col items-center">
                   <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[0_0_15px_var(--primary)]">
                      <span className="font-black text-2xl">P1</span>
@@ -204,7 +193,6 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
                <div className="text-2xl font-black opacity-30">VS</div>
 
-               {/* Player 2 (Partner) */}
                <div className="flex flex-col items-center">
                   <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[0_0_15px_var(--secondary)]' : 'bg-transparent border-dashed opacity-50'}`}>
                      <span className="font-black text-2xl">{partnerInLobby ? 'P2' : '?'}</span>
@@ -234,16 +222,10 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     );
   }
 
-  // 3. Active Game State
-  if (lobbyState.status === 'playing') {
-    return (
-      <RetroWindow title={`${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)]" noPadding>
-         <div className="h-full bg-[var(--bg-window)] overflow-y-auto">
-            {renderGame()}
-         </div>
-      </RetroWindow>
-    );
-  }
-
-  return <div className="p-8 text-center font-bold">Lobby initializing...</div>;
+  // Fallback for null state during sync
+  return (
+    <RetroWindow title="loading.exe" onClose={() => navigate('/activities')} className="w-full max-w-md">
+      <div className="p-8 text-center font-bold animate-pulse">Establishing Connection...</div>
+    </RetroWindow>
+  );
 }
