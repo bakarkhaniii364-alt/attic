@@ -62,6 +62,8 @@ export function useAssetSync(roomId, assetType = null) {
             if (!assetType || payload.new.type === assetType) {
               setAssets(prev => [payload.new, ...prev]);
             }
+          } else if (payload.eventType === 'UPDATE') {
+            setAssets(prev => prev.map(a => a.id === payload.new.id ? payload.new : a));
           } else if (payload.eventType === 'DELETE') {
             setAssets(prev => prev.filter(a => a.id !== payload.old.id));
           }

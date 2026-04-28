@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2 } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 
-export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData }) {
+export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData, streaks }) {
   const navigate = useNavigate();
   const toast = useToast();
   
@@ -178,7 +178,25 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                   <button onClick={() => {playAudio('click', sfxEnabled); setNotificationsEnabled(!notificationsEnabled)}} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
                     <div className={`w-5 h-5 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                   </button>
-                  <span className="font-bold text-sm"><Bell size={16} className="inline mr-1"/> Notifications</span>
+                  <span className="font-bold text-sm"><Bell size={16} className="inline mr-1"/> Global Notifs</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, notifyDoodles: !coupleData.settings?.notifyDoodles } })} 
+                    className={`w-10 h-5 rounded-full border-2 border-border relative transition-colors ${coupleData.settings?.notifyDoodles !== false ? 'bg-primary' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${coupleData.settings?.notifyDoodles !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  </button>
+                  <span className="font-bold text-[10px]"><Brush size={12} className="inline mr-1"/> Doodle Alerts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, notifyGames: !coupleData.settings?.notifyGames } })} 
+                    className={`w-10 h-5 rounded-full border-2 border-border relative transition-colors ${coupleData.settings?.notifyGames !== false ? 'bg-primary' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${coupleData.settings?.notifyGames !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                  </button>
+                  <span className="font-bold text-[10px]"><Gamepad2 size={12} className="inline mr-1"/> Game Invites</span>
                 </div>
              </div>
              <RetroButton onClick={onLogout} variant="secondary" className="px-6 py-2 flex items-center gap-2"><LogOut size={16}/> Log Out</RetroButton>
@@ -258,27 +276,67 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           </div>
           
           <p className="font-bold text-sm mb-3 opacity-70">Theme Mode</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {availableThemes.map(t => ( 
-              <div 
-                key={t} 
-                data-theme={t}
-                onClick={() => { playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500); }} 
-                className={`flex flex-col p-2 border-2 border-border cursor-pointer transition-transform hover:scale-105 ${theme === t ? 'ring-2 ring-offset-2 ring-primary' : 'opacity-80 hover:opacity-100'} bg-main text-main-text`}
-              >
-                <div className="flex justify-between items-center mb-2 px-1">
-                   <span className="text-[10px] font-black uppercase tracking-tighter">{t}</span>
-                   {theme === t && <Check size={14} className="text-primary" />}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+            {availableThemes.map(t => {
+              const isLocked = !['default', 'matcha'].includes(t) && (scores?.totalStreak || 0) < 5;
+              return (
+                <div 
+                  key={t} 
+                  data-theme={t}
+                  onClick={() => { 
+                    if (isLocked) {
+                      toast(`Locked! Complete 5 day streak to unlock ${t}.`, 'warning');
+                      return;
+                    }
+                    playAudio('click', sfxEnabled); setTheme(t); toast(`Theme: ${t}`, 'info', 1500); 
+                  }} 
+                  className={`flex flex-col p-2 border-2 border-border cursor-pointer transition-transform hover:scale-105 ${theme === t ? 'ring-2 ring-offset-2 ring-primary' : 'opacity-80 hover:opacity-100'} bg-main text-main-text relative overflow-hidden`}
+                >
+                  {isLocked && <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10"><Lock size={16} className="text-white"/></div>}
+                  <div className="flex justify-between items-center mb-2 px-1">
+                     <span className="text-[10px] font-black uppercase tracking-tighter">{t}</span>
+                     {theme === t && <Check size={14} className="text-primary" />}
+                  </div>
+                  <div className="flex flex-col gap-1 bg-window p-1.5 border-2 border-border border-dashed h-12">
+                     <div className="flex gap-1 h-3 shrink-0">
+                        <div className="flex-[2] bg-primary border-2 border-border"></div>
+                        <div className="flex-[1] bg-secondary border-2 border-border"></div>
+                     </div>
+                     <div className="h-1/2 w-3/4 bg-accent border-2 border-border"></div>
+                  </div>
+                </div> 
+              );
+            })}
+          </div>
+
+          <div className="space-y-4">
+             <div>
+                <label className="block text-xs font-bold mb-2 flex items-center gap-1"><Monitor size={14}/> Background Pattern</label>
+                <div className="flex flex-wrap gap-2">
+                   {['grid', 'dots', 'lines', 'none'].map(p => (
+                      <button key={p} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, bgPattern: p } })} className={`px-3 py-1.5 retro-border text-[10px] font-bold uppercase tracking-wider transition-all ${coupleData.settings?.bgPattern === p ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>
+                         {p}
+                      </button>
+                   ))}
                 </div>
-                <div className="flex flex-col gap-1 bg-window p-1.5 border-2 border-border border-dashed h-12">
-                   <div className="flex gap-1 h-3 shrink-0">
-                      <div className="flex-[2] bg-primary border-2 border-border"></div>
-                      <div className="flex-[1] bg-secondary border-2 border-border"></div>
-                   </div>
-                   <div className="h-1/2 w-3/4 bg-accent border-2 border-border"></div>
+             </div>
+
+             <div>
+                <label className="block text-xs font-bold mb-2 flex items-center gap-1"><MessageSquare size={14}/> Chat Wallpaper</label>
+                <div className="grid grid-cols-4 gap-2">
+                   {[
+                     { id: 'none', label: 'None', color: 'transparent' },
+                     { id: 'pixel-garden', label: 'Garden', color: '#90be6d' },
+                     { id: 'pixel-stars', label: 'Stars', color: '#2b2d42' },
+                     { id: 'pixel-clouds', label: 'Clouds', color: '#a2d2ff' }
+                   ].map(w => (
+                      <button key={w.id} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, chatWallpaper: w.id } })} className={`aspect-video retro-border flex flex-col items-center justify-center p-1 gap-1 transition-all ${coupleData.settings?.chatWallpaper === w.id ? 'ring-2 ring-primary scale-105' : 'opacity-70 hover:opacity-100'}`}>
+                         <div className="w-full h-full border border-border border-dashed" style={{ backgroundColor: w.color }}></div>
+                         <span className="text-[8px] font-bold uppercase">{w.label}</span>
+                      </button>
+                   ))}
                 </div>
-              </div> 
-            ))}
+             </div>
           </div>
         </section>
 

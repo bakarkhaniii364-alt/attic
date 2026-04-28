@@ -146,7 +146,8 @@ export function ChatView({
   onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, 
   chatHistory, userId, partnerId, roomId, onStartCall, 
   sharedImages, onlineUsers = {},
-  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore 
+  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore,
+  coupleData, setCoupleData 
 }) {
   const isNormalized = !!roomId;
   const isInputDisabled = false;
@@ -177,6 +178,32 @@ export function ChatView({
   const [pendingImages, setPendingImages] = useState([]);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [showDecorationTray, setShowDecorationTray] = useState(false);
+  const [decorationHue, setDecorationHue] = useState(0);
+  const [droppingType, setDroppingType] = useState(null);
+  
+  const decorations = coupleData?.settings?.decorations || [];
+
+  const addDecoration = (type, x, y) => {
+    setCoupleData(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        decorations: [...(prev.settings.decorations || []), { id: Date.now(), type, x, y, hue: decorationHue }]
+      }
+    }));
+    setShowDecorationTray(false);
+  };
+
+  const removeDecoration = (id) => {
+    setCoupleData(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        decorations: (prev.settings.decorations || []).filter(d => d.id !== id)
+      }
+    }));
+  };
   const textareaRef = useRef(null);
 
   // TYPING INDICATOR LOGIC
@@ -486,7 +513,30 @@ export function ChatView({
       <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col bg-window relative">
+            <div 
+              className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container chat-wallpaper-${coupleData.settings?.chatWallpaper || 'none'} ${droppingType ? 'cursor-crosshair' : ''}`}
+              onClick={(e) => {
+                if (!droppingType) return;
+                const bounds = e.currentTarget.getBoundingClientRect();
+                const x = ((e.clientX - bounds.left) / bounds.width) * 100;
+                const y = ((e.clientY - bounds.top + e.currentTarget.scrollTop) / e.currentTarget.scrollHeight) * 100;
+                addDecoration(droppingType, x, y);
+                setDroppingType(null);
+              }}
+            >
+              
+              {/* Decorations Layer */}
+              {decorations.map(dec => (
+                <div 
+                  key={dec.id}
+                  className="absolute pointer-events-auto cursor-pointer hover:scale-110 transition-transform z-10"
+                  style={{ left: `${dec.x}%`, top: `${dec.y}%`, filter: `hue-rotate(${dec.hue}deg)` }}
+                  onClick={(e) => { e.stopPropagation(); removeDecoration(dec.id); }}
+                >
+                  <Palette size={24} className="text-primary fill-current" />
+                </div>
+              ))}
+
               <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-dashed border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
               {syncHasMore && (
                 <button
@@ -736,12 +786,34 @@ export function ChatView({
               {replyingTo && (<div className="p-2 bg-window border-b-2 border-dashed border-border flex justify-between items-center text-sm text-main-text"><div><span className="font-bold mr-2 text-primary"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 border-2 border-border"><X size={14} /></button></div>)}
               <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
-                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-border bg-window text-main-text hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
-                   <Paperclip size={18} />
-                 </button>
-                 <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 border-2 border-border transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:bg-gray-100'}`}>
-                   <Smile size={18} />
-                 </button>
+                 
+                 <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
+                   <div className="relative">
+                     <button onClick={() => { playAudio('click', sfx); setShowDecorationTray(!showDecorationTray); setShowEmojiPicker(false); }} className={`p-1.5 sm:p-2 hover:bg-black/5 transition-colors ${showDecorationTray ? 'text-primary' : 'text-main-text opacity-50'}`} title="Decorate Chat"><Sparkles size={20} /></button>
+                     {showDecorationTray && (
+                       <div className="absolute bottom-full left-0 mb-4 bg-window retro-border retro-shadow-dark p-3 w-48 z-50 decoration-tray">
+                         <p className="text-[10px] font-black uppercase mb-3 border-b border-dashed border-border pb-1">Decorations</p>
+                         <div className="grid grid-cols-4 gap-2 mb-4">
+                           {['flower', 'heart', 'star', 'cat'].map(t => (
+                             <button key={t} onClick={() => { setDroppingType(t); setShowDecorationTray(false); }} className={`aspect-square retro-border flex items-center justify-center hover:bg-primary hover:text-white transition-all ${droppingType === t ? 'bg-primary text-white' : ''}`}>
+                               <Palette size={16} />
+                             </button>
+                           ))}
+                         </div>
+                         <label className="block text-[8px] font-black uppercase mb-1 opacity-60">Hue Shift</label>
+                         <input type="range" min="0" max="360" value={decorationHue} onChange={(e) => setDecorationHue(parseInt(e.target.value))} className="w-full accent-primary" />
+                         <p className="text-[8px] italic opacity-50 mt-2">Pick an item then click on chat to drop it!</p>
+                       </div>
+                     )}
+                   </div>
+                   <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-border bg-window text-main-text hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
+                     <Paperclip size={18} />
+                   </button>
+                   <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowDecorationTray(false); }} className={`p-2 border-2 border-border transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:bg-gray-100'}`}>
+                     <Smile size={18} />
+                   </button>
+                 </div>
+
                  <div className="flex-1 relative flex items-center bg-window border-2 border-border shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
                    <textarea 
                      ref={textareaRef}
