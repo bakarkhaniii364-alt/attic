@@ -370,10 +370,10 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
   return (
     <RetroWindow title="retro_uno.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="flex flex-col md:flex-row w-full h-[80vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
+      <div className="flex w-[800px] h-[600px] max-w-full max-h-[85vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
         
          {/* Sidebar */}
-         <div className="hidden md:flex flex-col w-[250px] h-full bg-[var(--bg-window)] border-r-2 border-[var(--border)] relative z-10">
+         <div className="flex flex-col w-[200px] shrink-0 h-full bg-[var(--bg-window)] border-r-2 border-[var(--border)] relative z-10">
               <div className="bg-[var(--border)] px-4 py-2 text-[var(--bg-window)] font-bold tracking-widest uppercase text-sm border-b-2 border-[var(--border)]">
                   sys.log
               </div>
@@ -438,13 +438,13 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
              </div>
 
              {/* My Hand */}
-             <div className="flex justify-start sm:justify-center overflow-x-auto w-full px-4 pb-8 pt-8 custom-scrollbar min-h-[160px]">
+             <div className="flex flex-wrap justify-center content-end overflow-y-auto w-full px-4 pb-4 pt-16 custom-scrollbar h-[200px]">
                 {myHand.map((c, i) => {
                     const valid = isValidPlay(c);
                     return (
                         <div 
                             key={c.id} 
-                            className={`shrink-0 transition-transform ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''} ${i > 0 ? '-ml-8 sm:-ml-10' : ''} hover:-translate-y-4 relative group`}
+                            className={`shrink-0 transition-transform ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''} ${i > 0 ? '-ml-8 sm:-ml-10' : ''} -mt-16 hover:-translate-y-4 relative group`}
                             style={{ zIndex: i }}
                         >
                             <div className="absolute inset-0 z-50 hidden group-hover:block pointer-events-none"></div>

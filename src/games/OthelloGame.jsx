@@ -280,7 +280,7 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
                   className={`w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center bg-[var(--bg-window)] transition-colors ${isValid && isMyTurn ? 'hover:bg-[var(--bg-main)] cursor-pointer' : ''}`}
                 >
                   {cell !== EMPTY && (
-                    <div className={`w-[85%] h-[85%] rounded-full shadow-[inset_-2px_-2px_4px_rgba(0,0,0,0.5),2px_2px_2px_rgba(0,0,0,0.3)] border-2 border-black/40 ${cell === BLACK ? 'bg-black' : 'bg-white'} animate-in zoom-in spin-in-12 duration-300`}></div>
+                    <div className={`w-[85%] h-[85%] rounded-full shadow-none border-[3px] border-[var(--border)] ${cell === BLACK ? 'bg-black' : 'bg-white'} animate-in zoom-in duration-300`}></div>
                   )}
                   {cell === EMPTY && isValid && isMyTurn && (
                     <div className="w-2 h-2 rounded-full bg-[var(--primary)] opacity-50 shadow-sm"></div>

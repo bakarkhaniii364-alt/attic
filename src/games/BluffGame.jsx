@@ -311,9 +311,9 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
 
   return (
     <RetroWindow title="bluff.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="flex flex-col items-center justify-between p-4 min-h-[75vh] bg-[var(--bg-main)] text-[var(--text-main)] retro-border-thick relative overflow-hidden">
+      <div className="flex flex-col items-center justify-between p-4 w-[800px] h-[600px] max-w-full max-h-[85vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
         
-        {/* Opponent Info */}
+         {/* Opponent Info */}
         <div className="w-full flex justify-between items-start px-4">
             <div className="bg-[var(--bg-window)] text-[var(--text-main)] font-bold text-xs px-3 py-2 retro-border uppercase flex flex-col items-center retro-shadow-dark">
                 <span>{isMultiplayer ? 'Partner' : 'AI'}</span>
@@ -351,13 +351,15 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
                     <RetroButton onClick={advanceAfterReveal} className="px-8 py-2">Continue</RetroButton>
                 </div>
             ) : (
-                <div className="relative">
+                <div className="relative flex justify-center items-center h-[140px]">
                     {centerCount > 0 ? (
-                        <div className="relative">
-                            {[...Array(Math.min(centerCount, 10))].map((_, i) => (
-                                <CardUI key={i} hidden={true} className={`absolute top-0 left-0 transition-all ${i === Math.min(centerCount, 10)-1 ? 'relative shadow-[8px_8px_0_0_rgba(0,0,0,0.5)]' : 'opacity-80'}`} style={{ transform: `translate(${i*2}px, -${i*2}px)` }} />
+                        <div className="flex items-center -space-x-10 sm:-space-x-12">
+                            {[...Array(Math.min(centerCount, 15))].map((_, i) => (
+                                <div key={i} className="transition-all hover:-translate-y-2 relative" style={{ zIndex: i }}>
+                                    <CardUI hidden={true} />
+                                </div>
                             ))}
-                            <div className="absolute -right-12 top-1/2 -translate-y-1/2 bg-yellow-400 font-black text-black text-xl px-2 py-1 retro-border shadow-md">
+                            <div className="z-50 ml-4 bg-[var(--primary)] text-[var(--bg-main)] font-black text-2xl px-3 py-1 retro-border-thick shadow-md animate-pulse">
                                 {centerCount}
                             </div>
                         </div>

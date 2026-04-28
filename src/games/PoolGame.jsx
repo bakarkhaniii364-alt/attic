@@ -95,7 +95,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       balls: [],
       isSimulating: false,
       dragStart: null,
-      currentMouse: null
+      currentMouse: null,
+      hoverMouse: null
   });
 
   const [gameState, setGameState] = useGlobalSync(`pool_${roomId}`, null);
@@ -296,6 +297,17 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.fillStyle = '#22c55e'; // classic vibrant green
           ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
           
+          // Checkerboard Felt
+          ctx.fillStyle = '#1da54e'; // darker green
+          const tileSize = 40;
+          for(let i=0; i<PLAY_WIDTH/tileSize; i++) {
+              for(let j=0; j<PLAY_HEIGHT/tileSize; j++) {
+                  if((i+j)%2 === 0) {
+                      ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
+                  }
+              }
+          }
+
           // Inner felt outline
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
@@ -328,42 +340,35 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
           const engine = engineRef.current;
           
-          // Draw aiming line & Stick
-          if (engine.dragStart && engine.currentMouse && !engine.isSimulating) {
-              const cue = engine.balls.find(b => b.id === 0);
-              if (cue && cue.active) {
-                  const dx = engine.dragStart.x - engine.currentMouse.x;
-                  const dy = engine.dragStart.y - engine.currentMouse.y;
-                  
-                  // Aiming line
+          // Draw aiming line
+          const isMyTurn = gameState?.turn === myPlayerId;
+          const cue = engine.balls.find(b => b.id === 0);
+          
+          if (isMyTurn && !engine.isSimulating && cue && cue.active && engine.hoverMouse) {
+              let dx = 0, dy = 0;
+              if (engine.dragStart && engine.currentMouse) {
+                  // Dragging to shoot
+                  dx = engine.dragStart.x - engine.currentMouse.x;
+                  dy = engine.dragStart.y - engine.currentMouse.y;
+              } else {
+                  // Hovering
+                  dx = engine.hoverMouse.x - cue.x;
+                  dy = engine.hoverMouse.y - cue.y;
+              }
+
+              if (dx !== 0 || dy !== 0) {
+                  const dist = Math.hypot(dx, dy);
+                  const nx = dx / dist;
+                  const ny = dy / dist;
+
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
-                  ctx.lineTo(cue.x + dx * 3, cue.y + dy * 3);
-                  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                  ctx.setLineDash([5, 5]);
-                  ctx.lineWidth = 2;
+                  ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); // Ray to edge
+                  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                  ctx.setLineDash([10, 10]);
+                  ctx.lineWidth = 3;
                   ctx.stroke();
                   ctx.setLineDash([]);
-
-                  // Stick
-                  const stickDist = Math.hypot(dx, dy) + BALL_R + 5;
-                  const angle = Math.atan2(dy, dx);
-                  
-                  ctx.save();
-                  ctx.translate(cue.x, cue.y);
-                  ctx.rotate(angle);
-                  const stickLength = 250;
-                  ctx.fillStyle = '#d97706';
-                  ctx.fillRect(-stickDist - stickLength, -3, stickLength - 15, 6);
-                  ctx.fillStyle = '#ffffff';
-                  ctx.fillRect(-stickDist - 15, -3, 15, 6);
-                  ctx.fillStyle = '#3b82f6';
-                  ctx.fillRect(-stickDist, -3, 3, 6);
-                  
-                  ctx.strokeStyle = '#000000';
-                  ctx.lineWidth = 2;
-                  ctx.strokeRect(-stickDist - stickLength, -3, stickLength, 6);
-                  ctx.restore();
               }
           }
 
@@ -427,14 +432,16 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   };
 
   const handlePointerMove = (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      const x = (e.clientX - rect.left) * scaleX - BORDER_SIZE;
+      const y = (e.clientY - rect.top) * scaleY - BORDER_SIZE;
+      
+      engineRef.current.hoverMouse = { x, y };
+
       if (engineRef.current.dragStart) {
-          const rect = canvasRef.current.getBoundingClientRect();
-          const scaleX = CANVAS_WIDTH / rect.width;
-          const scaleY = CANVAS_HEIGHT / rect.height;
-          engineRef.current.currentMouse = {
-              x: (e.clientX - rect.left) * scaleX - BORDER_SIZE,
-              y: (e.clientY - rect.top) * scaleY - BORDER_SIZE
-          };
+          engineRef.current.currentMouse = { x, y };
       }
   };
 
