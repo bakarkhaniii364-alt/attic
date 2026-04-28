@@ -278,7 +278,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       let frameId;
       const render = () => {
           // Clear
-          ctx.fillStyle = '#064e3b'; // retro green felt
+          ctx.fillStyle = '#0a7a3a'; // vibrant billiard green felt
           ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
           // Pockets
@@ -432,18 +432,20 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
         </div>
 
         <div 
-          className="relative w-full max-w-4xl aspect-[2/1] retro-border border-8 border-yellow-900 bg-yellow-900 shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] overflow-hidden cursor-crosshair touch-none"
+          className="relative w-full max-w-4xl aspect-[2/1] bg-[#3e2723] p-3 sm:p-5 retro-border border-4 shadow-[8px_8px_0_0_rgba(0,0,0,0.5)] cursor-crosshair touch-none"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
         >
-           <canvas 
-              ref={canvasRef} 
-              width={WIDTH} 
-              height={HEIGHT} 
-              className="w-full h-full block border-4 border-yellow-800"
-           />
+           <div className="w-full h-full border-b-[6px] border-r-[6px] border-t-2 border-l-2 border-[#1a1210] relative">
+               <canvas 
+                  ref={canvasRef} 
+                  width={WIDTH} 
+                  height={HEIGHT} 
+                  className="w-full h-full block bg-[#0a7a3a] shadow-inner"
+               />
+           </div>
         </div>
 
         <p className="text-[9px] uppercase font-bold opacity-50 mt-4 text-center max-w-sm">

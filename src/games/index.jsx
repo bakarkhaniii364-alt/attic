@@ -19,6 +19,7 @@ import { WouldYouRather } from './WouldYouRather.jsx';
 import { UnoGame } from './UnoGame.jsx';
 import { OthelloGame } from './OthelloGame.jsx';
 import { PoolGame } from './PoolGame.jsx';
+import { BluffGame } from './BluffGame.jsx';
 
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5', modes: [
@@ -71,6 +72,10 @@ const GAME_CATALOG = {
   pool: { title: '8-Ball Pool', desc: 'Billiards physics.', color: '#8b5cf6', modes: [
     { id: '1v1_local', label: 'Pass & Play', type: 'local', desc: 'Take turns on the same device.' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Real-time online pool.' }
+  ]},
+  bluff: { title: 'Cheat (Bluff)', desc: 'Lie to win.', color: '#1e3a8a', modes: [
+    { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'hard'], desc: 'Can you outsmart the computer?' },
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Call your partner\'s bluffs!' }
   ]}
 };
 
@@ -175,6 +180,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       case 'uno': return <UnoGame {...commonProps} />;
       case 'othello': return <OthelloGame {...commonProps} />;
       case 'pool': return <PoolGame {...commonProps} />;
+      case 'bluff': return <BluffGame {...commonProps} />;
       default: return <div className="p-8 text-center font-bold">Game Engine Offline</div>;
     }
   };
@@ -206,18 +212,15 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
              </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 p-4 pb-12 overflow-y-auto h-full bg-[var(--bg-main)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full bg-[#faecd6] bg-pattern-grid">
             {Object.entries(GAME_CATALOG).map(([id, g]) => (
               <button 
                 key={id} onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
-                className="flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark hover:-translate-y-1 transition-all group relative overflow-hidden"
+                className="flex flex-col items-start p-6 bg-white border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
               >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-current" style={{ color: g.color }}></div>
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-3 retro-border shadow-inner" style={{ backgroundColor: g.color }}>
-                   <Gamepad2 size={24} className="text-white" />
-                </div>
-                <h3 className="font-black text-sm uppercase tracking-tighter mb-1 text-center">{g.title}</h3>
-                <p className="text-[9px] opacity-50 text-center leading-tight">{g.desc}</p>
+                <div className="w-6 h-6 mb-4 border-2 border-black shadow-sm" style={{ backgroundColor: g.color }}></div>
+                <h3 className="font-black text-lg mb-2 text-black font-mono tracking-tight uppercase">{g.title}</h3>
+                <p className="text-xs text-gray-600 leading-tight font-mono">{g.desc}</p>
               </button>
             ))}
           </div>
@@ -371,13 +374,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
   // 4. Active Game Phase
   if (currentPhase === 'playing_local' || currentPhase === 'playing_remote') {
-      return (
-        <RetroWindow title={`${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px]" noPadding>
-           <div className="h-full bg-[var(--bg-window)] overflow-y-auto">
-              {renderActiveGame()}
-           </div>
-        </RetroWindow>
-      );
+      return renderActiveGame();
   }
 
   return null;

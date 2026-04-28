@@ -111,14 +111,12 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
     }
   }, [isHost, gameState, myPlayerId, oppPlayerId, setGameState]);
 
-  if (!gameState) return <div className="p-8 text-center animate-pulse font-black text-xl">Shuffling...</div>;
-
-  const { deck, discard, hands, turn, currentColor, unoCalled, winner } = gameState;
-  const topCard = discard[discard.length - 1];
+  const { deck, discard, hands, turn, currentColor, unoCalled, winner } = gameState || {};
+  const topCard = discard ? discard[discard.length - 1] : null;
   const isMyTurn = turn === myPlayerId;
 
-  const myHand = hands[myPlayerId] || [];
-  const oppHand = hands[oppPlayerId] || [];
+  const myHand = hands ? hands[myPlayerId] || [] : [];
+  const oppHand = hands ? hands[oppPlayerId] || [] : [];
 
   const isValidPlay = (card) => {
     if (card.color === 'wild') return true;
@@ -267,6 +265,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
   // AI Logic
   useEffect(() => {
+      if (!gameState) return;
       if (!isMultiplayer && turn === 'ai' && !winner) {
           aiTimeoutRef.current = setTimeout(() => {
               const aiHand = hands['ai'];
@@ -344,6 +343,8 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
           return () => clearTimeout(aiTimeoutRef.current);
       }
   }, [turn, isMultiplayer, winner, deck, discard, hands, unoCalled, currentColor, myPlayerId]);
+
+  if (!gameState) return <div className="p-8 text-center animate-pulse font-black text-xl">Shuffling...</div>;
 
   return (
     <RetroWindow title="retro_uno.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
