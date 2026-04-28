@@ -601,7 +601,8 @@ export default function App() {
   const [isDeafened, setIsDeafened] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   
-  const tabIdRef = useRef(crypto.randomUUID());
+  // Use a shorter tabId to prevent PeerJS ID length issues
+  const tabIdRef = useRef(Math.random().toString(36).substring(2, 8));
   const myPeerId = userId ? `${userId}-${tabIdRef.current}` : null;
   const peerRef = useRef(null);
   const currentCallRef = useRef(null);
@@ -784,8 +785,9 @@ export default function App() {
       });
     };
 
-    // Remove debounce entirely since IDs are unique now
-    initPeer();
+    // Debounce the initial connection to prevent React StrictMode double-mount issues
+    // If we don't debounce, StrictMode creates rapid connect/disconnects which the PeerJS public server rejects
+    retryTimeout = setTimeout(initPeer, 500);
 
     // Cleanup on unmount
     return () => { 
