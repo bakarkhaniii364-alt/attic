@@ -277,8 +277,10 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       let frameId;
       const render = () => {
-          // Clear
-          ctx.fillStyle = '#0a7a3a'; // vibrant billiard green felt
+          // Clear - Use theme pattern color for felt
+          const computedStyle = getComputedStyle(document.body);
+          const patternColor = computedStyle.getPropertyValue('--bg-pattern').trim();
+          ctx.fillStyle = patternColor || '#0a7a3a'; 
           ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
           // Pockets
@@ -410,63 +412,53 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   const oppType = gameState.assignments[oppPlayerId];
 
   return (
-    <div className="fixed inset-0 w-full h-full flex flex-col justify-center items-center p-2 sm:p-5 bg-[#faeed9] bg-pattern-grid text-[#392b23] z-[100] font-mono select-none overflow-hidden touch-none">
-       <div className="w-full max-w-[1000px] h-[85vh] sm:h-[90vh] bg-[#fcfcf2] border-[3px] border-[#392b23] shadow-[6px_6px_0_rgba(57,43,35,0.1)] flex flex-col">
-           {/* Title Bar */}
-           <div className="bg-[#f4d775] border-b-[3px] border-[#392b23] px-3 py-2 flex justify-between items-center font-bold text-[14px] sm:text-[16px]">
-               <div className="flex items-center gap-2">
-                   <span className="text-[18px] leading-none">≡</span> 
-                   <span>pocket.pool.exe</span>
-               </div>
-               <button onClick={onBack} className="bg-[#d6444f] text-white border-[2px] border-[#392b23] px-[14px] py-[6px] text-[12px] sm:text-[14px] font-bold shadow-[2px_2px_0_#392b23] active:translate-y-[2px] active:translate-x-[2px] active:shadow-[0_0_0_#392b23] transition-all cursor-pointer">
-                   exit
-               </button>
-           </div>
-           
-           {/* Window Content (Game Area) */}
-           <div 
-               className="flex-1 relative overflow-hidden flex justify-center items-center bg-[#392b23]"
-               onPointerDown={handlePointerDown}
-               onPointerMove={handlePointerMove}
-               onPointerUp={handlePointerUp}
-               onPointerLeave={handlePointerUp}
-           >
-               <canvas 
-                  ref={canvasRef} 
-                  width={WIDTH} 
-                  height={HEIGHT} 
-                  className="block w-full h-full object-contain"
+    <RetroWindow title="retro_pool.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+        <div className="flex flex-col w-full h-[75vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
+            
+            {/* Window Content (Game Area) */}
+            <div 
+                className="flex-1 relative overflow-hidden flex justify-center items-center bg-[var(--border)]"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
+            >
+                <canvas 
+                   ref={canvasRef} 
+                   width={WIDTH} 
+                   height={HEIGHT} 
+                   className="block w-full h-full object-contain pointer-events-none"
+                />
+                
+                {/* Messages */}
+                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] sm:text-[28px] font-bold text-center bg-[var(--bg-window)] text-[var(--text-main)] px-[30px] py-[15px] retro-border-thick retro-shadow-dark pointer-events-none transition-opacity duration-100 ${gameState?.message && gameState.message !== 'Break!' ? 'opacity-100' : 'opacity-0'}`}>
+                    {gameState?.message}
+                </div>
+
+                {/* Status Indicator */}
+                <div className="absolute top-[10px] left-[10px] bg-[var(--bg-window)] retro-border-thick p-[5px] sm:p-[10px] text-[10px] sm:text-[12px] font-bold retro-shadow-dark pointer-events-none flex flex-col gap-1">
+                     <div className={gameState?.turn === myPlayerId ? "text-[var(--primary)]" : "opacity-50"}>
+                         YOU: {myType || 'open'}
+                     </div>
+                     <div className={gameState?.turn === oppPlayerId ? "text-[var(--primary)]" : "opacity-50"}>
+                         OPP: {oppType || 'open'}
+                     </div>
+                </div>
+            </div>
+
+            <div className="text-center text-[12px] sm:text-[14px] font-bold text-[var(--bg-window)] mt-0 bg-[var(--border)] px-[15px] py-[5px]">
+                Drag anywhere to aim & shoot
+            </div>
+
+            {gameState?.winner && (
+               <ShareOutcomeOverlay
+                 outcome={gameState.winner === myPlayerId ? 'win' : 'loss'}
+                 score={`Winner: ${gameState.winner === myPlayerId ? 'You' : 'Opponent'}`}
+                 gameName="Retro Pool"
+                 onClose={() => onBack()}
                />
-               
-               {/* Messages */}
-               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] sm:text-[28px] font-bold text-center bg-[#fcfcf2] text-[#392b23] px-[30px] py-[15px] border-[3px] border-[#392b23] shadow-[4px_4px_0_#392b23] pointer-events-none transition-opacity duration-100 ${gameState?.message && gameState.message !== 'Break!' ? 'opacity-100' : 'opacity-0'}`}>
-                   {gameState?.message}
-               </div>
-
-               {/* Status Indicator */}
-               <div className="absolute top-[10px] left-[10px] bg-[#fcfcf2] border-[2px] border-[#392b23] p-[5px] sm:p-[10px] text-[10px] sm:text-[12px] font-bold shadow-[2px_2px_0_#392b23] pointer-events-none flex flex-col gap-1">
-                    <div className={gameState?.turn === myPlayerId ? "text-[#529959]" : "opacity-50"}>
-                        YOU: {myType || 'open'}
-                    </div>
-                    <div className={gameState?.turn === oppPlayerId ? "text-[#d6444f]" : "opacity-50"}>
-                        OPP: {oppType || 'open'}
-                    </div>
-               </div>
-           </div>
-       </div>
-
-       <div className="text-center text-[12px] sm:text-[14px] font-bold text-[#392b23] mt-[15px] bg-[#fcfcf2] border-[2px] border-[#392b23] px-[15px] py-[5px] shadow-[3px_3px_0_#ecdac1]">
-           Drag anywhere to aim & shoot
-       </div>
-
-       {gameState?.winner && (
-          <ShareOutcomeOverlay
-            outcome={gameState.winner === myPlayerId ? 'win' : 'loss'}
-            score={`Winner: ${gameState.winner === myPlayerId ? 'You' : 'Opponent'}`}
-            gameName="8-Ball Pool"
-            onClose={() => onBack()}
-          />
-       )}
-    </div>
+            )}
+        </div>
+    </RetroWindow>
   );
 }

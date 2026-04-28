@@ -32,18 +32,18 @@ const createDeck = () => {
 
 const getCardColorClass = (color) => {
   switch(color) {
-    case 'red': return 'bg-[#d6444f]';
-    case 'blue': return 'bg-[#4465e3]';
-    case 'green': return 'bg-[#529959]';
-    case 'yellow': return 'bg-[#f4d775]';
-    default: return 'bg-[#392b23]'; // Wild
+    case 'red': return 'bg-red-500 text-white';
+    case 'blue': return 'bg-blue-500 text-white';
+    case 'green': return 'bg-green-500 text-white';
+    case 'yellow': return 'bg-yellow-400 text-[var(--border)]';
+    default: return 'bg-[var(--border)] text-[var(--bg-window)]'; // Wild
   }
 };
 
 const CardUI = ({ card, onClick, className = "", hidden = false }) => {
   if (hidden || card.color === 'back') {
     return (
-      <div className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] border-[3px] border-[#392b23] rounded-[6px] bg-[#d6444f] flex items-center justify-center relative shadow-[-3px_4px_0_rgba(57,43,35,0.25)] ${className}`} style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 12px, #392b23 12px, #392b23 16px)' }}>
+      <div className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] retro-border-thick rounded-[6px] bg-red-500 flex items-center justify-center relative retro-shadow-dark ${className}`} style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.3) 12px, rgba(0,0,0,0.3) 16px)' }}>
       </div>
     );
   }
@@ -52,17 +52,17 @@ const CardUI = ({ card, onClick, className = "", hidden = false }) => {
   const displayVal = card.value === 'skip' ? 'Ø' : card.value === 'reverse' ? '⇄' : card.value === 'draw2' ? '+2' : card.value === 'wild' ? 'W' : card.value === 'wild_draw4' ? '+4' : card.value;
 
   const innerStyle = isWild ? {
-      background: 'conic-gradient(#d6444f 90deg, #4465e3 90deg 180deg, #f4d775 180deg 270deg, #529959 270deg)',
+      background: 'conic-gradient(#ef4444 90deg, #3b82f6 90deg 180deg, #facc15 180deg 270deg, #22c55e 270deg)',
       color: 'white',
-      textShadow: '2px 2px 0 #392b23'
+      textShadow: '2px 2px 0 var(--border)'
   } : {};
 
   return (
     <div 
       onClick={onClick}
-      className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] border-[3px] border-[#392b23] rounded-[6px] flex flex-col justify-center items-center relative select-none shadow-[-3px_4px_0_rgba(57,43,35,0.25)] ${getCardColorClass(card.color)} ${onClick ? 'cursor-pointer hover:-translate-y-5 hover:scale-110 hover:shadow-[-6px_10px_0_rgba(57,43,35,0.4)] hover:z-[100] hover:border-[#fcfcf2] transition-all' : ''} ${className}`}
+      className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] retro-border-thick rounded-[6px] flex flex-col justify-center items-center relative select-none retro-shadow-dark ${getCardColorClass(card.color)} ${onClick ? 'cursor-pointer hover:-translate-y-5 hover:scale-110 hover:z-[100] transition-all' : ''} ${className}`}
     >
-      <div className="w-[72%] h-[62%] bg-[#fcfcf2] border-[3px] border-[#392b23] flex justify-center items-center text-[22px] sm:text-[36px] font-bold text-[#392b23] rounded-[4px]" style={innerStyle}>
+      <div className="w-[72%] h-[62%] bg-[var(--bg-window)] retro-border-thick flex justify-center items-center text-[22px] sm:text-[36px] font-bold text-[var(--border)] rounded-[4px]" style={innerStyle}>
         {displayVal}
       </div>
     </div>
@@ -357,164 +357,154 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
   if (!gameState) return <div className="p-8 text-center animate-pulse font-black text-xl">Shuffling...</div>;
 
   return (
-    <div className="fixed inset-0 w-full h-full flex flex-col md:flex-row justify-center items-center p-2 sm:p-5 gap-2 sm:gap-5 bg-[#faeed9] bg-pattern-grid text-[#392b23] z-[100] font-mono select-none overflow-hidden touch-none">
+    <RetroWindow title="retro_uno.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+      <div className="flex flex-col md:flex-row w-full h-[80vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
+        
+         {/* Sidebar */}
+         <div className="hidden md:flex flex-col w-[250px] h-full bg-[var(--bg-window)] border-r-2 border-[var(--border)] relative z-10">
+              <div className="bg-[var(--border)] px-4 py-2 text-[var(--bg-window)] font-bold tracking-widest uppercase text-sm border-b-2 border-[var(--border)]">
+                  sys.log
+              </div>
+              <div className="flex-1 p-3 flex flex-col gap-3">
+                  <div className="flex-1 border-2 border-[var(--border)] bg-[var(--bg-main)] p-2 overflow-y-auto text-xs flex flex-col gap-1 shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
+                      <div className="font-bold opacity-80">&gt; init seq...</div>
+                      <div className="font-bold opacity-80">&gt; load complete.</div>
+                      <div className="font-bold text-[var(--primary)]">&gt; {actionMessage || 'awaiting action...'}</div>
+                      {unoCalled[oppPlayerId] && <div className="font-bold text-[var(--primary)]">&gt; OPP CALLED UNO!</div>}
+                  </div>
+                  <button 
+                      onClick={callUno} 
+                      disabled={myHand.length > 2 || unoCalled[myPlayerId]}
+                      className={`font-black text-xl py-3 retro-border-thick transition-transform uppercase ${myHand.length <= 2 && !unoCalled[myPlayerId] ? 'retro-bg-primary retro-shadow-dark active:translate-y-[2px] active:translate-x-[2px] active:shadow-none animate-pulse cursor-pointer' : 'bg-gray-400 text-white cursor-not-allowed translate-y-[2px] translate-x-[2px]'}`}
+                  >
+                      Call UNO!
+                  </button>
+              </div>
+         </div>
 
-       {/* Sidebar */}
-       <div className="hidden md:flex flex-col w-[280px] h-[90vh] bg-[#fcfcf2] border-[4px] border-[#392b23] shadow-[8px_8px_0_rgba(57,43,35,0.15)] relative">
-            <div className="bg-[#d6444f] border-b-[4px] border-[#392b23] px-4 py-2 text-[#fcfcf2] font-bold tracking-widest text-base">
-                📋 sys.log
-            </div>
-            <div className="flex-1 p-[15px] bg-[#fcfcf2] flex flex-col gap-4">
-                <div className="flex-1 border-[3px] border-[#392b23] bg-[#e3dec6] p-[10px] overflow-y-auto text-[13px] shadow-[inset_3px_3px_0_rgba(57,43,35,0.1)] flex flex-col gap-[6px]">
-                    <div className="text-[#8c4b38] font-bold">&gt; system initialized.</div>
-                    <div className="text-[#8c4b38] font-bold">&gt; waiting for boot...</div>
-                    <div className="text-[#8c4b38] font-bold">&gt; {actionMessage || 'Game started.'}</div>
-                    {unoCalled[oppPlayerId] && <div className="text-[#d6444f] font-bold">&gt; CPU/OPP called UNO!</div>}
-                </div>
-                <div className="flex flex-col gap-2">
-                    <button 
-                        onClick={callUno} 
-                        disabled={myHand.length > 2 || unoCalled[myPlayerId]}
-                        className={`font-black text-[24px] py-[15px] border-[3px] border-[#392b23] transition-all uppercase ${myHand.length <= 2 && !unoCalled[myPlayerId] ? 'bg-[#d6444f] text-white shadow-[4px_4px_0_#392b23] active:translate-y-[4px] active:translate-x-[4px] active:shadow-[0_0_0_#392b23] animate-pulse cursor-pointer' : 'bg-[#999] text-white/50 translate-y-[4px] translate-x-[4px] shadow-[0_0_0_#392b23] cursor-not-allowed'}`}
-                    >
-                        Call UNO!
-                    </button>
-                </div>
-            </div>
-       </div>
+         {/* Main Game Area */}
+         <div className="flex-1 flex flex-col relative overflow-hidden bg-[var(--bg-main)]">
+             
+             {/* Action Message Overlay */}
+             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[48px] sm:text-[64px] font-black text-[var(--primary)] pointer-events-none transition-all duration-200 z-[500] ${actionMessage ? 'opacity-100 scale-110 -rotate-6' : 'opacity-0 scale-90'}`} style={{ textShadow: '4px 4px 0 var(--border), -2px -2px 0 var(--bg-window), 2px -2px 0 var(--bg-window), -2px 2px 0 var(--bg-window), 2px 2px 0 var(--bg-window)' }}>
+                 {actionMessage}
+             </div>
 
-       {/* Main Game Window */}
-       <div className="flex-1 w-full max-w-[900px] h-[85vh] sm:h-[90vh] bg-[#fcfcf2] border-[4px] border-[#392b23] shadow-[8px_8px_0_rgba(57,43,35,0.15)] flex flex-col relative">
-           {/* Title Bar */}
-           <div className="bg-[#d6444f] border-b-[4px] border-[#392b23] px-4 py-2 flex justify-between items-center font-bold text-[#fcfcf2] tracking-widest text-[16px]">
-               <div className="flex items-center gap-3">
-                   <span className="text-[18px] leading-none">≡</span> 
-                   <span>uno_os_v2.exe</span>
-               </div>
-               <button onClick={onBack} className="bg-[#f4d775] text-[#392b23] border-[3px] border-[#392b23] px-[15px] py-[6px] text-[16px] font-bold shadow-[4px_4px_0_#392b23] active:translate-y-[4px] active:translate-x-[4px] active:shadow-[0_0_0_#392b23] transition-all cursor-pointer uppercase">
-                   reset
-               </button>
-           </div>
-           
-           {/* Window Content (Game Area) */}
-           <div className="flex-1 flex flex-col justify-between bg-[#e3dec6] p-[20px] relative overflow-hidden h-[calc(100%-40px)]">
-               
-               {/* Opponent Hand */}
-               <div className="flex justify-center h-[120px] relative w-full perspective-[800px] opacity-90 scale-[0.8] origin-top">
-                   {oppHand.map((c, i) => {
-                      const totalCards = oppHand.length;
-                      const maxSpread = 600; 
-                      const offset = Math.min(45, maxSpread / Math.max(1, totalCards));
-                      const centerIndex = (totalCards - 1) / 2;
-                      const distFromCenter = i - centerIndex;
-                      const angle = distFromCenter * 3;
-                      const drop = Math.abs(distFromCenter) * 2;
-                      return (
-                          <div 
-                              key={i} 
-                              className="absolute"
-                              style={{
-                                  left: `calc(50% - 43px + ${distFromCenter * offset}px)`,
-                                  transform: `rotate(${angle}deg) translateY(${drop}px)`,
-                                  zIndex: i
-                              }}
-                          >
-                              <CardUI card={{color:'back'}} hidden={true} />
-                          </div>
-                      )
-                   })}
-               </div>
-
-               {/* Center Play Area */}
-               <div className="flex justify-center items-center gap-[60px] flex-1 mt-8 mb-8">
-                    <div onClick={handleDraw} className="relative cursor-pointer hover:scale-95 active:scale-90 transition-transform after:content-['DRAW'] after:absolute after:-bottom-8 after:left-1/2 after:-translate-x-1/2 after:w-full after:text-center after:font-bold after:bg-[#392b23] after:text-[#fcfcf2] after:border-[2px] after:border-[#392b23] after:py-[2px] after:text-[16px]">
-                        <div className="relative">
-                           <CardUI card={{color:'back'}} hidden={true} className="shadow-[4px_4px_0_rgba(0,0,0,0.5)] z-[2]" />
-                           <CardUI card={{color:'back'}} hidden={true} className="absolute top-1 left-1 z-[1]" />
+             {/* Opponent Hand */}
+             <div className="flex justify-center h-[120px] relative w-full perspective-[800px] opacity-90 scale-[0.75] origin-top mt-4">
+                 {oppHand.map((c, i) => {
+                    const totalCards = oppHand.length;
+                    const maxSpread = 500; 
+                    const offset = Math.min(40, maxSpread / Math.max(1, totalCards));
+                    const centerIndex = (totalCards - 1) / 2;
+                    const distFromCenter = i - centerIndex;
+                    const angle = distFromCenter * 3;
+                    const drop = Math.abs(distFromCenter) * 2;
+                    return (
+                        <div 
+                            key={i} 
+                            className="absolute"
+                            style={{
+                                left: `calc(50% - 43px + ${distFromCenter * offset}px)`,
+                                transform: `rotate(${angle}deg) translateY(${drop}px)`,
+                                zIndex: i
+                            }}
+                        >
+                            <CardUI card={{color:'back'}} hidden={true} />
                         </div>
-                    </div>
+                    )
+                 })}
+             </div>
 
-                    <div className="relative">
-                        {discard.length > 0 && (
-                           <CardUI card={discard[discard.length - 1]} className="rotate-[5deg]" />
-                        )}
-                        <div className={`absolute -bottom-8 left-0 w-full h-[14px] border-[3px] border-[#392b23] shadow-[2px_2px_0_rgba(57,43,35,0.2)] ${getCardColorClass(currentColor)}`}></div>
-                    </div>
-               </div>
+             <div className="absolute top-4 right-4 bg-[var(--bg-window)] retro-border px-3 py-1 text-xs font-bold shadow-[2px_2px_0_var(--border)]">
+                 CPU: {oppHand.length}
+             </div>
 
-               {/* Turn Indicator */}
-               <div className={`absolute left-[20px] font-bold bg-[#fcfcf2] border-[4px] border-[#392b23] px-[20px] py-[10px] text-[20px] shadow-[4px_4px_0_#392b23] transition-all duration-400 z-10 ${isMyTurn ? 'bottom-[180px] border-[#4465e3]' : 'top-[180px] border-[#d6444f]'}`}>
-                   {isMyTurn ? 'YOUR.TURN.exe' : 'CPU.PROCESSING...'}
-               </div>
+             {/* Center Play Area */}
+             <div className="flex justify-center items-center gap-[40px] flex-1">
+                  <div onClick={handleDraw} className="relative cursor-pointer hover:-translate-y-2 active:translate-y-0 transition-transform after:content-['DRAW'] after:absolute after:-bottom-6 after:left-1/2 after:-translate-x-1/2 after:w-full after:text-center after:font-bold after:bg-[var(--border)] after:text-[var(--bg-window)] after:border-2 after:border-[var(--border)] after:text-[12px]">
+                      <div className="relative">
+                         <CardUI card={{color:'back'}} hidden={true} className="shadow-[4px_4px_0_rgba(0,0,0,0.3)] z-[2]" />
+                         <CardUI card={{color:'back'}} hidden={true} className="absolute top-1 left-1 z-[1]" />
+                      </div>
+                  </div>
 
-               {/* Action Message Overlay */}
-               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[64px] font-black text-[#d6444f] pointer-events-none transition-all duration-200 z-[500] ${actionMessage ? 'opacity-100 scale-110 -rotate-6' : 'opacity-0 scale-90'}`} style={{ textShadow: '5px 5px 0 #392b23, -2px -2px 0 #fcfcf2, 2px -2px 0 #fcfcf2, -2px 2px 0 #fcfcf2, 2px 2px 0 #fcfcf2' }}>
-                   {actionMessage}
-               </div>
+                  <div className="relative">
+                      {discard.length > 0 && (
+                         <CardUI card={discard[discard.length - 1]} className="rotate-[4deg]" />
+                      )}
+                      <div className={`absolute -bottom-6 left-0 w-full h-[10px] retro-border-thick retro-shadow-dark ${getCardColorClass(currentColor)}`}></div>
+                  </div>
+             </div>
 
-               {/* My Hand */}
-               <div className="flex justify-center h-[150px] relative w-full perspective-[800px] mt-auto">
-                  {myHand.map((c, i) => {
-                      const valid = isValidPlay(c);
-                      const totalCards = myHand.length;
-                      const maxSpread = 600; 
-                      const offset = Math.min(45, maxSpread / Math.max(1, totalCards));
-                      const centerIndex = (totalCards - 1) / 2;
-                      const distFromCenter = i - centerIndex;
-                      const angle = distFromCenter * 3;
-                      const drop = Math.abs(distFromCenter) * 2;
+             {/* Turn Indicator */}
+             <div className={`absolute left-[20px] font-bold bg-[var(--bg-window)] retro-border-thick px-[15px] py-[8px] text-[16px] retro-shadow-dark transition-all duration-400 z-10 uppercase ${isMyTurn ? 'bottom-[150px] border-[var(--primary)]' : 'top-[150px] border-[var(--border)]'}`}>
+                 {isMyTurn ? 'Your Turn' : 'CPU Processing...'}
+             </div>
 
-                      return (
-                          <div 
-                              key={c.id} 
-                              className={`absolute transition-all duration-300 ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''}`}
-                              style={{
-                                  left: `calc(50% - 43px + ${distFromCenter * offset}px)`,
-                                  transform: `rotate(${angle}deg) translateY(${drop}px)`,
-                                  zIndex: i
-                              }}
-                          >
-                              <CardUI card={c} onClick={() => valid && handleCardClick(c)} />
-                          </div>
-                      )
-                  })}
-               </div>
-               
-               {/* Mobile Call UNO button */}
-               <div className="md:hidden absolute bottom-4 right-4 z-[50]">
-                   {myHand.length <= 2 && !unoCalled[myPlayerId] && (
-                       <button onClick={callUno} className="bg-[#d6444f] text-[#fcfcf2] font-black px-4 py-2 border-[3px] border-[#392b23] shadow-[4px_4px_0_#392b23] animate-pulse active:translate-y-[4px] active:translate-x-[4px] active:shadow-none transition-all">UNO!</button>
-                   )}
-               </div>
+             {/* My Hand */}
+             <div className="flex justify-center h-[140px] relative w-full perspective-[800px] mb-4">
+                {myHand.map((c, i) => {
+                    const valid = isValidPlay(c);
+                    const totalCards = myHand.length;
+                    const maxSpread = 600; 
+                    const offset = Math.min(45, maxSpread / Math.max(1, totalCards));
+                    const centerIndex = (totalCards - 1) / 2;
+                    const distFromCenter = i - centerIndex;
+                    const angle = distFromCenter * 3;
+                    const drop = Math.abs(distFromCenter) * 2;
 
-           </div>
-       </div>
+                    return (
+                        <div 
+                            key={c.id} 
+                            className={`absolute transition-all duration-300 ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''}`}
+                            style={{
+                                left: `calc(50% - 43px + ${distFromCenter * offset}px)`,
+                                transform: `rotate(${angle}deg) translateY(${drop}px)`,
+                                zIndex: i
+                            }}
+                        >
+                            <CardUI card={c} onClick={() => valid && handleCardClick(c)} />
+                        </div>
+                    )
+                })}
+             </div>
+             
+             {/* Mobile Call UNO button */}
+             <div className="md:hidden absolute bottom-4 right-4 z-[50]">
+                 {myHand.length <= 2 && !unoCalled[myPlayerId] && (
+                     <button onClick={callUno} className="retro-bg-primary retro-border-thick retro-shadow-dark font-black px-4 py-2 animate-pulse active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all">UNO!</button>
+                 )}
+             </div>
 
-       {/* Color Picker Modal */}
-       {showColorPicker && (
-            <div className="absolute inset-0 bg-[#392b23]/70 z-[1000] flex justify-center items-center">
-                <div className="bg-[#fcfcf2] border-[5px] border-[#392b23] p-[30px] shadow-[10px_10px_0_#392b23] max-w-[400px] w-[90%] text-center">
-                    <h2 className="text-[28px] font-black uppercase mb-[25px]">Select Override Color</h2>
-                    <div className="grid grid-cols-2 gap-[15px]">
-                        {COLORS.map(c => (
-                            <button key={c} onClick={() => { playCard(pendingWildCard, c); setShowColorPicker(false); setPendingWildCard(null); }} className={`h-[80px] border-[4px] border-[#392b23] font-bold text-[20px] uppercase flex justify-center items-center shadow-[4px_4px_0_#392b23] active:translate-y-[4px] active:translate-x-[4px] active:shadow-none transition-all ${getCardColorClass(c)} ${c === 'yellow' ? 'text-[#392b23]' : 'text-white'}`}>
-                                {c === 'blue' ? 'BLU' : c === 'green' ? 'GRN' : c === 'yellow' ? 'YLW' : 'RED'}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-       )}
+         </div>
 
-       {/* Outcome Modal */}
-       {winner && (
-          <ShareOutcomeOverlay
-            outcome={winner === myPlayerId ? 'win' : 'loss'}
-            score={`Cards Left: You(${myHand.length}) vs Opp(${oppHand.length})`}
-            gameName="Uno OS v2"
-            onClose={() => onBack()}
-          />
-       )}
-    </div>
+         {/* Color Picker Modal */}
+         {showColorPicker && (
+              <div className="absolute inset-0 bg-black/60 z-[1000] flex justify-center items-center backdrop-blur-sm">
+                  <div className="bg-[var(--bg-window)] retro-border-thick p-[20px] sm:p-[30px] retro-shadow-dark max-w-[350px] w-[90%] text-center">
+                      <h2 className="text-[20px] sm:text-[24px] font-black uppercase mb-[20px] text-[var(--text-main)]">Select Color</h2>
+                      <div className="grid grid-cols-2 gap-[10px]">
+                          {COLORS.map(c => (
+                              <button key={c} onClick={() => { playCard(pendingWildCard, c); setShowColorPicker(false); setPendingWildCard(null); }} className={`h-[60px] sm:h-[80px] retro-border-thick font-bold text-[18px] uppercase flex justify-center items-center retro-shadow-dark active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all ${getCardColorClass(c)}`}>
+                                  {c}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+              </div>
+         )}
+
+         {/* Outcome Modal */}
+         {winner && (
+            <ShareOutcomeOverlay
+              outcome={winner === myPlayerId ? 'win' : 'loss'}
+              score={`Cards Left: You(${myHand.length}) vs Opp(${oppHand.length})`}
+              gameName="Retro Uno"
+              onClose={() => onBack()}
+            />
+         )}
+      </div>
+    </RetroWindow>
   );
 }
