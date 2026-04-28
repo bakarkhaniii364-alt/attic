@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader, Settings, Play, Swords, User, Monitor, Zap, Heart, Brush, X, Activity } from 'lucide-react';
-import { RetroButton, RetroWindow, RetroInput, ScoreboardCountdown } from '../components/UI.jsx';
+import { RetroButton, RetroWindow, RetroInput, ScoreboardCountdown, ConfirmDialog } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { playAudio } from '../utils/audio.js';
 
@@ -230,7 +230,31 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   }
 
 
+  
+  const leaveLobby = () => {
+      setLobbyState(prev => {
+          const newPlayers = (prev.players || []).filter(p => p !== userId);
+          if (newPlayers.length === 0) {
+              return { gameId: null, status: 'waiting', players: [], config: null };
+          }
+          return { ...prev, players: newPlayers };
+      });
+      setShowLeaveConfirm(false);
+      navigate('/activities');
+  };
+
+  const handleLeaveClick = () => {
+      const currentPlayers = lobbyState?.players || [];
+      const partnerInLobby = currentPlayers.includes(partnerId);
+      if (!partnerInLobby) {
+          setShowLeaveConfirm(true);
+      } else {
+          leaveLobby();
+      }
+  };
+
   // 2. Game Details / Mode Selector Phase
+
   if (currentPhase === 'details') {
       const partnerWaitingHere = lobbyState?.gameId === gameRoute && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status !== 'playing';
 
@@ -253,19 +277,14 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
 
       return (
-        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col bg-white" noPadding>
-          <div className="flex flex-col h-full bg-white text-[var(--text-main)]">
-             <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex items-center gap-6 shrink-0">
-                 <div className="w-16 h-16 flex items-center justify-center retro-border bg-white shadow-[2px_2px_0_0_var(--border)]" style={{ color: game.color }}>
-                    <Gamepad2 size={32} />
-                 </div>
-                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-widest text-[var(--primary)]">{game.title}</h1>
-                    <p className="text-sm font-bold opacity-70 mt-1">{game.desc}</p>
-                 </div>
+        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-white transition-all duration-300" noPadding>
+          <div className="flex flex-col bg-white text-[var(--text-main)]">
+             <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
+                 <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-widest" style={{ color: game.color || 'var(--primary)' }}>{game.title}</h1>
+                 <p className="text-sm font-bold opacity-70 mt-2">{game.desc}</p>
              </div>
 
-             <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col">
+             <div className="p-4 sm:p-6 flex flex-col">
                  {partnerWaitingHere && (
                      <div className="bg-[var(--secondary)] text-[var(--text-on-secondary)] p-4 mb-6 retro-border flex items-center justify-between gap-4 animate-pulse">
                          <div>
@@ -355,9 +374,11 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     const currentPlayers = lobbyState?.players || [];
     const partnerInLobby = currentPlayers.includes(partnerId);
     const isReady = currentPlayers.includes(userId) && partnerInLobby;
+    const isPartnerWhoWasLeft = !partnerInLobby && currentPlayers.length === 1 && lobbyState?.hostId !== userId;
 
     return (
-      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-2xl bg-white" noPadding>
+      <>
+      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl bg-white" noPadding>
          <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-white">
             <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
             
@@ -398,14 +419,27 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                </button>
             ) : (
                <div className="flex flex-col gap-3">
-                 <p className="text-xs font-bold opacity-60 italic">Waiting for partner to accept the invite...</p>
+                 <p className={`text-xs font-bold italic ${isPartnerWhoWasLeft ? 'text-red-500 opacity-100' : 'opacity-60'}`}>
+                    {isPartnerWhoWasLeft ? 'Your partner has left the lobby.' : 'Waiting for partner to accept the invite...'}
+                 </p>
                  <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game.title}!`, null, { gameId: gameRoute, mode: lobbyState.config?.mode, type: 'game_invite_modal' })} className="text-xs">
-                    Resend Invite
+                    {isPartnerWhoWasLeft ? 'Send Invite Again' : 'Resend Invite'}
                  </RetroButton>
                </div>
             )}
          </div>
       </RetroWindow>
+      {showLeaveConfirm && (
+        <ConfirmDialog 
+          title="leave_lobby.exe" 
+          message="Are you sure you want to leave lobby? An invitation has been sent to your partner." 
+          onConfirm={() => { playAudio('click', sfx); leaveLobby(); }} 
+          onCancel={() => { playAudio('click', sfx); setShowLeaveConfirm(false); }} 
+          showSave={false} 
+          sfx={sfx}
+        />
+      )}
+      </>
     );
   }
 

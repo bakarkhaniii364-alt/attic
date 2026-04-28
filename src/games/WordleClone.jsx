@@ -187,7 +187,8 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
   if (showStats) {
        const outcomeStats = {
-           Result: gameStatus === 'won' ? `Guessed in ${boardState.findIndex(g=>g==="")}` : `Word was ${targetWord}`,
+           Result: gameStatus === 'surrendered' ? `Word was ${targetWord}` : gameStatus === 'won' ? `Guessed in ${boardState.findIndex(g=>g==="")}` : `Word was ${targetWord}`,
+           Score: gameStatus === 'surrendered' ? 'X/6 (quit)' : gameStatus === 'won' ? `${boardState.findIndex(g=>g==="")}/6` : 'X/6',
            "Win Rate": `${stats.played === 0 ? 0 : Math.round((stats.won/stats.played)*100)}%`,
            "Current Streak": stats.streak,
            "Max Streak": stats.maxStreak
