@@ -1,60 +1,48 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
-// E2EE logic removed
 
-/**
- * useChatSync - Specialized hook for room-specific chat history
- * Implements initial fetch, realtime subscriptions, and offline caching.
- */
-/**
- * Maps database row fields to the format expected by the ChatView UI.
- */
-  const mapMessage = async (row) => {
-    const mapped = {
-      ...row,
-      sender: row.sender_id,
-      time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      replyTo: row.metadata?.replyTo || null,
-      reactions: row.metadata?.reactions || [],
-      isDeleted: row.metadata?.isDeleted || false,
-      isEdited: row.metadata?.isEdited || false,
-      duration: row.metadata?.duration || null,
-      status: row.metadata?.status || 'sent',
-      readAt: row.metadata?.readAt || null
-    };
-
-    // Route content to correct UI prop based on type
-    if (row.type === 'text') {
-        mapped.text = row.content;
-        
-        // Catch any old encrypted messages still in the database
-        if (row.content && typeof row.content === 'string' && row.content.includes('"ciphertext"')) {
-            mapped.text = "[Legacy Encrypted Message]";
-        }
-    }
-    else if (row.type === 'image') mapped.url = row.content;
-    else if (row.type === 'voice') mapped.audioUrl = row.content;
-    else if (row.type === 'game_invite') {
-      mapped.text = row.content;
-      mapped.gameId = row.metadata?.gameId;
-      mapped.gameTitle = row.metadata?.gameTitle;
-      mapped.status = row.metadata?.status;
-    }
-
-    return mapped;
+const mapMessage = async (row) => {
+  const mapped = {
+    ...row,
+    sender: row.sender_id,
+    time: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    replyTo: row.metadata?.replyTo || null,
+    reactions: row.metadata?.reactions || [],
+    isDeleted: row.metadata?.isDeleted || false,
+    isEdited: row.metadata?.isEdited || false,
+    duration: row.metadata?.duration || null,
+    status: row.metadata?.status || 'sent',
+    readAt: row.metadata?.readAt || null
   };
+
+  if (row.type === 'text') {
+      mapped.text = row.content;
+      // Catch legacy encrypted messages so they don't break the UI
+      if (row.content && row.content.includes('"ciphertext"')) {
+          mapped.text = "[Legacy Encrypted Message]";
+      }
+  }
+  else if (row.type === 'image') mapped.url = row.content;
+  else if (row.type === 'voice') mapped.audioUrl = row.content;
+  else if (row.type === 'game_invite') {
+    mapped.text = row.content;
+    mapped.gameId = row.metadata?.gameId;
+    mapped.gameTitle = row.metadata?.gameTitle;
+    mapped.status = row.metadata?.status;
+  }
+
+  return mapped;
+};
 
 export function useChatSync(roomId) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
 
-  // 1. Initial Load & Cache Hydration
   useEffect(() => {
     if (!roomId) return;
-
     let mounted = true;
 
     const initChat = async () => {
@@ -62,14 +50,12 @@ export function useChatSync(roomId) {
         setLoading(false);
         return;
       }
-      // Try to load from cache first for instant UI
       const cached = await localforage.getItem(`chat_cache_${roomId}`);
       if (cached && mounted) {
         setMessages(cached);
         setLoading(false);
       }
 
-      // Fetch latest 50 from Supabase
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
@@ -86,19 +72,16 @@ export function useChatSync(roomId) {
       if (data && mounted) {
         const mappedPromises = data.map(row => mapMessage(row));
         const resolvedData = await Promise.all(mappedPromises);
-        const sortedData = resolvedData.reverse(); // Newest at bottom
+        const sortedData = resolvedData.reverse(); 
         setMessages(sortedData);
         setLoading(false);
         setHasMore(data.length === 50);
-        
-        // Update cache
         localforage.setItem(`chat_cache_${roomId}`, sortedData);
       }
     };
 
     initChat();
 
-    // 2. Realtime Subscription (Filtered by room_id)
     const uniqueId = Math.random().toString(36).substring(2, 9);
     const channelName = `room_chat_${roomId}_${uniqueId}`;
     const channel = supabase.channel(channelName);
@@ -106,12 +89,7 @@ export function useChatSync(roomId) {
     channel
       .on(
         'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'chat_messages', 
-          filter: `room_id=eq.${roomId}` 
-        },
+        { event: '*', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             mapMessage(payload.new).then(mapped => {
@@ -156,20 +134,10 @@ export function useChatSync(roomId) {
             setMessages((prev) => {
                 return prev.map((m) => {
                     if (m.id === payload.id) {
-                        // Extract metadata updates
                         const metaUpdates = payload.metadata || {};
-                        // Map status/readAt from metadata if present
                         const status = metaUpdates.status || m.status;
                         const readAt = metaUpdates.readAt || m.readAt;
-                        console.log(`[TEST_SYNC] Updating message ${m.id} to status: ${status}`);
-                        
-                        return { 
-                            ...m, 
-                            ...payload,
-                            status,
-                            readAt,
-                            metadata: { ...(m.metadata || {}), ...metaUpdates } 
-                        };
+                        return { ...m, ...payload, status, readAt, metadata: { ...(m.metadata || {}), ...metaUpdates } };
                     }
                     return m;
                 });
@@ -185,7 +153,6 @@ export function useChatSync(roomId) {
     };
   }, [roomId]);
 
-  // 3. Send Message Helper (WITH OPTIMISTIC UPDATES)
   const sendMessage = useCallback(async (content, type = 'text', senderId, metadata = {}) => {
     if (!roomId || !content) return;
 
@@ -193,11 +160,9 @@ export function useChatSync(roomId) {
     const isBlob = content instanceof Blob;
 
     if (isBlob) {
-      finalContent = URL.createObjectURL(content); // Create instant local preview
+      finalContent = URL.createObjectURL(content); 
     }
 
-    // --- INSTANT OPTIMISTIC UI UPDATE ---
-    // Solution 19: Use crypto.randomUUID() for robust collision resistance
     const tempId = `temp-${crypto.randomUUID()}`;
     const optimisticMsg = {
       id: tempId,
@@ -209,9 +174,9 @@ export function useChatSync(roomId) {
       created_at: new Date().toISOString()
     };
     
-    // Instantly show the message on screen!
     const mappedOptimistic = await mapMessage(optimisticMsg);
     setMessages(prev => [...prev, mappedOptimistic]);
+    
     if (isTestMode()) {
         sendTestStateUpdate('chat_message', optimisticMsg);
         return optimisticMsg;
@@ -241,19 +206,16 @@ export function useChatSync(roomId) {
       const { data, error } = await supabase.from('chat_messages').insert(newMessage).select().single();
       if (error) throw error;
 
-      // Swap the temporary message with the real confirmed database message
       const mappedData = await mapMessage(data);
       setMessages(prev => prev.map(m => m.id === tempId ? mappedData : m));
       return data;
     } catch (err) {
       console.error('[CHAT] Send error:', err);
-      // If it fails, show a red failed state so the user knows!
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
       throw err;
     }
   }, [roomId]);
 
-  // 4. Load More (Pagination)
   const loadMore = useCallback(async () => {
     if (!roomId || !hasMore || messages.length === 0) return;
 
@@ -283,24 +245,18 @@ export function useChatSync(roomId) {
     }
   }, [roomId, hasMore, messages]);
 
-  // 5. Update Message Helper
   const updateMessage = useCallback(async (id, updates) => {
     if (!roomId || !id) return;
 
-    // Map UI fields back to DB fields if necessary
     const dbUpdates = { ...updates };
     if (updates.text !== undefined) { dbUpdates.content = updates.text; delete dbUpdates.text; }
     
-    // 🔥 FIX: Define all fields that belong ONLY in the metadata JSONB column
     const metaKeys = ['reactions', 'status', 'isDeleted', 'isEdited', 'readAt', 'duration', 'replyTo'];
     const hasMetaUpdate = metaKeys.some(key => updates[key] !== undefined);
 
     if (hasMetaUpdate) {
-        // Fetch current metadata so we don't overwrite existing data
         const { data: current } = await supabase.from('chat_messages').select('metadata').eq('id', id).single();
         dbUpdates.metadata = { ...(current?.metadata || {}), ...updates };
-        
-        // Strip ALL metadata keys from the root of the Supabase update payload
         metaKeys.forEach(key => delete dbUpdates[key]);
     }
 
@@ -325,7 +281,6 @@ export function useChatSync(roomId) {
     return data;
   }, [roomId]);
 
-  // 6. Delete Message Helper (Soft delete via metadata)
   const deleteMessage = useCallback(async (id) => {
     return updateMessage(id, { isDeleted: true });
   }, [updateMessage]);
