@@ -618,19 +618,19 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title="applications" className="md:col-span-12">
         <div className="flex flex-wrap justify-center gap-6 sm:gap-8 py-4">
-          <AppIcon icon={<MessageSquare size={28} />} label="chat" color="var(--app-icon-1)" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
-          <AppIcon icon={<Gamepad2 size={28} />} label="games" color="var(--app-icon-2)" onClick={() => nav('activities')} />
-          <AppIcon icon={<Brush size={28} />} label="doodle" color="var(--app-icon-1)" onClick={() => nav('doodle')} />
-          <AppIcon icon={<Grid3x3 size={28} />} label="pixels" color="var(--app-icon-4)" onClick={() => nav('pixelart')} />
-          <AppIcon icon={<Clock size={28} />} label="capsule" color="var(--app-icon-2)" onClick={() => nav('capsule')} />
-          <AppIcon icon={<Moon size={28} />} label="dreams" color="var(--app-icon-2)" onClick={() => nav('dreams')} />
-          <AppIcon icon={<MessageCircle size={28} />} label="daily Q" color="var(--app-icon-3)" onClick={() => nav('dailyq')} />
-          <AppIcon icon={<ListTodo size={28} />} label="lists" color="var(--app-icon-1)" onClick={() => nav('lists')} />
-          <AppIcon icon={<CalendarIcon size={28} />} label="calendar" color="var(--app-icon-3)" onClick={() => nav('calendar')} />
+          <AppIcon icon={<MessageSquare size={28} />} label="chat" color="var(--primary)" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
+          <AppIcon icon={<Gamepad2 size={28} />} label="games" color="var(--secondary)" onClick={() => nav('activities')} />
+          <AppIcon icon={<Brush size={28} />} label="doodle" color="var(--primary)" onClick={() => nav('doodle')} />
+          <AppIcon icon={<Grid3x3 size={28} />} label="pixels" color="#a855f7" onClick={() => nav('pixelart')} />
+          <AppIcon icon={<Clock size={28} />} label="capsule" color="var(--secondary)" onClick={() => nav('capsule')} />
+          <AppIcon icon={<Moon size={28} />} label="dreams" color="#6366f1" onClick={() => nav('dreams')} />
+          <AppIcon icon={<MessageCircle size={28} />} label="daily Q" color="#ec4899" onClick={() => nav('dailyq')} />
+          <AppIcon icon={<ListTodo size={28} />} label="lists" color="var(--primary)" onClick={() => nav('lists')} />
+          <AppIcon icon={<CalendarIcon size={28} />} label="calendar" color="var(--accent)" onClick={() => nav('calendar')} />
           <AppIcon icon={<ImageIcon size={28} />} label="album" color="var(--bg-window)" onClick={() => nav('scrapbook')} />
-          <AppIcon icon={<FileText size={28} />} label="notes" color="var(--app-icon-5)" onClick={() => nav('notes')} />
-          <AppIcon icon={<FileText size={28} />} label="our story" color="var(--app-icon-3)" onClick={() => nav('resume')} />
-          <AppIcon icon={<SettingsIcon size={28} />} label="settings" color="var(--app-icon-3)" onClick={() => nav('settings')} />
+          <AppIcon icon={<FileText size={28} />} label="notes" color="#f59e0b" onClick={() => nav('notes')} />
+          <AppIcon icon={<FileText size={28} />} label="our story" color="#f472b6" onClick={() => nav('resume')} />
+          <AppIcon icon={<SettingsIcon size={28} />} label="settings" color="var(--accent)" onClick={() => nav('settings')} />
         </div>
       </RetroWindow>
     </div>

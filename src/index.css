@@ -20,15 +20,6 @@
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
   --text-on-accent: #5c3a21;
-  /* App Icons */
-  --app-icon-1: #e94560;
-  --app-icon-2: #4361ee;
-  --app-icon-3: #fcd34d;
-  --app-icon-4: #a855f7;
-  --app-icon-5: #14b8a6;
-  /* Chat Bubbles */
-  --bg-bubble-partner: var(--bg-window);
-  --text-bubble-partner: var(--text-main);
 }
 
 /* ════ THEMES ════ */
@@ -48,38 +39,24 @@
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
   --text-on-accent: #2d4a22;
-  --app-icon-1: #4a7c59;
-  --app-icon-2: #e07b54;
-  --app-icon-3: #f4d06f;
-  --app-icon-4: #9dab86;
-  --app-icon-5: #6d9e71;
-  --bg-bubble-partner: var(--bg-window);
-  --text-bubble-partner: var(--text-main);
 }
 
 [data-theme="midnight"] {
   --bg-main: #0f172a;
   --bg-pattern: #334155;
-  --bg-window: #1e293b;     /* Slightly lighter than main for depth */
-  --bg-header: #334155;
+  --bg-window: #0b0f19;
+  --bg-header: var(--border);
   --border: #94a3b8;
   --text-on-border: #0f172a;
-  --text-on-header: #ffffff;
+  --text-on-header: var(--text-on-border);
   --primary: #38bdf8;
   --primary-hover: #0284c7;
   --secondary: #818cf8;
-  --accent: #f472b6;        /* Pink accent for midnight pops */
-  --text-main: #f1f5f9;
+  --accent: #334155;
+  --text-main: #f8fafc;
   --text-on-primary: #0f172a;
   --text-on-secondary: #0f172a;
-  --text-on-accent: #0f172a;
-  --app-icon-1: #38bdf8;
-  --app-icon-2: #818cf8;
-  --app-icon-3: #f472b6;
-  --app-icon-4: #22d3ee;
-  --app-icon-5: #a78bfa;
-  --bg-bubble-partner: #334155; /* Solid dark blue for contrast */
-  --text-bubble-partner: #ffffff;
+  --text-on-accent: #f8fafc;
 }
 
 [data-theme="cyberpunk"] {
@@ -227,9 +204,9 @@
 }
 
 /* ════ GRADIENT KILLER ════ */
-[class*="bg-gradient"], .bg-gradient-to-r, .bg-gradient-to-b, .bg-gradient-to-t, [style*="gradient"] {
+[class*="bg-gradient"], .bg-gradient-to-r, .bg-gradient-to-b, .bg-gradient-to-t {
   background-image: none !important;
-  background-color: var(--bg-header) !important;
+  background-color: var(--border) !important;
 }
 
 html { font-size: 100%; height: 100%; }
