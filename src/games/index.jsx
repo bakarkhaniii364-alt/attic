@@ -16,6 +16,9 @@ import { CouplesQuiz } from './CouplesQuiz.jsx';
 import { Game2048 } from './Game2048.jsx';
 import { TypingRace } from './TypingRace.jsx';
 import { WouldYouRather } from './WouldYouRather.jsx';
+import { UnoGame } from './UnoGame.jsx';
+import { OthelloGame } from './OthelloGame.jsx';
+import { PoolGame } from './PoolGame.jsx';
 
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5', modes: [
@@ -56,6 +59,18 @@ const GAME_CATALOG = {
   ]},
   wyr: { title: 'Would You Rather', desc: 'See if you match!', color: '#ec4899', modes: [
     { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'Answer dilemmas and compare choices.' }
+  ]},
+  uno: { title: 'Retro Uno', desc: 'Classic card game for 2.', color: '#ef4444', modes: [
+    { id: 'vs_ai', label: 'Play vs AI', type: 'local', desc: 'Practice against the computer.' },
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Challenge your partner to Uno.' }
+  ]},
+  othello: { title: 'Othello', desc: 'Classic Reversi.', color: '#16a34a', modes: [
+    { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Outflank the computer.' },
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Online 1v1 match.' }
+  ]},
+  pool: { title: '8-Ball Pool', desc: 'Billiards physics.', color: '#8b5cf6', modes: [
+    { id: '1v1_local', label: 'Pass & Play', type: 'local', desc: 'Take turns on the same device.' },
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Real-time online pool.' }
   ]}
 };
 
@@ -157,6 +172,9 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       case '2048': return <Game2048 {...commonProps} />;
       case 'typing': return <TypingRace {...commonProps} />;
       case 'wyr': return <WouldYouRather {...commonProps} />;
+      case 'uno': return <UnoGame {...commonProps} />;
+      case 'othello': return <OthelloGame {...commonProps} />;
+      case 'pool': return <PoolGame {...commonProps} />;
       default: return <div className="p-8 text-center font-bold">Game Engine Offline</div>;
     }
   };
