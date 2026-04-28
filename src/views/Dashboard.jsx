@@ -188,16 +188,16 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
         }}
       />
       {isSleeping && (
-        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-md">zzz</span>
+        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">zzz</span>
       )}
       {isSad && !isSleeping && (
-        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-cyan-100 drop-shadow-md">
+        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-cyan-100 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
           <span>:(</span>
           <span className="text-[10px] opacity-80">sad</span>
         </div>
       )}
       {currentAction === 'meow' && (
-        <svg width="24" height="24" viewBox="0 0 16 16" className="absolute -top-4 right-0 animate-bounce drop-shadow-md">
+        <svg width="24" height="24" viewBox="0 0 16 16" className="absolute -top-4 right-0 animate-bounce drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
           <path d="M4,2 L7,2 L7,3 L9,3 L9,2 L12,2 L12,3 L14,3 L14,6 L13,6 L13,8 L12,8 L12,10 L11,10 L11,11 L10,11 L10,12 L9,12 L9,13 L7,13 L7,12 L6,12 L6,11 L5,11 L5,10 L4,10 L4,8 L3,8 L3,6 L2,6 L2,3 Z" fill="#ff4d4d" />
         </svg>
       )}
@@ -323,7 +323,7 @@ export const Unit = React.memo(({ val, label }) => {
         {/* Center Crease/Divider */}
         <div className="absolute top-1/2 left-0 w-full h-[1.5px] bg-[var(--border)] opacity-30 z-30"></div>
       </div>
-      <span className="text-[9px] font-bold opacity-60 uppercase mt-1.5 tracking-tighter">{label}</span>
+      <span className="text-[10px] font-bold opacity-60 uppercase mt-1.5 tracking-tighter">{label}</span>
     </div>
   );
 });
@@ -457,7 +457,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
         <div className="flex flex-col h-full justify-between gap-4">
           <div className="flex justify-between items-start">
             {streaks?.count > 0 && (
-              <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-orange-100/80 backdrop-blur-sm retro-border px-3 py-1 rounded-full shadow-[inset_0_-2px_0_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500">
+              <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-orange-100/80 backdrop-blur-sm retro-border px-3 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500">
                 <Flame size={14} className={`text-orange-500 ${streaks.count > 3 ? 'animate-bounce' : ''}`} fill={streaks.count > 3 ? 'currentColor' : 'none'} />
                 <span className="font-black text-orange-700 text-[10px] tracking-widest uppercase">
                   {streaks.count} Day{streaks.count !== 1 ? 's' : ''}
@@ -472,12 +472,12 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {partnerProfile.pfp ? (
-                        <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white shadow-sm" />
+                        <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white retro-shadow-dark rounded-full" />
                       ) : (
-                        <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
+                        <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg rounded-full">{partnerProfile.emoji || '👤'}</div>
                       )}
                       <div 
-                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-[var(--border)] transition-all ${onlineUsers[partnerId] === 'active' ? 'bg-green-400 animate-pulse shadow-[0_0_8px_#4ade80]' : 'bg-gray-400 opacity-50'}`}
+                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-[var(--border)] transition-all ${onlineUsers[partnerId] === 'active' ? 'bg-green-400 animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]' : 'bg-gray-400 opacity-50'}`}
                         title={onlineUsers[partnerId] === 'active' ? 'Online' : 'Offline'}
                       ></div>
                     </div>
@@ -487,7 +487,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         <p className="text-sm font-bold truncate max-w-[120px] leading-none">
                           {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
                         </p>
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : onlineUsers[partnerId] ? 'bg-blue-400 text-white' : 'bg-gray-200 opacity-50'}`}>
+                        <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : onlineUsers[partnerId] ? 'bg-blue-400 text-white' : 'bg-gray-200 opacity-50'}`}>
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
@@ -522,7 +522,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
           <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
-          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden rounded-sm"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
+          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
           <div className="flex gap-2 w-full mt-4">
             <RetroButton variant="secondary" className="flex-1 py-2 text-xs" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
           </div>

@@ -537,7 +537,7 @@ export function ChatView({
                           ${isMe ? '-left-10 group-hover:left-[-45px]' : '-right-10 group-hover:right-[-45px]'}
                           opacity-0 group-hover:opacity-100
                         `}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 hover:bg-black/5 rounded-full bg-white/80 backdrop-blur-sm retro-border border-dashed shadow-sm">
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 hover:bg-black/5 bg-white/80 backdrop-blur-sm retro-border border-dashed shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
                             <MoreVertical size={14} className="opacity-70" />
                           </button>
                         </div>
@@ -548,9 +548,9 @@ export function ChatView({
                         <div className="w-8 h-8 flex-shrink-0 flex items-end order-first">
                           {isGroupEnd ? (
                             senderPfp ? (
-                              <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-full shadow-sm" />
+                              <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-full" />
                             ) : (
-                              <div className="w-8 h-8 retro-border flex items-center justify-center text-[10px] rounded-full shadow-sm retro-bg-secondary">
+                              <div className="w-8 h-8 retro-border flex items-center justify-center text-[10px] rounded-full retro-bg-secondary">
                                 {senderEmoji}
                               </div>
                             )
@@ -564,8 +564,6 @@ export function ChatView({
                         ${msg.isDeleted ? 'bg-gray-50 border-gray-200 text-gray-400 italic shadow-none' :
                           isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
                             isMe ? (noBubble ? '' : 'bg-[var(--primary)] text-white') : (noBubble ? '' : 'bg-white text-[var(--text-main)]')}
-                        ${isMe ? `rounded-xl rounded-tr-none` : `rounded-xl rounded-tl-none`}
-                        ${!isGroupStart ? (isMe ? 'rounded-tr-xl' : 'rounded-tl-xl') : ''}
                         ${isHighlighted ? 'ring-4 ring-[var(--accent)] ring-opacity-50 animate-pulse' : ''}
                       `}>
                         {/* Reply Preview */}
@@ -579,7 +577,7 @@ export function ChatView({
                                 setTimeout(() => el.classList.remove('animate-shake'), 1000);
                               }
                             }}
-                            className={`border-l-4 border-[var(--border)]/40 bg-black/10 p-2 mb-2 text-[10px] rounded-md opacity-90 cursor-pointer hover:bg-black/20 transition-all active:scale-95`}
+                            className={`border-l-4 border-[var(--border)]/40 bg-black/10 p-2 mb-2 text-[10px] opacity-90 cursor-pointer hover:bg-black/20 transition-all active:scale-95`}
                           >
                             <p className="font-black uppercase tracking-tighter mb-0.5 opacity-60">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || 'Partner')}</p>
                             <p className="truncate italic font-bold">{msg.replyTo.text || '📸 Media / Attachment'}</p>
@@ -641,7 +639,7 @@ export function ChatView({
 
                         {/* Reactions (Always visible and more stylized) */}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (
-                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-white retro-border rounded-full px-2 py-0.5 text-[11px] flex gap-1 shadow-md z-10 animate-in zoom-in-50`}>
+                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-white retro-border px-2 py-0.5 text-[11px] flex gap-1 shadow-[2px_2px_0px_0px_var(--border)] z-10 animate-in zoom-in-50`}>
                             {msg.reactions.map((r, i) => <span key={i} className="hover:scale-125 transition-transform cursor-default">{r}</span>)}
                           </div>
                         )}
@@ -667,7 +665,7 @@ export function ChatView({
                                 const rs = msg.reactions || [];
                                 syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
                                 setActiveOptions(null);
-                              }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] rounded-lg' : ''}`}>{emoji}</button>
+                              }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] retro-border' : ''}`}>{emoji}</button>
                             ))}
                           </div>
 
@@ -703,7 +701,7 @@ export function ChatView({
               {isPartnerTyping && (
                 <div className="flex items-center gap-2 mb-4 animate-in fade-in duration-300">
                   <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
-                  <div className="retro-bg-window retro-border px-3 py-2 rounded-xl rounded-bl-sm text-[10px] font-bold opacity-60 flex gap-1 items-center">
+                  <div className="retro-bg-window retro-border px-3 py-2 text-[10px] font-bold opacity-60 flex gap-1 items-center">
                     {partnerNickname} is typing
                     <span className="flex gap-0.5">
                       <span className="w-1 h-1 bg-black rounded-full animate-bounce"></span>
@@ -716,7 +714,7 @@ export function ChatView({
             </div>
             <div className="flex flex-col retro-bg-accent retro-border-t relative">
               {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 z-[100] shadow-2xl animate-in slide-in-from-bottom-2">
+                <div className="absolute bottom-full left-0 z-[100] retro-shadow-dark animate-in slide-in-from-bottom-2">
                   <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
                 </div>
               )}
@@ -724,8 +722,8 @@ export function ChatView({
                 <div className="p-3 bg-white/80 backdrop-blur-md border-b-2 border-dashed border-[var(--border)] flex flex-wrap gap-4 animate-in slide-in-from-bottom-2">
                   {pendingImages.map((img, i) => (
                     <div key={i} className="relative">
-                      <img src={img} alt="preview" className="w-16 h-16 object-cover retro-border shadow-sm" />
-                      <button onClick={() => setPendingImages(p => p.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full retro-border shadow-md hover:scale-110"><X size={10} /></button>
+                      <img src={img} alt="preview" className="w-16 h-16 object-cover retro-border shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]" />
+                      <button onClick={() => setPendingImages(p => p.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 retro-border shadow-[2px_2px_0px_0px_var(--border)] hover:scale-110"><X size={10} /></button>
                     </div>
                   ))}
                   <div className="flex-1 min-w-[150px]">
@@ -734,8 +732,8 @@ export function ChatView({
                   </div>
                 </div>
               )}
-              {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300 rounded">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500 rounded">Send</button></div></div>)}
-              {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 rounded-full"><X size={14} /></button></div>)}
+              {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500">Send</button></div></div>)}
+              {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 retro-border"><X size={14} /></button></div>)}
               <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
                  <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-[var(--border)] bg-white hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">

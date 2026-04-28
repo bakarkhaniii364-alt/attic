@@ -43,8 +43,8 @@ const PublicRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => (
 // Loading Fallback Component
 const AppLoader = () => (
   <div className="flex flex-col items-center justify-center p-8 min-h-[200px]">
-    <div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin mb-4" />
-    <p className="font-bold text-[10px] opacity-40 tracking-widest uppercase animate-pulse">Loading View...</p>
+    <div className="font-black text-xl text-[var(--primary)] uppercase tracking-[0.3em] animate-pulse bg-[var(--bg-window)] retro-border-thick px-4 py-2 retro-shadow-dark mb-4">LOADING...</div>
+    <p className="font-bold text-[10px] opacity-40 tracking-widest uppercase">Please Wait</p>
   </div>
 );
 
@@ -94,7 +94,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
 
   return (
     <div
-      className={`fixed z-[5000] retro-bg-window retro-border transition-all duration-500 ease-in-out ${isMinimized ? 'w-56 h-12 overflow-hidden' : 'w-[90vw] sm:w-[400px] shadow-lg'} animate-in zoom-in-95 fade-in`}
+      className={`fixed z-[5000] retro-bg-window retro-border transition-all duration-500 ease-in-out ${isMinimized ? 'w-56 h-12 overflow-hidden' : 'w-[90vw] sm:w-[400px] retro-shadow-dark'} animate-in zoom-in-95 fade-in`}
       style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       onMouseDown={(e) => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
       onTouchStart={(e) => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
@@ -148,36 +148,36 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
                     </div>
                     <div className="flex flex-col items-center">
                         <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">{partnerName}</p>
-                        <p className="text-[9px] font-bold text-white/20 uppercase mt-1 italic">{type === 'video' ? (isCameraOff ? 'Camera Off' : 'Connecting...') : 'Voice Only'}</p>
+                        <p className="text-[10px] font-bold text-white/20 uppercase mt-1 italic">{type === 'video' ? (isCameraOff ? 'Camera Off' : 'Connecting...') : 'Voice Only'}</p>
                     </div>
                   </div>
                 )}
               </>
             )}
-            {!isRinging && <div className="absolute top-3 right-3 bg-black/60 px-2 py-1 rounded retro-border text-[8px] text-white font-bold uppercase backdrop-blur-sm border-white/20">LIVE • REMOTE</div>}
+            {!isRinging && <div className="absolute top-3 right-3 bg-black/60 px-2 py-1 retro-border text-[10px] text-white font-bold uppercase backdrop-blur-sm border-white/20">LIVE • REMOTE</div>}
             
             <div className="absolute bottom-3 left-3 flex gap-2">
-                 {isMuted && <div className="bg-red-500/80 backdrop-blur-sm p-1.5 rounded-full retro-border text-white shadow-lg"><MicOff size={10}/></div>}
-                 {isDeafened && <div className="bg-red-500/80 backdrop-blur-sm p-1.5 rounded-full retro-border text-white shadow-lg"><VolumeX size={10}/></div>}
+                 {isMuted && <div className="bg-red-500/80 backdrop-blur-sm p-1.5 rounded-full retro-border text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]"><MicOff size={10}/></div>}
+                 {isDeafened && <div className="bg-red-500/80 backdrop-blur-sm p-1.5 rounded-full retro-border text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]"><VolumeX size={10}/></div>}
             </div>
           </div>
 
           <div className="p-4 grid grid-cols-4 gap-3 bg-[var(--bg-window)] border-t-2 retro-border">
             <button onClick={onMicToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] ${isMuted ? 'bg-red-500 text-white' : 'retro-bg-accent hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]'}`}>
               {isMuted ? <MicOff size={20}/> : <Mic size={20}/>}
-              <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">{isMuted ? 'Unmute' : 'Mute'}</span>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-tighter">{isMuted ? 'Unmute' : 'Mute'}</span>
             </button>
             <button onClick={onDeafenToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] ${isDeafened ? 'bg-red-500 text-white' : 'retro-bg-secondary hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]'}`}>
               {isDeafened ? <VolumeX size={20}/> : <Volume2 size={20}/>}
-              <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">{isDeafened ? 'Hear' : 'Deafen'}</span>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-tighter">{isDeafened ? 'Hear' : 'Deafen'}</span>
             </button>
             <button onClick={onCameraToggle} className={`flex flex-col items-center justify-center p-3 retro-border transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] ${isCameraOff ? 'bg-red-500 text-white' : 'retro-bg-primary hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]'}`}>
               {isCameraOff ? <VideoOff size={20}/> : <Camera size={20}/>}
-              <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">Cam</span>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-tighter">Cam</span>
             </button>
             <button onClick={onEndCall} className="flex flex-col items-center justify-center p-3 retro-border bg-red-600 text-white hover:bg-red-700 transition-all hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
               <PhoneOff size={20} className="rotate-[135deg]"/>
-              <span className="text-[8px] font-black mt-1.5 uppercase tracking-tighter">End</span>
+              <span className="text-[10px] font-black mt-1.5 uppercase tracking-tighter">End</span>
             </button>
           </div>
         </div>

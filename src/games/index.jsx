@@ -216,7 +216,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
           <div className="flex flex-col h-full bg-[var(--bg-main)]">
              <div className="p-8 border-b-4 border-double border-[var(--border)] bg-pattern-grid flex items-center gap-6 shrink-0">
-                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded flex items-center justify-center retro-border shadow-inner bg-white" style={{ color: game.color }}>
+                 <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center retro-border bg-white" style={{ color: game.color }}>
                     <Gamepad2 size={48} />
                  </div>
                  <div>
@@ -240,7 +240,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      {game.modes.map(mode => (
-                         <div key={mode.id} className={`p-4 retro-border bg-[var(--bg-window)] flex flex-col gap-4 transition-transform ${selectedModeId === mode.id ? 'ring-4 ring-inset ring-[var(--primary)] scale-[1.02] shadow-lg' : 'hover:scale-[1.01]'}`}>
+                         <div key={mode.id} className={`p-4 retro-border bg-[var(--bg-window)] flex flex-col gap-4 transition-transform ${selectedModeId === mode.id ? 'ring-4 ring-inset ring-[var(--primary)] scale-[1.02] retro-shadow-dark' : 'hover:scale-[1.01]'}`}>
                              <div className="flex items-start justify-between cursor-pointer" onClick={() => { playAudio('click', sfx); setSelectedModeId(mode.id); }}>
                                  <div>
                                      <h4 className="text-lg font-black uppercase">{mode.label}</h4>
@@ -280,7 +280,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                                      
                                      <RetroButton 
                                          variant={mode.type === 'remote' ? 'secondary' : 'primary'} 
-                                         className="w-full py-3 text-lg mt-2 shadow-md"
+                                         className="w-full py-3 text-lg mt-2 retro-shadow-dark"
                                          onClick={() => mode.type === 'remote' ? handleCreateLobby(mode) : handleStartLocal(mode)}
                                      >
                                          {mode.type === 'remote' ? 'Create Lobby & Invite' : 'Start Game'}
