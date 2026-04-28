@@ -145,7 +145,7 @@ export function ChatView({
   onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, 
   chatHistory, userId, partnerId, roomId, onStartCall, 
   sharedImages, onlineUsers = {},
-  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore 
+  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore, e2eeKey 
 }) {
   const isNormalized = !!roomId;
   const navigate = useNavigate();
@@ -749,18 +749,18 @@ export function ChatView({
                      value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} 
                      onChange={handleInputChange} 
                      onKeyDown={handleKeyDown} 
-                     placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} 
-                     disabled={isRecording || voicePreview !== null} 
-                     className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto ${isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent'}`} 
+                     placeholder={!e2eeKey ? "Establishing E2EE connection..." : (pendingImages.length > 0 ? "Add a caption..." : "type a secure message...")} 
+                     disabled={isRecording || voicePreview !== null || !e2eeKey} 
+                     className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto ${!e2eeKey ? 'bg-gray-200 opacity-50 cursor-not-allowed' : (isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent')}`} 
                      style={{ minHeight: '44px', maxHeight: '72px' }}
                    />
                  </div>
                  {!input.trim() && !editingMsgId && voicePreview === null && pendingImages.length === 0 ? (
-                   <button type="button" onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]'}`}>
+                   <button type="button" disabled={!e2eeKey} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${!e2eeKey ? 'opacity-50 cursor-not-allowed bg-gray-200' : (isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]')}`}>
                      <Mic size={18} className={isRecording ? 'animate-bounce' : ''} />
                    </button>
                  ) : (
-                   <button type="submit" className="p-2 sm:p-3 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all flex-shrink-0">
+                   <button type="submit" disabled={!e2eeKey} className={`p-2 sm:p-3 border-2 border-[var(--border)] flex-shrink-0 transition-all ${!e2eeKey ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : 'bg-[var(--primary)] text-white shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none'}`}>
                      <Send size={18} />
                    </button>
                  )}
