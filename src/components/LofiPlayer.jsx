@@ -4,6 +4,7 @@ import { RetroWindow } from './UI.jsx';
 
 export const CHANNELS = [
     { name: "Bliss", url: "/assets/music/Bliss.mp3" },
+    { name: "Ivy", url: "/assets/music/Ivy.mp3" },
     { name: "Electronic Chill", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
     { name: "Lofi Study Chords", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
     { name: "Synthwave Drive", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
