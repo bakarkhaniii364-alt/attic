@@ -80,8 +80,13 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
   const [gameState, setGameState] = useGlobalSync(`uno_${roomId}`, null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pendingWildCard, setPendingWildCard] = useState(null);
-  
+  const [actionMessage, setActionMessage] = useState("");
   const aiTimeoutRef = useRef(null);
+
+  const showMessage = (msg) => {
+      setActionMessage(msg);
+      setTimeout(() => setActionMessage(curr => curr === msg ? "" : curr), 1500);
+  };
 
   // Initialize game
   useEffect(() => {
@@ -176,20 +181,25 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
     // Apply effects
     if (card.value === 'skip' || card.value === 'reverse') {
+       showMessage(card.value === 'skip' ? 'SKIP!' : 'REVERSE!');
        // In 2-player, reverse is skip.
        nextTurn = myPlayerId;
     } else if (card.value === 'draw2') {
+       showMessage('+2 DRAW!');
        const res = drawCards(oppPlayerId, 2, newDeck, newHands);
        newDeck = res.newDeck;
        newDiscard = res.newDiscard;
        newHands[oppPlayerId] = res.newHand;
        nextTurn = myPlayerId; // skip their turn
     } else if (card.value === 'wild_draw4') {
+       showMessage('+4 DRAW!');
        const res = drawCards(oppPlayerId, 4, newDeck, newHands);
        newDeck = res.newDeck;
        newDiscard = res.newDiscard;
        newHands[oppPlayerId] = res.newHand;
        nextTurn = myPlayerId; // skip their turn
+    } else if (card.color === 'wild') {
+       showMessage('WILD!');
     }
 
     // Reset Uno status if I had 1 card and drew, or update if I forgot
@@ -244,6 +254,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       if (winner) return;
       if (myHand.length <= 2) {
           playAudio('success', sfx);
+          showMessage('UNO!');
           setGameState(p => ({ ...p, unoCalled: { ...p.unoCalled, [myPlayerId]: true }}));
       }
   };
@@ -357,7 +368,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                 <div className="flex-1 border-[3px] border-[#392b23] bg-[#e3dec6] p-[10px] overflow-y-auto text-[13px] shadow-[inset_3px_3px_0_rgba(57,43,35,0.1)] flex flex-col gap-[6px]">
                     <div className="text-[#8c4b38] font-bold">&gt; system initialized.</div>
                     <div className="text-[#8c4b38] font-bold">&gt; waiting for boot...</div>
-                    <div className="text-[#8c4b38] font-bold">&gt; {message || 'Game started.'}</div>
+                    <div className="text-[#8c4b38] font-bold">&gt; {actionMessage || 'Game started.'}</div>
                     {unoCalled[oppPlayerId] && <div className="text-[#d6444f] font-bold">&gt; CPU/OPP called UNO!</div>}
                 </div>
                 <div className="flex flex-col gap-2">
@@ -437,8 +448,8 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                </div>
 
                {/* Action Message Overlay */}
-               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[64px] font-black text-[#d6444f] pointer-events-none transition-all duration-200 z-[500] ${message ? 'opacity-100 scale-110 -rotate-6' : 'opacity-0 scale-90'}`} style={{ textShadow: '5px 5px 0 #392b23, -2px -2px 0 #fcfcf2, 2px -2px 0 #fcfcf2, -2px 2px 0 #fcfcf2, 2px 2px 0 #fcfcf2' }}>
-                   {message}
+               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[64px] font-black text-[#d6444f] pointer-events-none transition-all duration-200 z-[500] ${actionMessage ? 'opacity-100 scale-110 -rotate-6' : 'opacity-0 scale-90'}`} style={{ textShadow: '5px 5px 0 #392b23, -2px -2px 0 #fcfcf2, 2px -2px 0 #fcfcf2, -2px 2px 0 #fcfcf2, 2px 2px 0 #fcfcf2' }}>
+                   {actionMessage}
                </div>
 
                {/* My Hand */}
