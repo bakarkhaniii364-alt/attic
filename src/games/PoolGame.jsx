@@ -322,6 +322,12 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       if (winner && setScores && winner === myPlayerId) {
           setScores(p => ({ ...p, pool: { ...(p.pool || {}), [userId]: (p.pool?.[userId] || 0) + 1 } }));
+          try {
+              import('../utils/userDataHelpers.js').then(({ submitHighscore }) => {
+                  const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+                  submitHighscore('pool', config?.mode || 'arcade', 1, profile?.name || 'Player', userId);
+              });
+          } catch(e) {}
           if (onWin) onWin();
       }
 
@@ -475,12 +481,76 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       const ncx = nColX / nColDist;
                       const ncy = nColY / nColDist;
                       
+                      // Raycast for target ball
+                      let tMinT = 150;
+                      let tClosestHit = null;
+                      engine.balls.forEach(b => {
+                          if (!b.active || b.id === tBall.id || b.id === 0) return;
+                          const vx = b.x - tBall.x;
+                          const vy = b.y - tBall.y;
+                          const t = vx * ncx + vy * ncy;
+                          if (t > 0) {
+                              const qx = tBall.x + t * ncx;
+                              const qy = tBall.y + t * ncy;
+                              const dsq = (b.x - qx)**2 + (b.y - qy)**2;
+                              const rsq = (BALL_R * 2)**2;
+                              if (dsq <= rsq) {
+                                  const tInt = t - Math.sqrt(rsq - dsq);
+                                  if (tInt > 0.1 && tInt < tMinT) {
+                                      tMinT = tInt;
+                                      tClosestHit = b;
+                                  }
+                              }
+                          }
+                      });
+                      
+                      // Also check walls for target ball
+                      let twallT = 150;
+                      if (ncx > 0) { const t = (PLAY_WIDTH - BALL_R - tBall.x) / ncx; if(t > 0.1 && t < twallT) twallT = t; }
+                      else if (ncx < 0) { const t = (BALL_R - tBall.x) / ncx; if(t > 0.1 && t < twallT) twallT = t; }
+                      if (ncy > 0) { const t = (PLAY_HEIGHT - BALL_R - tBall.y) / ncy; if(t > 0.1 && t < twallT) twallT = t; }
+                      else if (ncy < 0) { const t = (BALL_R - tBall.y) / ncy; if(t > 0.1 && t < twallT) twallT = t; }
+                      tMinT = Math.min(tMinT, twallT);
+
                       ctx.beginPath();
                       ctx.moveTo(tBall.x, tBall.y);
-                      ctx.lineTo(tBall.x + ncx * 150, tBall.y + ncy * 150);
-                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                      ctx.lineTo(tBall.x + ncx * tMinT, tBall.y + ncy * tMinT);
+                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                       ctx.lineWidth = 4;
                       ctx.stroke();
+
+                      if (tClosestHit) {
+                          ctx.beginPath();
+                          ctx.arc(tBall.x + ncx * tMinT, tBall.y + ncy * tMinT, BALL_R, 0, Math.PI * 2);
+                          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                          ctx.lineWidth = 2;
+                          ctx.stroke();
+                      }
+
+                      // Cue ball post-collision trajectory
+                      const dot = nx * ncx + ny * ncy;
+                      const cueAx = nx - dot * ncx;
+                      const cueAy = ny - dot * ncy;
+                      const cueALen = Math.hypot(cueAx, cueAy);
+                      if (cueALen > 0.01) {
+                          const cnx = cueAx / cueALen;
+                          const cny = cueAy / cueALen;
+                          
+                          let cMinT = 100;
+                          let cwallT = 100;
+                          if (cnx > 0) { const t = (PLAY_WIDTH - BALL_R - hx) / cnx; if(t > 0.1 && t < cwallT) cwallT = t; }
+                          else if (cnx < 0) { const t = (BALL_R - hx) / cnx; if(t > 0.1 && t < cwallT) cwallT = t; }
+                          if (cny > 0) { const t = (PLAY_HEIGHT - BALL_R - hy) / cny; if(t > 0.1 && t < cwallT) cwallT = t; }
+                          else if (cny < 0) { const t = (BALL_R - hy) / cny; if(t > 0.1 && t < cwallT) cwallT = t; }
+                          cMinT = Math.min(cMinT, cwallT);
+                          
+                          ctx.beginPath();
+                          ctx.moveTo(hx, hy);
+                          ctx.lineTo(hx + cnx * cMinT, hy + cny * cMinT);
+                          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                          ctx.lineWidth = 4;
+                          ctx.stroke();
+                      }
                   } else if (wallT !== Infinity) {
                       const hx = cue.x + nx * wallT;
                       const hy = cue.y + ny * wallT;
@@ -719,7 +789,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
-                <div className="retro-border-thick retro-shadow-dark bg-[var(--border)] relative p-2 max-h-full max-w-full aspect-[11/6]">
+                <div className="relative max-h-full max-w-full aspect-[11/6]">
                     <canvas 
                        ref={canvasRef} 
                        width={CANVAS_WIDTH} 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader, Settings, Play, Swords, User, Monitor, Zap, Heart, Brush, X, Activity } from 'lucide-react';
-import { RetroButton, RetroWindow, RetroInput, ScoreboardCountdown, ConfirmDialog } from '../components/UI.jsx';
+import { RetroButton, RetroWindow, ScoreboardCountdown, ConfirmDialog } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { playAudio } from '../utils/audio.js';
 
