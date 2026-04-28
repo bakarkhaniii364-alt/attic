@@ -438,7 +438,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
              </div>
 
              {/* My Hand */}
-             <div className="flex flex-wrap justify-center content-end overflow-y-auto w-full px-4 pb-4 pt-16 custom-scrollbar h-[200px]">
+             <div className="flex flex-wrap justify-center content-end w-full px-4 pb-4 pt-16 min-h-[200px] z-20">
                 {myHand.map((c, i) => {
                     const valid = isValidPlay(c);
                     return (

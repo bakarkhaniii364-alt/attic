@@ -392,13 +392,13 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
                 </RetroButton>
             )}
 
-            <div className="flex justify-start sm:justify-center overflow-x-auto w-full px-4 pb-8 pt-8 custom-scrollbar min-h-[180px]">
+            <div className="flex flex-wrap justify-center content-end w-full px-4 pb-4 pt-16 min-h-[200px] z-20">
                {sortedMyHand.map((c, i) => {
                    const isSelected = selectedCards.some(sc => sc.id === c.id);
                    return (
                        <div 
                            key={c.id} 
-                           className={`shrink-0 transition-transform ${i > 0 ? '-ml-8 sm:-ml-10' : ''} hover:-translate-y-4 relative group`}
+                           className={`shrink-0 transition-transform ${i > 0 ? '-ml-8 sm:-ml-10' : ''} -mt-16 hover:-translate-y-4 relative group`}
                            style={{ zIndex: i + (isSelected ? 50 : 0) }}
                        >
                            <CardUI 

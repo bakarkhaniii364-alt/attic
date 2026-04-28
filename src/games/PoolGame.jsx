@@ -286,27 +286,33 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
           
           // Wood border outline
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 4;
-          ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.strokeStyle = '#2b1d14';
+          ctx.lineWidth = BORDER_SIZE;
+          ctx.strokeRect(BORDER_SIZE / 2, BORDER_SIZE / 2, CANVAS_WIDTH - BORDER_SIZE, CANVAS_HEIGHT - BORDER_SIZE);
 
           ctx.save();
           ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
-          // Felt
-          ctx.fillStyle = '#22c55e'; // classic vibrant green
+          // Table markers (diamonds)
+          ctx.fillStyle = '#ffffff';
+          const markersX = [PLAY_WIDTH / 4, PLAY_WIDTH / 2, PLAY_WIDTH * 0.75];
+          const markersY = [PLAY_HEIGHT / 4, PLAY_HEIGHT / 2, PLAY_HEIGHT * 0.75];
+
+          markersX.forEach(x => {
+              ctx.beginPath(); ctx.arc(x, -BORDER_SIZE / 2, 4, 0, Math.PI * 2); ctx.fill();
+              ctx.beginPath(); ctx.arc(x, PLAY_HEIGHT + BORDER_SIZE / 2, 4, 0, Math.PI * 2); ctx.fill();
+          });
+          markersY.forEach(y => {
+              ctx.beginPath(); ctx.arc(-BORDER_SIZE / 2, y, 4, 0, Math.PI * 2); ctx.fill();
+              ctx.beginPath(); ctx.arc(PLAY_WIDTH + BORDER_SIZE / 2, y, 4, 0, Math.PI * 2); ctx.fill();
+          });
+
+          // Felt Background Gradient
+          const gradient = ctx.createRadialGradient(PLAY_WIDTH / 2, PLAY_HEIGHT / 2, 50, PLAY_WIDTH / 2, PLAY_HEIGHT / 2, PLAY_WIDTH);
+          gradient.addColorStop(0, '#2b9348');
+          gradient.addColorStop(1, '#1a5f2e');
+          ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
-          
-          // Checkerboard Felt
-          ctx.fillStyle = '#1da54e'; // darker green
-          const tileSize = 40;
-          for(let i=0; i<PLAY_WIDTH/tileSize; i++) {
-              for(let j=0; j<PLAY_HEIGHT/tileSize; j++) {
-                  if((i+j)%2 === 0) {
-                      ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
-                  }
-              }
-          }
 
           // Inner felt outline
           ctx.strokeStyle = '#000000';
@@ -346,10 +352,13 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           
           if (isMyTurn && !engine.isSimulating && cue && cue.active && engine.hoverMouse) {
               let dx = 0, dy = 0;
+              let pullDist = 0;
+              
               if (engine.dragStart && engine.currentMouse) {
                   // Dragging to shoot
                   dx = engine.dragStart.x - engine.currentMouse.x;
                   dy = engine.dragStart.y - engine.currentMouse.y;
+                  pullDist = Math.hypot(dx, dy);
               } else {
                   // Hovering
                   dx = engine.hoverMouse.x - cue.x;
@@ -361,14 +370,40 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   const nx = dx / dist;
                   const ny = dy / dist;
 
+                  // Ray to edge (Trajectory preview)
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
-                  ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); // Ray to edge
+                  ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); 
                   ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
                   ctx.setLineDash([10, 10]);
                   ctx.lineWidth = 3;
                   ctx.stroke();
                   ctx.setLineDash([]);
+                  
+                  // Power Pull Preview (if dragging)
+                  if (engine.dragStart && engine.currentMouse && pullDist > 0) {
+                      const maxPower = 30;
+                      const currentSpeed = Math.min(pullDist * 0.15, maxPower);
+                      const powerRatio = currentSpeed / maxPower;
+                      
+                      const pullColor = `rgb(${255 * powerRatio}, ${255 * (1 - powerRatio)}, 50)`;
+                      
+                      ctx.beginPath();
+                      ctx.moveTo(cue.x, cue.y);
+                      ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
+                      ctx.strokeStyle = pullColor;
+                      ctx.lineWidth = 6;
+                      ctx.lineCap = 'round';
+                      ctx.stroke();
+                      
+                      // Outer glow for power
+                      ctx.beginPath();
+                      ctx.moveTo(cue.x, cue.y);
+                      ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
+                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                      ctx.lineWidth = 2;
+                      ctx.stroke();
+                  }
               }
           }
 

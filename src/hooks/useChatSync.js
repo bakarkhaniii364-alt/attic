@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
+import { encryptMessage, decryptMessage } from '../utils/crypto.js';
 
 /**
  * useChatSync - Specialized hook for room-specific chat history
@@ -10,7 +11,7 @@ import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testM
 /**
  * Maps database row fields to the format expected by the ChatView UI.
  */
-  const mapMessage = (row) => {
+  const mapMessage = async (row, e2eeKey) => {
     const mapped = {
       ...row,
       sender: row.sender_id,
@@ -25,7 +26,22 @@ import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testM
     };
 
     // Route content to correct UI prop based on type
-    if (row.type === 'text') mapped.text = row.content;
+    if (row.type === 'text') {
+        try {
+            const parsed = JSON.parse(row.content);
+            if (parsed.ciphertext && parsed.iv) {
+                if (e2eeKey) {
+                    mapped.text = await decryptMessage(parsed, e2eeKey);
+                } else {
+                    mapped.text = "[Encrypted Message - Secure Key Missing]";
+                }
+            } else {
+                mapped.text = row.content;
+            }
+        } catch (e) {
+            mapped.text = row.content;
+        }
+    }
     else if (row.type === 'image') mapped.url = row.content;
     else if (row.type === 'voice') mapped.audioUrl = row.content;
     else if (row.type === 'game_invite') {
@@ -38,7 +54,7 @@ import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testM
     return mapped;
   };
 
-export function useChatSync(roomId) {
+export function useChatSync(roomId, e2eeKey) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
@@ -76,7 +92,9 @@ export function useChatSync(roomId) {
       }
 
       if (data && mounted) {
-        const sortedData = data.map(mapMessage).reverse(); // Newest at bottom
+        const mappedPromises = data.map(row => mapMessage(row, e2eeKey));
+        const resolvedData = await Promise.all(mappedPromises);
+        const sortedData = resolvedData.reverse(); // Newest at bottom
         setMessages(sortedData);
         setLoading(false);
         setHasMore(data.length === 50);
@@ -104,21 +122,21 @@ export function useChatSync(roomId) {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setMessages((prev) => {
-              // PREVENT DUPLICATES!
-              if (prev.some(m => m.id === payload.new.id)) return prev;
-              
-              const mapped = mapMessage(payload.new);
-              const newMsgs = [...prev, mapped];
-              localforage.setItem(`chat_cache_${roomId}`, newMsgs);
-              return newMsgs;
+            mapMessage(payload.new, e2eeKey).then(mapped => {
+                setMessages((prev) => {
+                  if (prev.some(m => m.id === payload.new.id)) return prev;
+                  const newMsgs = [...prev, mapped];
+                  localforage.setItem(`chat_cache_${roomId}`, newMsgs);
+                  return newMsgs;
+                });
             });
           } else if (payload.eventType === 'UPDATE') {
-            setMessages((prev) => {
-              const mapped = mapMessage(payload.new);
-              const newMsgs = prev.map((m) => (m.id === mapped.id ? mapped : m));
-              localforage.setItem(`chat_cache_${roomId}`, newMsgs);
-              return newMsgs;
+            mapMessage(payload.new, e2eeKey).then(mapped => {
+                setMessages((prev) => {
+                  const newMsgs = prev.map((m) => (m.id === mapped.id ? mapped : m));
+                  localforage.setItem(`chat_cache_${roomId}`, newMsgs);
+                  return newMsgs;
+                });
             });
           } else if (payload.eventType === 'DELETE') {
             setMessages((prev) => {
@@ -135,10 +153,11 @@ export function useChatSync(roomId) {
     let unspentUpdateTest;
     if (isTestMode()) {
         unspentTest = onTestStateUpdate('chat_message', (payload) => {
-            setMessages((prev) => {
-                if (prev.some(m => m.id === payload.id)) return prev;
-                const mapped = mapMessage(payload);
-                return [...prev, mapped];
+            mapMessage(payload, e2eeKey).then(mapped => {
+                setMessages((prev) => {
+                    if (prev.some(m => m.id === payload.id)) return prev;
+                    return [...prev, mapped];
+                });
             });
         });
         unspentUpdateTest = onTestStateUpdate('chat_message_update', (payload) => {
@@ -183,6 +202,13 @@ export function useChatSync(roomId) {
 
     if (isBlob) {
       finalContent = URL.createObjectURL(content); // Create instant local preview
+    } else if (type === 'text') {
+        if (!e2eeKey) {
+            alert("Waiting for secure connection. Cannot send encrypted message.");
+            throw new Error("Missing E2EE Key");
+        }
+        const encrypted = await encryptMessage(finalContent, e2eeKey);
+        finalContent = JSON.stringify(encrypted);
     }
 
     // --- INSTANT OPTIMISTIC UI UPDATE ---
@@ -199,7 +225,8 @@ export function useChatSync(roomId) {
     };
     
     // Instantly show the message on screen!
-    setMessages(prev => [...prev, mapMessage(optimisticMsg)]);
+    const mappedOptimistic = await mapMessage(optimisticMsg, e2eeKey);
+    setMessages(prev => [...prev, mappedOptimistic]);
     if (isTestMode()) {
         sendTestStateUpdate('chat_message', optimisticMsg);
         return optimisticMsg;
@@ -230,7 +257,8 @@ export function useChatSync(roomId) {
       if (error) throw error;
 
       // Swap the temporary message with the real confirmed database message
-      setMessages(prev => prev.map(m => m.id === tempId ? mapMessage(data) : m));
+      const mappedData = await mapMessage(data, e2eeKey);
+      setMessages(prev => prev.map(m => m.id === tempId ? mappedData : m));
       return data;
     } catch (err) {
       console.error('[CHAT] Send error:', err);
@@ -260,7 +288,9 @@ export function useChatSync(roomId) {
     }
 
     if (data && data.length > 0) {
-      const moreMsgs = data.map(mapMessage).reverse();
+      const mappedPromises = data.map(row => mapMessage(row, e2eeKey));
+      const resolvedData = await Promise.all(mappedPromises);
+      const moreMsgs = resolvedData.reverse();
       setMessages((prev) => [...moreMsgs, ...prev]);
       setHasMore(data.length === 50);
     } else {
