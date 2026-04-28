@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
-import { encryptMessage, decryptMessage } from '../utils/crypto.js';
+// E2EE logic removed
 
 /**
  * useChatSync - Specialized hook for room-specific chat history
@@ -11,7 +11,7 @@ import { encryptMessage, decryptMessage } from '../utils/crypto.js';
 /**
  * Maps database row fields to the format expected by the ChatView UI.
  */
-  const mapMessage = async (row, e2eeKey) => {
+  const mapMessage = async (row) => {
     const mapped = {
       ...row,
       sender: row.sender_id,
@@ -27,19 +27,11 @@ import { encryptMessage, decryptMessage } from '../utils/crypto.js';
 
     // Route content to correct UI prop based on type
     if (row.type === 'text') {
-        try {
-            const parsed = JSON.parse(row.content);
-            if (parsed.ciphertext && parsed.iv) {
-                if (e2eeKey) {
-                    mapped.text = await decryptMessage(parsed, e2eeKey);
-                } else {
-                    mapped.text = "[Encrypted Message - Secure Key Missing]";
-                }
-            } else {
-                mapped.text = row.content;
-            }
-        } catch (e) {
-            mapped.text = row.content;
+        mapped.text = row.content;
+        
+        // Catch any old encrypted messages still in the database
+        if (row.content && typeof row.content === 'string' && row.content.includes('"ciphertext"')) {
+            mapped.text = "[Legacy Encrypted Message]";
         }
     }
     else if (row.type === 'image') mapped.url = row.content;
@@ -54,15 +46,10 @@ import { encryptMessage, decryptMessage } from '../utils/crypto.js';
     return mapped;
   };
 
-export function useChatSync(roomId, e2eeKey) {
+export function useChatSync(roomId) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-
-  const keyRef = useRef(e2eeKey);
-  useEffect(() => {
-    keyRef.current = e2eeKey;
-  }, [e2eeKey]);
 
   // 1. Initial Load & Cache Hydration
   useEffect(() => {
@@ -97,7 +84,7 @@ export function useChatSync(roomId, e2eeKey) {
       }
 
       if (data && mounted) {
-        const mappedPromises = data.map(row => mapMessage(row, keyRef.current));
+        const mappedPromises = data.map(row => mapMessage(row));
         const resolvedData = await Promise.all(mappedPromises);
         const sortedData = resolvedData.reverse(); // Newest at bottom
         setMessages(sortedData);
@@ -127,7 +114,7 @@ export function useChatSync(roomId, e2eeKey) {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            mapMessage(payload.new, keyRef.current).then(mapped => {
+            mapMessage(payload.new).then(mapped => {
                 setMessages((prev) => {
                   if (prev.some(m => m.id === payload.new.id)) return prev;
                   const newMsgs = [...prev, mapped];
@@ -158,7 +145,7 @@ export function useChatSync(roomId, e2eeKey) {
     let unspentUpdateTest;
     if (isTestMode()) {
         unspentTest = onTestStateUpdate('chat_message', (payload) => {
-            mapMessage(payload, keyRef.current).then(mapped => {
+            mapMessage(payload).then(mapped => {
                 setMessages((prev) => {
                     if (prev.some(m => m.id === payload.id)) return prev;
                     return [...prev, mapped];
@@ -207,19 +194,6 @@ export function useChatSync(roomId, e2eeKey) {
 
     if (isBlob) {
       finalContent = URL.createObjectURL(content); // Create instant local preview
-    } else if (type === 'text') {
-        if (!e2eeKey) {
-            if (isTestMode()) {
-                 console.warn("Dev Mode: Sending UNENCRYPTED message because E2EE Key is missing.");
-                 // Do not encrypt, finalContent remains plain text
-            } else {
-                alert("Waiting for secure connection. Cannot send encrypted message.");
-                throw new Error("Missing E2EE Key");
-            }
-        } else {
-            const encrypted = await encryptMessage(finalContent, e2eeKey);
-            finalContent = JSON.stringify(encrypted);
-        }
     }
 
     // --- INSTANT OPTIMISTIC UI UPDATE ---
@@ -236,7 +210,7 @@ export function useChatSync(roomId, e2eeKey) {
     };
     
     // Instantly show the message on screen!
-    const mappedOptimistic = await mapMessage(optimisticMsg, e2eeKey);
+    const mappedOptimistic = await mapMessage(optimisticMsg);
     setMessages(prev => [...prev, mappedOptimistic]);
     if (isTestMode()) {
         sendTestStateUpdate('chat_message', optimisticMsg);
@@ -268,7 +242,7 @@ export function useChatSync(roomId, e2eeKey) {
       if (error) throw error;
 
       // Swap the temporary message with the real confirmed database message
-      const mappedData = await mapMessage(data, e2eeKey);
+      const mappedData = await mapMessage(data);
       setMessages(prev => prev.map(m => m.id === tempId ? mappedData : m));
       return data;
     } catch (err) {
@@ -277,7 +251,7 @@ export function useChatSync(roomId, e2eeKey) {
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
       throw err;
     }
-  }, [roomId, e2eeKey]);
+  }, [roomId]);
 
   // 4. Load More (Pagination)
   const loadMore = useCallback(async () => {
@@ -299,7 +273,7 @@ export function useChatSync(roomId, e2eeKey) {
     }
 
     if (data && data.length > 0) {
-      const mappedPromises = data.map(row => mapMessage(row, keyRef.current));
+      const mappedPromises = data.map(row => mapMessage(row));
       const resolvedData = await Promise.all(mappedPromises);
       const moreMsgs = resolvedData.reverse();
       setMessages((prev) => [...moreMsgs, ...prev]);

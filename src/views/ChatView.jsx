@@ -146,10 +146,10 @@ export function ChatView({
   onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, 
   chatHistory, userId, partnerId, roomId, onStartCall, 
   sharedImages, onlineUsers = {},
-  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore, e2eeKey 
+  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore 
 }) {
   const isNormalized = !!roomId;
-  const isInputDisabled = !e2eeKey && !isTestMode();
+  const isInputDisabled = false;
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -752,7 +752,7 @@ export function ChatView({
                      value={isRecording ? `Recording... 0:${recordingTime.toString().padStart(2, '0')}` : input} 
                      onChange={handleInputChange} 
                      onKeyDown={handleKeyDown} 
-                     placeholder={isInputDisabled ? "Establishing E2EE connection..." : (pendingImages.length > 0 ? "Add a caption..." : "type a secure message...")} 
+                     placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} 
                      disabled={isRecording || voicePreview !== null || isInputDisabled} 
                      className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto ${isInputDisabled ? 'bg-gray-200 opacity-50 cursor-not-allowed' : (isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent')}`} 
                      style={{ minHeight: '44px', maxHeight: '72px' }}

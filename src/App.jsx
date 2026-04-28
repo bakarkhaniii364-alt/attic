@@ -17,7 +17,6 @@ import { useChatSync } from './hooks/useChatSync.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { supabase } from './lib/supabase.js';
 import { isTestMode } from './lib/testMode.js';
-import { generateKey, exportKey, importKey, saveLocalKey, getLocalKey } from './utils/crypto.js';
 
 // Lazy load heavy views
 const ChatView = lazy(() => import('./views/ChatView.jsx').then(m => ({ default: m.ChatView })));
@@ -336,8 +335,6 @@ export default function App() {
     playAudio('click', sfxEnabled); 
     navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); 
   };
-
-  const [e2eeKey, setE2eeKey] = useState(null);
   const syncedRoomIdRef = useRef(syncedRoomId);
   useEffect(() => { syncedRoomIdRef.current = syncedRoomId; }, [syncedRoomId]);
 
@@ -362,32 +359,7 @@ export default function App() {
 
   const isHost = !hasRoom || userId < partnerId;
 
-  // E2EE Key Initialization
-  useEffect(() => {
-      if (!syncedRoomId || !userId) return;
-      
-      const initializeE2EE = async () => {
-          const storedKeyBase64 = getLocalKey(syncedRoomId);
-          if (storedKeyBase64) {
-              try {
-                  const key = await importKey(storedKeyBase64);
-                  setE2eeKey(key);
-              } catch (e) {
-                  console.error("Failed to import stored E2EE key", e);
-              }
-          } else if (isHost) {
-              console.log("[E2EE] Host generating new E2EE key...");
-              const key = await generateKey();
-              const base64Key = await exportKey(key);
-              saveLocalKey(syncedRoomId, base64Key);
-              setE2eeKey(key);
-          }
-      };
-      
-      initializeE2EE();
-  }, [syncedRoomId, userId, isHost]);
-
-  const [theme, setTheme] = useLocalStorage('app_theme', 'default');
+    const [theme, setTheme] = useLocalStorage('app_theme', 'default');
   const [weather, setWeather] = useState('clear'); 
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
   const [triggerShake, setTriggerShake] = useState(false); 
@@ -484,7 +456,7 @@ export default function App() {
     });
   }, [syncedRoomId, userId]);
 
-  const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId, e2eeKey);
+  const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId);
   const { assets: doodles, uploadAsset: uploadDoodle } = useAssetSync(syncedRoomId, 'doodle');
   const { assets: sharedImages, uploadAsset: uploadImage } = useAssetSync(syncedRoomId, 'scrapbook');
   
@@ -732,25 +704,7 @@ export default function App() {
           retryCount = 0; // Reset backoff counter on success
       });
 
-      // Handle incoming data connections for E2EE key
-      peer.on('connection', (conn) => {
-          conn.on('data', async (data) => {
-              if (data.type === 'E2EE_KEY_EXCHANGE' && data.key) {
-                  const currentRoomId = syncedRoomIdRef.current;
-                  if (!currentRoomId) return;
-                  try {
-                      saveLocalKey(currentRoomId, data.key);
-                      const imported = await importKey(data.key);
-                      setE2eeKey(imported);
-                      console.log("[E2EE] Successfully received and imported E2EE key from partner!");
-                  } catch (e) {
-                      console.error("[E2EE] Failed to import received key", e);
-                  }
-              }
-          });
-      });
-
-      peer.on('call', (call) => { 
+            peer.on('call', (call) => { 
         currentCallRef.current = call; 
         call.on('close', () => handleEndCall());
         call.on('error', () => handleEndCall());
@@ -1527,7 +1481,7 @@ export default function App() {
             <Route path="/handshake" element={<ProtectedRoute session={session} hasRoom={hasRoom}><HandshakeView session={session} onPaired={handlePaired} onLogout={handleLogout} /></ProtectedRoute>} />
 
             <Route path="/settings" element={<ProtectedRoute session={session} hasRoom={hasRoom}><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} profile={profile} setProfile={setProfile} coupleData={coupleData} setCoupleData={setCoupleData} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} scores={scores} userId={userId} onLogout={handleLogout} onDelete={()=>{}} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} onlineUsers={onlineUsers} syncSendMessage={syncSendMessage} syncUpdateMessage={syncUpdateMessage} syncDeleteMessage={syncDeleteMessage} syncLoadMore={syncLoadMore} syncHasMore={syncHasMore} e2eeKey={e2eeKey} /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute session={session} hasRoom={hasRoom}><ChatView profile={profile} partnerProfile={partnerProfile} roomProfiles={roomProfiles} partnerNickname={partnerName} onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} chatHistory={chatHistory} userId={userId} partnerId={partnerId} roomId={syncedRoomId} onStartCall={startCall} sharedImages={sharedImages} onlineUsers={onlineUsers} syncSendMessage={syncSendMessage} syncUpdateMessage={syncUpdateMessage} syncDeleteMessage={syncDeleteMessage} syncLoadMore={syncLoadMore} syncHasMore={syncHasMore} /></ProtectedRoute>} />
             <Route path="/doodle" element={<ProtectedRoute session={session} hasRoom={hasRoom}><DoodleApp initialDoodle={replyDoodle} onClose={()=>{navigateTo('dashboard'); setReplyDoodle(null);}} onSendDoodle={async (imgData) => {
                 if (syncedRoomId) {
                     try {
