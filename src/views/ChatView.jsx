@@ -566,7 +566,7 @@ export function ChatView({
                         ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)]'} 
                         ${msg.isDeleted ? 'bg-gray-50 border-gray-200 text-gray-400 italic shadow-none' :
                           isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
-                            isMe ? (noBubble ? '' : 'bg-[var(--primary)] text-white') : (noBubble ? '' : 'bg-white text-[var(--text-main)]')}
+                            isMe ? (noBubble ? '' : 'bg-[var(--primary)] text-[var(--text-on-primary)]') : (noBubble ? '' : 'bg-[var(--bg-bubble-partner)] text-[var(--text-bubble-partner)]')}
                         ${isHighlighted ? 'ring-4 ring-[var(--accent)] ring-opacity-50 animate-pulse' : ''}
                       `}>
                         {/* Reply Preview */}
