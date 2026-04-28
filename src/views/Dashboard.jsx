@@ -10,7 +10,8 @@ import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 
 const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
-  const [currentAction, setCurrentAction] = useState('idle'); // idle, meow, yawn, wash, paw, hiss, eat, stretch, scratch, walk
+  const [currentAction, setCurrentAction] = useState('idle');
+  const [currentFrame, setCurrentFrame] = useState(0);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isSleeping, setIsSleeping] = useState(false);
   const [sleepStartTime, setSleepStartTime] = useState(null);
@@ -19,10 +20,12 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   const actionTimeoutRef = useRef(null);
   const holdTimeoutRef = useRef(null);
   const pointerDownTimeRef = useRef(0);
-  const spriteRef = useRef(null);
   const actionVariantRef = useRef(0);
 
-  const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9.png';
+  // Handle skin path (convert .png to folder path if needed)
+  let skinFolder = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9';
+  if (skinFolder.endsWith('.png')) skinFolder = skinFolder.replace('.png', '');
+  
   const isSad = !isSleeping && happy < 30;
 
   const sleepRows = [12, 13, 14, 15, 16, 17, 18, 19];
@@ -122,81 +125,79 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   const getSpriteForState = () => {
     if (isSleeping) {
       const sleepOpts = [
-        { row: 12, frames: 2 },
-        { row: 13, frames: 2 },
-        { row: 16, frames: 2 },
-        { row: 17, frames: 2 }
+        { start: 132, frames: 2 },
+        { start: 143, frames: 2 },
+        { start: 176, frames: 2 },
+        { start: 187, frames: 2 }
       ];
       const opt = sleepOpts[Math.floor(Date.now() / 10000) % sleepOpts.length];
-      return { row: opt.row, frames: opt.frames, duration: 1000 };
+      return { start: opt.start, frames: opt.frames, duration: 1000 };
     }
 
     const variant = actionVariantRef.current;
 
-    if (currentAction === 'hiss') return { row: variant > 0.5 ? 41 : 42, frames: 2, duration: 500 };
-    if (currentAction === 'eat') return { row: 20, frames: 8, duration: 1000 };
+    if (currentAction === 'hiss') {
+      const start = variant > 0.5 ? 451 : 462;
+      return { start, frames: 2, duration: 500 };
+    }
+    if (currentAction === 'eat') return { start: 220, frames: 8, duration: 1000 };
     
     if (currentAction === 'meow') {
-      const meows = [{r:28, f:3}, {r:29, f:3}, {r:30, f:3}, {r:31, f:3}];
+      const meows = [{s:308, f:3}, {s:319, f:3}, {s:330, f:3}, {s:341, f:3}];
       const m = meows[Math.floor(variant * meows.length)];
-      return { row: m.r, frames: m.f, duration: 700 };
+      return { start: m.s, frames: m.f, duration: 700 };
     }
     
     if (currentAction === 'yawn') {
-      const yawns = [{r:32, f:8}, {r:33, f:8}, {r:34, f:8}, {r:35, f:8}];
+      const yawns = [{s:352, f:8}, {s:363, f:8}, {s:374, f:8}, {s:385, f:8}];
       const y = yawns[Math.floor(variant * yawns.length)];
-      return { row: y.r, frames: y.f, duration: 1100 };
+      return { start: y.s, frames: y.f, duration: 1100 };
     }
     
     if (currentAction === 'wash') {
-      const licks = [{r:36, f:9}, {r:37, f:9}, {r:38, f:7}];
+      const licks = [{s:396, f:9}, {s:407, f:9}, {s:418, f:7}];
       const l = licks[Math.floor(variant * licks.length)];
-      return { row: l.r, frames: l.f, duration: 1000 };
+      return { start: l.s, frames: l.f, duration: 1000 };
     }
     
-    if (currentAction === 'paw') return { row: 44, frames: 9, duration: 900 };
-    if (currentAction === 'stretch') return { row: 52, frames: 4, duration: 1200 };
+    if (currentAction === 'paw') return { start: 484, frames: 9, duration: 900 };
+    if (currentAction === 'stretch') return { start: 572, frames: 4, duration: 1200 };
     
     if (currentAction === 'scratch') {
-      const scratches = [{r:39, f:11}, {r:40, f:11}];
+      const scratches = [{s:429, f:11}, {s:440, f:11}];
       const s = scratches[Math.floor(variant * scratches.length)];
-      return { row: s.r, frames: s.f, duration: 1200 };
+      return { start: s.s, frames: s.f, duration: 1200 };
     }
     
     if (currentAction === 'walk') {
-      const walks = [{r:6, f:8}, {r:7, f:8}];
+      const walks = [{s:66, f:8}, {s:77, f:8}];
       const w = walks[Math.floor(variant * walks.length)];
-      return { row: w.r, frames: w.f, duration: 1200 };
+      return { start: w.s, frames: w.f, duration: 1200 };
     }
 
-    if (isSad) return { row: 43, frames: 1, duration: 1000 };
-    if (isPartnerAfk) return { row: 2, frames: 6, duration: 1200 };
-    if (isHovering) return { row: 1, frames: 8, duration: 1200 };
+    if (isSad) return { start: 473, frames: 1, duration: 1000 };
+    if (isPartnerAfk) return { start: 22, frames: 6, duration: 1200 };
+    if (isHovering) return { start: 11, frames: 8, duration: 1200 };
 
-    return { row: 0, frames: 6, duration: 1400 };
+    return { start: 0, frames: 6, duration: 1400 };
   };
 
-  const { row, frames, duration } = getSpriteForState();
+  const { start, frames, duration } = getSpriteForState();
+
+  useEffect(() => {
+    setCurrentFrame(0);
+    if (frames <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentFrame(f => (f + 1) % frames);
+    }, duration / frames);
+    return () => clearInterval(interval);
+  }, [start, frames, duration]);
+
+  const frameId = (start + currentFrame).toString().padStart(3, '0');
+  const frameSrc = `${skinFolder}/tile${frameId}.png`;
 
   const scale = 4;
   const frameSize = 32 * scale; // 128px
-  const labelOffset = 80 * scale; // 320px
-  const bgPosY = `-${row * frameSize}px`;
-  const bgWidth = 432 * scale; // 1728px
-  const bgSize = `${bgWidth}px auto`;
-
-  useEffect(() => {
-    if (!spriteRef.current || frames <= 1) return;
-    const animation = spriteRef.current.animate([
-      { backgroundPositionX: `-${labelOffset}px` },
-      { backgroundPositionX: `-${labelOffset + (frames * frameSize)}px` }
-    ], {
-      duration,
-      easing: `steps(${frames})`,
-      iterations: Infinity
-    });
-    return () => animation.cancel();
-  }, [row, frames, duration, frameSize, labelOffset]);
 
   return (
     <div
@@ -208,17 +209,12 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
       onPointerLeave={cancelPress}
       title={isSleeping ? "Shh, pet is sleeping. Hold to pet, tap to hit." : "Hold to pet, tap to hit."}
     >
-      <div
-        ref={spriteRef}
-        className="cat-sprite"
+      <img
+        src={frameSrc}
+        alt="pet"
         style={{
           width: `${frameSize}px`,
           height: `${frameSize}px`,
-          backgroundImage: `url('${bgImage}')`,
-          backgroundSize: bgSize,
-          backgroundPositionY: bgPosY,
-          backgroundPositionX: `-${labelOffset}px`,
-          backgroundRepeat: 'no-repeat',
           imageRendering: 'pixelated'
         }}
       />

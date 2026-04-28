@@ -158,11 +158,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div>
                   <label className="block text-sm font-bold mb-1">pet skin</label>
-                  <select value={coupleData.petSkin || '/assets/Cat Sprite Sheet.png'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none font-bold">
-                    <option value="/assets/Cat Sprite Sheet.png">Default (Cat Sprite Sheet)</option>
-                    <option value="/assets/cat 1.png">Variant 1 (cat 1)</option>
-                    <option value="/assets/cat 1.6.png">Variant 2 (cat 1.6)</option>
-                    <option value="/assets/cat 1.9.png">Variant 3 (cat 1.9)</option>
+                  <select value={coupleData.petSkin || '/assets/cat 1.9'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none font-bold">
+                    <option value="/assets/cat 1">Variant 1 (cat 1)</option>
+                    <option value="/assets/cat 1.6">Variant 2 (cat 1.6)</option>
+                    <option value="/assets/cat 1.9">Variant 3 (cat 1.9)</option>
                   </select>
                </div>
              </div>
