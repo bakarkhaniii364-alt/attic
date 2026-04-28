@@ -3,14 +3,17 @@ import { RetroWindow, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { playAudio } from '../utils/audio.js';
 
-const WIDTH = 800;
-const HEIGHT = 400;
-const BALL_R = 12;
-const POCKET_R = 20;
+const PLAY_WIDTH = 800;
+const PLAY_HEIGHT = 400;
+const BORDER_SIZE = 40;
+const CANVAS_WIDTH = PLAY_WIDTH + BORDER_SIZE * 2;
+const CANVAS_HEIGHT = PLAY_HEIGHT + BORDER_SIZE * 2;
+const BALL_R = 14;
+const POCKET_R = 26;
 
 const POCKETS = [
-  { x: 0, y: 0 }, { x: WIDTH / 2, y: -5 }, { x: WIDTH, y: 0 },
-  { x: 0, y: HEIGHT }, { x: WIDTH / 2, y: HEIGHT + 5 }, { x: WIDTH, y: HEIGHT }
+  { x: 0, y: 0 }, { x: PLAY_WIDTH / 2, y: -10 }, { x: PLAY_WIDTH, y: 0 },
+  { x: 0, y: PLAY_HEIGHT }, { x: PLAY_WIDTH / 2, y: PLAY_HEIGHT + 10 }, { x: PLAY_WIDTH, y: PLAY_HEIGHT }
 ];
 
 const COLORS = {
@@ -164,9 +167,9 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
               // Walls
               if (b.x < BALL_R) { b.x = BALL_R; b.vx *= -0.8; }
-              if (b.x > WIDTH - BALL_R) { b.x = WIDTH - BALL_R; b.vx *= -0.8; }
+              if (b.x > PLAY_WIDTH - BALL_R) { b.x = PLAY_WIDTH - BALL_R; b.vx *= -0.8; }
               if (b.y < BALL_R) { b.y = BALL_R; b.vy *= -0.8; }
-              if (b.y > HEIGHT - BALL_R) { b.y = HEIGHT - BALL_R; b.vy *= -0.8; }
+              if (b.y > PLAY_HEIGHT - BALL_R) { b.y = PLAY_HEIGHT - BALL_R; b.vy *= -0.8; }
 
               // Pockets
               for (const p of POCKETS) {
@@ -277,11 +280,43 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       let frameId;
       const render = () => {
-          // Clear - Use theme pattern color for felt
-          const computedStyle = getComputedStyle(document.body);
-          const patternColor = computedStyle.getPropertyValue('--bg-pattern').trim();
-          ctx.fillStyle = patternColor || '#0a7a3a'; 
-          ctx.fillRect(0, 0, WIDTH, HEIGHT);
+          // Background - Wood border
+          ctx.fillStyle = '#e3a05c'; 
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          
+          // Wood border outline
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+          ctx.save();
+          ctx.translate(BORDER_SIZE, BORDER_SIZE);
+
+          // Felt
+          ctx.fillStyle = '#22c55e'; // classic vibrant green
+          ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
+          
+          // Inner felt outline
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
+
+          // Cushions
+          ctx.fillStyle = '#166534';
+          ctx.fillRect(POCKET_R, 0, PLAY_WIDTH - POCKET_R * 2, 14);
+          ctx.fillRect(POCKET_R, PLAY_HEIGHT - 14, PLAY_WIDTH - POCKET_R * 2, 14);
+          ctx.fillRect(0, POCKET_R, 14, PLAY_HEIGHT - POCKET_R * 2);
+          ctx.fillRect(PLAY_WIDTH - 14, POCKET_R, 14, PLAY_HEIGHT - POCKET_R * 2);
+
+          // Baulk line
+          ctx.beginPath();
+          ctx.moveTo(PLAY_WIDTH * 0.25, 0);
+          ctx.lineTo(PLAY_WIDTH * 0.25, PLAY_HEIGHT);
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
 
           // Pockets
           ctx.fillStyle = '#000000';
@@ -293,20 +328,42 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
           const engine = engineRef.current;
           
-          // Draw aiming line
+          // Draw aiming line & Stick
           if (engine.dragStart && engine.currentMouse && !engine.isSimulating) {
               const cue = engine.balls.find(b => b.id === 0);
               if (cue && cue.active) {
                   const dx = engine.dragStart.x - engine.currentMouse.x;
                   const dy = engine.dragStart.y - engine.currentMouse.y;
+                  
+                  // Aiming line
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
-                  ctx.lineTo(cue.x + dx * 2, cue.y + dy * 2);
+                  ctx.lineTo(cue.x + dx * 3, cue.y + dy * 3);
                   ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                   ctx.setLineDash([5, 5]);
                   ctx.lineWidth = 2;
                   ctx.stroke();
                   ctx.setLineDash([]);
+
+                  // Stick
+                  const stickDist = Math.hypot(dx, dy) + BALL_R + 5;
+                  const angle = Math.atan2(dy, dx);
+                  
+                  ctx.save();
+                  ctx.translate(cue.x, cue.y);
+                  ctx.rotate(angle);
+                  const stickLength = 250;
+                  ctx.fillStyle = '#d97706';
+                  ctx.fillRect(-stickDist - stickLength, -3, stickLength - 15, 6);
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(-stickDist - 15, -3, 15, 6);
+                  ctx.fillStyle = '#3b82f6';
+                  ctx.fillRect(-stickDist, -3, 3, 6);
+                  
+                  ctx.strokeStyle = '#000000';
+                  ctx.lineWidth = 2;
+                  ctx.strokeRect(-stickDist - stickLength, -3, stickLength, 6);
+                  ctx.restore();
               }
           }
 
@@ -320,47 +377,54 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   ctx.fillStyle = '#ffffff';
                   ctx.fill();
                   ctx.fillStyle = COLORS[b.id];
-                  ctx.fillRect(b.x - BALL_R, b.y - BALL_R * 0.4, BALL_R * 2, BALL_R * 0.8);
+                  ctx.fillRect(b.x - BALL_R, b.y - BALL_R * 0.45, BALL_R * 2, BALL_R * 0.9);
               } else {
                   ctx.fillStyle = COLORS[b.id];
                   ctx.fill();
               }
               
-              // Shadow/highlight
+              // Retro chunky outline
+              ctx.beginPath();
               ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
-              ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-              ctx.lineWidth = 1;
+              ctx.strokeStyle = '#000000';
+              ctx.lineWidth = 2.5;
               ctx.stroke();
               
               if (b.id !== 0) {
                  ctx.fillStyle = '#ffffff';
                  ctx.beginPath();
-                 ctx.arc(b.x, b.y, BALL_R * 0.4, 0, Math.PI * 2);
+                 ctx.arc(b.x, b.y, BALL_R * 0.55, 0, Math.PI * 2);
                  ctx.fill();
+                 ctx.strokeStyle = '#000000';
+                 ctx.lineWidth = 1.5;
+                 ctx.stroke();
+
                  ctx.fillStyle = '#000000';
-                 ctx.font = '10px monospace';
+                 ctx.font = 'bold 11px monospace';
                  ctx.textAlign = 'center';
                  ctx.textBaseline = 'middle';
-                 ctx.fillText(b.id, b.x, b.y);
+                 ctx.fillText(b.id, b.x, b.y + 1);
               }
           });
+
+          ctx.restore();
 
           frameId = requestAnimationFrame(render);
       };
       render();
 
       return () => cancelAnimationFrame(frameId);
-  }, []);
+  }, [gameState !== null]);
 
   const handlePointerDown = (e) => {
       const isMyTurn = gameState?.turn === myPlayerId;
       if (!isMyTurn || engineRef.current.isSimulating || gameState?.winner) return;
       
       const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = WIDTH / rect.width;
-      const scaleY = HEIGHT / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      const x = (e.clientX - rect.left) * scaleX - BORDER_SIZE;
+      const y = (e.clientY - rect.top) * scaleY - BORDER_SIZE;
       
       const cue = engineRef.current.balls.find(b => b.id === 0);
       if (cue && Math.hypot(cue.x - x, cue.y - y) < BALL_R * 3) {
@@ -372,11 +436,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   const handlePointerMove = (e) => {
       if (engineRef.current.dragStart) {
           const rect = canvasRef.current.getBoundingClientRect();
-          const scaleX = WIDTH / rect.width;
-          const scaleY = HEIGHT / rect.height;
+          const scaleX = CANVAS_WIDTH / rect.width;
+          const scaleY = CANVAS_HEIGHT / rect.height;
           engineRef.current.currentMouse = {
-              x: (e.clientX - rect.left) * scaleX,
-              y: (e.clientY - rect.top) * scaleY
+              x: (e.clientX - rect.left) * scaleX - BORDER_SIZE,
+              y: (e.clientY - rect.top) * scaleY - BORDER_SIZE
           };
       }
   };
@@ -425,8 +489,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
             >
                 <canvas 
                    ref={canvasRef} 
-                   width={WIDTH} 
-                   height={HEIGHT} 
+                   width={CANVAS_WIDTH} 
+                   height={CANVAS_HEIGHT} 
                    className="block w-full h-full object-contain pointer-events-none"
                 />
                 
