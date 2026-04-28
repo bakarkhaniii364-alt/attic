@@ -237,6 +237,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
         <svg width="24" height="24" viewBox="0 0 16 16" className="absolute -top-4 right-0 animate-bounce drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
           <path d="M4,2 L7,2 L7,3 L9,3 L9,2 L12,2 L12,3 L14,3 L14,6 L13,6 L13,8 L12,8 L12,10 L11,10 L11,11 L10,11 L10,12 L9,12 L9,13 L7,13 L7,12 L6,12 L6,11 L5,11 L5,10 L4,10 L4,8 L3,8 L3,6 L2,6 L2,3 Z" fill="#ff4d4d" />
         </svg>
+      )}
       {/* Pet Status Label */}
       <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
          <span className={`text-[9px] font-black uppercase px-2 py-0.5 retro-border bg-[var(--bg-window)] shadow-[1px_1px_0_var(--border)] ${isSleeping ? 'text-blue-500' : 'text-[var(--text-main)]'}`}>
