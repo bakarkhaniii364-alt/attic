@@ -754,27 +754,7 @@ export default function App() {
     };
   }, [userId]); // Removed calling dependency
 
-  // Data connection for E2EE Key Exchange
-  useEffect(() => {
-      // Connect to all of partner's active tabs once we have our key
-      if (!peerRef.current || peerRef.current.destroyed || !partnerId || !syncedRoomId || !e2eeKey) return;
-      
-      const partnerPeerIds = onlineUsers[partnerId]?.peerIds || [];
-      if (partnerPeerIds.length === 0) return;
-
-      const storedKeyBase64 = getLocalKey(syncedRoomId);
-      if (!storedKeyBase64) return;
-
-      partnerPeerIds.forEach(targetPeerId => {
-          const dataConn = peerRef.current.connect(targetPeerId);
-          dataConn.on('open', async () => {
-              dataConn.send({ type: 'E2EE_KEY_EXCHANGE', key: storedKeyBase64 });
-          });
-          dataConn.on('error', () => {}); // Handle ghost tabs gracefully
-      });
-  }, [partnerId, syncedRoomId, e2eeKey, onlineUsers]);
-
-  // NEW: Robust Call State Machine
+    // NEW: Robust Call State Machine
   useEffect(() => {
     if (!userId || !callState) return;
 
