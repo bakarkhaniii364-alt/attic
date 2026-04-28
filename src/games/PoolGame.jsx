@@ -54,22 +54,34 @@ const getInitialBalls = () => {
 };
 
 const drawBall = (ctx, x, y, radius, color, id) => {
-    // 1. 3D Gradient Base
+    // 1. Base color
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    
-    const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius);
-    grad.addColorStop(0, '#ffffff'); // bright highlight
-    grad.addColorStop(0.3, color);   // main color
-    grad.addColorStop(0.8, color);   // main color
-    grad.addColorStop(1, '#222222'); // dark shadow edge
-    
-    ctx.fillStyle = grad;
+    ctx.fillStyle = color;
     ctx.fill();
 
-    // 2. Black outline (thinner)
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    // 2. Dark crescent shadow (bottom right)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    
+    ctx.beginPath();
+    ctx.arc(x - radius * 0.2, y - radius * 0.2, radius, 0, Math.PI * 2);
+    ctx.arc(x, y, radius * 3, 0, Math.PI * 2, true); 
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Highlight dot (top left)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x - radius * 0.35, y - radius * 0.35, radius * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Black outline
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000000';
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -341,8 +353,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
           // 1. Board Structure from Image
-          const WOOD = 0;
-          const OUTLINE = 4;
+          const WOOD = 32;
+          const OUTLINE = 8;
           
           const outerX = BORDER_SIZE - WOOD - OUTLINE;
           const outerY = BORDER_SIZE - WOOD - OUTLINE;
