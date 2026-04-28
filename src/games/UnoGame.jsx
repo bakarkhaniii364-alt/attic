@@ -35,8 +35,8 @@ const getCardColorClass = (color) => {
     case 'red': return 'bg-red-500 text-white';
     case 'blue': return 'bg-blue-500 text-white';
     case 'green': return 'bg-green-500 text-white';
-    case 'yellow': return 'bg-yellow-400 text-[var(--border)]';
-    default: return 'bg-[var(--border)] text-[var(--bg-window)]'; // Wild
+    case 'yellow': return 'bg-yellow-400 text-border';
+    default: return 'bg-border text-window'; // Wild
   }
 };
 
@@ -62,7 +62,7 @@ const CardUI = ({ card, onClick, className = "", hidden = false }) => {
       onClick={onClick}
       className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] retro-border-thick rounded-[6px] flex flex-col justify-center items-center relative select-none retro-shadow-dark ${getCardColorClass(card.color)} ${onClick ? 'cursor-pointer hover:-translate-y-5 hover:scale-110 hover:z-[100] transition-all' : ''} ${className}`}
     >
-      <div className="w-[72%] h-[62%] bg-[var(--bg-window)] retro-border-thick flex justify-center items-center text-[22px] sm:text-[36px] font-bold text-[var(--border)] rounded-[4px]" style={innerStyle}>
+      <div className="w-[72%] h-[62%] bg-window border-2 border-border flex justify-center items-center text-[22px] sm:text-[36px] font-bold text-border rounded-[4px]" style={innerStyle}>
         {displayVal}
       </div>
     </div>
@@ -380,37 +380,37 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
   if (!gameState) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-[var(--bg-main)] h-full w-full">
+      <div className="flex flex-col items-center justify-center p-8 bg-main h-full w-full">
         <div className="relative w-24 h-32 mb-4 flex items-center justify-center">
            <CardUI card={{color:'back'}} hidden={true} className="absolute inset-0 animate-bounce" />
            <CardUI card={{color:'back'}} hidden={true} className="absolute inset-0 animate-pulse delay-75" style={{ transform: 'rotate(10deg)' }} />
            <CardUI card={{color:'back'}} hidden={true} className="absolute inset-0 animate-pulse delay-150" style={{ transform: 'rotate(-10deg)' }} />
         </div>
-        <div className="font-black text-2xl uppercase tracking-widest text-[var(--primary)] animate-pulse text-center">Shuffling Deck...</div>
+        <div className="font-black text-2xl uppercase tracking-widest text-primary animate-pulse text-center">Shuffling Deck...</div>
       </div>
     );
   }
 
   return (
     <RetroWindow title="retro_uno.exe" onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
-      <div className="flex w-[800px] h-[600px] max-w-full max-h-[85vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
+      <div className="flex w-[800px] h-[600px] max-w-full max-h-[85vh] bg-main text-main-text font-mono select-none overflow-hidden touch-none relative">
         
          {/* Sidebar */}
-         <div className="flex flex-col w-[200px] shrink-0 h-full bg-[var(--bg-window)] border-r-2 border-[var(--border)] relative z-10">
-              <div className="bg-[var(--border)] px-4 py-2 text-[var(--bg-window)] font-bold tracking-widest uppercase text-sm border-b-2 border-[var(--border)]">
+         <div className="flex flex-col w-[200px] shrink-0 h-full bg-window border-r-2 border-border relative z-10">
+              <div className="bg-border px-4 py-2 text-window font-bold tracking-widest uppercase text-sm border-b-2 border-border">
                   sys.log
               </div>
               <div className="flex-1 p-3 flex flex-col gap-3">
-                  <div className="flex-1 border-2 border-[var(--border)] bg-[var(--bg-main)] p-2 overflow-y-auto text-xs flex flex-col gap-1 shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
+                  <div className="flex-1 border-2 border-border bg-main p-2 overflow-y-auto text-xs flex flex-col gap-1 shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
                       <div className="font-bold opacity-80">&gt; init seq...</div>
                       <div className="font-bold opacity-80">&gt; load complete.</div>
-                      <div className="font-bold text-[var(--primary)]">&gt; {actionMessage || 'awaiting action...'}</div>
-                      {unoCalled[oppPlayerId] && <div className="font-bold text-[var(--primary)]">&gt; OPP CALLED UNO!</div>}
+                      <div className="font-bold text-primary">&gt; {actionMessage || 'awaiting action...'}</div>
+                      {unoCalled[oppPlayerId] && <div className="font-bold text-primary">&gt; OPP CALLED UNO!</div>}
                   </div>
                   <button 
                       onClick={callUno} 
                       disabled={myHand.length > 2 || unoCalled[myPlayerId]}
-                      className={`font-black text-xl py-3 retro-border-thick transition-transform uppercase ${myHand.length <= 2 && !unoCalled[myPlayerId] ? 'retro-bg-primary retro-shadow-dark active:translate-y-[2px] active:translate-x-[2px] active:shadow-none animate-pulse cursor-pointer' : 'bg-gray-400 text-white cursor-not-allowed translate-y-[2px] translate-x-[2px]'}`}
+                      className={`font-black text-xl py-3 border-2 border-border transition-transform uppercase ${myHand.length <= 2 && !unoCalled[myPlayerId] ? 'bg-primary text-primary-text shadow-retro active:translate-y-[2px] active:translate-x-[2px] active:shadow-none animate-pulse cursor-pointer' : 'bg-gray-400 text-white cursor-not-allowed translate-y-[2px] translate-x-[2px]'}`}
                   >
                       Call UNO!
                   </button>
@@ -418,10 +418,10 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
          </div>
 
          {/* Main Game Area */}
-         <div className="flex-1 flex flex-col relative overflow-hidden bg-[var(--bg-main)]">
+         <div className="flex-1 flex flex-col relative overflow-hidden bg-main">
              
              {/* Action Message Overlay */}
-             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[48px] sm:text-[64px] font-black text-[var(--primary)] pointer-events-none transition-all duration-200 z-[500] ${actionMessage ? 'opacity-100 scale-110 -rotate-6' : 'opacity-0 scale-90'}`} style={{ textShadow: '4px 4px 0 var(--border), -2px -2px 0 var(--bg-window), 2px -2px 0 var(--bg-window), -2px 2px 0 var(--bg-window), 2px 2px 0 var(--bg-window)' }}>
+             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[48px] sm:text-[64px] font-black text-primary pointer-events-none transition-all duration-200 z-[500] ${actionMessage ? 'opacity-100 scale-110 -rotate-6' : 'opacity-0 scale-90'}`} style={{ textShadow: '4px 4px 0 var(--border), -2px -2px 0 var(--bg-window), 2px -2px 0 var(--bg-window), -2px 2px 0 var(--bg-window), 2px 2px 0 var(--bg-window)' }}>
                  {actionMessage}
              </div>
 
@@ -434,13 +434,13 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                  ))}
              </div>
 
-             <div className="absolute top-4 right-4 bg-[var(--bg-window)] retro-border px-3 py-1 text-xs font-bold shadow-[2px_2px_0_var(--border)]">
+             <div className="absolute top-4 right-4 bg-window border-2 border-border px-3 py-1 text-xs font-bold shadow-[2px_2px_0_var(--border)]">
                  CPU: {oppHand.length}
              </div>
 
              {/* Center Play Area */}
              <div className="flex justify-center items-center gap-[40px] flex-1">
-                  <div onClick={handleDraw} className="relative cursor-pointer hover:-translate-y-2 active:translate-y-0 transition-transform after:content-['DRAW'] after:absolute after:-bottom-6 after:left-1/2 after:-translate-x-1/2 after:w-full after:text-center after:font-bold after:bg-[var(--border)] after:text-[var(--bg-window)] after:border-2 after:border-[var(--border)] after:text-[12px]">
+                  <div onClick={handleDraw} className="relative cursor-pointer hover:-translate-y-2 active:translate-y-0 transition-transform after:content-['DRAW'] after:absolute after:-bottom-6 after:left-1/2 after:-translate-x-1/2 after:w-full after:text-center after:font-bold after:bg-border after:text-window after:border-2 after:border-border after:text-[12px]">
                       <div className="relative">
                          <CardUI card={{color:'back'}} hidden={true} className="shadow-[4px_4px_0_rgba(0,0,0,0.3)] z-[2]" />
                          <CardUI card={{color:'back'}} hidden={true} className="absolute top-1 left-1 z-[1]" />
@@ -451,12 +451,12 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                       {discard.length > 0 && (
                          <CardUI card={discard[discard.length - 1]} className="rotate-[4deg]" />
                       )}
-                      <div className={`absolute -bottom-6 left-0 w-full h-[10px] retro-border-thick retro-shadow-dark ${getCardColorClass(currentColor)}`}></div>
+                      <div className={`absolute -bottom-6 left-0 w-full h-[10px] border-2 border-border shadow-retro ${getCardColorClass(currentColor)}`}></div>
                   </div>
              </div>
 
              {/* Turn Indicator */}
-             <div className={`absolute left-[20px] font-bold bg-[var(--bg-window)] retro-border-thick px-[15px] py-[8px] text-[16px] retro-shadow-dark transition-all duration-400 z-10 uppercase ${isMyTurn ? 'bottom-[150px] border-[var(--primary)]' : 'top-[150px] border-[var(--border)]'}`}>
+             <div className={`absolute left-[20px] font-bold bg-window border-2 border-border px-[15px] py-[8px] text-[16px] shadow-retro transition-all duration-400 z-10 uppercase ${isMyTurn ? 'bottom-[150px] border-primary' : 'top-[150px] border-border'}`}>
                  {isMyTurn ? 'Your Turn' : 'CPU Processing...'}
              </div>
 
@@ -480,7 +480,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
              {/* Mobile Call UNO button */}
              <div className="md:hidden absolute bottom-4 right-4 z-[50]">
                  {myHand.length <= 2 && !unoCalled[myPlayerId] && (
-                     <button onClick={callUno} className="retro-bg-primary retro-border-thick retro-shadow-dark font-black px-4 py-2 animate-pulse active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all">UNO!</button>
+                     <button onClick={callUno} className="bg-primary text-primary-text border-2 border-border shadow-retro font-black px-4 py-2 animate-pulse active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all">UNO!</button>
                  )}
              </div>
 
@@ -489,11 +489,11 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
          {/* Color Picker Modal */}
          {showColorPicker && (
               <div className="absolute inset-0 bg-black/60 z-[1000] flex justify-center items-center backdrop-blur-sm">
-                  <div className="bg-[var(--bg-window)] retro-border-thick p-[20px] sm:p-[30px] retro-shadow-dark max-w-[350px] w-[90%] text-center">
-                      <h2 className="text-[20px] sm:text-[24px] font-black uppercase mb-[20px] text-[var(--text-main)]">Select Color</h2>
+                  <div className="bg-window border-2 border-border p-[20px] sm:p-[30px] shadow-retro max-w-[350px] w-[90%] text-center">
+                      <h2 className="text-[20px] sm:text-[24px] font-black uppercase mb-[20px] text-main-text">Select Color</h2>
                       <div className="grid grid-cols-2 gap-[10px]">
                           {COLORS.map(c => (
-                              <button key={c} onClick={() => { playCard(pendingWildCard, c); setShowColorPicker(false); setPendingWildCard(null); }} className={`h-[60px] sm:h-[80px] retro-border-thick font-bold text-[18px] uppercase flex justify-center items-center retro-shadow-dark active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all ${getCardColorClass(c)}`}>
+                              <button key={c} onClick={() => { playCard(pendingWildCard, c); setShowColorPicker(false); setPendingWildCard(null); }} className={`h-[60px] sm:h-[80px] border-2 border-border font-bold text-[18px] uppercase flex justify-center items-center shadow-retro active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all ${getCardColorClass(c)}`}>
                                   {c}
                               </button>
                           ))}

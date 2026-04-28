@@ -50,7 +50,7 @@ export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
   return (
     <RetroWindow title="daily_question.exe" onClose={onClose} className="w-full max-w-lg" confirmOnClose hasUnsavedChanges={() => !myDone && myAnswerText.trim() !== ''} onSaveBeforeClose={() => { submit(); onClose && onClose(); }} sfx={sfx}>
       <div className="flex flex-col items-center gap-4 py-4">
-        <div className="w-16 h-16 rounded-full retro-bg-accent flex items-center justify-center text-3xl shadow-inner animate-pulse">❓</div>
+        <div className="w-16 h-16 rounded-full bg-accent text-accent-text border-2 border-border flex items-center justify-center text-3xl shadow-inner animate-pulse">❓</div>
         <h2 className="font-black text-[10px] uppercase opacity-40 tracking-[0.2em]">Today's Inquiry</h2>
         <p className="font-bold text-xl sm:text-2xl text-center leading-tight px-4 italic">"{question}"</p>
         
@@ -58,11 +58,11 @@ export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
           <div className="w-full space-y-4 mt-4">
             {!myDone ? (
               <div className="space-y-3">
-                <textarea value={myAnswerText} onChange={e => setMyAnswerText(e.target.value)} placeholder="Type your answer..." className="w-full min-h-[100px] p-4 retro-border retro-bg-window focus:outline-none resize-none font-bold" />
+                <textarea value={myAnswerText} onChange={e => setMyAnswerText(e.target.value)} placeholder="Type your answer..." className="w-full min-h-[100px] p-4 border-2 border-border bg-window text-main-text focus:outline-none resize-none font-bold" />
                 <RetroButton variant="primary" onClick={submit} className="py-4 w-full flex items-center justify-center gap-2"><Send size={18} /> Reveal My Answer</RetroButton>
               </div>
             ) : (
-              <div className="p-8 retro-border bg-white text-center italic opacity-60 animate-pulse">
+              <div className="p-8 border-2 border-border bg-window text-main-text text-center italic opacity-60 animate-pulse">
                 Your answer is locked in. Waiting for {partnerName} to reveal theirs...
               </div>
             )}
@@ -72,15 +72,15 @@ export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
             </div>
           </div>
         ) : (
-          <div className="w-full space-y-4 mt-4 animate-in zoom-in-95 duration-500">
-            <div className="retro-border bg-white p-4 relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-1 h-full bg-[var(--primary)]" />
-               <p className="text-[10px] font-black uppercase text-[var(--primary)] mb-1">Your Perspective:</p>
+          <div className="w-full space-y-4 mt-4 animate-in zoom-in-95 duration-500 text-main-text">
+            <div className="border-2 border-border bg-window p-4 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+               <p className="text-[10px] font-black uppercase text-primary mb-1">Your Perspective:</p>
                <p className="font-bold text-lg">{answers[today][userId]}</p>
             </div>
-            <div className="retro-border bg-white p-4 relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-1 h-full bg-[var(--secondary)]" />
-               <p className="text-[10px] font-black uppercase text-[var(--secondary)] mb-1">{partnerName}'s Perspective:</p>
+            <div className="border-2 border-border bg-window p-4 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-1 h-full bg-secondary" />
+               <p className="text-[10px] font-black uppercase text-secondary mb-1">{partnerName}'s Perspective:</p>
                <p className="font-bold text-lg">{answers[today][partnerId]}</p>
             </div>
           </div>
@@ -107,7 +107,7 @@ export function useStreaks() {
 export function StreakBadge({ streak }) {
   if (!streak || streak.count <= 0) return null;
   return (
-    <div className="flex items-center gap-1 retro-border retro-bg-accent px-2 py-1 text-xs font-bold" title={`Best: ${streak.best} days`}>
+    <div className="flex items-center gap-1 border-2 border-border bg-accent text-accent-text px-2 py-1 text-xs font-bold" title={`Best: ${streak.best} days`}>
       <Flame size={14} className="text-orange-500" />
       <span>{streak.count}</span>
     </div>
@@ -137,8 +137,8 @@ export function MilestoneCelebration({ milestone, onClose }) {
     <div className="fixed inset-0 z-[200] bg-black/70 flex items-center justify-center p-4">
       <RetroWindow title="milestone.exe" onClose={onClose} className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-4 py-6">
-          <Trophy size={48} className="text-[var(--primary)] animate-bounce" />
-          <h2 className="text-2xl font-bold text-center">{milestone.label}</h2>
+          <Trophy size={48} className="text-primary animate-bounce" />
+          <h2 className="text-2xl font-bold text-center text-main-text">{milestone.label}</h2>
           <p className="text-sm opacity-60 text-center">Congratulations on reaching {milestone.days} days together!</p>
           <RetroButton onClick={onClose} className="px-8 py-3">Celebrate! 🎉</RetroButton>
         </div>
@@ -179,14 +179,14 @@ export function LoveLanguageQuiz({ config, onBack, sfx, profile }) {
     return (
       <RetroWindow title="love_language.exe" onClose={onBack} className="w-full max-w-lg h-[calc(100dvh-4rem)] max-h-[700px]">
         <div className="flex flex-col items-center gap-4 py-4">
-          <Heart size={40} className="text-[var(--primary)]" />
-          <h2 className="font-bold text-xl">Your Love Language</h2>
-          <h3 className="font-bold text-2xl text-[var(--primary)]">{LL_LABELS[maxKey]}</h3>
+          <Heart size={40} className="text-primary" />
+          <h2 className="font-bold text-xl text-main-text">Your Love Language</h2>
+          <h3 className="font-bold text-2xl text-primary">{LL_LABELS[maxKey]}</h3>
           <div className="w-full flex flex-col gap-2 mt-4">
             {Object.entries(tally).map(([key, val]) => (
-              <div key={key} className="flex items-center gap-2">
+              <div key={key} className="flex items-center gap-2 text-main-text">
                 <span className="text-xs font-bold w-32 text-right">{LL_LABELS[key]}</span>
-                <div className="flex-1 h-6 retro-border bg-[var(--bg-main)] relative">
+                <div className="flex-1 h-6 border-2 border-border bg-main relative">
                   <div className="h-full transition-all" style={{ width: `${(val / LLQ.length) * 100}%`, backgroundColor: LL_COLORS[key] }}></div>
                 </div>
                 <span className="text-xs font-bold w-8">{val}</span>
@@ -201,8 +201,8 @@ export function LoveLanguageQuiz({ config, onBack, sfx, profile }) {
 
   return (
     <RetroWindow title="love_language.exe" onClose={onBack} className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" noPadding>
-      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 font-bold text-sm">Q {idx + 1}/{LLQ.length}</div>
-      <div className="w-full h-2 bg-[var(--bg-main)]"><div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${((idx + 1) / LLQ.length) * 100}%` }}></div></div>
+      <div className="bg-border text-border-text p-2 px-4 font-bold text-sm">Q {idx + 1}/{LLQ.length}</div>
+      <div className="w-full h-2 bg-main"><div className="h-full bg-primary transition-all" style={{ width: `${((idx + 1) / LLQ.length) * 100}%` }}></div></div>
       <div className="flex-1 flex flex-col p-6 gap-4">
         <h2 className="font-bold text-lg text-center">{LLQ[idx].q}</h2>
         <div className="flex flex-col gap-2 mt-4">
@@ -237,8 +237,8 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
 
   return (
     <RetroWindow title="our_resume.doc" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
-       <div id="resume-card" className="flex-1 bg-white p-6 sm:p-12 overflow-y-auto text-[var(--text-main)]">
-          <div className="border-b-4 border-[var(--border)] pb-8 mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
+       <div id="resume-card" className="flex-1 bg-window p-6 sm:p-12 overflow-y-auto text-main-text">
+          <div className="border-b-4 border-border pb-8 mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
              <div>
                 <h1 className="text-4xl font-black uppercase tracking-tighter leading-none mb-2">Relationship Resume</h1>
                 <p className="font-bold opacity-40 uppercase text-[10px] tracking-[0.3em]">Established {anniversary || 'Day One'}</p>
@@ -256,7 +256,7 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
              <section className="space-y-6">
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-[var(--border)] mb-4 pb-1 flex items-center gap-2"><Star size={14}/> Core Competencies</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-border mb-4 pb-1 flex items-center gap-2"><Star size={14}/> Core Competencies</h2>
                    <ul className="space-y-2 font-bold text-sm">
                       <li className="flex items-center gap-2">✨ Infinite Cuddling & Emotional Support</li>
                       <li className="flex items-center gap-2">🍕 Advanced Pizza Selection Skills</li>
@@ -265,13 +265,13 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
                    </ul>
                 </div>
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-[var(--border)] mb-4 pb-1 flex items-center gap-2"><Trophy size={14}/> High Scores</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-border mb-4 pb-1 flex items-center gap-2"><Trophy size={14}/> High Scores</h2>
                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 retro-border bg-[var(--bg-main)] text-center">
+                      <div className="p-3 border-2 border-border bg-main text-center">
                          <p className="text-[9px] font-black uppercase opacity-50">Days Sync'd</p>
                          <p className="text-xl font-black">{daysTogether}</p>
                       </div>
-                      <div className="p-3 retro-border bg-[var(--bg-main)] text-center">
+                      <div className="p-3 border-2 border-border bg-main text-center">
                          <p className="text-[9px] font-black uppercase opacity-50">Games Won</p>
                          <p className="text-xl font-black">{Object.values(scores || {}).reduce((a, b) => a + b, 0)}</p>
                       </div>
@@ -280,19 +280,19 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
              </section>
              <section className="space-y-6">
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-[var(--border)] mb-4 pb-1 flex items-center gap-2"><Calendar size={14}/> Key Milestones</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-border mb-4 pb-1 flex items-center gap-2"><Calendar size={14}/> Key Milestones</h2>
                    <div className="space-y-4">
-                      <div className="flex justify-between items-end border-b border-dashed border-[var(--border)] pb-1">
+                      <div className="flex justify-between items-end border-b border-dashed border-border pb-1">
                          <p className="text-[10px] font-black uppercase opacity-40">The Beginning</p>
                          <p className="font-bold text-sm">{anniversary || '---'}</p>
                       </div>
-                      <div className="flex justify-between items-end border-b border-dashed border-[var(--border)] pb-1">
+                      <div className="flex justify-between items-end border-b border-dashed border-border pb-1">
                          <p className="text-[10px] font-black uppercase opacity-40">First Collaborative Art</p>
                          <p className="font-bold text-sm">2026-04-27</p>
                       </div>
                    </div>
                 </div>
-                <div className="p-4 retro-bg-accent retro-border border-dashed text-center">
+                <div className="p-4 bg-accent text-accent-text border-2 border-border border-dashed text-center">
                    <p className="italic font-serif leading-relaxed text-sm">
                       "Certified authentic connection, synchronized across all digital dimensions."
                    </p>
@@ -300,18 +300,18 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
              </section>
           </div>
 
-          <div className="mt-12 flex justify-around border-t-2 border-[var(--border)] pt-8">
+          <div className="mt-12 flex justify-around border-t-2 border-border pt-8">
              <div className="text-center">
-                <div className="h-px w-32 bg-[var(--border)] mb-2"></div>
+                <div className="h-px w-32 bg-border mb-2"></div>
                 <p className="text-[10px] font-black uppercase tracking-widest">{profile?.name || 'You'}</p>
              </div>
              <div className="text-center">
-                <div className="h-px w-32 bg-[var(--border)] mb-2"></div>
+                <div className="h-px w-32 bg-border mb-2"></div>
                 <p className="text-[10px] font-black uppercase tracking-widest">{partnerProfile?.name || 'Partner'}</p>
              </div>
           </div>
        </div>
-       <div className="p-4 bg-[var(--bg-main)] retro-border-t flex justify-center gap-4">
+       <div className="p-4 bg-main border-t-2 border-border flex justify-center gap-4">
           <RetroButton variant="primary" onClick={handleDownload} className="px-8">📥 Download PNG</RetroButton>
           <RetroButton variant="white" onClick={() => window.print()} className="px-8">🖨️ Print Resume</RetroButton>
        </div>
@@ -372,7 +372,7 @@ export function WeatherWidget({ compact = false }) {
   }, []);
 
   if (!weatherData && loading) return (
-    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2 text-[10px] font-bold opacity-30 uppercase tracking-widest text-center animate-pulse">
+    <div className="border-t border-dashed border-border pt-2 mt-2 text-[10px] font-bold opacity-30 uppercase tracking-widest text-center animate-pulse text-main-text">
       Fetching sky status...
     </div>
   );
@@ -381,8 +381,8 @@ export function WeatherWidget({ compact = false }) {
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 retro-border retro-bg-accent flex items-center justify-center font-bold text-[10px] shadow-sm">
+      <div className="flex items-center gap-2 text-main-text">
+        <div className="w-8 h-8 border-2 border-border bg-accent text-accent-text flex items-center justify-center font-bold text-[10px] shadow-sm">
           {weatherData.temp}°C
         </div>
         <div className="flex flex-col">
@@ -394,10 +394,10 @@ export function WeatherWidget({ compact = false }) {
   }
 
   return (
-    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2">
+    <div className="border-t border-dashed border-border pt-2 mt-2 text-main-text">
       <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-1">🌤️ Local Weather</p>
       <div className="flex items-center gap-2">
-        <div className="w-10 h-10 retro-border retro-bg-accent flex items-center justify-center font-bold text-xs shadow-sm">
+        <div className="w-10 h-10 border-2 border-border bg-accent text-accent-text flex items-center justify-center font-bold text-xs shadow-sm">
           {weatherData.temp}°C
         </div>
         <div className="flex-1 min-w-0">

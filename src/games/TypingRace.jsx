@@ -57,17 +57,17 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
 
   return (
     <RetroWindow title="typing_race.exe" className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
+      <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm">
         <span><Keyboard size={14} className="inline mr-1"/> WPM: {wpm}</span>
         <span>Accuracy: {accuracy}%</span>
       </div>
-      <div className="w-full h-2 bg-[var(--bg-main)]"><div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${progress}%` }}></div></div>
+      <div className="w-full h-2 bg-main"><div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }}></div></div>
       <div className="flex-1 p-6 flex flex-col gap-6">
-        <div className="retro-border retro-shadow-dark p-6 bg-[var(--bg-main)] font-mono text-lg sm:text-xl leading-relaxed tracking-wide select-none">
+        <div className="border-2 border-border shadow-retro p-6 bg-main font-mono text-lg sm:text-xl leading-relaxed tracking-wide select-none">
           {passage.split('').map((char, i) => {
             let color = 'opacity-40';
-            if (i < typed.length) { color = typed[i] === char ? 'text-[var(--primary)] font-bold' : 'text-red-500 bg-red-100 font-bold'; }
-            else if (i === typed.length) { color = 'bg-[var(--accent)] text-[var(--text-main)] font-bold animate-pulse'; }
+            if (i < typed.length) { color = typed[i] === char ? 'text-primary font-bold' : 'text-red-500 bg-red-100 font-bold'; }
+            else if (i === typed.length) { color = 'bg-accent text-main-text font-bold animate-pulse'; }
             return <span key={i} className={color}>{char}</span>;
           })}
         </div>
@@ -81,7 +81,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
           onPaste={(e) => e.preventDefault()}
           onDrop={(e) => e.preventDefault()}
           autoComplete="off"
-          className="w-full p-4 retro-border retro-bg-window font-mono text-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" 
+          className="w-full p-4 border-2 border-border bg-window text-main-text font-mono text-lg focus:outline-none focus:ring-2 focus:ring-primary" 
           placeholder={started ? '' : 'Start typing...'} 
         />
         <div className="flex justify-between text-sm font-bold opacity-60">

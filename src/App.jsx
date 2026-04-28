@@ -490,7 +490,7 @@ export default function App() {
   const [coupleData, setCoupleData] = useGlobalSync('couple_data', { 
     anniversary: '', 
     petName: 'pet', 
-    petSkin: '/assets/Cat Sprite Sheet.png', 
+    petSkin: '/assets/cat_1_9', 
     petHappy: 60, 
     partnerNickname: '',
     nicknames: {} 
@@ -1100,9 +1100,9 @@ export default function App() {
   }, []);
 
   useEffect(() => { 
-    const forcedMatchaPaths = ['/dashboard', '/signin', '/signup', '/handshake', '/welcome'];
-    const isForced = forcedMatchaPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
-    document.documentElement.setAttribute('data-theme', isForced ? 'matcha' : theme); 
+    const onboardingPaths = ['/signin', '/signup', '/handshake', '/welcome', '/password-reset'];
+    const isOnboarding = onboardingPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
+    document.documentElement.setAttribute('data-theme', isOnboarding ? 'default' : theme); 
   }, [theme, location.pathname]);
   
   // Solution 30: Mobile Viewport Jitter Fix
@@ -1123,9 +1123,9 @@ export default function App() {
   // Apply theme after core is ready to avoid blocking initial render
   useEffect(() => {
     if (!coreReady) return;
-    const forcedMatchaPaths = ['/dashboard', '/signin', '/signup', '/handshake', '/welcome'];
-    const isForced = forcedMatchaPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
-    document.documentElement.setAttribute('data-theme', isForced ? 'matcha' : theme);
+    const onboardingPaths = ['/signin', '/signup', '/handshake', '/welcome', '/password-reset'];
+    const isOnboarding = onboardingPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
+    document.documentElement.setAttribute('data-theme', isOnboarding ? 'default' : theme);
   }, [coreReady, theme, location.pathname]);
 
   useEffect(() => {
@@ -1283,7 +1283,7 @@ export default function App() {
       }
   };
 
-  if (loading || hasRoom === null) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#fffdf9]"><div className="w-8 h-8 border-4 border-[#ff6b9d] border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase">Initializing Attic...</p></div>;
+  if (loading || hasRoom === null) return <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-window"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" /><p className="font-bold text-xs opacity-40 tracking-widest uppercase text-main-text">Initializing Attic...</p></div>;
 
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
@@ -1320,14 +1320,14 @@ export default function App() {
         {isPartnerAfk && (
           <div className="fixed inset-0 bg-black/40 z-[8000] pointer-events-none flex flex-col items-center justify-center animate-in fade-in duration-700 backdrop-blur-[2px]">
             <h2 className="text-white font-black text-6xl animate-pulse tracking-[0.2em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] lowercase" style={{ fontFamily: '"Pixelify Sans", sans-serif' }}>zzz...</h2>
-            <p className="text-white font-bold mt-2 bg-black/30 px-4 py-1.5 retro-border border-white/20 text-[10px] uppercase tracking-widest">{partnerName} is away</p>
+            <p className="text-white font-bold mt-2 bg-black/30 px-4 py-1.5 retro-border border-border/20 text-[10px] uppercase tracking-widest">{partnerName} is away</p>
           </div>
         )}
 
         {incomingCall && (
           <div className="fixed inset-0 z-[6000] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
-            <div className="bg-white/95 retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-[var(--primary)]">
-              <div className="w-24 h-24 rounded-lg retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)] relative overflow-hidden">
+            <div className="bg-window/95 text-main-text retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-primary">
+              <div className="w-24 h-24 rounded-lg bg-secondary text-secondary-text retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)] relative overflow-hidden">
                   {/* Layer 1: Base Icon */}
                   {incomingCall.type === 'video' ? <Video size={48} className="text-white absolute z-0"/> : <Phone size={48} className="text-white absolute z-0"/>}
                   
@@ -1336,13 +1336,13 @@ export default function App() {
                      <img 
                         src={partnerProfile.pfp} 
                         alt="partner" 
-                        className="w-full h-full object-cover relative z-10 bg-[var(--bg-window)]" 
+                        className="w-full h-full object-cover relative z-10 bg-window" 
                         onError={(e) => { e.target.style.display = 'none'; }} 
                      />
                   )}
               </div>
               <h2 className="text-2xl font-black mb-1">{incomingCall.fromName}</h2>
-              <p className="text-[10px] font-black text-[var(--primary)] mb-8 uppercase tracking-[0.2em] animate-pulse">
+              <p className="text-[10px] font-black text-primary mb-8 uppercase tracking-[0.2em] animate-pulse">
                   Incoming {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call
               </p>
               <div className="flex gap-6 justify-center">
@@ -1395,7 +1395,7 @@ export default function App() {
         {/* ── PARTNER ONLINE MODAL ── */}
         {partnerOnlineModal && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[6000] animate-in slide-in-from-top-10 fade-in duration-500 pointer-events-none">
-            <div className="bg-[var(--primary)] text-white px-6 py-3 retro-border retro-shadow-dark flex items-center gap-3 rounded-full">
+            <div className="bg-primary text-primary-text px-6 py-3 retro-border retro-shadow-dark flex items-center gap-3 rounded-full">
               <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_#4ade80]"></div>
               <span className="font-black uppercase tracking-widest text-xs">
                 {partnerName} is Online!
@@ -1407,9 +1407,9 @@ export default function App() {
         {/* ── TEXT NOTIFICATIONS STACK ── */}
         <div className="fixed bottom-4 right-4 z-[6000] flex flex-col gap-2 pointer-events-none">
           {textNotifications.map(notif => (
-            <div key={notif.notifId} className="bg-[var(--bg-window)] retro-border retro-shadow-dark p-3 w-64 animate-in slide-in-from-right-10 fade-in duration-300 pointer-events-auto cursor-pointer" onClick={() => navigate('/chat')}>
+            <div key={notif.notifId} className="bg-window text-main-text retro-border retro-shadow-dark p-3 w-64 animate-in slide-in-from-right-10 fade-in duration-300 pointer-events-auto cursor-pointer" onClick={() => navigate('/chat')}>
               <div className="flex justify-between items-start mb-1">
-                <span className="font-black text-[10px] uppercase text-[var(--primary)] flex items-center gap-1">
+                <span className="font-black text-[10px] uppercase text-primary flex items-center gap-1">
                   <Bell size={10} /> New Message
                 </span>
                 <button onClick={(e) => { e.stopPropagation(); setTextNotifications(p => p.filter(n => n.notifId !== notif.notifId)) }} className="opacity-50 hover:opacity-100">
@@ -1464,11 +1464,11 @@ export default function App() {
         )}
 
         <Suspense fallback={
-          <div className="fixed inset-0 flex items-center justify-center bg-[var(--bg-main)] z-50">
-            <div className="border-2 border-[var(--border)] bg-[var(--bg-window)] shadow-[2px_2px_0px_0px_var(--border)] p-6 text-center animate-pulse">
-              <h2 className="font-black uppercase tracking-widest text-lg mb-2 text-[var(--text-main)]">Loading Module...</h2>
-              <div className="h-4 w-48 border-2 border-[var(--border)] p-0.5 mx-auto">
-                 <div className="h-full bg-[var(--primary)] w-2/3"></div>
+          <div className="fixed inset-0 flex items-center justify-center bg-main z-50">
+            <div className="border-2 border-border bg-window shadow-[2px_2px_0px_0px_var(--border)] p-6 text-center animate-pulse">
+              <h2 className="font-black uppercase tracking-widest text-lg mb-2 text-main-text">Loading Module...</h2>
+              <div className="h-4 w-48 border-2 border-border p-0.5 mx-auto">
+                 <div className="h-full bg-primary w-2/3"></div>
               </div>
             </div>
           </div>

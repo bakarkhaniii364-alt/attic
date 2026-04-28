@@ -23,10 +23,20 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   const actionVariantRef = useRef(0);
 
   // Handle skin path (convert .png to folder path if needed)
-  let skinFolder = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9';
-  if (skinFolder.endsWith('.png')) skinFolder = skinFolder.replace('.png', '');
+  let skinFolder = '/assets/cat_1_9';
+  if (skin && skin !== 'undefined' && skin !== 'null') {
+    skinFolder = skin;
+    // Legacy migration: map old sprite sheet path to the new folder structure
+    if (skinFolder.includes('Cat Sprite Sheet')) skinFolder = '/assets/cat_1_9';
+    
+    if (skinFolder.endsWith('.png')) skinFolder = skinFolder.replace('.png', '');
+    if (!skinFolder.startsWith('/') && !skinFolder.startsWith('http')) skinFolder = '/assets/' + skinFolder;
+  }
   
-  const isSad = !isSleeping && happy < 30;
+  // Sadness logic: Hungry (low happy) or ignored for a long time (> 4 hours)
+  const isHungry = happy < 50;
+  const isIgnored = lastPetTime > 0 && (Date.now() - lastPetTime > 4 * 60 * 60 * 1000);
+  const isSad = !isSleeping && (isHungry || isIgnored || happy < 30);
 
   const sleepRows = [12, 13, 14, 15, 16, 17, 18, 19];
   const randomIdleActions = ['yawn', 'wash', 'paw', 'stretch', 'scratch', 'walk'];
@@ -86,6 +96,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
 
   const startPress = () => {
     const now = Date.now();
+    setLastPetTime(now); // Interaction counts as petting for sadness logic
     setLastActivityTime(now);
     pointerDownTimeRef.current = now;
 
@@ -182,10 +193,16 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
     }
 
     if (isSad) return { start: 473, frames: 1, duration: 1000 };
-    if (isPartnerAfk) return { start: 22, frames: 6, duration: 1200 };
-    if (isHovering) return { start: 11, frames: 8, duration: 1200 };
+    if (isPartnerAfk) return { start: 176, frames: 2, duration: 1200 }; // Curled sleep
+    if (isHovering) return { start: 308, frames: 3, duration: 1000 }; // Meow sit
 
-    return { start: 0, frames: 4, duration: 1400 };
+    // Default / Rest position: Randomize between sleep and walk as requested
+    const defaultOptions = [
+      {s:132, f:2}, {s:143, f:2}, {s:176, f:2}, {s:187, f:2}, // Sleeps
+      {s:66, f:8}, {s:77, f:8} // Walks
+    ];
+    const def = defaultOptions[Math.floor(variant * defaultOptions.length)];
+    return { start: def.s, frames: def.f, duration: def.f > 2 ? 1200 : 2000 };
   };
 
   const { start, frames, duration } = getSpriteForState();
@@ -200,7 +217,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   }, [start, frames, duration]);
 
   const frameId = (start + currentFrame).toString().padStart(3, '0');
-  const frameSrc = encodeURI(`${skinFolder}/tile${frameId}.png`);
+  const frameSrc = `${skinFolder}/tile${frameId}.png`;
 
   const scale = 4;
   const frameSize = 32 * scale; // 128px
@@ -225,10 +242,10 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
         }}
       />
       {isSleeping && (
-        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-[var(--border)] drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">zzz</span>
+        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-border drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">zzz</span>
       )}
       {isSad && !isSleeping && (
-        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-cyan-100 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
+        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-accent-text drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
           <span>:(</span>
           <span className="text-[10px] opacity-80">sad</span>
         </div>
@@ -240,7 +257,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
       )}
       {/* Pet Status Label */}
       <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
-         <span className={`text-[9px] font-black uppercase px-2 py-0.5 retro-border bg-[var(--bg-window)] shadow-[1px_1px_0_var(--border)] ${isSleeping ? 'text-blue-500' : 'text-[var(--text-main)]'}`}>
+         <span className={`text-[9px] font-black uppercase px-2 py-0.5 retro-border bg-window shadow-[1px_1px_0_var(--border)] ${isSleeping ? 'text-secondary' : 'text-main-text'}`}>
             {isSleeping ? 'sleeping' : currentAction === 'idle' ? 'chilling' : currentAction}
          </span>
       </div>
@@ -332,15 +349,15 @@ export const Unit = React.memo(({ val, label }) => {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-[var(--bg-window)] border-2 border-[var(--border)] shadow-[1.5px_1.5px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-[var(--text-main)] perspective-1000 preserve-3d">
+      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-window border-2 border-border shadow-[1.5px_1.5px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-main-text perspective-1000 preserve-3d">
         
         {/* Layer 1: TOP STATIC (Next value, revealed as flap moves) */}
-        <div className="absolute top-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] border-b border-[var(--border)]/10">
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-window overflow-hidden flex items-end justify-center pb-[1px] border-b border-border/10">
           <span className="translate-y-1/2">{nextStr}</span>
         </div>
         
         {/* Layer 2: BOTTOM STATIC (Current value, hidden until flap hits 180) */}
-        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[var(--bg-window)] overflow-hidden flex items-start justify-center pt-[1px]">
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-window overflow-hidden flex items-start justify-center pt-[1px]">
           <span className="-translate-y-1/2">{currentStr}</span>
         </div>
 
@@ -353,18 +370,18 @@ export const Unit = React.memo(({ val, label }) => {
           }}
         >
           {/* Front of Flap: Old Top Half */}
-          <div className="absolute inset-0 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] backface-hidden border-b border-[var(--border)]/20" style={{ backfaceVisibility: 'hidden' }}>
+          <div className="absolute inset-0 bg-window overflow-hidden flex items-end justify-center pb-[1px] backface-hidden border-b border-border/20" style={{ backfaceVisibility: 'hidden' }}>
             <span className="translate-y-1/2">{currentStr}</span>
           </div>
           
           {/* Back of Flap: New Bottom Half */}
-          <div className="absolute inset-0 bg-[var(--bg-window)] overflow-hidden flex items-start justify-center pt-[1px] backface-hidden" style={{ backfaceVisibility: 'hidden', transform: 'rotateX(-180deg)' }}>
+          <div className="absolute inset-0 bg-window overflow-hidden flex items-start justify-center pt-[1px] backface-hidden" style={{ backfaceVisibility: 'hidden', transform: 'rotateX(-180deg)' }}>
             <span className="-translate-y-1/2">{nextStr}</span>
           </div>
         </div>
 
         {/* Center Crease/Divider */}
-        <div className="absolute top-1/2 left-0 w-full h-[1.5px] bg-[var(--border)] opacity-30 z-30"></div>
+        <div className="absolute top-1/2 left-0 w-full h-[1.5px] bg-border opacity-30 z-30"></div>
       </div>
       <span className="text-[10px] font-bold opacity-60 uppercase mt-1.5 tracking-tighter">{label}</span>
     </div>
@@ -379,16 +396,16 @@ export function CalendarReminder() {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const next = upcoming[0];
   if (!next) return (
-    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2 text-[10px] font-bold opacity-40 uppercase tracking-widest text-center">
+    <div className="border-t border-dashed border-border pt-2 mt-2 text-[10px] font-bold opacity-40 uppercase tracking-widest text-center">
       No upcoming events
     </div>
   );
   const daysUntil = Math.ceil((new Date(next.date) - now) / (1000 * 60 * 60 * 24));
   return (
-    <div className="border-t border-dashed border-[var(--border)] pt-2 mt-2">
+    <div className="border-t border-dashed border-border pt-2 mt-2">
       <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-1">📅 upcoming</p>
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 retro-border retro-bg-primary flex items-center justify-center font-bold text-xs">{daysUntil}d</div>
+        <div className="w-8 h-8 retro-border bg-primary text-primary-text flex items-center justify-center font-bold text-xs">{daysUntil}d</div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-xs truncate">{next.title || next.text || 'Event'}</p>
           <p className="text-[10px] opacity-50">{new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
@@ -504,7 +521,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   };
 
   const partnerName = partnerProfile?.name || safeCoupleData.partnerNickname || 'Partner';
-  const petSkin = safeCoupleData.petSkin || '/assets/cat 1.9.png';
+  const petSkin = safeCoupleData.petSkin || '/assets/cat_1_9';
   const petHappy = safeCoupleData.petHappy ?? 60;
   const petName = safeCoupleData.petName || 'pet';
 
@@ -513,9 +530,9 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       {unreadDoodles.length > 0 && (
         <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
           <div className="animate-in zoom-in-50 spin-in-6 duration-500 cursor-pointer hover:scale-110 transition-transform flex flex-col items-center" onClick={() => onOpenDoodle(unreadDoodles[0])}>
-            <div className="relative"><Mail size={120} className="text-[var(--bg-window)] drop-shadow-2xl" fill="var(--primary)" /><div className="absolute inset-0 flex items-center justify-center animate-pulse"><Heart size={40} className="text-white" fill="white" /></div></div>
-            <div className="text-center font-bold text-[var(--text-main)] mt-6 bg-[var(--accent)] retro-border retro-shadow-dark px-6 py-2 text-lg">You have a new doodle!</div>
-            <p className="text-[var(--bg-window)] font-bold mt-2 animate-pulse">Click to open</p>
+            <div className="relative"><Mail size={120} className="text-window drop-shadow-2xl" fill="var(--primary)" /><div className="absolute inset-0 flex items-center justify-center animate-pulse"><Heart size={40} className="text-white" fill="white" /></div></div>
+            <div className="text-center font-bold text-main-text mt-6 bg-accent text-accent-text retro-border retro-shadow-dark px-6 py-2 text-lg">You have a new doodle!</div>
+            <p className="text-window font-bold mt-2 animate-pulse">Click to open</p>
           </div>
         </div>
       )}
@@ -543,7 +560,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg rounded-full">{partnerProfile.emoji || '👤'}</div>
                       )}
                       <div 
-                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-[var(--border)] transition-all ${onlineUsers[partnerId] === 'active' ? 'bg-green-400 animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]' : 'bg-gray-400 opacity-50'}`}
+                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-border transition-all ${onlineUsers[partnerId] === 'active' ? 'bg-green-400 animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]' : 'bg-gray-400 opacity-50'}`}
                         title={onlineUsers[partnerId] === 'active' ? 'Online' : 'Offline'}
                       ></div>
                     </div>
@@ -559,7 +576,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                       </div>
                     </div>
                   </div>
-                  <div className="h-8 w-px bg-[var(--border)] opacity-20 mx-1"></div>
+                  <div className="h-8 w-px bg-border opacity-20 mx-1"></div>
                   <StreakBadge streak={streak} />
                 </div>
               </div>
@@ -567,18 +584,18 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
             <button 
               onClick={handleSendKiss} 
               disabled={Date.now() - lastActionTime < 3000}
-              className={`p-2 w-16 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'retro-bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none'}`} 
+              className={`p-2 w-16 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none'}`} 
               title="Send a kiss!"
             >
-              <Heart size={24} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-[var(--border)]' : 'text-[var(--primary)]'} />
+              <Heart size={24} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
               <span className="text-[10px] font-bold mt-1 uppercase">Kiss</span>
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-dashed border-[var(--border)] mt-auto">
+          <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-dashed border-border mt-auto">
             <WeatherWidget compact />
             <div className="flex gap-2">
-              <button onClick={() => nav('settings')} className="bg-[var(--window)] text-[var(--text-main)] font-bold py-2 px-4 retro-border hover:-translate-y-1 transition-transform text-xs">Control panel</button>
+              <button onClick={() => nav('settings')} className="bg-window text-main-text font-bold py-2 px-4 retro-border hover:-translate-y-1 transition-transform text-xs">Control panel</button>
               <button onClick={onLogout} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform text-xs">Log out</button>
             </div>
           </div>
@@ -588,7 +605,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
           <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
-          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-[var(--bg-main)] w-full relative overflow-hidden"><div className="absolute top-0 left-0 h-full retro-bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
+          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-main w-full relative overflow-hidden"><div className="absolute top-0 left-0 h-full bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
           <div className="flex gap-2 w-full mt-4">
             <RetroButton variant="secondary" className="flex-1 py-2 text-xs" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
           </div>
@@ -607,7 +624,7 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       </RetroWindow>
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
-        <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2">
+        <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2 text-main-text">
           <p>TicTacToe Wins: {getScoreForUser(scores, userId, 'tictactoe')}</p>
           <p>Pictionary Guessed: {getScoreForUser(scores, userId, 'pictionary')}</p>
           <p>Memory Pairs: {getScoreForUser(scores, userId, 'memory')}</p>

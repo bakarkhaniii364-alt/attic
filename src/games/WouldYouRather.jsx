@@ -43,11 +43,11 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile }) 
 
   return (
     <RetroWindow title="would_you_rather.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
+      <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm">
         <span>Q {idx + 1}/{QUESTIONS.length}</span>
         <span className="flex items-center gap-1"><Heart size={14}/> {matchPct}% match</span>
       </div>
-      <div className="w-full h-2 bg-[var(--bg-main)]"><div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${((idx + 1) / QUESTIONS.length) * 100}%` }}></div></div>
+      <div className="w-full h-2 bg-main"><div className="h-full bg-primary transition-all" style={{ width: `${((idx + 1) / QUESTIONS.length) * 100}%` }}></div></div>
       <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
         <h2 className="text-lg sm:text-xl font-bold text-center leading-relaxed">{current.q}</h2>
         {!showResult ? (
@@ -57,7 +57,7 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile }) 
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 w-full animate-in fade-in duration-300">
-            <div className={`text-2xl font-bold ${myAnswer === partnerAnswers[idx] ? 'text-[var(--primary)]' : 'text-[var(--secondary)]'}`}>
+            <div className={`text-2xl font-bold ${myAnswer === partnerAnswers[idx] ? 'text-primary' : 'text-secondary'}`}>
               {myAnswer === partnerAnswers[idx] ? '💕 Match!' : '🌶️ Different!'}
             </div>
             <p className="text-sm opacity-60">Partner chose: {partnerAnswers[idx] === 'a' ? current.a : current.b}</p>

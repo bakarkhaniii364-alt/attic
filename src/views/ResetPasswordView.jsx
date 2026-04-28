@@ -78,15 +78,15 @@ export function ResetPasswordView({ sfx }) {
 
   if (success) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
+      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-main">
         <RetroWindow title="success.exe" className="w-full max-w-sm" noPadding>
           <div className="p-8 flex flex-col items-center text-center gap-4">
-            <div className="w-16 h-16 rounded-full retro-bg-primary flex items-center justify-center">
-              <Check size={32} className="text-white" />
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
+              <Check size={32} className="text-primary-text" />
             </div>
-            <h2 className="text-2xl font-bold">Password Reset!</h2>
-            <p className="text-sm opacity-70">Your password has been successfully reset.</p>
-            <Loader size={20} className="animate-spin text-[var(--primary)]" />
+            <h2 className="text-2xl font-bold text-main-text">Password Reset!</h2>
+            <p className="text-sm opacity-70 text-main-text">Your password has been successfully reset.</p>
+            <Loader size={20} className="animate-spin text-primary" />
             <RetroButton onClick={() => navigate('/signin')} className="mt-3">remember password? sign in instead</RetroButton>
           </div>
         </RetroWindow>
@@ -96,17 +96,17 @@ export function ResetPasswordView({ sfx }) {
 
   if (!validToken) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-[var(--bg-main)]">
+      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-main">
         <RetroWindow title="password_reset_request.exe" className="w-full max-w-sm" noPadding onClose={() => navigate('/signin')}>
-          <div className="p-6 flex flex-col items-center text-center gap-4">
+          <div className="p-6 flex flex-col items-center text-center gap-4 text-main-text">
             <h2 className="text-2xl font-bold">Reset your password</h2>
             <p className="text-sm opacity-70">Enter the email associated with your account to receive a reset link.</p>
 
             {requestSent ? (
-              <div className="p-4 bg-green-50 retro-border text-green-700">Check your inbox for the reset link.</div>
+              <div className="p-4 bg-green-50 border-2 border-green-500 text-green-700">Check your inbox for the reset link.</div>
             ) : (
               <form onSubmit={handleRequestReset} className="w-full">
-                <input type="email" required placeholder="you@love.com" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} className="w-full p-3 retro-border retro-bg-window mb-3" />
+                <input type="email" required placeholder="you@love.com" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} className="w-full p-3 border-2 border-border bg-window mb-3" />
                 {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
                 <RetroButton type="submit" className="w-full py-3" disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</RetroButton>
               </form>
@@ -123,14 +123,14 @@ export function ResetPasswordView({ sfx }) {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-[var(--bg-main)] relative overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-main relative overflow-hidden">
       <div className="absolute inset-0 bg-pattern-grid opacity-40" />
       <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
 
       <RetroWindow title="reset_password.exe" className="w-full max-w-sm relative z-10" onClose={() => navigate('/signin')}>
-        <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-4 text-main-text">
           <div className="text-center mb-2">
-            <div className="w-14 h-14 rounded-full retro-bg-secondary retro-border mx-auto flex items-center justify-center mb-3 retro-shadow-dark">
+            <div className="w-14 h-14 rounded-full bg-secondary text-secondary-text border-2 border-border mx-auto flex items-center justify-center mb-3 shadow-md">
               <Lock size={22} />
             </div>
             <h2 className="font-bold text-xl lowercase">create new password</h2>
@@ -150,7 +150,7 @@ export function ResetPasswordView({ sfx }) {
                 placeholder="••••••••"
                 minLength={6}
                 required
-                className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold w-full"
+                className="p-3 border-2 border-border bg-window text-main-text focus:outline-none text-sm font-bold w-full"
               />
               <button
                 type="button"
@@ -175,7 +175,7 @@ export function ResetPasswordView({ sfx }) {
                 placeholder="••••••••"
                 minLength={6}
                 required
-                className="p-3 retro-border retro-bg-window focus:outline-none text-sm font-bold w-full"
+                className="p-3 border-2 border-border bg-window text-main-text focus:outline-none text-sm font-bold w-full"
               />
               <button
                 type="button"
@@ -188,7 +188,7 @@ export function ResetPasswordView({ sfx }) {
           </div>
 
           {error && (
-            <p className="text-xs font-bold text-red-500 text-center retro-border border-red-300 bg-red-50 p-2">
+            <p className="text-xs font-bold text-red-500 text-center border-2 border-red-300 bg-red-50 p-2">
               {error}
             </p>
           )}

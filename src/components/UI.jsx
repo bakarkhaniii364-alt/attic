@@ -19,10 +19,10 @@ export function ToastProvider({ children }) {
       {children}
       <div className="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none max-w-xs">
         {toasts.map(t => (
-          <div key={t.id} className={`pointer-events-auto retro-border retro-shadow-dark p-3 flex items-start gap-2 font-bold text-sm animate-in slide-in-from-right duration-300 ${t.type === 'success' ? 'bg-[var(--primary)] text-[var(--text-on-primary)]' :
+          <div key={t.id} className={`pointer-events-auto retro-border retro-shadow-dark p-3 flex items-start gap-2 font-bold text-sm animate-in slide-in-from-right duration-300 ${t.type === 'success' ? 'bg-primary text-primary-text' :
             t.type === 'warn' ? 'bg-yellow-400 text-black' :
               t.type === 'error' ? 'bg-red-500 text-white' :
-                'bg-[var(--bg-window)] text-[var(--text-main)]'
+                'bg-window text-main-text'
             }`}>
             {t.type === 'success' && <Check size={16} className="shrink-0 mt-0.5" />}
             {t.type === 'warn' && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
@@ -82,28 +82,28 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   return (
     <>
       <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
-        <div style={{ backgroundColor: 'var(--bg-header)' }} className="window-header-text retro-border border-t-0 border-l-0 border-r-0 border-b-[1px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden">
+        <div className="bg-header text-header-text retro-border border-t-0 border-l-0 border-r-0 border-b-[1px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden">
           {/* Subtle header sheen - Bypassing Gradient Killer with inline style */}
           <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.2), transparent)' }} />
           
           <div className={`relative z-10 flex gap-2 items-center ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
             <div className="flex flex-col gap-[2px] w-4">
-              <div className="h-[2px] w-full opacity-40" style={{ backgroundColor: 'var(--text-on-header)' }}></div>
-              <div className="h-[2px] w-full opacity-60" style={{ backgroundColor: 'var(--text-on-header)' }}></div>
-              <div className="h-[2px] w-full" style={{ backgroundColor: 'var(--text-on-header)' }}></div>
+              <div className="h-[2px] w-full opacity-40 bg-header-text"></div>
+              <div className="h-[2px] w-full opacity-60 bg-header-text"></div>
+              <div className="h-[2px] w-full bg-header-text"></div>
             </div>
             <span className="font-black lowercase text-xs sm:text-sm tracking-tight flex items-center gap-2">{title}</span>
           </div>
           <div className="relative z-10 flex items-center gap-2">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 border-2 border-[var(--border)] bg-[var(--primary)] text-white shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all active:scale-95">
+              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 border-2 border-border bg-primary text-primary-text shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all active:scale-95">
                 <X size={16} strokeWidth={3} />
               </button>
             )}
           </div>
         </div>
-        <div className={`flex-1 overflow-y-auto flex flex-col text-[var(--text-main)] bg-[var(--bg-window)] ${noPadding ? '' : 'p-5 sm:p-6'}`}>{children}</div>
+        <div className={`flex-1 overflow-y-auto flex flex-col text-main-text bg-window ${noPadding ? '' : 'p-5 sm:p-6'}`}>{children}</div>
       </div>
       {showConfirm && (
         <ConfirmDialog
@@ -128,13 +128,13 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
 // ── RetroButton ──
 export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) {
-  const base = "font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none lowercase flex items-center justify-center gap-2";
+  const base = "font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none border-2 border-border shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none lowercase flex items-center justify-center gap-2";
   
   const variants = { 
-    primary: "bg-[var(--primary)] text-white", 
-    secondary: "bg-[var(--secondary)] text-white", 
-    white: "bg-white text-[var(--text-main)] hover:bg-gray-50", 
-    accent: "bg-[var(--accent)] text-[var(--text-main)]", 
+    primary: "bg-primary text-primary-text", 
+    secondary: "bg-secondary text-secondary-text", 
+    white: "bg-window text-main-text hover:bg-gray-50", 
+    accent: "bg-accent text-accent-text", 
     disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50 shadow-none border-gray-400" 
   };
   
@@ -180,10 +180,10 @@ export function AppIcon({ icon, label, color, onClick, badge }) {
   const handleKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick && onClick(); } };
   return (
     <div role="button" tabIndex={0} className="flex flex-col items-center gap-2 group cursor-pointer" onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}>
-      <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border flex items-center justify-center retro-shadow-dark relative text-[var(--border)]" style={{ backgroundColor: color }}>
-        {icon} {badge && <div className="absolute -top-3 -right-3 bg-[var(--border)] text-[var(--bg-window)] w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 border-[var(--bg-window)]">{badge}</div>}
+      <div className="w-16 h-16 sm:w-20 sm:h-20 border-2 border-border flex items-center justify-center shadow-[2px_2px_0px_0px_var(--border)] relative text-border" style={{ backgroundColor: color || 'var(--bg-window)' }}>
+        {icon} {badge && <div className="absolute -top-3 -right-3 bg-border text-window w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 border-window">{badge}</div>}
       </div>
-      <span className="font-bold retro-bg-window px-2 retro-border text-sm group-hover:bg-[var(--accent)] transition-colors">{label}</span>
+      <span className="font-bold bg-window px-2 border-2 border-border text-sm text-main-text group-hover:bg-accent group-hover:text-accent-text transition-colors">{label}</span>
     </div>
   );
 }
@@ -232,20 +232,20 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
           className="w-full flex flex-col max-h-[calc(100dvh-2rem)]"
           noPadding
         >
-          <div id="outcome-card" className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto bg-[var(--bg-window)]">
-            <div className="flex items-center justify-center gap-3 pb-3 border-b-2 border-dashed border-[var(--border)]">
+          <div id="outcome-card" className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto bg-window text-main-text">
+            <div className="flex items-center justify-center gap-3 pb-3 border-b-2 border-dashed border-border">
               {isSolo ? (
                  <div className="flex items-center gap-2">
-                    {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full retro-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full retro-border retro-bg-accent flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
+                    {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full border-2 border-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full border-2 border-border bg-accent text-accent-text flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
                     <span className="font-bold text-sm truncate max-w-[100px]">{playerName} <span className="opacity-50">(Solo)</span></span>
                  </div>
               ) : (
                  <>
                     <div className="flex items-center gap-2 flex-1 justify-end">
-                      {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full retro-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full retro-border retro-bg-accent flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
+                      {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full border-2 border-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full border-2 border-border bg-accent text-accent-text flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
                       <span className="font-bold text-sm truncate max-w-[100px]">{playerName}</span>
                     </div>
-                    <span className="text-xs opacity-50 font-black uppercase tracking-widest px-2 py-1 bg-[var(--border)] text-white shrink-0 retro-border">VS</span>
+                    <span className="text-xs opacity-50 font-black uppercase tracking-widest px-2 py-1 bg-border text-window shrink-0 border-2 border-border">VS</span>
                     <div className="flex items-center gap-2 flex-1 justify-start">
                       <span className="font-bold text-sm truncate max-w-[100px] text-right">{partner}</span>
                       <div className="w-8 h-8 rounded-full retro-border retro-bg-secondary flex items-center justify-center text-sm shrink-0">💕</div>

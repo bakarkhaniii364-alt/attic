@@ -70,18 +70,18 @@ function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
   // Removed the outer bg-white/50 border so it just acts as bubble content
   return (
     <div className="flex items-center gap-2 sm:gap-3 w-48 sm:w-56">
-      <button onClick={togglePlay} className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center hover:scale-105 transition-transform ${isMe ? 'bg-white text-[var(--primary)]' : 'bg-[var(--primary)] text-white shadow-sm'}`}>
+      <button onClick={togglePlay} className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center hover:scale-105 transition-transform ${isMe ? 'bg-window text-primary' : 'bg-primary text-primary-text shadow-sm'}`}>
         {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
       </button>
       
       <div onClick={handleSeek} className="flex-1 h-2 bg-black/20 rounded-full relative overflow-hidden cursor-pointer group">
         <div 
-          className={`absolute top-0 left-0 h-full rounded-full transition-all duration-75 ${isMe ? 'bg-white' : 'bg-[var(--text-main)]'}`} 
+          className={`absolute top-0 left-0 h-full rounded-full transition-all duration-75 ${isMe ? 'bg-primary-text' : 'bg-main-text'}`} 
           style={{ width: `${progress}%` }}
         ></div>
       </div>
       
-      <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap ${isMe ? 'text-white opacity-90' : 'text-[var(--text-main)]'}`}>
+      <span className={`text-[10px] sm:text-xs font-bold whitespace-nowrap ${isMe ? 'text-primary-text opacity-90' : 'text-main-text'}`}>
         {duration}
       </span>
     </div>
@@ -459,8 +459,8 @@ export function ChatView({
   const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
   const headerActions = (
     <div className="flex gap-2">
-      <button onClick={() => onStartCall('audio')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Voice Call"><Phone size={18} /></button>
-      <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-[var(--border)] bg-white hover:bg-[var(--accent)] shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
+      <button onClick={() => onStartCall('audio')} className="p-1.5 border-2 border-border bg-window hover:bg-accent text-main-text shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Voice Call"><Phone size={18} /></button>
+      <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-border bg-window hover:bg-accent text-main-text shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
     </div>
   );
   
@@ -488,9 +488,9 @@ export function ChatView({
       )}
       <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
         <div className="flex flex-1 h-full overflow-hidden relative">
-          <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 retro-border' : 'w-full'}`}>
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col retro-bg-window relative">
-              <div className="text-center text-xs font-bold opacity-50 mb-6 retro-border-b inline-block mx-auto pb-1 mt-2">-- connection secured --</div>
+          <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col bg-window relative">
+              <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-dashed border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
               {syncHasMore && (
                 <button
                   onClick={() => { 
@@ -498,7 +498,7 @@ export function ChatView({
                     syncLoadMore(); 
                     setViewLimit(p => p + 50); 
                   }}
-                  className="mx-auto my-4 px-4 py-2 bg-[var(--accent)] retro-border text-xs font-bold uppercase hover:-translate-y-0.5 transition-transform"
+                  className="mx-auto my-4 px-4 py-2 bg-accent text-accent-text border-2 border-border font-bold text-xs uppercase hover:-translate-y-0.5 transition-transform"
                 >
                   ↑ Load Older Messages
                 </button>
@@ -540,7 +540,7 @@ export function ChatView({
                           ${isMe ? '-left-10 group-hover:left-[-45px]' : '-right-10 group-hover:right-[-45px]'}
                           opacity-0 group-hover:opacity-100
                         `}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 hover:bg-black/5 bg-white/80 backdrop-blur-sm retro-border border-dashed shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 hover:bg-black/5 bg-window/80 backdrop-blur-sm border-2 border-border border-dashed shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] text-main-text">
                             <MoreVertical size={14} className="opacity-70" />
                           </button>
                         </div>
@@ -563,11 +563,11 @@ export function ChatView({
 
                       <div className={`
                         relative flex flex-col group/bubble
-                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)]'} 
+                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 border-2 border-border shadow-[1px_1px_0px_0px_var(--border)]'} 
                         ${msg.isDeleted ? 'bg-gray-50 border-gray-200 text-gray-400 italic shadow-none' :
                           isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
-                            isMe ? (noBubble ? '' : 'bg-[var(--primary)] text-white') : (noBubble ? '' : 'bg-white text-[var(--text-main)]')}
-                        ${isHighlighted ? 'ring-4 ring-[var(--accent)] ring-opacity-50 animate-pulse' : ''}
+                            isMe ? (noBubble ? '' : 'bg-primary text-primary-text') : (noBubble ? '' : 'bg-window text-main-text')}
+                        ${isHighlighted ? 'ring-4 ring-accent ring-opacity-50 animate-pulse' : ''}
                       `}>
                         {/* Reply Preview */}
                         {msg.replyTo && !msg.isDeleted && (
@@ -580,7 +580,7 @@ export function ChatView({
                                 setTimeout(() => el.classList.remove('animate-shake'), 1000);
                               }
                             }}
-                            className={`border-l-4 border-[var(--border)]/40 bg-black/10 p-2 mb-2 text-[10px] opacity-90 cursor-pointer hover:bg-black/20 transition-all active:scale-95`}
+                            className={`border-l-4 border-border/40 bg-black/10 p-2 mb-2 text-[10px] opacity-90 cursor-pointer hover:bg-black/20 transition-all active:scale-95`}
                           >
                             <p className="font-black uppercase tracking-tighter mb-0.5 opacity-60">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || 'Partner')}</p>
                             <p className="truncate italic font-bold">{msg.replyTo.text || '📸 Media / Attachment'}</p>
@@ -595,16 +595,16 @@ export function ChatView({
                             {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'game_invite' && (
-                              <div className="border-2 border-[var(--border)] bg-white shadow-[1px_1px_0px_0px_var(--border)] p-3 w-64 text-[var(--text-main)] mt-1">
-                                <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-[var(--border)]/20 pb-2">
-                                  <Gamepad2 size={18} className="text-[var(--primary)]" />
+                              <div className="border-2 border-border bg-window shadow-[1px_1px_0px_0px_var(--border)] p-3 w-64 text-main-text mt-1">
+                                <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-border/20 pb-2">
+                                  <Gamepad2 size={18} className="text-primary" />
                                   <span className="font-black text-[10px] uppercase tracking-widest">Activity Invite</span>
                                 </div>
                                 <p className="text-xs font-bold mb-4 opacity-80">{msg.text || `Join me for ${msg.gameTitle || "a game"}!`}</p>
                                 {!isMe ? (
-                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-[var(--accent)] border-2 border-[var(--border)] shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button>
+                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-accent text-accent-text border-2 border-border shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button>
                                 ) : (
-                                  <div className="bg-black/5 border-2 border-dashed border-[var(--border)]/30 p-2 text-center text-[9px] font-black uppercase opacity-60">Waiting for partner...</div>
+                                  <div className="bg-black/5 border-2 border-dashed border-border/30 p-2 text-center text-[9px] font-black uppercase opacity-60">Waiting for partner...</div>
                                 )}
                               </div>
                             )}
@@ -642,7 +642,7 @@ export function ChatView({
 
                         {/* Reactions (Always visible and more stylized) */}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (
-                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-white retro-border px-2 py-0.5 text-[11px] flex gap-1 shadow-[2px_2px_0px_0px_var(--border)] z-10 animate-in zoom-in-50`}>
+                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-window text-main-text border-2 border-border px-2 py-0.5 text-[11px] flex gap-1 shadow-[2px_2px_0px_0px_var(--border)] z-10 animate-in zoom-in-50`}>
                             {msg.reactions.map((r, i) => <span key={i} className="hover:scale-125 transition-transform cursor-default">{r}</span>)}
                           </div>
                         )}
@@ -651,30 +651,30 @@ export function ChatView({
                       {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
                         <div className={`
-                          message-options-menu absolute z-[100] retro-bg-window retro-border-thick retro-shadow-dark py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200
+                          message-options-menu absolute z-[100] bg-window border-2 border-border shadow-[4px_4px_0px_0px_var(--border)] py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text
                           ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
                           ${isNearBottom ? 'bottom-0' : 'top-0'} 
                         `}>
-                          <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
-                          <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
+                          <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
+                          <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
 
-                          <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-[var(--border)]/10 text-[9px] font-black uppercase opacity-50">
+                          <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-border/10 text-[9px] font-black uppercase opacity-50">
                             <Clock size={10} /> {msg.time}
                           </div>
 
-                          <div className="flex items-center justify-around px-1 py-2 border-y-2 border-dashed border-[var(--border)]/10 bg-black/5 my-1">
+                          <div className="flex items-center justify-around px-1 py-2 border-y-2 border-dashed border-border/10 bg-black/5 my-1">
                             {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
                               <button key={emoji} onClick={() => {
                                 const rs = msg.reactions || [];
                                 syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
                                 setActiveOptions(null);
-                              }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-[var(--accent)] retro-border' : ''}`}>{emoji}</button>
+                              }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-accent border-2 border-border' : ''}`}>{emoji}</button>
                             ))}
                           </div>
 
                           {isMe && !msg.isDeleted && (
                             <>
-                              {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-[var(--accent)] text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
+                              {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
                               <button onClick={() => { syncDeleteMessage(msg.id); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14}/> Delete</button>
                             </>
                           )}
@@ -703,30 +703,30 @@ export function ChatView({
               <div ref={messagesEndRef} className="h-4" />
               {isPartnerTyping && (
                 <div className="flex items-center gap-2 mb-4 animate-in fade-in duration-300">
-                  <div className="w-8 h-8 rounded-full retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
-                  <div className="retro-bg-window retro-border px-3 py-2 text-[10px] font-bold opacity-60 flex gap-1 items-center">
+                  <div className="w-8 h-8 rounded-full bg-secondary border-2 border-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
+                  <div className="bg-window border-2 border-border px-3 py-2 text-[10px] font-bold text-main-text flex gap-1 items-center">
                     {partnerNickname} is typing
                     <span className="flex gap-0.5">
-                      <span className="w-1 h-1 bg-black rounded-full animate-bounce"></span>
-                      <span className="w-1 h-1 bg-black rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="w-1 h-1 bg-black rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                      <span className="w-1 h-1 bg-main-text rounded-full animate-bounce"></span>
+                      <span className="w-1 h-1 bg-main-text rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="w-1 h-1 bg-main-text rounded-full animate-bounce [animation-delay:0.4s]"></span>
                     </span>
                   </div>
                 </div>
               )}
             </div>
-            <div className="flex flex-col retro-bg-accent retro-border-t relative">
+            <div className="flex flex-col bg-accent text-accent-text border-t-2 border-border relative">
               {showEmojiPicker && (
                 <div className="absolute bottom-full left-0 z-[100] retro-shadow-dark animate-in slide-in-from-bottom-2">
                   <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
                 </div>
               )}
               {pendingImages.length > 0 && (
-                <div className="p-3 bg-white/80 backdrop-blur-md border-b-2 border-dashed border-[var(--border)] flex flex-wrap gap-4 animate-in slide-in-from-bottom-2">
+                <div className="p-3 bg-window border-b-2 border-dashed border-border flex flex-wrap gap-4 animate-in slide-in-from-bottom-2 text-main-text">
                   {pendingImages.map((img, i) => (
                     <div key={i} className="relative">
-                      <img src={img} alt="preview" className="w-16 h-16 object-cover retro-border shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]" />
-                      <button onClick={() => setPendingImages(p => p.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 retro-border shadow-[2px_2px_0px_0px_var(--border)] hover:scale-110"><X size={10} /></button>
+                      <img src={img} alt="preview" className="w-16 h-16 object-cover border-2 border-border shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]" />
+                      <button onClick={() => setPendingImages(p => p.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 border-2 border-border shadow-[2px_2px_0px_0px_var(--border)] hover:scale-110"><X size={10} /></button>
                     </div>
                   ))}
                   <div className="flex-1 min-w-[150px]">
@@ -735,17 +735,17 @@ export function ChatView({
                   </div>
                 </div>
               )}
-              {voicePreview !== null && (<div className="p-3 bg-blue-50 border-b border-dashed border-[var(--border)] flex items-center justify-between gap-3"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-blue-500" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-gray-200 text-gray-800 text-xs font-bold hover:bg-gray-300">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-green-400 text-white text-xs font-bold hover:bg-green-500">Send</button></div></div>)}
-              {replyingTo && (<div className="p-2 bg-white/50 border-b border-dashed border-[var(--border)] flex justify-between items-center text-sm"><div><span className="font-bold mr-2 text-[var(--primary)]"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 retro-border"><X size={14} /></button></div>)}
+              {voicePreview !== null && (<div className="p-3 bg-window border-b-2 border-dashed border-border flex items-center justify-between gap-3 text-main-text"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-primary" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 border-2 border-border bg-main text-main-text text-xs font-bold hover:bg-gray-300">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 border-2 border-border bg-primary text-primary-text text-xs font-bold hover:bg-green-500">Send</button></div></div>)}
+              {replyingTo && (<div className="p-2 bg-window border-b-2 border-dashed border-border flex justify-between items-center text-sm text-main-text"><div><span className="font-bold mr-2 text-primary"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 border-2 border-border"><X size={14} /></button></div>)}
               <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
-                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-[var(--border)] bg-white hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
+                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-border bg-window text-main-text hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
                    <Paperclip size={18} />
                  </button>
-                 <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 border-2 border-[var(--border)] transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-[var(--accent)]' : 'bg-white hover:bg-gray-100'}`}>
+                 <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 border-2 border-border transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:bg-gray-100'}`}>
                    <Smile size={18} />
                  </button>
-                 <div className="flex-1 relative flex items-center bg-white border-2 border-[var(--border)] shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                 <div className="flex-1 relative flex items-center bg-window border-2 border-border shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
                    <textarea 
                      ref={textareaRef}
                      rows={1}
@@ -754,16 +754,16 @@ export function ChatView({
                      onKeyDown={handleKeyDown} 
                      placeholder={pendingImages.length > 0 ? "Add a caption..." : "type a message..."} 
                      disabled={isRecording || voicePreview !== null || isInputDisabled} 
-                     className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto ${isInputDisabled ? 'bg-gray-200 opacity-50 cursor-not-allowed' : (isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent')}`} 
+                     className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto text-main-text ${isInputDisabled ? 'bg-gray-200 opacity-50 cursor-not-allowed' : (isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent')}`} 
                      style={{ minHeight: '44px', maxHeight: '72px' }}
                    />
                  </div>
                  {!input.trim() && !editingMsgId && voicePreview === null && pendingImages.length === 0 ? (
-                   <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-[var(--border)] transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200' : (isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-white hover:bg-gray-50 hover:-translate-y-[1px]')}`}>
+                   <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-border transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : (isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:bg-gray-50 hover:-translate-y-[1px]')}`}>
                      <Mic size={18} className={isRecording ? 'animate-bounce' : ''} />
                    </button>
                  ) : (
-                   <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 border-2 border-[var(--border)] flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : 'bg-[var(--primary)] text-white shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none'}`}>
+                   <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 border-2 border-border flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : 'bg-primary text-primary-text shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none'}`}>
                      <Send size={18} />
                    </button>
                  )}
@@ -771,14 +771,14 @@ export function ChatView({
             </div>
           </div>
           {showDetails && (
-            <div className="flex flex-col w-full md:w-1/3 retro-bg-main overflow-y-auto relative border-l-2 retro-border">
-              <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-[var(--bg-window)] retro-border retro-shadow-dark z-10 rounded-full"><X size={16} /></button>
-              <div className="p-2 flex gap-1 bg-[var(--border)] shrink-0"><button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'media' ? 'bg-white' : 'opacity-50 text-white'}`}>Media</button><button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'calls' ? 'bg-white' : 'opacity-50 text-white'}`}>Calls</button><button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'search' ? 'bg-white' : 'opacity-50 text-white'}`}>Search</button></div>
+            <div className="flex flex-col w-full md:w-1/3 bg-main overflow-y-auto relative border-l-2 border-border">
+              <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-border retro-shadow-dark z-10 rounded-full"><X size={16} /></button>
+              <div className="p-2 flex gap-1 bg-border shrink-0"><button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'media' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Media</button><button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'calls' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Calls</button><button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'search' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Search</button></div>
               <div className="p-4 flex flex-col gap-6">
                 {activeSidebarTab === 'search' && (
-                  <div>
-                    <h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Search size={16} /> Search Logs</h3>
-                    <div className="flex bg-white retro-border p-3 shadow-[1px_1px_0px_0px_var(--border)]">
+                  <div className="text-main-text">
+                    <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><Search size={16} /> Search Logs</h3>
+                    <div className="flex bg-window border-2 border-border p-3 shadow-[1px_1px_0px_0px_var(--border)]">
                       <input 
                         type="text" 
                         value={searchQuery} 
@@ -797,10 +797,10 @@ export function ChatView({
                           <div 
                             key={m.id} 
                             onClick={() => jumpToMessage(m.id)}
-                            className="bg-white retro-border p-3 cursor-pointer hover:bg-[var(--accent)] transition-all group/res active:scale-95 shadow-[2px_2px_0px_0px_var(--border)]"
+                            className="bg-window border-2 border-border p-3 cursor-pointer hover:bg-accent hover:text-accent-text transition-all group/res active:scale-95 shadow-[2px_2px_0px_0px_var(--border)]"
                           >
                             <div className="flex justify-between items-center mb-1">
-                              <span className="text-[10px] font-black uppercase text-[var(--primary)]">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
+                              <span className="text-[10px] font-black uppercase text-primary">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
                               <span className="text-[9px] opacity-40 font-bold">{m.time}</span>
                             </div>
                             <p className="text-xs font-bold line-clamp-2 leading-relaxed">{m.text || '📸 Media / Attachment'}</p>
@@ -812,11 +812,11 @@ export function ChatView({
                 )}
                 {activeSidebarTab === 'media' && (
                   <>
-                    <div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><Pin size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-[var(--bg-window)] p-2 text-sm retro-border border-l-4 border-l-[var(--accent)]"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>
-                    <div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><ImageIcon size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewerContext({ urls: m.type === 'image_group' ? m.urls : [m.url], index: 0, isOpen: true })} className="aspect-square retro-border retro-shadow-dark bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}></div>)))}</div></div>
+                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><Pin size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-window p-2 text-sm border-2 border-border border-l-4 border-l-accent"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>
+                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><ImageIcon size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewerContext({ urls: m.type === 'image_group' ? m.urls : [m.url], index: 0, isOpen: true })} className="aspect-square border-2 border-border shadow-md bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}></div>)))}</div></div>
                   </>
                 )}
-                {activeSidebarTab === 'calls' && (<div><h3 className="font-bold border-b-2 border-[var(--border)] pb-2 mb-4 flex items-center gap-2"><History size={16} /> Call History</h3><div className="flex flex-col gap-2 overflow-y-auto pr-1">{callHistory.length === 0 ? (<p className="text-sm opacity-50">No call history.</p>) : (callHistory.reverse().map(m => (<div key={m.id} className="bg-[var(--bg-window)] p-3 text-xs retro-border flex items-center justify-between"><div className="flex items-center gap-2">{m.callType === 'video' ? <Video size={14} className="text-[var(--secondary)]" /> : <Phone size={14} className="text-[var(--primary)]" />}<div><p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p><p className="opacity-50">{m.time}</p></div></div><span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 retro-border ${m.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{m.status}</span></div>)))}</div></div>)}
+                {activeSidebarTab === 'calls' && (<div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><History size={16} /> Call History</h3><div className="flex flex-col gap-2 overflow-y-auto pr-1">{callHistory.length === 0 ? (<p className="text-sm opacity-50">No call history.</p>) : (callHistory.reverse().map(m => (<div key={m.id} className="bg-window p-3 text-xs border-2 border-border flex items-center justify-between"><div className="flex items-center gap-2">{m.callType === 'video' ? <Video size={14} className="text-secondary" /> : <Phone size={14} className="text-primary" />}<div><p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p><p className="opacity-50">{m.time}</p></div></div><span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 border-2 border-border ${m.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{m.status}</span></div>)))}</div></div>)}
               </div>
             </div>
           )}

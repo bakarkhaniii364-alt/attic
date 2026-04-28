@@ -210,7 +210,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
       {perfectWin && <Confetti active={true} />}
       {showCountdown && <ScoreboardCountdown onComplete={() => setShowCountdown(false)} sfx={sfx} />}
       
-      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0">
+      <div className="bg-border text-window p-2 flex justify-between items-center font-bold px-4 flex-shrink-0">
           <span>{config.category === 'custom' ? `Custom Match` : `Level: ${config.diff}`}</span>
           <span className="flex gap-2">
               <button disabled={hintUsed} onClick={useHint} className="bg-white text-black px-2 py-px rounded retro-border disabled:opacity-50"><Lightbulb size={12} className="inline"/> Hint</button>
@@ -220,7 +220,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
       {mastermindPhase === 'SETUP' ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-pattern-grid">
-              <div className="w-16 h-16 bg-[var(--primary)] retro-border flex items-center justify-center text-white mb-6 shadow-[0_0_20px_var(--primary)]">
+              <div className="w-16 h-16 bg-primary border-2 border-border flex items-center justify-center text-primary-text mb-6 shadow-[0_0_20px_rgba(0,0,0,0.2)]">
                   <Activity size={32} />
               </div>
               <h2 className="text-2xl font-black uppercase tracking-widest mb-4">Mastermind Mode</h2>
@@ -232,7 +232,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
                 value={customTarget} 
                 onChange={(e) => setCustomTarget(e.target.value.replace(/[^A-Za-z]/g, ''))}
                 placeholder="*****"
-                className="w-full max-w-[200px] text-center font-black text-4xl tracking-[0.5em] p-4 retro-border shadow-inner uppercase mb-6 bg-white focus:outline-none focus:ring-4 focus:ring-[var(--primary)]/20"
+                className="w-full max-w-[200px] text-center font-black text-4xl tracking-[0.5em] p-4 border-2 border-border shadow-inner uppercase mb-6 bg-window text-main-text focus:outline-none focus:ring-4 focus:ring-primary/20"
               />
               
               <RetroButton onClick={handleSetMastermindWord} disabled={customTarget.length !== wordLen} className="px-12 py-4 text-base">
@@ -243,7 +243,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
           <div className="flex flex-col items-center flex-1 overflow-y-auto py-6">
         
         {config.mode === 'competitive' && gameStatus === "playing" && ( 
-            <div className={`mb-6 font-bold text-sm px-6 py-2 shadow-sm retro-border transition-colors duration-300 ${turn === 1 ? 'bg-[var(--primary)] text-white' : 'bg-[var(--secondary)] text-white'}`}>Player {turn}'s Guess</div> 
+            <div className={`mb-6 font-bold text-sm px-6 py-2 shadow-sm border-2 border-border transition-colors duration-300 ${turn === 1 ? 'bg-primary text-primary-text' : 'bg-secondary text-secondary-text'}`}>Player {turn}'s Guess</div> 
         )}
         {config.mode === 'coop' && <div className="mb-4 opacity-50 font-bold uppercase tracking-widest text-xs"><Activity size={12} className="inline mr-1"/> Co-op Mode</div>}
 
@@ -266,8 +266,8 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
             return ( 
             <div key={i} className={`grid gap-1 sm:gap-2 ${shakingRow === i ? 'animate-shake' : ''}`} style={{ gridTemplateColumns: `repeat(${wordLen}, minmax(0, 1fr))` }}>
                 {wordToDisplay.split('').map((char, j) => { 
-                    let bgColor = "retro-bg-window"; 
-                    let textColor = "text-[var(--text-main)]";
+                    let bgColor = "bg-window"; 
+                    let textColor = "text-main-text";
                     let state = "empty";
                     
                     if (guess !== "" && !isAnimating) { 
@@ -277,7 +277,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
                     }
 
                     return (
-                        <div key={j} className={`relative w-full pb-[100%] retro-border font-bold text-2xl sm:text-3xl ${isCurrentRow && char !== ' ' ? 'retro-shadow-primary scale-105' : ''}`} style={{ perspective: '1000px' }}>
+                        <div key={j} className={`relative w-full pb-[100%] border-2 border-border font-bold text-2xl sm:text-3xl ${isCurrentRow && char !== ' ' ? 'shadow-[0_0_10px_var(--primary)] scale-105' : ''}`} style={{ perspective: '1000px' }}>
                             <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 transform preserve-3d ${isAnimating ? 'animate-flip' : ''}`} style={{ animationDelay: isAnimating ? `${j * 150}ms` : '0ms' }}>
                                  <div className={`w-full h-full flex items-center justify-center ${bgColor} ${textColor} ${state!=='empty' ? 'border-none' : ''}`}>
                                     {char}
@@ -300,7 +300,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
       )}
 
       {gameStatus === "playing" && (
-         <div className="bg-[var(--border)] p-3 pb-8 retro-border-t">
+         <div className="bg-border p-3 pb-8 border-t-2 border-border">
              <div className="flex flex-col gap-2 max-w-[400px] mx-auto w-full">
                  {KEYBOARD.map((row, i) => (
                      <div key={i} className="flex justify-center gap-1 sm:gap-2">
