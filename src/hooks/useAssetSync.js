@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase.js';
  * useAssetSync - Specialized hook for room assets (Doodles, Images)
  * Fetches assets from shared_assets table and handles storage uploads.
  */
-export function useAssetSync(roomId, assetType = null) {
+export function useAssetSync(roomId, assetType = null, userId = null) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -124,12 +124,21 @@ export function useAssetSync(roomId, assetType = null) {
   }, []);
 
   const markAssetRead = useCallback(async (id) => {
-    if (!id) return;
+    if (!id || !userId) return;
     try {
-      await supabase.from('shared_assets').update({ isRead: true }).eq('id', id);
-      setAssets(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+      const asset = assets.find(a => a.id === id);
+      if (!asset) return;
+      
+      const metadata = asset.metadata || {};
+      const readBy = Array.isArray(metadata.read_by) ? metadata.read_by : [];
+      
+      if (!readBy.includes(userId)) {
+        const newMetadata = { ...metadata, read_by: [...readBy, userId] };
+        await supabase.from('shared_assets').update({ metadata: newMetadata }).eq('id', id);
+        setAssets(prev => prev.map(a => a.id === id ? { ...a, metadata: newMetadata } : a));
+      }
     } catch(e) { console.error('Failed to mark read', e); }
-  }, []);
+  }, [assets, userId]);
 
   return { assets, uploadAsset, deleteAsset, markAssetRead, loading };
 }

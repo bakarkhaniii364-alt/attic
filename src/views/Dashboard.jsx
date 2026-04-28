@@ -458,7 +458,10 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   };
 
   const nav = (v) => setView(v);
-  const unreadDoodles = safeDoodles.filter(d => d.owner_id === partnerId && !d.isRead);
+  const unreadDoodles = safeDoodles.filter(d => {
+    const readBy = Array.isArray(d.metadata?.read_by) ? d.metadata.read_by : [];
+    return d.owner_id === partnerId && !readBy.includes(userId);
+  });
   const [petCooldown, setPetCooldown] = useState(false);
   const [petAction, setPetAction] = useState(null); // eat or other triggered external actions
   

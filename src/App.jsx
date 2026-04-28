@@ -474,7 +474,7 @@ export default function App() {
   }, [syncedRoomId, userId]);
 
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId);
-  const { assets: doodles, uploadAsset: uploadDoodle, markAssetRead } = useAssetSync(syncedRoomId, 'doodle');
+  const { assets: doodles, uploadAsset: uploadDoodle, markAssetRead } = useAssetSync(syncedRoomId, 'doodle', userId);
   const { assets: sharedImages, uploadAsset: uploadImage } = useAssetSync(syncedRoomId, 'scrapbook');
   
   // Legacy setters for compatibility during transition (can be removed once all components migrated)
