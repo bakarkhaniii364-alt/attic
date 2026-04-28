@@ -218,9 +218,9 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                 key={id} onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
                 className="flex flex-col items-start p-6 bg-white border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
               >
-                <div className="w-6 h-6 mb-4 border-2 border-black shadow-sm" style={{ backgroundColor: g.color }}></div>
-                <h3 className="font-black text-lg mb-2 text-black font-mono tracking-tight uppercase">{g.title}</h3>
-                <p className="text-xs text-gray-600 leading-tight font-mono">{g.desc}</p>
+                <div className="w-5 h-5 mb-4 border-2 border-[var(--border)] shadow-[2px_2px_0_0_var(--border)]" style={{ backgroundColor: g.color }}></div>
+                <h3 className="font-black text-lg mb-2 text-[var(--text-main)] tracking-tight">{g.title}</h3>
+                <p className="text-xs text-[var(--text-main)] opacity-70 leading-tight font-medium">{g.desc}</p>
               </button>
             ))}
           </div>
