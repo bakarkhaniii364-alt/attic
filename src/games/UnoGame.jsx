@@ -91,27 +91,29 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
   // Initialize game
   useEffect(() => {
     if (isHost && !gameState) {
-      let deck = createDeck();
-      const p1Hand = deck.splice(0, 7);
-      const p2Hand = deck.splice(0, 7);
-      let firstCard = deck.pop();
-      while (firstCard.color === 'wild') {
-         deck.unshift(firstCard);
-         firstCard = deck.pop();
-      }
-      
-      setGameState({
-        deck,
-        discard: [firstCard],
-        hands: {
-          [myPlayerId]: p1Hand,
-          [oppPlayerId]: p2Hand
-        },
-        turn: myPlayerId,
-        currentColor: firstCard.color,
-        unoCalled: { [myPlayerId]: false, [oppPlayerId]: false },
-        winner: null
-      });
+      setTimeout(() => {
+        let deck = createDeck();
+        const p1Hand = deck.splice(0, 7);
+        const p2Hand = deck.splice(0, 7);
+        let firstCard = deck.pop();
+        while (firstCard.color === 'wild') {
+           deck.unshift(firstCard);
+           firstCard = deck.pop();
+        }
+        
+        setGameState({
+          deck,
+          discard: [firstCard],
+          hands: {
+            [myPlayerId]: p1Hand,
+            [oppPlayerId]: p2Hand
+          },
+          turn: myPlayerId,
+          currentColor: firstCard.color,
+          unoCalled: { [myPlayerId]: false, [oppPlayerId]: false },
+          winner: null
+        });
+      }, 2000);
     }
   }, [isHost, gameState, myPlayerId, oppPlayerId, setGameState]);
 
@@ -376,10 +378,21 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       }
   }, [turn, isMultiplayer, winner, deck, discard, hands, unoCalled, currentColor, myPlayerId]);
 
-  if (!gameState) return <div className="p-8 text-center animate-pulse font-black text-xl">Shuffling...</div>;
+  if (!gameState) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-[var(--bg-main)] h-full w-full">
+        <div className="relative w-24 h-32 mb-4 flex items-center justify-center">
+           <CardUI card={{color:'back'}} hidden={true} className="absolute inset-0 animate-bounce" />
+           <CardUI card={{color:'back'}} hidden={true} className="absolute inset-0 animate-pulse delay-75" style={{ transform: 'rotate(10deg)' }} />
+           <CardUI card={{color:'back'}} hidden={true} className="absolute inset-0 animate-pulse delay-150" style={{ transform: 'rotate(-10deg)' }} />
+        </div>
+        <div className="font-black text-2xl uppercase tracking-widest text-[var(--primary)] animate-pulse text-center">Shuffling Deck...</div>
+      </div>
+    );
+  }
 
   return (
-    <RetroWindow title="retro_uno.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title="retro_uno.exe" onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
       <div className="flex w-[800px] h-[600px] max-w-full max-h-[85vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
         
          {/* Sidebar */}

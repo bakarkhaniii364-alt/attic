@@ -43,7 +43,15 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     const rect = canvas.getBoundingClientRect(); if (rect.width === 0 || rect.height === 0) return;
     const ctx = canvas.getContext('2d'); const imgData = canvas.dataset.initialized === 'true' && canvas.width > 0 && canvas.height > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
     canvas.width = rect.width; canvas.height = rect.height;
-    if (initialDoodle && !canvas.dataset.initialized) { const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); snapshotHistory.current=[canvas.toDataURL()]; }; img.src = initialDoodle.img; canvas.dataset.initialized = 'true'; } 
+    if (initialDoodle && !canvas.dataset.initialized) { 
+      const img = new Image(); 
+      img.onload = () => { 
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+        snapshotHistory.current = [canvas.toDataURL()]; 
+      }; 
+      img.src = typeof initialDoodle === 'string' ? initialDoodle : initialDoodle.img; 
+      canvas.dataset.initialized = 'true'; 
+    } 
     else if (imgData) { ctx.putImageData(imgData, 0, 0); } 
     else { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); canvas.dataset.initialized = 'true'; snapshotHistory.current=[canvas.toDataURL()]; }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';

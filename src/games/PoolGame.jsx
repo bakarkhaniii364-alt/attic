@@ -207,8 +207,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               b.y += b.vy;
               
               // Friction
-              b.vx *= 0.985;
-              b.vy *= 0.985;
+              b.vx *= 0.99;
+              b.vy *= 0.99;
               if (Math.abs(b.vx) < 0.05) b.vx = 0;
               if (Math.abs(b.vy) < 0.05) b.vy = 0;
               
@@ -222,7 +222,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
               // Pockets
               for (const p of POCKETS) {
-                  if (Math.hypot(b.x - p.x, b.y - p.y) < POCKET_R + 5) {
+                  const distToPocket = Math.hypot(b.x - p.x, b.y - p.y);
+                  if (distToPocket < POCKET_R) {
                       b.active = false;
                       b.vx = 0; b.vy = 0;
                       playAudio('sink', sfx);
@@ -231,12 +232,14 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               }
           }
 
-          // Collisions
-          for (let i = 0; i < balls.length; i++) {
-              if (!balls[i].active) continue;
-              for (let j = i + 1; j < balls.length; j++) {
-                  if (!balls[j].active) continue;
-                  solveCollision(balls[i], balls[j]);
+          // Collisions - sub-stepping for better accuracy
+          for (let step = 0; step < 2; step++) {
+              for (let i = 0; i < balls.length; i++) {
+                  if (!balls[i].active) continue;
+                  for (let j = i + 1; j < balls.length; j++) {
+                      if (!balls[j].active) continue;
+                      solveCollision(balls[i], balls[j]);
+                  }
               }
           }
 
@@ -428,19 +431,19 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   
                   engine.balls.forEach(b => {
                       if (!b.active || b.id === 0) return;
+                      // Sphere-ray intersection (simplified)
                       const vx = b.x - cue.x;
                       const vy = b.y - cue.y;
-                      const t = vx * nx + vy * ny;
-                      if (t > 0) {
-                          const qx = cue.x + t * nx;
-                          const qy = cue.y + t * ny;
-                          const dsq = (b.x - qx)**2 + (b.y - qy)**2;
-                          const rsq = (BALL_R * 2)**2;
-                          if (dsq <= rsq) {
-                              const tInt = t - Math.sqrt(rsq - dsq);
-                              if (tInt > 0 && tInt < minT) {
-                                  minT = tInt;
-                                  closestHit = { ball: b, tInt, qx, qy, dsq };
+                      const bProj = vx * nx + vy * ny;
+                      if (bProj > 0) {
+                          const perpDistSq = (vx * vx + vy * vy) - (bProj * bProj);
+                          const radiusSumSq = (BALL_R * 2 + 0.5) ** 2; // Add tiny buffer for accuracy
+                          if (perpDistSq < radiusSumSq) {
+                              const tOffset = Math.sqrt(radiusSumSq - perpDistSq);
+                              const tHit = bProj - tOffset;
+                              if (tHit > 0 && tHit < minT) {
+                                  minT = tHit;
+                                  closestHit = { ball: b, tHit };
                               }
                           }
                       }
@@ -772,6 +775,16 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                         </div>
                     </div>
 
+                    {/* Pocketed Info */}
+                    <div className="mt-4 p-3 bg-[var(--bg-main)] retro-border">
+                        <div className="text-[10px] font-black uppercase opacity-40 mb-2">Balls Remaining</div>
+                        <div className="flex flex-wrap gap-2">
+                            {engineRef.current.balls.filter(b => b.active && b.id !== 0).map(b => (
+                                <div key={b.id} className="w-5 h-5 rounded-full border border-black shadow-sm" style={{ backgroundColor: COLORS[b.id] }}></div>
+                            ))}
+                        </div>
+                    </div>
+
                     <div className="mt-auto">
                         <div className="text-xs opacity-70 font-bold mb-1 uppercase">Game Status</div>
                         <div className="text-sm font-bold bg-[var(--bg-main)] p-2 retro-border shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
@@ -789,6 +802,16 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
+                {/* Scoring Overlay for Mobile */}
+                <div className="absolute top-4 left-4 right-4 md:hidden flex justify-between z-20 pointer-events-none">
+                    <div className="bg-white/90 p-2 retro-border text-xs font-bold">
+                        YOU: {engineRef.current.balls.filter(b => !b.active && b.type === myType).length}
+                    </div>
+                    <div className="bg-white/90 p-2 retro-border text-xs font-bold">
+                        OPP: {engineRef.current.balls.filter(b => !b.active && b.type === oppType).length}
+                    </div>
+                </div>
+
                 <div className="relative max-h-full max-w-full aspect-[11/6]">
                     <canvas 
                        ref={canvasRef} 

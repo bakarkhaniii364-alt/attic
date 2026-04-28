@@ -65,30 +65,30 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
   // Initialization (Host)
   useEffect(() => {
     if (isHost && !gameState) {
-      const deck = createDeck();
-      const h1 = deck.splice(0, 26);
-      const h2 = deck.splice(0, 26);
-      
-      setMyHand(h1);
-      
-      if (isMultiplayer) {
-         // Tell partner their hand
-         setTimeout(() => broadcast({ type: 'deal', to: oppId, hand: h2 }), 1000);
-      } else {
-         // AI stores its hand in a ref
-         trueCenterPile.current.aiHand = h2;
-      }
+      setTimeout(() => {
+        const deck = createDeck();
+        const h1 = deck.splice(0, 26);
+        const h2 = deck.splice(0, 26);
+        
+        setMyHand(h1);
+        
+        if (isMultiplayer) {
+           broadcast({ type: 'deal', to: oppId, hand: h2 });
+        } else {
+           trueCenterPile.current.aiHand = h2;
+        }
 
-      setGameState({
-        turn: myId,
-        targetRankIdx: 0,
-        centerCount: 0,
-        lastPlay: null,
-        handsCount: { [myId]: 26, [oppId]: 26 },
-        phase: 'action', // action | reaction | reveal
-        revealResult: null,
-        winner: null
-      });
+        setGameState({
+          turn: myId,
+          targetRankIdx: 0,
+          centerCount: 0,
+          lastPlay: null,
+          handsCount: { [myId]: 26, [oppId]: 26 },
+          phase: 'action', 
+          revealResult: null,
+          winner: null
+        });
+      }, 2000);
     }
   }, [isHost, gameState, myId, oppId, setGameState, isMultiplayer, broadcast]);
 
@@ -301,7 +301,17 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
 
   }, [gameState, isMultiplayer, config.diff, myId]);
 
-  if (!gameState) return <div className="p-8 text-center animate-pulse font-black text-xl uppercase">Dealing Cards...</div>;
+  if (!gameState) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-[var(--bg-main)] h-full w-full">
+        <div className="relative w-24 h-32 mb-4 flex items-center justify-center">
+           <CardUI hidden={true} className="absolute inset-0 animate-bounce" />
+           <CardUI hidden={true} className="absolute inset-0 animate-pulse delay-75" style={{ transform: 'rotate(10deg)' }} />
+        </div>
+        <div className="font-black text-2xl uppercase tracking-widest text-[var(--secondary)] animate-pulse text-center">Dealing Cards...</div>
+      </div>
+    );
+  }
 
   const { turn, targetRankIdx, centerCount, lastPlay, handsCount, phase, revealResult, winner } = gameState;
   const isMyTurn = turn === myId;
@@ -310,7 +320,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
   const sortedMyHand = [...myHand].sort((a,b) => RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank));
 
   return (
-    <RetroWindow title="bluff.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title="bluff.exe" onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
       <div className="flex flex-col items-center justify-between p-4 w-[800px] h-[600px] max-w-full max-h-[85vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
         
          {/* Opponent Info */}

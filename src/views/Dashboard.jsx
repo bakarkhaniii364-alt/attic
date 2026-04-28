@@ -45,11 +45,17 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
         setSleepStartTime(now);
       }
 
-      if (isSleeping && sleepStartTime && (now - sleepStartTime > 4 * 60 * 60 * 1000)) {
+      // Daytime nap chance (5%)
+      if (!isNight && !isSleeping && (now - lastActivityTime > 60000) && Math.random() > 0.95) {
+        setIsSleeping(true);
+        setSleepStartTime(now);
+      }
+
+      if (isSleeping && sleepStartTime && (now - sleepStartTime > 1 * 60 * 60 * 1000)) {
         setIsSleeping(false);
         setLastActivityTime(now);
       }
-    }, 10000);
+    }, 20000);
 
     return () => clearInterval(interval);
   }, [isSleeping, lastActivityTime, sleepStartTime]);
@@ -70,7 +76,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   useEffect(() => {
     if (isSleeping || currentAction !== 'idle' || isSad) return;
     const interval = setInterval(() => {
-      if (Math.random() > 0.95) {
+      if (Math.random() > 0.8) { // 20% chance every 10s
         const randomAction = randomIdleActions[Math.floor(Math.random() * randomIdleActions.length)];
         triggerAction(randomAction, 3000);
       }
@@ -340,6 +346,15 @@ export const Unit = React.memo(({ val, label }) => {
             transformStyle: 'preserve-3d'
           }}
         >
+          {/* Pet Info */}
+          <div className="flex flex-col gap-3">
+             <div className="flex items-center gap-2">
+                <span className="font-bold text-xs uppercase opacity-50">Status:</span>
+                <span className={`text-xs font-black uppercase ${isSleeping ? 'text-blue-500' : 'text-green-500'}`}>
+                    {isSleeping ? 'Sleeping' : currentAction === 'idle' ? 'Chilling' : currentAction}
+                </span>
+             </div>
+          </div>
           {/* Front of Flap: Old Top Half */}
           <div className="absolute inset-0 bg-[var(--bg-window)] overflow-hidden flex items-end justify-center pb-[1px] backface-hidden border-b border-[var(--border)]/20" style={{ backfaceVisibility: 'hidden' }}>
             <span className="translate-y-1/2">{currentStr}</span>
@@ -386,7 +401,7 @@ export function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction, streaks, isPartnerAfk, lobbyState }) {
+export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction, streaks, isPartnerAfk, lobbyState, roomId }) {
   const partnerPresence = onlineUsers[partnerId] || {};
   const isPartnerOnline = partnerPresence.status === 'active';
   
@@ -439,6 +454,29 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   const [petCooldown, setPetCooldown] = useState(false);
   const [petAction, setPetAction] = useState(null); // eat or other triggered external actions
   
+  // Fetch and manage doodles
+  const [seenAssets, setSeenAssets] = useLocalStorage('seen_assets', []);
+  const [unviewedDoodle, setUnviewedDoodle] = useState(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+    import('../hooks/useAssetSync.js').then(({ getAssets }) => {
+      getAssets(roomId, 'doodle').then(assets => {
+        const newDoodles = assets.filter(a => a.sender_id === partnerId && !seenAssets.includes(a.id));
+        if (newDoodles.length > 0) {
+          setUnviewedDoodle(newDoodles[newDoodles.length - 1]);
+        }
+      });
+    });
+  }, [roomId, partnerId, seenAssets]);
+
+  const markDoodleAsSeen = (id) => {
+    if (!seenAssets.includes(id)) {
+      setSeenAssets([...seenAssets, id]);
+    }
+    setUnviewedDoodle(null);
+  };
+
   const handleFeed = () => {
     if (petCooldown) return;
     playAudio('click', sfx);
