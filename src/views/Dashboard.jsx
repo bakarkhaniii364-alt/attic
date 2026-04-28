@@ -179,7 +179,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
     if (isPartnerAfk) return { start: 22, frames: 6, duration: 1200 };
     if (isHovering) return { start: 11, frames: 8, duration: 1200 };
 
-    return { start: 0, frames: 6, duration: 1400 };
+    return { start: 0, frames: 4, duration: 1400 };
   };
 
   const { start, frames, duration } = getSpriteForState();
