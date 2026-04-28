@@ -161,7 +161,7 @@ export function ChatView({
   const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
   const [voiceBase64, setVoiceBase64] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [lobbyState, setLobbyState] = useGlobalSync('game_lobby', { status: 'idle' });
+  const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -269,17 +269,6 @@ export function ChatView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeOptions]);
 
-  // Handle click outside to close options
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (activeOptions && !e.target.closest('.message-options-menu') && !e.target.closest('.options-trigger')) {
-        setActiveOptions(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeOptions]);
-
   const handleStartCall = (type) => {
     playAudio('click', sfx);
     onStartCall(type);
@@ -297,7 +286,15 @@ export function ChatView({
   const handleJoinGame = (inviteMsg) => {
     playAudio('click', sfx);
     // Update lobby state to 'joined'
-    setLobbyState({ ...inviteMsg, status: 'joined', partnerId: userId });
+    setLobbyState(prev => {
+      const newPlayers = Array.from(new Set([...(prev?.players || []), userId]));
+      return {
+        ...prev,
+        players: newPlayers,
+        gameId: inviteMsg.gameId || prev.gameId,
+        status: newPlayers.length >= 2 ? 'ready' : 'waiting'
+      };
+    });
     // Navigate to activity
     navigate(`/activities/${inviteMsg.gameId}`);
   };

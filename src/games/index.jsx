@@ -89,6 +89,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   const [view, setView] = useState('arcade');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   useEffect(() => {
      if (view === 'scores') {
@@ -137,7 +138,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   const handleCreateLobby = (mode) => {
       playAudio('click', sfx);
       const gameConfig = { mode: mode.id, diff: selectedDiff, ...selectedOptions };
-      setLobbyState({ players: [userId], gameId: gameRoute, status: 'waiting', config: gameConfig });
+      setLobbyState({ players: [userId], hostId: userId, gameId: gameRoute, status: 'waiting', config: gameConfig });
       onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute });
   };
 
@@ -249,7 +250,22 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
              </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full bg-[var(--bg-main)]">
+           <div className="flex-1 overflow-hidden flex flex-col bg-[var(--bg-main)]">
+            {lobbyState?.gameId && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status !== 'playing' && (
+              <div className="bg-[var(--secondary)] text-[var(--text-on-secondary)] p-4 border-b-2 retro-border flex items-center justify-between gap-4 animate-pulse shrink-0">
+                  <div className="flex items-center gap-3">
+                      <Users className="shrink-0" />
+                      <div>
+                          <h2 className="text-sm font-black uppercase mb-0.5">Partner is Waiting!</h2>
+                          <p className="font-bold text-[10px] opacity-90">They are in a lobby for {GAME_CATALOG[lobbyState.gameId]?.title || lobbyState.gameId}.</p>
+                      </div>
+                  </div>
+                  <RetroButton variant="white" className="text-black px-4 py-1.5 text-xs whitespace-nowrap" onClick={() => {
+                    navigate(`/activities/${lobbyState.gameId}`);
+                  }}>View Lobby</RetroButton>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full">
             {Object.entries(GAME_CATALOG).map(([id, g]) => (
               <button 
                 key={id} onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
@@ -260,6 +276,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                 <p className="text-xs text-[var(--text-main)] opacity-70 leading-tight font-medium">{g.desc}</p>
               </button>
             ))}
+            </div>
           </div>
         )}
       </RetroWindow>

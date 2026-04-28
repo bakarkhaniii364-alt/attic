@@ -554,7 +554,7 @@ export default function App() {
 
   // ── NEW: AFK & PRESENCE TRACKING ──
   const [afkState, setAfkState] = useGlobalSync('afk_tracker', { [userId]: false, [partnerId]: false });
-  const [lobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null });
+  const [lobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
 
   // Detect if user switches tabs
   useEffect(() => {
