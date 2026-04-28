@@ -601,6 +601,8 @@ export default function App() {
   const [isDeafened, setIsDeafened] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   
+  const tabIdRef = useRef(crypto.randomUUID());
+  const myPeerId = userId ? `${userId}-${tabIdRef.current}` : null;
   const peerRef = useRef(null);
   const currentCallRef = useRef(null);
   const ringingIntervalRef = useRef(null);
@@ -675,7 +677,16 @@ export default function App() {
       // Solution 16: Use syncSendMessage instead of setChatHistory stub
       syncSendMessage('Call ended', 'call_invite', userId, { status: 'ended', callType: callState.type });
     }
-    setCalling(null); setIsRinging(false);
+    
+    if (globalChannelRef.current && globalChannelRef.current.state === 'joined') {
+        globalChannelRef.current.send({
+            type: 'broadcast',
+            event: 'call_signal',
+            payload: { action: 'ended' }
+        });
+    }
+
+    setCalling(null); setIsRinging(false); setIncomingCall(null);
     if (currentCallRef.current) { try { currentCallRef.current.close(); } catch(e){} currentCallRef.current = null; }
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
@@ -700,7 +711,7 @@ export default function App() {
           peerRef.current = null;
       }
 
-      const peer = new Peer(userId, { 
+      const peer = new Peer(myPeerId, { 
         debug: 1, // Keep debug low to prevent console spam
         config: { iceServers: [
           { urls: 'stun:stun.l.google.com:19302' }, 
@@ -773,8 +784,8 @@ export default function App() {
       });
     };
 
-    // Debounce the initial connection to prevent React StrictMode double-mount issues
-    retryTimeout = setTimeout(initPeer, 500);
+    // Remove debounce entirely since IDs are unique now
+    initPeer();
 
     // Cleanup on unmount
     return () => { 
@@ -789,17 +800,23 @@ export default function App() {
 
   // Data connection for E2EE Key Exchange
   useEffect(() => {
-      // Connect to partner once we have our key to share it
+      // Connect to all of partner's active tabs once we have our key
       if (!peerRef.current || peerRef.current.destroyed || !partnerId || !syncedRoomId || !e2eeKey) return;
       
-      const dataConn = peerRef.current.connect(partnerId);
-      dataConn.on('open', async () => {
-          const storedKeyBase64 = getLocalKey(syncedRoomId);
-          if (storedKeyBase64) {
+      const partnerPeerIds = onlineUsers[partnerId]?.peerIds || [];
+      if (partnerPeerIds.length === 0) return;
+
+      const storedKeyBase64 = getLocalKey(syncedRoomId);
+      if (!storedKeyBase64) return;
+
+      partnerPeerIds.forEach(targetPeerId => {
+          const dataConn = peerRef.current.connect(targetPeerId);
+          dataConn.on('open', async () => {
               dataConn.send({ type: 'E2EE_KEY_EXCHANGE', key: storedKeyBase64 });
-          }
+          });
+          dataConn.on('error', () => {}); // Handle ghost tabs gracefully
       });
-  }, [partnerId, syncedRoomId, e2eeKey]);
+  }, [partnerId, syncedRoomId, e2eeKey, onlineUsers]);
 
   // NEW: Robust Call State Machine
   useEffect(() => {
@@ -817,7 +834,7 @@ export default function App() {
     if (callState.status === 'accepted' && callState.callerId === userId && isRinging) {
       setIsRinging(false);
       setCalling(callState.type);
-      initiatePeerCall(callState.type);
+      // Wait for partner to execute peer.call() towards us, handled in initPeer
     }
 
     // Call connected (both sides)
@@ -894,6 +911,16 @@ export default function App() {
     if (callState.status !== 'idle') return;
     setIsRinging(true);
     setIsCameraOff(type === 'audio'); // Audio call defaults to camera off
+    setCalling(type);
+
+    if (globalChannelRef.current && globalChannelRef.current.state === 'joined') {
+        globalChannelRef.current.send({
+            type: 'broadcast',
+            event: 'call_signal',
+            payload: { action: 'ring', callerPeerId: myPeerId, type }
+        });
+    }
+
     setCallState({ status: 'ringing', type, callerId: userId, calleeId: partnerId, timestamp: Date.now() });
     // Solution 16 & 19: Robust unique ID and syncSendMessage
     syncSendMessage('Incoming call...', 'call_invite', userId, { callType: type, status: 'ringing' });
@@ -903,7 +930,7 @@ export default function App() {
     playAudio('click', sfxEnabled);
     try {
       // Solution 2: Permission handling
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.type === 'video' })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: incomingCall?.type === 'video' || callState.type === 'video' })
         .catch(err => {
             if (err.name === 'NotAllowedError') toast('Camera/Mic permission denied', 'error');
             throw err;
@@ -912,14 +939,27 @@ export default function App() {
       localStreamRef.current = stream;
       setCallState(prev => ({ ...prev, status: 'accepted' }));
       
-      // NEW: Answer the waiting PeerJS call here!
-      if (currentCallRef.current && currentCallRef.current.answer) {
-         currentCallRef.current.answer(stream);
-         currentCallRef.current.on('stream', (rs) => { 
-            setRemoteStream(rs);
-         });
-         currentCallRef.current.on('close', () => handleEndCall());
+      if (globalChannelRef.current && globalChannelRef.current.state === 'joined') {
+          globalChannelRef.current.send({
+              type: 'broadcast',
+              event: 'call_signal',
+              payload: { action: 'answered' }
+          });
       }
+
+      if (incomingCall?.callerPeerId && peerRef.current) {
+         const call = peerRef.current.call(incomingCall.callerPeerId, stream);
+         currentCallRef.current = call;
+         call.on('stream', (rs) => { setRemoteStream(rs); });
+         call.on('close', () => handleEndCall());
+         call.on('error', () => handleEndCall());
+      }
+      
+      setCalling(incomingCall?.type || callState.type);
+      setIncomingCall(null);
+      setIsRinging(false);
+      
+      if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
 
       // Solution 16: Update synchronized message status
       const ringingInvite = chatHistory.find(m => m.type === 'call_invite' && m.status === 'ringing' && m.sender === partnerId);
@@ -927,13 +967,20 @@ export default function App() {
           syncUpdateMessage(ringingInvite.id, { status: 'accepted' });
       }
     } catch (err) { console.error('Failed accept', err); handleEndCall(); }
-    setIncomingCall(null);
   };
 
   const rejectCall = () => { 
     playAudio('click', sfxEnabled);
     setCallState({ status: 'rejected', type: callState.type, timestamp: Date.now() });
     
+    if (globalChannelRef.current && globalChannelRef.current.state === 'joined') {
+        globalChannelRef.current.send({
+            type: 'broadcast',
+            event: 'call_signal',
+            payload: { action: 'ended' }
+        });
+    }
+
     // Find the active ringing invite and update it
     const ringingInvite = chatHistory.find(m => m.type === 'call_invite' && m.status === 'ringing');
     if (ringingInvite && syncedRoomId) {
@@ -1121,7 +1168,7 @@ export default function App() {
     
     const handleVisibility = () => {
       if (globalChannelRef.current?.state === 'joined') {
-        globalChannelRef.current.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+        globalChannelRef.current.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString(), peerId: myPeerId });
       }
     };
 
@@ -1148,7 +1195,8 @@ export default function App() {
             Object.keys(newState).forEach(id => {
                onlineMap[id] = {
                  status: newState[id][0]?.status || 'active',
-                 lastActive: newState[id][0]?.onlineAt || new Date().toISOString()
+                 lastActive: newState[id][0]?.onlineAt || new Date().toISOString(),
+                 peerIds: newState[id].map(presence => presence.peerId).filter(Boolean)
                };
             });
             setOnlineUsers({ ...onlineMap });
@@ -1167,10 +1215,29 @@ export default function App() {
                 playAudio('notif', sfxEnabled);
              }
           })
+          .on('broadcast', { event: 'call_signal' }, (payload) => {
+             const data = payload.payload;
+             if (data.action === 'ring' && data.callerPeerId) {
+                 setIncomingCall({ type: data.type, fromName: partnerName, callerPeerId: data.callerPeerId });
+                 setIsRinging(true);
+                 if (!ringingIntervalRef.current) {
+                     ringingIntervalRef.current = setInterval(() => playAudio('receive', sfxEnabled), 1200);
+                 }
+             } else if (data.action === 'answered' || data.action === 'ended') {
+                 setIsRinging(false);
+                 setIncomingCall(null);
+                 if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
+                 
+                 if (data.action === 'answered' && calling && !currentCallRef.current) {
+                     // I am the caller, and partner answered! 
+                     setCalling(calling);
+                 }
+             }
+          })
           .subscribe(async (status) => {
             console.log("🔵 Unified Channel Status:", status);
             if (status === 'SUBSCRIBED') {
-              await channel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString() });
+              await channel.track({ status: document.hasFocus() ? 'active' : 'idle', onlineAt: new Date().toISOString(), peerId: myPeerId });
             }
           });
 
