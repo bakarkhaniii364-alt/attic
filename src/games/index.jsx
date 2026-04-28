@@ -196,7 +196,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
         {view === 'scores' ? (
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[var(--bg-window)] text-[var(--text-main)]">
-             <div className="max-w-2xl mx-auto border-4 border-double border-[var(--border)] p-4 sm:p-8 bg-pattern-grid relative">
+             <div className="max-w-2xl mx-auto border-4 border-double border-[var(--border)] p-4 sm:p-8 relative">
                 <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 uppercase tracking-[0.3em]">Hall of Fame</h2>
                 <div className="space-y-4">
                   {Object.entries(scores || {}).map(([gId, data]) => (
@@ -212,7 +212,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
              </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full bg-[#faecd6] bg-pattern-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full bg-[var(--bg-main)]">
             {Object.entries(GAME_CATALOG).map(([id, g]) => (
               <button 
                 key={id} onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
@@ -236,7 +236,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       return (
         <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
           <div className="flex flex-col h-full bg-[var(--bg-main)]">
-             <div className="p-8 border-b-4 border-double border-[var(--border)] bg-pattern-grid flex items-center gap-6 shrink-0">
+             <div className="p-8 border-b-4 border-double border-[var(--border)] flex items-center gap-6 shrink-0">
                  <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center retro-border bg-white" style={{ color: game.color }}>
                     <Gamepad2 size={48} />
                  </div>

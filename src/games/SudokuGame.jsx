@@ -120,12 +120,11 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         num = parseInt(e.code.slice(5));
       }
 
-      // Use '*' key as notes modifier: press '*' then a number to toggle note
-      if (e.key === '*') { setNotesMode(true); return; }
+      // Use '*' key as tool toggle: switches between pen and pencil
+      if (e.key === '*') { setTool(t => t === 'pencil' ? 'pen' : 'pencil'); return; }
 
       if (!isNaN(num) && num >= 1 && num <= 9) {
-        handleInput(num, notesMode);
-        if (notesMode) setNotesMode(false);
+        handleInput(num, tool === 'pencil');
       } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
         if (!selected || !board.length) return;
         const [r, c] = selected;
@@ -247,9 +246,20 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
 
                 return (
                   <div key={`${r}-${c}`}
-                    onClick={() => { playAudio('click', sfx); setSelected([r, c]); }}
+                    onClick={() => { 
+                      playAudio('click', sfx); 
+                      setSelected([r, c]); 
+                      if (tool === 'eraser' && !cell.fixed) {
+                         setBoard(b => {
+                             const nb = [...b];
+                             nb[r] = [...nb[r]];
+                             nb[r][c] = { ...nb[r][c], val: null, notes: [], error: false };
+                             return nb;
+                         });
+                      }
+                    }}
                     style={cellStyle}
-                    className={`relative flex items-center justify-center text-sm sm:text-xl md:text-2xl cursor-pointer ${borders} ${extraClass} ${cell.fixed ? 'text-[var(--border)]' : 'text-[var(--primary)]'} ${isNumMatch ? 'font-black' : (cell.fixed ? 'font-bold' : 'font-medium')} transition-colors`}
+                    className={`relative flex items-center justify-center text-sm sm:text-xl md:text-2xl cursor-pointer ${borders} ${extraClass} ${cell.fixed ? 'text-[var(--border)]' : 'text-[var(--primary)]'} ${isNumMatch ? 'font-black !text-[var(--secondary)] scale-110 drop-shadow-sm' : (cell.fixed ? 'font-bold' : 'font-medium')} transition-colors`}
                   >
                     {cell.val || ''}
                     {!cell.val && cell.notes.length > 0 && (

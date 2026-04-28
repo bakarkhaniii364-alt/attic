@@ -407,6 +407,9 @@ export default function App() {
         Object.keys(valueToStore).forEach(k => {
             if (typeof valueToStore[k] === 'number' || typeof valueToStore[k] === 'string') {
                 sanitized[k] = valueToStore[k];
+            } else if (typeof valueToStore[k] === 'object' && valueToStore[k] !== null && !Array.isArray(valueToStore[k])) {
+                // allow simple nested objects for game scores (e.g. { sudoku: { p1: 5, p2: 1 } })
+                sanitized[k] = valueToStore[k];
             }
         });
     }
