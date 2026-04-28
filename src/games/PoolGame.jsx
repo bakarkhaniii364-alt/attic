@@ -54,27 +54,50 @@ const getInitialBalls = () => {
 };
 
 const drawBall = (ctx, x, y, radius, color, id) => {
+    // 1. Base color
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
+
+    // 2. Dark crescent shadow (bottom right)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
     
-    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x - radius * 0.2, y - radius * 0.2, radius, 0, Math.PI * 2);
+    ctx.arc(x, y, radius * 3, 0, Math.PI * 2, true); 
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Highlight dot (top left)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x - radius * 0.35, y - radius * 0.35, radius * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Black outline
+    ctx.lineWidth = 3;
     ctx.strokeStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    if (id !== 0) {
+    // 5. Number only for 8-ball
+    if (id === 8) {
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(x, y, radius * 0.45, 0, Math.PI * 2);
+        ctx.arc(x, y, radius * 0.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
 
         ctx.fillStyle = '#000000';
-        ctx.font = 'bold 11px monospace';
+        ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(id, x, y + 1);
+        ctx.fillText('8', x, y + 1);
     }
 };
 
@@ -307,8 +330,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       let frameId;
       const render = () => {
-          // NO Anti-Aliasing
-          ctx.imageSmoothingEnabled = false;
+          // Smooth curves
+          ctx.imageSmoothingEnabled = true;
 
           const bgWindow = bodyStyles.getPropertyValue('--bg-window').trim() || '#ffffff';
 
@@ -316,62 +339,58 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.fillStyle = bgWindow;
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-          // 2. Flat Chunky Wood Frame
-          const WOOD = 24;
-          const left = BORDER_SIZE - WOOD;
-          const top = BORDER_SIZE - WOOD;
-          const w = PLAY_WIDTH + WOOD * 2;
-          const h = PLAY_HEIGHT + WOOD * 2;
+          // 1. Board Structure from Image
+          const WOOD = 32;
+          const OUTLINE = 8;
+          
+          const outerX = BORDER_SIZE - WOOD - OUTLINE;
+          const outerY = BORDER_SIZE - WOOD - OUTLINE;
+          const outerW = PLAY_WIDTH + WOOD*2 + OUTLINE*2;
+          const outerH = PLAY_HEIGHT + WOOD*2 + OUTLINE*2;
+
+          // Outer Black Outline (Rounded)
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          if (ctx.roundRect) {
+              ctx.roundRect(outerX, outerY, outerW, outerH, 20);
+          } else {
+              ctx.fillRect(outerX, outerY, outerW, outerH);
+          }
+          ctx.fill();
 
           // Wood Base
-          ctx.fillStyle = '#8E562E';
-          ctx.fillRect(left, top, w, h);
+          ctx.fillStyle = '#8C5741';
+          ctx.beginPath();
+          if (ctx.roundRect) {
+              ctx.roundRect(BORDER_SIZE - WOOD, BORDER_SIZE - WOOD, PLAY_WIDTH + WOOD*2, PLAY_HEIGHT + WOOD*2, 12);
+          } else {
+              ctx.fillRect(BORDER_SIZE - WOOD, BORDER_SIZE - WOOD, PLAY_WIDTH + WOOD*2, PLAY_HEIGHT + WOOD*2);
+          }
+          ctx.fill();
 
-          // Wood Highlight (Top/Left)
-          ctx.fillStyle = '#B07548';
-          ctx.fillRect(left, top, w, 4);
-          ctx.fillRect(left, top, 4, h);
+          // Inner Black Outline
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(BORDER_SIZE - OUTLINE, BORDER_SIZE - OUTLINE, PLAY_WIDTH + OUTLINE*2, PLAY_HEIGHT + OUTLINE*2);
 
-          // Wood Shadow (Bottom/Right)
-          ctx.fillStyle = '#5A3317';
-          ctx.fillRect(left, top + h - 4, w, 4);
-          ctx.fillRect(left + w - 4, top, 4, h);
-
-          // Wood Outer Outline
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(left, top, w, h);
+          // Felt Surface
+          ctx.fillStyle = '#46A04A';
+          ctx.fillRect(BORDER_SIZE, BORDER_SIZE, PLAY_WIDTH, PLAY_HEIGHT);
 
           ctx.save();
           ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
-          // 3. Felt Surface (Flat vibrant green)
-          ctx.fillStyle = '#107C41';
-          ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
-
-          // Inner felt outline
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
-
-          // Simple aliased Baulk line
-          ctx.beginPath();
-          ctx.moveTo(PLAY_WIDTH * 0.25, 0);
-          ctx.lineTo(PLAY_WIDTH * 0.25, PLAY_HEIGHT);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-
-          // 4. Square Pockets
+          // 2. Pockets (Black circles overlapping wood and felt)
           ctx.fillStyle = '#000000';
-          const pocketSize = 36;
           POCKETS.forEach(p => {
-              ctx.fillRect(p.x - pocketSize/2, p.y - pocketSize/2, pocketSize, pocketSize);
+              ctx.beginPath();
+              // Smooth large black circles
+              ctx.arc(p.x, p.y, POCKET_R + 2, 0, Math.PI * 2);
+              ctx.fill();
           });
 
           const engine = engineRef.current;
           
-          // Draw aiming line (Laser sight only on drag)
+          // Draw aiming line
           const isMyTurn = gameState?.turn === myPlayerId;
           const cue = engine.balls.find(b => b.id === 0);
           
@@ -408,9 +427,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       }
                   });
 
-                  // Flat Stark Laser Configuration
-                  ctx.strokeStyle = '#FF00FF';
-                  ctx.lineWidth = 3;
+                  // Fading white aim cone/line
+                  const aimLen = 600;
+                  const grad = ctx.createLinearGradient(cue.x, cue.y, cue.x + nx * aimLen, cue.y + ny * aimLen);
+                  grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
@@ -419,11 +440,15 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       const hx = cue.x + nx * minT;
                       const hy = cue.y + ny * minT;
                       ctx.lineTo(hx, hy);
+                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                      ctx.lineWidth = 6;
                       ctx.stroke();
                       
-                      // Draw ghost cue ball
+                      // Draw ghost cue ball outline
                       ctx.beginPath();
                       ctx.arc(hx, hy, BALL_R, 0, Math.PI * 2);
+                      ctx.strokeStyle = '#ffffff';
+                      ctx.lineWidth = 2;
                       ctx.stroke();
 
                       // Target ball trajectory
@@ -437,10 +462,13 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       ctx.beginPath();
                       ctx.moveTo(tBall.x, tBall.y);
                       ctx.lineTo(tBall.x + ncx * 150, tBall.y + ncy * 150);
+                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                      ctx.lineWidth = 4;
                       ctx.stroke();
                   } else {
-                      // Ray to edge
-                      ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); 
+                      ctx.lineTo(cue.x + nx * aimLen, cue.y + ny * aimLen); 
+                      ctx.strokeStyle = grad;
+                      ctx.lineWidth = 6;
                       ctx.stroke();
                   }
                   
@@ -452,8 +480,9 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
                   ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
-                  ctx.strokeStyle = '#FFFF00';
-                  ctx.lineWidth = 4;
+                  ctx.strokeStyle = `rgba(255, ${255 * (1 - powerRatio)}, 0, 0.8)`;
+                  ctx.lineWidth = 6;
+                  ctx.lineCap = 'round';
                   ctx.stroke();
               }
           }
