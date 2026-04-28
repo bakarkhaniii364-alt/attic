@@ -123,7 +123,7 @@ export function useChatSync(roomId) {
                 });
             });
           } else if (payload.eventType === 'UPDATE') {
-            mapMessage(payload.new, keyRef.current).then(mapped => {
+            mapMessage(payload.new).then(mapped => {
                 setMessages((prev) => {
                   const newMsgs = prev.map((m) => (m.id === mapped.id ? mapped : m));
                   localforage.setItem(`chat_cache_${roomId}`, newMsgs);
