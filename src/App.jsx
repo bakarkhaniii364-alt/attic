@@ -686,14 +686,18 @@ export default function App() {
     
     let retryCount = 0; // Track how many times we've failed
     let retryTimeout = null;
+    let isMounted = true;
 
     const initPeer = () => {
+      if (!isMounted) return;
+
       // Gracefully disconnect from signaling server before destroying
       if (peerRef.current && !peerRef.current.destroyed) {
           try { 
               peerRef.current.disconnect(); 
               peerRef.current.destroy(); 
           } catch(e) {}
+          peerRef.current = null;
       }
 
       const peer = new Peer(userId, { 
@@ -711,6 +715,7 @@ export default function App() {
 
       // Successfully connected to signaling server
       peer.on('open', () => {
+          if (!isMounted) return;
           console.log("[PeerJS] Connected successfully. ID active.");
           retryCount = 0; // Reset backoff counter on success
       });
@@ -738,7 +743,7 @@ export default function App() {
         call.on('close', () => handleEndCall());
         call.on('error', () => handleEndCall());
 
-        const currentStatus = callStateRef.current.status;
+        const currentStatus = callStateRef.current?.status;
         if (currentStatus === 'connected' || currentStatus === 'accepted') {
            if (localStreamRef.current) {
                call.answer(localStreamRef.current);
@@ -748,6 +753,7 @@ export default function App() {
       });
 
       peer.on('error', (err) => {
+        if (!isMounted) return;
         // Handle all network drops and taken IDs with Exponential Backoff
         if (err.type === 'disconnected' || err.type === 'network' || err.type === 'unavailable-id') {
             retryCount++;
@@ -758,6 +764,7 @@ export default function App() {
             
             if (peerRef.current) {
                 try { peerRef.current.disconnect(); peerRef.current.destroy(); } catch(e){}
+                peerRef.current = null;
             }
             
             if (retryTimeout) clearTimeout(retryTimeout);
@@ -766,13 +773,16 @@ export default function App() {
       });
     };
 
-    initPeer();
+    // Debounce the initial connection to prevent React StrictMode double-mount issues
+    retryTimeout = setTimeout(initPeer, 500);
 
     // Cleanup on unmount
     return () => { 
+        isMounted = false;
         if (retryTimeout) clearTimeout(retryTimeout);
         if (peerRef.current) {
             try { peerRef.current.disconnect(); peerRef.current.destroy(); } catch(e) {}
+            peerRef.current = null;
         }
     };
   }, [userId]); // Removed calling dependency

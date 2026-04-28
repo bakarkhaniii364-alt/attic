@@ -273,20 +273,26 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       });
   };
 
-  // Rendering Loop
+      // Rendering Loop
   useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
+      const bodyStyles = getComputedStyle(document.body);
 
       let frameId;
       const render = () => {
-          // Background - Wood border
-          ctx.fillStyle = '#e3a05c'; 
+          const bgWindow = bodyStyles.getPropertyValue('--bg-window').trim() || '#ffffff';
+          const bgMain = bodyStyles.getPropertyValue('--bg-main').trim() || '#eeeeee';
+          const borderCol = bodyStyles.getPropertyValue('--border').trim() || '#000000';
+          const primaryCol = bodyStyles.getPropertyValue('--primary').trim() || '#ef4444';
+
+          // Background - Wood border area
+          ctx.fillStyle = bgWindow; 
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
           
           // Wood border outline
-          ctx.strokeStyle = '#2b1d14';
+          ctx.strokeStyle = borderCol;
           ctx.lineWidth = BORDER_SIZE;
           ctx.strokeRect(BORDER_SIZE / 2, BORDER_SIZE / 2, CANVAS_WIDTH - BORDER_SIZE, CANVAS_HEIGHT - BORDER_SIZE);
 
@@ -294,7 +300,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
           // Table markers (diamonds)
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = primaryCol;
           const markersX = [PLAY_WIDTH / 4, PLAY_WIDTH / 2, PLAY_WIDTH * 0.75];
           const markersY = [PLAY_HEIGHT / 4, PLAY_HEIGHT / 2, PLAY_HEIGHT * 0.75];
 
@@ -307,37 +313,41 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               ctx.beginPath(); ctx.arc(PLAY_WIDTH + BORDER_SIZE / 2, y, 4, 0, Math.PI * 2); ctx.fill();
           });
 
-          // Felt Background Gradient
+          // Felt Background Gradient using Theme Colors
           const gradient = ctx.createRadialGradient(PLAY_WIDTH / 2, PLAY_HEIGHT / 2, 50, PLAY_WIDTH / 2, PLAY_HEIGHT / 2, PLAY_WIDTH);
-          gradient.addColorStop(0, '#2b9348');
-          gradient.addColorStop(1, '#1a5f2e');
+          gradient.addColorStop(0, bgWindow);
+          gradient.addColorStop(1, bgMain);
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
 
           // Inner felt outline
-          ctx.strokeStyle = '#000000';
+          ctx.strokeStyle = borderCol;
           ctx.lineWidth = 2;
           ctx.strokeRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
 
           // Cushions
-          ctx.fillStyle = '#166534';
+          ctx.fillStyle = primaryCol;
+          ctx.globalAlpha = 0.3;
           ctx.fillRect(POCKET_R, 0, PLAY_WIDTH - POCKET_R * 2, 14);
           ctx.fillRect(POCKET_R, PLAY_HEIGHT - 14, PLAY_WIDTH - POCKET_R * 2, 14);
           ctx.fillRect(0, POCKET_R, 14, PLAY_HEIGHT - POCKET_R * 2);
           ctx.fillRect(PLAY_WIDTH - 14, POCKET_R, 14, PLAY_HEIGHT - POCKET_R * 2);
+          ctx.globalAlpha = 1.0;
 
           // Baulk line
           ctx.beginPath();
           ctx.moveTo(PLAY_WIDTH * 0.25, 0);
           ctx.lineTo(PLAY_WIDTH * 0.25, PLAY_HEIGHT);
-          ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+          ctx.strokeStyle = borderCol;
+          ctx.globalAlpha = 0.3;
           ctx.lineWidth = 2;
           ctx.setLineDash([6, 6]);
           ctx.stroke();
           ctx.setLineDash([]);
+          ctx.globalAlpha = 1.0;
 
           // Pockets
-          ctx.fillStyle = '#000000';
+          ctx.fillStyle = borderCol;
           POCKETS.forEach(p => {
               ctx.beginPath();
               ctx.arc(p.x, p.y, POCKET_R, 0, Math.PI * 2);
@@ -370,14 +380,102 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   const nx = dx / dist;
                   const ny = dy / dist;
 
-                  // Ray to edge (Trajectory preview)
+                  // Raycast for collision
+                  let closestHit = null;
+                  let minT = Infinity;
+                  
+                  engine.balls.forEach(b => {
+                      if (!b.active || b.id === 0) return;
+                      // V = C - P
+                      const vx = b.x - cue.x;
+                      const vy = b.y - cue.y;
+                      // t = V . D
+                      const t = vx * nx + vy * ny;
+                      if (t > 0) {
+                          // Q = P + tD
+                          const qx = cue.x + t * nx;
+                          const qy = cue.y + t * ny;
+                          // dist = |C - Q|
+                          const dsq = (b.x - qx)**2 + (b.y - qy)**2;
+                          const rsq = (BALL_R * 2)**2;
+                          if (dsq <= rsq) {
+                              const tInt = t - Math.sqrt(rsq - dsq);
+                              if (tInt > 0 && tInt < minT) {
+                                  minT = tInt;
+                                  closestHit = { ball: b, tInt, qx, qy, dsq };
+                              }
+                          }
+                      }
+                  });
+
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
-                  ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); 
-                  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                  ctx.setLineDash([10, 10]);
-                  ctx.lineWidth = 3;
-                  ctx.stroke();
+
+                  if (closestHit) {
+                      // Hit point (where cue ball will be at impact)
+                      const hx = cue.x + nx * minT;
+                      const hy = cue.y + ny * minT;
+                      ctx.lineTo(hx, hy);
+                      
+                      // Draw cue ball path to impact
+                      ctx.strokeStyle = borderCol;
+                      ctx.setLineDash([5, 5]);
+                      ctx.lineWidth = 2;
+                      ctx.stroke();
+                      
+                      // Draw ghost cue ball
+                      ctx.beginPath();
+                      ctx.arc(hx, hy, BALL_R, 0, Math.PI * 2);
+                      ctx.strokeStyle = borderCol;
+                      ctx.globalAlpha = 0.5;
+                      ctx.stroke();
+                      ctx.globalAlpha = 1.0;
+
+                      // Target ball trajectory
+                      const tBall = closestHit.ball;
+                      const nColX = tBall.x - hx;
+                      const nColY = tBall.y - hy;
+                      const nColDist = Math.hypot(nColX, nColY);
+                      const ncx = nColX / nColDist;
+                      const ncy = nColY / nColDist;
+                      
+                      // Cue ball deflected trajectory
+                      const dot = nx * ncx + ny * ncy;
+                      const defX = nx - dot * ncx;
+                      const defY = ny - dot * ncy;
+                      const defDist = Math.hypot(defX, defY);
+                      let dfx = 0, dfy = 0;
+                      if (defDist > 0.001) {
+                         dfx = defX / defDist;
+                         dfy = defY / defDist;
+                      }
+
+                      // Draw target ball expected line
+                      ctx.beginPath();
+                      ctx.moveTo(tBall.x, tBall.y);
+                      ctx.lineTo(tBall.x + ncx * 150, tBall.y + ncy * 150);
+                      ctx.strokeStyle = primaryCol;
+                      ctx.setLineDash([5, 5]);
+                      ctx.stroke();
+
+                      // Draw cue ball deflected line
+                      if (defDist > 0.001) {
+                          ctx.beginPath();
+                          ctx.moveTo(hx, hy);
+                          ctx.lineTo(hx + dfx * 100, hy + dfy * 100);
+                          ctx.strokeStyle = borderCol;
+                          ctx.setLineDash([5, 5]);
+                          ctx.stroke();
+                      }
+
+                  } else {
+                      // Ray to edge
+                      ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); 
+                      ctx.strokeStyle = borderCol;
+                      ctx.setLineDash([10, 10]);
+                      ctx.lineWidth = 3;
+                      ctx.stroke();
+                  }
                   ctx.setLineDash([]);
                   
                   // Power Pull Preview (if dragging)
