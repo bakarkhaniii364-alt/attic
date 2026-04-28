@@ -20,6 +20,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   const holdTimeoutRef = useRef(null);
   const pointerDownTimeRef = useRef(0);
   const spriteRef = useRef(null);
+  const actionVariantRef = useRef(0);
 
   const bgImage = (skin && skin !== 'undefined' && skin !== 'null') ? skin : '/assets/cat 1.9.png';
   const isSad = !isSleeping && happy < 30;
@@ -51,6 +52,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   }, [isSleeping, lastActivityTime, sleepStartTime]);
 
   const triggerAction = (actionName, duration) => {
+    actionVariantRef.current = Math.random();
     setCurrentAction(actionName);
     if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
     actionTimeoutRef.current = setTimeout(() => {
@@ -119,20 +121,53 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
 
   const getSpriteForState = () => {
     if (isSleeping) {
-      // Toggle between Sleep Row 13 (2 frames) and Row 14 (3 frames)
-      const isAlt = (Math.floor(Date.now() / 10000) % 2 === 0);
-      return { row: isAlt ? 13 : 14, frames: isAlt ? 2 : 3, duration: 1000 };
+      const sleepOpts = [
+        { row: 12, frames: 2 },
+        { row: 13, frames: 2 },
+        { row: 16, frames: 2 },
+        { row: 17, frames: 2 }
+      ];
+      const opt = sleepOpts[Math.floor(Date.now() / 10000) % sleepOpts.length];
+      return { row: opt.row, frames: opt.frames, duration: 1000 };
     }
 
-    if (currentAction === 'hiss') return { row: 41, frames: 2, duration: 500 };
+    const variant = actionVariantRef.current;
+
+    if (currentAction === 'hiss') return { row: variant > 0.5 ? 41 : 42, frames: 2, duration: 500 };
     if (currentAction === 'eat') return { row: 20, frames: 8, duration: 1000 };
-    if (currentAction === 'meow') return { row: 28, frames: 4, duration: 700 };
-    if (currentAction === 'yawn') return { row: 32, frames: 8, duration: 1100 };
-    if (currentAction === 'wash') return { row: 36, frames: 8, duration: 1000 };
-    if (currentAction === 'paw') return { row: 45, frames: 9, duration: 900 };
-    if (currentAction === 'stretch') return { row: 3, frames: 8, duration: 1200 };
-    if (currentAction === 'scratch') return { row: 39, frames: 8, duration: 1000 };
-    if (currentAction === 'walk') return { row: 7, frames: 9, duration: 1200 };
+    
+    if (currentAction === 'meow') {
+      const meows = [{r:28, f:3}, {r:29, f:3}, {r:30, f:3}, {r:31, f:3}];
+      const m = meows[Math.floor(variant * meows.length)];
+      return { row: m.r, frames: m.f, duration: 700 };
+    }
+    
+    if (currentAction === 'yawn') {
+      const yawns = [{r:32, f:8}, {r:33, f:8}, {r:34, f:8}, {r:35, f:8}];
+      const y = yawns[Math.floor(variant * yawns.length)];
+      return { row: y.r, frames: y.f, duration: 1100 };
+    }
+    
+    if (currentAction === 'wash') {
+      const licks = [{r:36, f:9}, {r:37, f:9}, {r:38, f:7}];
+      const l = licks[Math.floor(variant * licks.length)];
+      return { row: l.r, frames: l.f, duration: 1000 };
+    }
+    
+    if (currentAction === 'paw') return { row: 44, frames: 9, duration: 900 };
+    if (currentAction === 'stretch') return { row: 52, frames: 4, duration: 1200 };
+    
+    if (currentAction === 'scratch') {
+      const scratches = [{r:39, f:11}, {r:40, f:11}];
+      const s = scratches[Math.floor(variant * scratches.length)];
+      return { row: s.r, frames: s.f, duration: 1200 };
+    }
+    
+    if (currentAction === 'walk') {
+      const walks = [{r:6, f:8}, {r:7, f:8}];
+      const w = walks[Math.floor(variant * walks.length)];
+      return { row: w.r, frames: w.f, duration: 1200 };
+    }
 
     if (isSad) return { row: 43, frames: 1, duration: 1000 };
     if (isPartnerAfk) return { row: 2, frames: 6, duration: 1200 };
