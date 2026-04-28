@@ -53,6 +53,40 @@ const getInitialBalls = () => {
   return balls;
 };
 
+const drawBall = (ctx, x, y, radius, color, id) => {
+    // Base color & 2px black outline
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
+    ctx.stroke();
+
+    // Semi-transparent black shadow bottom-right
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.arc(x + radius * 0.2, y + radius * 0.2, radius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // White pixel-art style highlight top-left
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x - radius * 0.5, y - radius * 0.5, 4, 4);
+
+    if (id !== 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(id, x, y + 1);
+    }
+};
+
 const solveCollision = (b1, b2) => {
   const dx = b2.x - b1.x;
   const dy = b2.y - b1.y;
@@ -287,58 +321,66 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           const borderCol = bodyStyles.getPropertyValue('--border').trim() || '#000000';
           const primaryCol = bodyStyles.getPropertyValue('--primary').trim() || '#ef4444';
 
-          // Background - Wood border area
-          ctx.fillStyle = bgWindow; 
+          // 1. Chunky Beveled Frame (Wood Base)
+          ctx.fillStyle = '#8b4513';
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-          
-          // Wood border outline
+
+          // Wood Highlight (Top/Left)
+          ctx.fillStyle = '#b06a3b';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, 12);
+          ctx.fillRect(0, 0, 12, CANVAS_HEIGHT);
+
+          // Wood Shadow (Bottom/Right)
+          ctx.fillStyle = '#5e2d09';
+          ctx.fillRect(0, CANVAS_HEIGHT - 12, CANVAS_WIDTH, 12);
+          ctx.fillRect(CANVAS_WIDTH - 12, 0, 12, CANVAS_HEIGHT);
+
+          // Wood Outer Outline
           ctx.strokeStyle = borderCol;
-          ctx.lineWidth = BORDER_SIZE;
-          ctx.strokeRect(BORDER_SIZE / 2, BORDER_SIZE / 2, CANVAS_WIDTH - BORDER_SIZE, CANVAS_HEIGHT - BORDER_SIZE);
+          ctx.lineWidth = 4;
+          ctx.strokeRect(2, 2, CANVAS_WIDTH - 4, CANVAS_HEIGHT - 4);
 
           ctx.save();
           ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
           // Table markers (diamonds)
-          ctx.fillStyle = primaryCol;
+          ctx.fillStyle = '#ffffff';
           const markersX = [PLAY_WIDTH / 4, PLAY_WIDTH / 2, PLAY_WIDTH * 0.75];
           const markersY = [PLAY_HEIGHT / 4, PLAY_HEIGHT / 2, PLAY_HEIGHT * 0.75];
 
           markersX.forEach(x => {
-              ctx.beginPath(); ctx.arc(x, -BORDER_SIZE / 2, 4, 0, Math.PI * 2); ctx.fill();
-              ctx.beginPath(); ctx.arc(x, PLAY_HEIGHT + BORDER_SIZE / 2, 4, 0, Math.PI * 2); ctx.fill();
+              ctx.beginPath(); ctx.moveTo(x, -BORDER_SIZE / 2 - 4); ctx.lineTo(x + 4, -BORDER_SIZE / 2); ctx.lineTo(x, -BORDER_SIZE / 2 + 4); ctx.lineTo(x - 4, -BORDER_SIZE / 2); ctx.fill();
+              ctx.beginPath(); ctx.moveTo(x, PLAY_HEIGHT + BORDER_SIZE / 2 - 4); ctx.lineTo(x + 4, PLAY_HEIGHT + BORDER_SIZE / 2); ctx.lineTo(x, PLAY_HEIGHT + BORDER_SIZE / 2 + 4); ctx.lineTo(x - 4, PLAY_HEIGHT + BORDER_SIZE / 2); ctx.fill();
           });
           markersY.forEach(y => {
-              ctx.beginPath(); ctx.arc(-BORDER_SIZE / 2, y, 4, 0, Math.PI * 2); ctx.fill();
-              ctx.beginPath(); ctx.arc(PLAY_WIDTH + BORDER_SIZE / 2, y, 4, 0, Math.PI * 2); ctx.fill();
+              ctx.beginPath(); ctx.moveTo(-BORDER_SIZE / 2 - 4, y); ctx.lineTo(-BORDER_SIZE / 2, y - 4); ctx.lineTo(-BORDER_SIZE / 2 + 4, y); ctx.lineTo(-BORDER_SIZE / 2, y + 4); ctx.fill();
+              ctx.beginPath(); ctx.moveTo(PLAY_WIDTH + BORDER_SIZE / 2 - 4, y); ctx.lineTo(PLAY_WIDTH + BORDER_SIZE / 2, y - 4); ctx.lineTo(PLAY_WIDTH + BORDER_SIZE / 2 + 4, y); ctx.lineTo(PLAY_WIDTH + BORDER_SIZE / 2, y + 4); ctx.fill();
           });
 
-          // Felt Background Gradient using Theme Colors
+          // Inner dark-green cushion layer between wood and felt
+          ctx.fillStyle = '#0f381c';
+          ctx.fillRect(-12, -12, PLAY_WIDTH + 24, PLAY_HEIGHT + 24);
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-12, -12, PLAY_WIDTH + 24, PLAY_HEIGHT + 24);
+
+          // Felt Background Gradient
           const gradient = ctx.createRadialGradient(PLAY_WIDTH / 2, PLAY_HEIGHT / 2, 50, PLAY_WIDTH / 2, PLAY_HEIGHT / 2, PLAY_WIDTH);
-          gradient.addColorStop(0, bgWindow);
-          gradient.addColorStop(1, bgMain);
+          gradient.addColorStop(0, '#2b9348');
+          gradient.addColorStop(1, '#1a5f2e');
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
 
           // Inner felt outline
-          ctx.strokeStyle = borderCol;
+          ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
           ctx.strokeRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
-
-          // Cushions
-          ctx.fillStyle = primaryCol;
-          ctx.globalAlpha = 0.3;
-          ctx.fillRect(POCKET_R, 0, PLAY_WIDTH - POCKET_R * 2, 14);
-          ctx.fillRect(POCKET_R, PLAY_HEIGHT - 14, PLAY_WIDTH - POCKET_R * 2, 14);
-          ctx.fillRect(0, POCKET_R, 14, PLAY_HEIGHT - POCKET_R * 2);
-          ctx.fillRect(PLAY_WIDTH - 14, POCKET_R, 14, PLAY_HEIGHT - POCKET_R * 2);
-          ctx.globalAlpha = 1.0;
 
           // Baulk line
           ctx.beginPath();
           ctx.moveTo(PLAY_WIDTH * 0.25, 0);
           ctx.lineTo(PLAY_WIDTH * 0.25, PLAY_HEIGHT);
-          ctx.strokeStyle = borderCol;
+          ctx.strokeStyle = '#ffffff';
           ctx.globalAlpha = 0.3;
           ctx.lineWidth = 2;
           ctx.setLineDash([6, 6]);
@@ -346,39 +388,40 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.setLineDash([]);
           ctx.globalAlpha = 1.0;
 
-          // Pockets
-          ctx.fillStyle = borderCol;
+          // 2. Stylized Pockets (Chunky rectangles)
           POCKETS.forEach(p => {
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, POCKET_R, 0, Math.PI * 2);
-              ctx.fill();
+              const pw = 44;
+              const ph = 44;
+              
+              // Base pocket (black rectangle overlapping frame)
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(p.x - pw/2, p.y - ph/2, pw, ph);
+
+              // Dark grey inner rim
+              ctx.strokeStyle = '#333333';
+              ctx.lineWidth = 6;
+              ctx.strokeRect(p.x - pw/2 + 3, p.y - ph/2 + 3, pw - 6, ph - 6);
+              
+              // Outer outline
+              ctx.strokeStyle = '#000000';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(p.x - pw/2, p.y - ph/2, pw, ph);
           });
 
           const engine = engineRef.current;
           
-          // Draw aiming line
+          // Draw aiming line (Laser sight only on drag)
           const isMyTurn = gameState?.turn === myPlayerId;
           const cue = engine.balls.find(b => b.id === 0);
           
-          if (isMyTurn && !engine.isSimulating && cue && cue.active && engine.hoverMouse) {
-              let dx = 0, dy = 0;
-              let pullDist = 0;
-              
-              if (engine.dragStart && engine.currentMouse) {
-                  // Dragging to shoot
-                  dx = engine.dragStart.x - engine.currentMouse.x;
-                  dy = engine.dragStart.y - engine.currentMouse.y;
-                  pullDist = Math.hypot(dx, dy);
-              } else {
-                  // Hovering
-                  dx = engine.hoverMouse.x - cue.x;
-                  dy = engine.hoverMouse.y - cue.y;
-              }
+          if (isMyTurn && !engine.isSimulating && cue && cue.active && engine.dragStart && engine.currentMouse) {
+              const dx = engine.dragStart.x - engine.currentMouse.x;
+              const dy = engine.dragStart.y - engine.currentMouse.y;
+              const pullDist = Math.hypot(dx, dy);
 
-              if (dx !== 0 || dy !== 0) {
-                  const dist = Math.hypot(dx, dy);
-                  const nx = dx / dist;
-                  const ny = dy / dist;
+              if (pullDist > 0) {
+                  const nx = dx / pullDist;
+                  const ny = dy / pullDist;
 
                   // Raycast for collision
                   let closestHit = null;
@@ -386,16 +429,12 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   
                   engine.balls.forEach(b => {
                       if (!b.active || b.id === 0) return;
-                      // V = C - P
                       const vx = b.x - cue.x;
                       const vy = b.y - cue.y;
-                      // t = V . D
                       const t = vx * nx + vy * ny;
                       if (t > 0) {
-                          // Q = P + tD
                           const qx = cue.x + t * nx;
                           const qy = cue.y + t * ny;
-                          // dist = |C - Q|
                           const dsq = (b.x - qx)**2 + (b.y - qy)**2;
                           const rsq = (BALL_R * 2)**2;
                           if (dsq <= rsq) {
@@ -408,6 +447,12 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       }
                   });
 
+                  // Neon Laser Configuration
+                  ctx.shadowColor = '#00ffff';
+                  ctx.shadowBlur = 15;
+                  ctx.strokeStyle = '#00ffff';
+                  ctx.lineWidth = 3;
+
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
 
@@ -416,17 +461,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       const hx = cue.x + nx * minT;
                       const hy = cue.y + ny * minT;
                       ctx.lineTo(hx, hy);
-                      
-                      // Draw cue ball path to impact
-                      ctx.strokeStyle = borderCol;
-                      ctx.setLineDash([5, 5]);
-                      ctx.lineWidth = 2;
                       ctx.stroke();
                       
                       // Draw ghost cue ball
                       ctx.beginPath();
                       ctx.arc(hx, hy, BALL_R, 0, Math.PI * 2);
-                      ctx.strokeStyle = borderCol;
                       ctx.globalAlpha = 0.5;
                       ctx.stroke();
                       ctx.globalAlpha = 1.0;
@@ -439,103 +478,40 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       const ncx = nColX / nColDist;
                       const ncy = nColY / nColDist;
                       
-                      // Cue ball deflected trajectory
-                      const dot = nx * ncx + ny * ncy;
-                      const defX = nx - dot * ncx;
-                      const defY = ny - dot * ncy;
-                      const defDist = Math.hypot(defX, defY);
-                      let dfx = 0, dfy = 0;
-                      if (defDist > 0.001) {
-                         dfx = defX / defDist;
-                         dfy = defY / defDist;
-                      }
-
-                      // Draw target ball expected line
                       ctx.beginPath();
                       ctx.moveTo(tBall.x, tBall.y);
                       ctx.lineTo(tBall.x + ncx * 150, tBall.y + ncy * 150);
-                      ctx.strokeStyle = primaryCol;
-                      ctx.setLineDash([5, 5]);
                       ctx.stroke();
-
-                      // Draw cue ball deflected line
-                      if (defDist > 0.001) {
-                          ctx.beginPath();
-                          ctx.moveTo(hx, hy);
-                          ctx.lineTo(hx + dfx * 100, hy + dfy * 100);
-                          ctx.strokeStyle = borderCol;
-                          ctx.setLineDash([5, 5]);
-                          ctx.stroke();
-                      }
-
                   } else {
                       // Ray to edge
                       ctx.lineTo(cue.x + nx * 2000, cue.y + ny * 2000); 
-                      ctx.strokeStyle = borderCol;
-                      ctx.setLineDash([10, 10]);
-                      ctx.lineWidth = 3;
                       ctx.stroke();
                   }
-                  ctx.setLineDash([]);
                   
-                  // Power Pull Preview (if dragging)
-                  if (engine.dragStart && engine.currentMouse && pullDist > 0) {
-                      const maxPower = 30;
-                      const currentSpeed = Math.min(pullDist * 0.15, maxPower);
-                      const powerRatio = currentSpeed / maxPower;
-                      
-                      const pullColor = `rgb(${255 * powerRatio}, ${255 * (1 - powerRatio)}, 50)`;
-                      
-                      ctx.beginPath();
-                      ctx.moveTo(cue.x, cue.y);
-                      ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
-                      ctx.strokeStyle = pullColor;
-                      ctx.lineWidth = 6;
-                      ctx.lineCap = 'round';
-                      ctx.stroke();
-                      
-                      // Outer glow for power
-                      ctx.beginPath();
-                      ctx.moveTo(cue.x, cue.y);
-                      ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
-                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                      ctx.lineWidth = 2;
-                      ctx.stroke();
-                  }
+                  // Reset shadow blur
+                  ctx.shadowBlur = 0;
+                  
+                  // Power Pull Preview (drawn backwards from cue)
+                  const maxPower = 30;
+                  const currentSpeed = Math.min(pullDist * 0.15, maxPower);
+                  const powerRatio = currentSpeed / maxPower;
+                  
+                  const pullColor = `rgb(${255 * powerRatio}, ${255 * (1 - powerRatio)}, 50)`;
+                  
+                  ctx.beginPath();
+                  ctx.moveTo(cue.x, cue.y);
+                  ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
+                  ctx.strokeStyle = pullColor;
+                  ctx.lineWidth = 6;
+                  ctx.lineCap = 'round';
+                  ctx.stroke();
               }
           }
 
           // Draw balls
           engine.balls.forEach(b => {
               if (!b.active) return;
-              // Draw ball
-              ctx.beginPath();
-              ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
-              ctx.fillStyle = COLORS[b.id];
-              ctx.fill();
-              
-              // Retro chunky outline
-              ctx.beginPath();
-              ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
-              ctx.strokeStyle = '#000000';
-              ctx.lineWidth = 2.5;
-              ctx.stroke();
-              
-              if (b.id !== 0) {
-                 ctx.fillStyle = '#ffffff';
-                 ctx.beginPath();
-                 ctx.arc(b.x, b.y, BALL_R * 0.55, 0, Math.PI * 2);
-                 ctx.fill();
-                 ctx.strokeStyle = '#000000';
-                 ctx.lineWidth = 1.5;
-                 ctx.stroke();
-
-                 ctx.fillStyle = '#000000';
-                 ctx.font = 'bold 11px monospace';
-                 ctx.textAlign = 'center';
-                 ctx.textBaseline = 'middle';
-                 ctx.fillText(b.id, b.x, b.y + 1);
-              }
+              drawBall(ctx, b.x, b.y, BALL_R, COLORS[b.id], b.id);
           });
 
           ctx.restore();
