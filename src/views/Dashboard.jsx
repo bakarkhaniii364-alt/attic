@@ -242,10 +242,10 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
         }}
       />
       {isSleeping && (
-        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-border drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">zzz</span>
+        <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-border drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] opacity-0">zzz</span>
       )}
       {isSad && !isSleeping && (
-        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-accent-text drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
+        <div className="absolute -top-3 -right-2 flex flex-col items-center text-[11px] font-bold text-accent-text drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] opacity-0">
           <span>:(</span>
           <span className="text-[10px] opacity-80">sad</span>
         </div>
@@ -255,12 +255,6 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
           <path d="M4,2 L7,2 L7,3 L9,3 L9,2 L12,2 L12,3 L14,3 L14,6 L13,6 L13,8 L12,8 L12,10 L11,10 L11,11 L10,11 L10,12 L9,12 L9,13 L7,13 L7,12 L6,12 L6,11 L5,11 L5,10 L4,10 L4,8 L3,8 L3,6 L2,6 L2,3 Z" fill="#ff4d4d" />
         </svg>
       )}
-      {/* Pet Status Label */}
-      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
-         <span className={`text-[9px] font-black uppercase px-2 py-0.5 retro-border bg-window shadow-[1px_1px_0_var(--border)] ${isSleeping ? 'text-secondary' : 'text-main-text'}`}>
-            {isSleeping ? 'sleeping' : currentAction === 'idle' ? 'chilling' : currentAction}
-         </span>
-      </div>
     </div>
   );
 });

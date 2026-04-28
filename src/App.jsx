@@ -139,7 +139,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
               </div>
             ) : (
               <>
-                {type === 'video' && !isDeafened && !isCameraOff ? (
+                {type === 'video' && !isCameraOff ? (
                   <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover animate-in fade-in duration-1000" />
                 ) : (
                   <div className="flex flex-col items-center gap-4 group">
@@ -247,14 +247,10 @@ function LivingBackground({ weather }) {
 
 /* ════ FLOATING ENVELOPE COMPONENT ════ */
 function FloatingEnvelope({ doodle, onClick }) {
-  // Randomize the starting position slightly so multiple envelopes don't overlap perfectly
-  const randomX = Math.floor(Math.random() * 60) + 20; 
-  const randomY = Math.floor(Math.random() * 60) + 20;
-
   return (
     <div 
       className="envelope-wrapper drop-shadow-xl"
-      style={{ top: `${randomY}vh`, left: `${randomX}vw` }}
+      style={{ top: `${doodle.y}vh`, left: `${doodle.x}vw` }}
       onClick={() => onClick(doodle)}
     >
       <div className="relative">
@@ -907,7 +903,11 @@ export default function App() {
           });
       }
 
-      if (incomingCall?.callerPeerId && peerRef.current) {
+      if (currentCallRef.current && peerRef.current) {
+         currentCallRef.current.answer(stream);
+         currentCallRef.current.on('stream', (rs) => { setRemoteStream(rs); });
+      } else if (incomingCall?.callerPeerId && peerRef.current) {
+         // Fallback if ref was lost
          const call = peerRef.current.call(incomingCall.callerPeerId, stream);
          currentCallRef.current = call;
          call.on('stream', (rs) => { setRemoteStream(rs); });
@@ -1176,10 +1176,16 @@ export default function App() {
                 if (payload.payload.timestamp) localStorage.setItem('last_seen_kiss', payload.payload.timestamp);
                 setTimeout(() => setShowKiss(false), 4500);
              }
-             if (payload.payload.type === 'doodle_alert' && payload.payload.from === partnerId) {
-                setFloatingDoodles(prev => [...prev, payload.payload.imgData]);
-                playAudio('notif', sfxEnabled);
-             }
+              if (payload.payload.type === 'doodle_alert' && payload.payload.from === partnerId) {
+                 const newDoodle = {
+                    id: `doodle_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                    data: payload.payload.imgData,
+                    x: Math.floor(Math.random() * 60) + 20,
+                    y: Math.floor(Math.random() * 60) + 20
+                 };
+                 setFloatingDoodles(prev => [...prev, newDoodle]);
+                 playAudio('notif', sfxEnabled);
+              }
           })
           .on('broadcast', { event: 'call_signal' }, (payload) => {
              const data = payload.payload;
@@ -1194,10 +1200,10 @@ export default function App() {
                  setIncomingCall(null);
                  if (ringingIntervalRef.current) { clearInterval(ringingIntervalRef.current); ringingIntervalRef.current = null; }
                  
-                 if (data.action === 'answered' && calling && !currentCallRef.current) {
-                     // I am the caller, and partner answered! 
-                     setCalling(calling);
-                 }
+                  if (data.action === 'answered' && calling && !currentCallRef.current) {
+                      // I am the caller, and partner answered! 
+                      initiatePeerCall(calling);
+                  }
              }
           })
           .subscribe(async (status) => {
@@ -1372,6 +1378,7 @@ export default function App() {
               remoteStream={remoteStream}
               isRinging={isRinging}
               isPiP={location.pathname.startsWith('/activities/')}
+              isVideoVisible={!isCameraOff}
             />
           </div>
         )}
@@ -1426,15 +1433,15 @@ export default function App() {
         {/* ── FLOATING DOODLES LAYER ── */}
         {floatingDoodles.length > 0 && (
           <div className="floating-envelope-container">
-            {floatingDoodles.map((doodleData, idx) => (
+            {floatingDoodles.map((doodle) => (
                <FloatingEnvelope 
-                 key={idx} 
-                 doodle={doodleData} 
-                 onClick={(data) => {
-                   playAudio('click', sfxEnabled);
-                   setActiveDoodleView(data);
-                   setFloatingDoodles(prev => prev.filter((_, i) => i !== idx)); 
-                 }} 
+                  key={doodle.id}
+                  doodle={doodle}
+                  onClick={(d) => {
+                    playAudio('click', sfxEnabled);
+                    setActiveDoodleView(d.data);
+                    setFloatingDoodles(prev => prev.filter((item) => item.id !== d.id)); 
+                  }}
                />
             ))}
           </div>
@@ -1553,7 +1560,7 @@ export default function App() {
 
         {/* ADD THIS SUSPENSE WRAPPER */}
         <Suspense fallback={<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60"><div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>}>
-          {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(true)} />}
+          {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(false)} />}
           
           {viewingDoodle && ( 
             <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">

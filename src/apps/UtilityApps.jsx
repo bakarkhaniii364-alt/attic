@@ -94,6 +94,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
             const blob = base64ToBlob(dataUrl);
             const file = new File([blob], `doodle_${Date.now()}.png`, { type: 'image/png' });
             await uploadAsset(file, 'doodle', userId);
+            if (onSendDoodle) onSendDoodle(dataUrl);
         } catch (e) {
             alert("Failed to send doodle: " + e.message);
             return;
