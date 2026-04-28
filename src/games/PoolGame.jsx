@@ -54,30 +54,21 @@ const getInitialBalls = () => {
 };
 
 const drawBall = (ctx, x, y, radius, color, id) => {
-    // Base color & 2px black outline
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.lineWidth = 2;
+    
+    ctx.lineWidth = 1;
     ctx.strokeStyle = '#000000';
     ctx.stroke();
-
-    // Semi-transparent black shadow bottom-right
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.beginPath();
-    ctx.arc(x + radius * 0.2, y + radius * 0.2, radius * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // White pixel-art style highlight top-left
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x - radius * 0.5, y - radius * 0.5, 4, 4);
 
     if (id !== 0) {
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(x, y, radius * 0.45, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
 
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 11px monospace';
@@ -316,59 +307,46 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       let frameId;
       const render = () => {
-          const bgWindow = bodyStyles.getPropertyValue('--bg-window').trim() || '#ffffff';
-          const bgMain = bodyStyles.getPropertyValue('--bg-main').trim() || '#eeeeee';
-          const borderCol = bodyStyles.getPropertyValue('--border').trim() || '#000000';
-          const primaryCol = bodyStyles.getPropertyValue('--primary').trim() || '#ef4444';
+          // NO Anti-Aliasing
+          ctx.imageSmoothingEnabled = false;
 
-          // 1. Chunky Beveled Frame (Wood Base)
-          ctx.fillStyle = '#8b4513';
+          const bgWindow = bodyStyles.getPropertyValue('--bg-window').trim() || '#ffffff';
+
+          // Clear outer background
+          ctx.fillStyle = bgWindow;
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+          // 2. Flat Chunky Wood Frame
+          const WOOD = 24;
+          const left = BORDER_SIZE - WOOD;
+          const top = BORDER_SIZE - WOOD;
+          const w = PLAY_WIDTH + WOOD * 2;
+          const h = PLAY_HEIGHT + WOOD * 2;
+
+          // Wood Base
+          ctx.fillStyle = '#8E562E';
+          ctx.fillRect(left, top, w, h);
+
           // Wood Highlight (Top/Left)
-          ctx.fillStyle = '#b06a3b';
-          ctx.fillRect(0, 0, CANVAS_WIDTH, 12);
-          ctx.fillRect(0, 0, 12, CANVAS_HEIGHT);
+          ctx.fillStyle = '#B07548';
+          ctx.fillRect(left, top, w, 4);
+          ctx.fillRect(left, top, 4, h);
 
           // Wood Shadow (Bottom/Right)
-          ctx.fillStyle = '#5e2d09';
-          ctx.fillRect(0, CANVAS_HEIGHT - 12, CANVAS_WIDTH, 12);
-          ctx.fillRect(CANVAS_WIDTH - 12, 0, 12, CANVAS_HEIGHT);
+          ctx.fillStyle = '#5A3317';
+          ctx.fillRect(left, top + h - 4, w, 4);
+          ctx.fillRect(left + w - 4, top, 4, h);
 
           // Wood Outer Outline
-          ctx.strokeStyle = borderCol;
-          ctx.lineWidth = 4;
-          ctx.strokeRect(2, 2, CANVAS_WIDTH - 4, CANVAS_HEIGHT - 4);
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(left, top, w, h);
 
           ctx.save();
           ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
-          // Table markers (diamonds)
-          ctx.fillStyle = '#ffffff';
-          const markersX = [PLAY_WIDTH / 4, PLAY_WIDTH / 2, PLAY_WIDTH * 0.75];
-          const markersY = [PLAY_HEIGHT / 4, PLAY_HEIGHT / 2, PLAY_HEIGHT * 0.75];
-
-          markersX.forEach(x => {
-              ctx.beginPath(); ctx.moveTo(x, -BORDER_SIZE / 2 - 4); ctx.lineTo(x + 4, -BORDER_SIZE / 2); ctx.lineTo(x, -BORDER_SIZE / 2 + 4); ctx.lineTo(x - 4, -BORDER_SIZE / 2); ctx.fill();
-              ctx.beginPath(); ctx.moveTo(x, PLAY_HEIGHT + BORDER_SIZE / 2 - 4); ctx.lineTo(x + 4, PLAY_HEIGHT + BORDER_SIZE / 2); ctx.lineTo(x, PLAY_HEIGHT + BORDER_SIZE / 2 + 4); ctx.lineTo(x - 4, PLAY_HEIGHT + BORDER_SIZE / 2); ctx.fill();
-          });
-          markersY.forEach(y => {
-              ctx.beginPath(); ctx.moveTo(-BORDER_SIZE / 2 - 4, y); ctx.lineTo(-BORDER_SIZE / 2, y - 4); ctx.lineTo(-BORDER_SIZE / 2 + 4, y); ctx.lineTo(-BORDER_SIZE / 2, y + 4); ctx.fill();
-              ctx.beginPath(); ctx.moveTo(PLAY_WIDTH + BORDER_SIZE / 2 - 4, y); ctx.lineTo(PLAY_WIDTH + BORDER_SIZE / 2, y - 4); ctx.lineTo(PLAY_WIDTH + BORDER_SIZE / 2 + 4, y); ctx.lineTo(PLAY_WIDTH + BORDER_SIZE / 2, y + 4); ctx.fill();
-          });
-
-          // Inner dark-green cushion layer between wood and felt
-          ctx.fillStyle = '#0f381c';
-          ctx.fillRect(-12, -12, PLAY_WIDTH + 24, PLAY_HEIGHT + 24);
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(-12, -12, PLAY_WIDTH + 24, PLAY_HEIGHT + 24);
-
-          // Felt Background Gradient
-          const gradient = ctx.createRadialGradient(PLAY_WIDTH / 2, PLAY_HEIGHT / 2, 50, PLAY_WIDTH / 2, PLAY_HEIGHT / 2, PLAY_WIDTH);
-          gradient.addColorStop(0, '#2b9348');
-          gradient.addColorStop(1, '#1a5f2e');
-          ctx.fillStyle = gradient;
+          // 3. Felt Surface (Flat vibrant green)
+          ctx.fillStyle = '#107C41';
           ctx.fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
 
           // Inner felt outline
@@ -376,36 +354,19 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.lineWidth = 2;
           ctx.strokeRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
 
-          // Baulk line
+          // Simple aliased Baulk line
           ctx.beginPath();
           ctx.moveTo(PLAY_WIDTH * 0.25, 0);
           ctx.lineTo(PLAY_WIDTH * 0.25, PLAY_HEIGHT);
           ctx.strokeStyle = '#ffffff';
-          ctx.globalAlpha = 0.3;
           ctx.lineWidth = 2;
-          ctx.setLineDash([6, 6]);
           ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.globalAlpha = 1.0;
 
-          // 2. Stylized Pockets (Chunky rectangles)
+          // 4. Square Pockets
+          ctx.fillStyle = '#000000';
+          const pocketSize = 36;
           POCKETS.forEach(p => {
-              const pw = 44;
-              const ph = 44;
-              
-              // Base pocket (black rectangle overlapping frame)
-              ctx.fillStyle = '#000000';
-              ctx.fillRect(p.x - pw/2, p.y - ph/2, pw, ph);
-
-              // Dark grey inner rim
-              ctx.strokeStyle = '#333333';
-              ctx.lineWidth = 6;
-              ctx.strokeRect(p.x - pw/2 + 3, p.y - ph/2 + 3, pw - 6, ph - 6);
-              
-              // Outer outline
-              ctx.strokeStyle = '#000000';
-              ctx.lineWidth = 2;
-              ctx.strokeRect(p.x - pw/2, p.y - ph/2, pw, ph);
+              ctx.fillRect(p.x - pocketSize/2, p.y - pocketSize/2, pocketSize, pocketSize);
           });
 
           const engine = engineRef.current;
@@ -447,17 +408,14 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       }
                   });
 
-                  // Neon Laser Configuration
-                  ctx.shadowColor = '#00ffff';
-                  ctx.shadowBlur = 15;
-                  ctx.strokeStyle = '#00ffff';
+                  // Flat Stark Laser Configuration
+                  ctx.strokeStyle = '#FF00FF';
                   ctx.lineWidth = 3;
 
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
 
                   if (closestHit) {
-                      // Hit point (where cue ball will be at impact)
                       const hx = cue.x + nx * minT;
                       const hy = cue.y + ny * minT;
                       ctx.lineTo(hx, hy);
@@ -466,9 +424,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       // Draw ghost cue ball
                       ctx.beginPath();
                       ctx.arc(hx, hy, BALL_R, 0, Math.PI * 2);
-                      ctx.globalAlpha = 0.5;
                       ctx.stroke();
-                      ctx.globalAlpha = 1.0;
 
                       // Target ball trajectory
                       const tBall = closestHit.ball;
@@ -488,22 +444,16 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       ctx.stroke();
                   }
                   
-                  // Reset shadow blur
-                  ctx.shadowBlur = 0;
-                  
-                  // Power Pull Preview (drawn backwards from cue)
+                  // Power Pull Preview
                   const maxPower = 30;
                   const currentSpeed = Math.min(pullDist * 0.15, maxPower);
                   const powerRatio = currentSpeed / maxPower;
                   
-                  const pullColor = `rgb(${255 * powerRatio}, ${255 * (1 - powerRatio)}, 50)`;
-                  
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
                   ctx.lineTo(cue.x - nx * (powerRatio * 150), cue.y - ny * (powerRatio * 150));
-                  ctx.strokeStyle = pullColor;
-                  ctx.lineWidth = 6;
-                  ctx.lineCap = 'round';
+                  ctx.strokeStyle = '#FFFF00';
+                  ctx.lineWidth = 4;
                   ctx.stroke();
               }
           }
