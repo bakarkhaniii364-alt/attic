@@ -34,11 +34,19 @@ export const getTotalScoreForUser = (scores, userId) => {
 };
 
 export const incrementUserScore = (scores, userId, game, amount = 1) => {
+  const newScore = (scores?.[userId]?.[game] || 0) + amount;
+  
+  try {
+      const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+      // Fire and forget
+      submitHighscore(game, 'arcade', newScore, profile?.name || 'Player', userId);
+  } catch(e) {}
+
   return {
     ...scores,
     [userId]: {
       ...scores?.[userId],
-      [game]: (scores?.[userId]?.[game] || 0) + amount,
+      [game]: newScore,
     }
   };
 };
@@ -86,4 +94,17 @@ export const getBothUsersActive = (streaks, userId, partnerId) => {
   const partnerActive = partnerStreak.lastActiveDate === today;
   
   return { userActive, partnerActive, bothActive: userActive && partnerActive };
+};
+
+export const submitHighscore = async (gameId, mode, score, playerName, userId) => {
+  try {
+     const { supabase } = await import('../lib/supabase.js');
+     await supabase.from('highscores').insert([{
+         user_id: userId,
+         player_name: playerName,
+         game_id: gameId,
+         mode: mode,
+         score: score
+     }]);
+  } catch(e) { console.error('Failed to submit highscore', e); }
 };

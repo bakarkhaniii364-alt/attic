@@ -1,9 +1,10 @@
 export const INITIAL_CHAT = [];
 
 export const PICTIONARY_CATEGORIES = {
-  animals: ['CAT', 'DOG', 'ELEPHANT', 'FISH', 'BIRD', 'SNAKE', 'RABBIT', 'MOUSE'],
-  objects: ['CUP', 'HOUSE', 'CAR', 'CLOCK', 'COMPUTER', 'KEYBOARD', 'CHAIR', 'PHONE'],
-  hard: ['MOUNTAIN', 'BASEBALL', 'BICYCLE', 'ASTRONAUT', 'HOSPITAL', 'VACUUM', 'PYRAMID']
+  Animals: ['CAT', 'DOG', 'ELEPHANT', 'FISH', 'BIRD', 'SNAKE', 'RABBIT', 'MOUSE', 'KANGAROO', 'DOLPHIN'],
+  General: ['CUP', 'HOUSE', 'CAR', 'CLOCK', 'COMPUTER', 'KEYBOARD', 'CHAIR', 'PHONE', 'MOUNTAIN', 'BICYCLE', 'PYRAMID', 'ASTRONAUT'],
+  Movies: ['TITANIC', 'AVATAR', 'SPIDERMAN', 'BATMAN', 'SUPERMAN', 'INCEPTION', 'MATRIX', 'JAWS', 'SHREK', 'ROCKY'],
+  Food: ['PIZZA', 'BURGER', 'SUSHI', 'TACO', 'APPLE', 'BANANA', 'ICE CREAM', 'CHOCOLATE', 'PANCAKE', 'SPAGHETTI']
 };
 
 export const WORDS_FALLBACK = { easy: ["LOVE", "CUTE", "HUGS"], medium: ["SWEET", "HEART", "SMILE"], hard: ["CARING", "LOVING", "GENTLE"] };

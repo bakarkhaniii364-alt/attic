@@ -32,8 +32,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const [partnerCursor, setPartnerCursor] = useState({ x: 0, y: 0, show: false });
 
   const getNewWord = () => {
-    if (config.category === 'custom' && config.customWord) return config.customWord;
-    const words = PICTIONARY_CATEGORIES[config.category] || PICTIONARY_CATEGORIES.animals; 
+    const genre = config.genre || 'General';
+    const words = PICTIONARY_CATEGORIES[genre] || PICTIONARY_CATEGORIES['General']; 
     return words[Math.floor(Math.random() * words.length)];
   };
 
@@ -256,7 +256,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   };
 
     if (gameState === 'won' || gameState === 'lost') { 
-      return ( <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName="Pictionary" stats={{ Result: gameState === 'won' ? 'Victory!' : 'Time Up', Word: word, "Time Left": `${timeLeft}s` }} resultImage={finalImage} onClose={onBack} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> ); 
+      return ( <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName="Pictionary" stats={{ Result: gameState === 'won' ? 'Victory!' : 'Time Up', Word: word, "Time Left": `${timeLeft}s` }} resultImage={finalImage} onClose={onBack} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> ); 
     }
 
   if (gameState === 'prep') {

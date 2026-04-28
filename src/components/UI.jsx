@@ -189,7 +189,7 @@ export function AppIcon({ icon, label, color, onClick, badge }) {
 }
 
 // ── ShareOutcomeOverlay ──
-export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElement, onClose, onShareToChat, onSaveToScrapbook, sfx, onRematch, profile, partnerNickname }) {
+export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElement, onClose, onShareToChat, onSaveToScrapbook, sfx, onRematch, profile, partnerNickname, isSolo }) {
   const localProfile = profile || JSON.parse(localStorage.getItem('user_profile') || '{}');
   const playerName = localProfile?.name || 'You';
   const partner = partnerNickname || (() => {
@@ -234,15 +234,24 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
         >
           <div id="outcome-card" className="p-5 sm:p-6 flex flex-col gap-4 overflow-y-auto bg-[var(--bg-window)]">
             <div className="flex items-center justify-center gap-3 pb-3 border-b-2 border-dashed border-[var(--border)]">
-              <div className="flex items-center gap-2 flex-1 justify-end">
-                {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full retro-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full retro-border retro-bg-accent flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
-                <span className="font-bold text-sm truncate max-w-[100px]">{playerName}</span>
-              </div>
-              <span className="text-xs opacity-50 font-black uppercase tracking-widest px-2 py-1 bg-[var(--border)] text-white shrink-0 retro-border">VS</span>
-              <div className="flex items-center gap-2 flex-1 justify-start">
-                <span className="font-bold text-sm truncate max-w-[100px] text-right">{partner}</span>
-                <div className="w-8 h-8 rounded-full retro-border retro-bg-secondary flex items-center justify-center text-sm shrink-0">💕</div>
-              </div>
+              {isSolo ? (
+                 <div className="flex items-center gap-2">
+                    {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full retro-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full retro-border retro-bg-accent flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
+                    <span className="font-bold text-sm truncate max-w-[100px]">{playerName} <span className="opacity-50">(Solo)</span></span>
+                 </div>
+              ) : (
+                 <>
+                    <div className="flex items-center gap-2 flex-1 justify-end">
+                      {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full retro-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full retro-border retro-bg-accent flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
+                      <span className="font-bold text-sm truncate max-w-[100px]">{playerName}</span>
+                    </div>
+                    <span className="text-xs opacity-50 font-black uppercase tracking-widest px-2 py-1 bg-[var(--border)] text-white shrink-0 retro-border">VS</span>
+                    <div className="flex items-center gap-2 flex-1 justify-start">
+                      <span className="font-bold text-sm truncate max-w-[100px] text-right">{partner}</span>
+                      <div className="w-8 h-8 rounded-full retro-border retro-bg-secondary flex items-center justify-center text-sm shrink-0">💕</div>
+                    </div>
+                 </>
+              )}
             </div>
 
             <h2 className="font-bold text-xl sm:text-2xl text-center text-[var(--primary)] uppercase tracking-widest">{gameName}</h2>

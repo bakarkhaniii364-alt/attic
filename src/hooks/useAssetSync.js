@@ -111,18 +111,23 @@ export function useAssetSync(roomId, assetType = null) {
       .select()
       .single();
 
-    if (assetError) {
-      console.error('[ASSETS] DB save error details:', {
-        code: assetError.code,
-        message: assetError.message,
-        details: assetError.details,
-        hint: assetError.hint
-      });
-      throw new Error(assetError.message);
-    }
-
     return assetData;
   }, [roomId]);
 
-  return { assets, uploadAsset, loading };
+  const deleteAsset = useCallback(async (id) => {
+    if (!id) return;
+    try {
+      await supabase.from('shared_assets').delete().eq('id', id);
+    } catch(e) { console.error('Failed to delete asset', e); }
+  }, []);
+
+  const markAssetRead = useCallback(async (id) => {
+    if (!id) return;
+    try {
+      await supabase.from('shared_assets').update({ isRead: true }).eq('id', id);
+      setAssets(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+    } catch(e) { console.error('Failed to mark read', e); }
+  }, []);
+
+  return { assets, uploadAsset, deleteAsset, markAssetRead, loading };
 }

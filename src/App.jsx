@@ -478,7 +478,7 @@ export default function App() {
   }, [syncedRoomId, userId]);
 
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChatSync(syncedRoomId);
-  const { assets: doodles, uploadAsset: uploadDoodle } = useAssetSync(syncedRoomId, 'doodle');
+  const { assets: doodles, uploadAsset: uploadDoodle, markAssetRead } = useAssetSync(syncedRoomId, 'doodle');
   const { assets: sharedImages, uploadAsset: uploadImage } = useAssetSync(syncedRoomId, 'scrapbook');
   
   // Legacy setters for compatibility during transition (can be removed once all components migrated)
@@ -1475,7 +1475,7 @@ export default function App() {
               ) : !hasRoom ? (
                 <Navigate to="/handshake" replace />
               ) : (
-                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={setViewingDoodle} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendKissBroadcast} isPartnerAfk={isPartnerAfk} lobbyState={lobbyState} />
+                <Dashboard setView={navigateTo} profile={profile} myDisplayName={myDisplayName} partnerProfile={partnerProfile} coupleData={coupleData} setCoupleData={setCoupleData} scores={scores} doodles={doodles} chatHistory={chatHistory} onOpenDoodle={(d) => { setViewingDoodle(d); markAssetRead(d.id); }} sfx={sfxEnabled} setTriggerShake={setTriggerShake} radioState={radioState} setRadioState={setRadioState} userId={userId} partnerId={partnerId} streaks={streaks} theme={theme} setTheme={setTheme} setProfile={setProfile} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} onLogout={handleLogout} onDelete={()=>{}} weather={weather} setWeather={setWeather} onlineUsers={onlineUsers} sendInteraction={sendKissBroadcast} isPartnerAfk={isPartnerAfk} lobbyState={lobbyState} />
               )
             } />
             <Route path="/login" element={<Navigate to="/" replace />} />

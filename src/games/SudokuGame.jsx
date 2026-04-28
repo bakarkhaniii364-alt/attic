@@ -5,6 +5,7 @@ import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { PenTool, Eraser, Lightbulb, Pause, Play, AlertCircle, RefreshCw } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
+import { generateSudoku } from '../utils/sudokuGenerator.js';
 
 export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
   const [board, setBoard] = useState([]);
@@ -30,22 +31,19 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
   }, [paused, gameOverOverlay, board.length]);
 
   const initSudoku = () => {
-    const base = [[1, 2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9, 1, 2, 3], [7, 8, 9, 1, 2, 3, 4, 5, 6], [2, 3, 1, 5, 6, 4, 8, 9, 7], [5, 6, 4, 8, 9, 7, 2, 3, 1], [8, 9, 7, 2, 3, 1, 5, 6, 4], [3, 1, 2, 6, 4, 5, 9, 7, 8], [6, 4, 5, 9, 7, 8, 3, 1, 2], [9, 7, 8, 3, 1, 2, 6, 4, 5]];
-    const map = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
-    const full = base.map(r => r.map(c => map[c - 1]));
-    const removeCount = config.diff === 'easy' ? 30 : config.diff === 'medium' ? 45 : 55;
-    const indices = Array.from({ length: 81 }, (_, i) => i).sort(() => Math.random() - 0.5);
-    const flatPuzzle = full.flat().map((v, i) => indices.indexOf(i) < removeCount ? null : v);
+    // Generate valid, uniquely solvable puzzle
+    const { puzzle, solution } = generateSudoku(config.diff);
+    
     const puzzle2D = [];
     for (let r = 0; r < 9; r++) {
       const row = [];
       for (let c = 0; c < 9; c++) {
-        const val = flatPuzzle[r * 9 + c];
+        const val = puzzle[r][c] === 0 ? null : puzzle[r][c];
         row.push({ val, fixed: val !== null, notes: [], error: false });
       }
       puzzle2D.push(row);
     }
-    setSolution(full); setBoard(puzzle2D); setSelected(null); setTime(0); setPaused(false); setMistakes(0); setGameOverOverlay(false);
+    setSolution(solution); setBoard(puzzle2D); setSelected(null); setTime(0); setPaused(false); setMistakes(0); setGameOverOverlay(false);
   };
 
   const checkWin = (currBoard) => {
@@ -170,7 +168,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       "Best (Medium)": formatTimeStr(stats.bestTimeMedium),
       "Best (Hard)": formatTimeStr(stats.bestTimeHard),
     };
-    return <ShareOutcomeOverlay gameName={`Sudoku`} stats={outcomeStats} onClose={() => { initSudoku(); onBack(); }} onRematch={initSudoku} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
+    return <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Sudoku`} stats={outcomeStats} onClose={() => { initSudoku(); onBack(); }} onRematch={initSudoku} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
   }
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -203,7 +201,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         <div className="h-full bg-[var(--primary)] transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-center md:items-start p-4 flex-1 overflow-y-auto relative">
+      <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center justify-center p-4 flex-1 overflow-y-auto relative">
 
         {paused && (
           <div className="absolute inset-0 z-50 backdrop-blur-md bg-black/40 flex items-center justify-center flex-col text-white">

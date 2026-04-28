@@ -23,7 +23,7 @@ import { BluffGame } from './BluffGame.jsx';
 
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5', modes: [
-    { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'One draws, the other guesses in real-time.' }
+    { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'One draws, the other guesses in real-time.', diffs: ['easy', 'hard'], options: [{key: 'genre', label: 'Word Genre', choices: ['General', 'Animals', 'Movies', 'Food']}] }
   ]},
   tictactoe: { title: 'Tic-Tac-Toe', desc: 'Classic 3x3 match.', color: '#ef4444', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], options: [{key: 'matchType', label: 'Best Of', choices: [1, 3, 5]}], desc: 'Play locally against the computer.' },
@@ -70,7 +70,7 @@ const GAME_CATALOG = {
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Online 1v1 match.' }
   ]},
   pool: { title: '8-Ball Pool', desc: 'Billiards physics.', color: '#8b5cf6', modes: [
-    { id: '1v1_local', label: 'Pass & Play', type: 'local', desc: 'Take turns on the same device.' },
+    { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Play against the computer.' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Real-time online pool.' }
   ]},
   bluff: { title: 'Cheat (Bluff)', desc: 'Lie to win.', color: '#1e3a8a', modes: [
@@ -87,6 +87,21 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   
   const [view, setView] = useState('arcade');
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+
+  useEffect(() => {
+     if (view === 'scores') {
+         setLoadingLeaderboard(true);
+         import('../lib/supabase.js').then(({ supabase }) => {
+             supabase.from('highscores').select('*').order('score', { ascending: false }).limit(100)
+               .then(({ data }) => {
+                   if (data) setLeaderboardData(data);
+                   setLoadingLeaderboard(false);
+               }).catch(() => setLoadingLeaderboard(false));
+         });
+     }
+  }, [view]);
   const [selectedModeId, setSelectedModeId] = useState(null);
   const [selectedDiff, setSelectedDiff] = useState('medium');
   const [selectedOptions, setSelectedOptions] = useState({ matchType: 1 });
@@ -191,24 +206,46 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden flex flex-col" noPadding>
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
-           <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>High Scores</button>
+           <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>Leaderboard</button>
         </div>
 
         {view === 'scores' ? (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[var(--bg-window)] text-[var(--text-main)]">
-             <div className="max-w-2xl mx-auto border-4 border-double border-[var(--border)] p-4 sm:p-8 relative">
-                <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 uppercase tracking-[0.3em]">Hall of Fame</h2>
-                <div className="space-y-4">
-                  {Object.entries(scores || {}).map(([gId, data]) => (
-                    <div key={gId} className="flex flex-col sm:flex-row items-center justify-between bg-white retro-border p-4 shadow-[4px_4px_0_var(--border)] gap-4">
-                      <span className="font-black text-xl uppercase tracking-widest text-[var(--primary)]">{gId}</span>
-                      <div className="flex gap-6 font-bold text-lg">
-                        <span className="flex flex-col items-center">You: <span className="text-2xl">{data[userId] || 0}</span></span>
-                        <span className="flex flex-col items-center">Partner: <span className="text-2xl">{data[partnerId] || 0}</span></span>
-                      </div>
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-[var(--bg-window)] text-[var(--text-main)]">
+             <div className="max-w-4xl mx-auto border-4 border-double border-[var(--border)] p-4 sm:p-8 relative">
+                <h2 className="text-2xl sm:text-3xl font-black text-center mb-8 uppercase tracking-[0.3em]">Global Leaderboard</h2>
+                
+                {loadingLeaderboard ? (
+                    <div className="flex justify-center py-12"><Loader className="animate-spin text-[var(--primary)]" size={32}/></div>
+                ) : leaderboardData.length > 0 ? (
+                    <div className="space-y-8">
+                       {/* Group by Game and Mode */}
+                       {Object.entries(
+                           leaderboardData.reduce((acc, curr) => {
+                               const key = curr.game_id + ' | ' + curr.mode;
+                               if (!acc[key]) acc[key] = [];
+                               acc[key].push(curr);
+                               return acc;
+                           }, {})
+                       ).map(([groupKey, scores]) => (
+                           <div key={groupKey} className="bg-[var(--bg-main)] retro-border p-4">
+                               <h3 className="font-black text-xl uppercase text-[var(--primary)] mb-4 bg-black text-white inline-block px-3 py-1">{groupKey}</h3>
+                               <div className="space-y-2">
+                                  {scores.slice(0, 10).map((s, i) => (
+                                      <div key={s.id || i} className="flex justify-between items-center bg-white p-2 border-b-2 border-dashed border-[var(--border)]">
+                                          <div className="flex items-center gap-4">
+                                              <span className="font-black text-xl opacity-40 w-6">#{i+1}</span>
+                                              <span className="font-bold">{s.player_name || 'Unknown'}</span>
+                                          </div>
+                                          <span className="font-black text-[var(--secondary)] text-xl">{s.score}</span>
+                                      </div>
+                                  ))}
+                               </div>
+                           </div>
+                       ))}
                     </div>
-                  ))}
-                </div>
+                ) : (
+                    <div className="text-center opacity-60 font-bold py-12">No highscores recorded yet. Be the first!</div>
+                )}
              </div>
           </div>
         ) : (
@@ -318,7 +355,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                             </div>
                         )}
 
-                        {activeModeObj?.diffs && (
+                        {activeModeObj?.diffs && (topCategory !== 'partner' || gameRoute === 'pictionary') && (
                             <div className="mb-6">
                                 <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-3 block">Difficulty</label>
                                 <div className="flex gap-2">

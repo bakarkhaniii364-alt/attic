@@ -54,34 +54,22 @@ const getInitialBalls = () => {
 };
 
 const drawBall = (ctx, x, y, radius, color, id) => {
-    // 1. Base color
+    // 1. 3D Gradient Base
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    // 2. Dark crescent shadow (bottom right)
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.clip();
     
-    ctx.beginPath();
-    ctx.arc(x - radius * 0.2, y - radius * 0.2, radius, 0, Math.PI * 2);
-    ctx.arc(x, y, radius * 3, 0, Math.PI * 2, true); 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-    ctx.fill();
-    ctx.restore();
-
-    // 3. Highlight dot (top left)
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(x - radius * 0.35, y - radius * 0.35, radius * 0.2, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius);
+    grad.addColorStop(0, '#ffffff'); // bright highlight
+    grad.addColorStop(0.3, color);   // main color
+    grad.addColorStop(0.8, color);   // main color
+    grad.addColorStop(1, '#222222'); // dark shadow edge
+    
+    ctx.fillStyle = grad;
     ctx.fill();
 
-    // 4. Black outline
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#000000';
+    // 2. Black outline (thinner)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -269,7 +257,20 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       if (!cue.active) {
           scratch = true;
           cue.active = true;
-          cue.x = 200; cue.y = 200; cue.vx = 0; cue.vy = 0;
+          let rx = 200, ry = 200;
+          let valid = false;
+          while(!valid && ry < PLAY_HEIGHT - BALL_R) {
+              valid = true;
+              for(const b of balls) {
+                  if(b.id !== 0 && b.active && Math.hypot(b.x - rx, b.y - ry) < BALL_R * 2 + 5) {
+                      valid = false;
+                      rx += 10;
+                      if(rx > PLAY_WIDTH - BALL_R) { rx = BALL_R * 2; ry += 20; }
+                      break;
+                  }
+              }
+          }
+          cue.x = rx; cue.y = ry; cue.vx = 0; cue.vy = 0;
           msg = "Scratch! Opponent's turn.";
       }
 
@@ -340,8 +341,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
           // 1. Board Structure from Image
-          const WOOD = 32;
-          const OUTLINE = 8;
+          const WOOD = 0;
+          const OUTLINE = 4;
           
           const outerX = BORDER_SIZE - WOOD - OUTLINE;
           const outerY = BORDER_SIZE - WOOD - OUTLINE;
@@ -427,16 +428,19 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       }
                   });
 
-                  // Fading white aim cone/line
-                  const aimLen = 600;
-                  const grad = ctx.createLinearGradient(cue.x, cue.y, cue.x + nx * aimLen, cue.y + ny * aimLen);
-                  grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                  // Raycast for walls
+                  let wallT = Infinity;
+                  let wallNX = 0, wallNY = 0;
+                  if (nx > 0) { const t = (PLAY_WIDTH - BALL_R - cue.x) / nx; if(t > 0 && t < wallT) { wallT = t; wallNX = -1; wallNY = 0; } }
+                  else if (nx < 0) { const t = (BALL_R - cue.x) / nx; if(t > 0 && t < wallT) { wallT = t; wallNX = 1; wallNY = 0; } }
+                  
+                  if (ny > 0) { const t = (PLAY_HEIGHT - BALL_R - cue.y) / ny; if(t > 0 && t < wallT) { wallT = t; wallNX = 0; wallNY = -1; } }
+                  else if (ny < 0) { const t = (BALL_R - cue.y) / ny; if(t > 0 && t < wallT) { wallT = t; wallNX = 0; wallNY = 1; } }
 
                   ctx.beginPath();
                   ctx.moveTo(cue.x, cue.y);
 
-                  if (closestHit) {
+                  if (closestHit && minT < wallT) {
                       const hx = cue.x + nx * minT;
                       const hy = cue.y + ny * minT;
                       ctx.lineTo(hx, hy);
@@ -465,7 +469,29 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                       ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
                       ctx.lineWidth = 4;
                       ctx.stroke();
+                  } else if (wallT !== Infinity) {
+                      const hx = cue.x + nx * wallT;
+                      const hy = cue.y + ny * wallT;
+                      ctx.lineTo(hx, hy);
+                      
+                      // Reflection
+                      const rx = nx - 2 * (nx * wallNX + ny * wallNY) * wallNX;
+                      const ry = ny - 2 * (nx * wallNX + ny * wallNY) * wallNY;
+                      
+                      ctx.lineTo(hx + rx * 200, hy + ry * 200);
+                      
+                      const grad = ctx.createLinearGradient(cue.x, cue.y, hx + rx * 200, hy + ry * 200);
+                      grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                      
+                      ctx.strokeStyle = grad;
+                      ctx.lineWidth = 6;
+                      ctx.stroke();
                   } else {
+                      const aimLen = 600;
+                      const grad = ctx.createLinearGradient(cue.x, cue.y, cue.x + nx * aimLen, cue.y + ny * aimLen);
+                      grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
                       ctx.lineTo(cue.x + nx * aimLen, cue.y + ny * aimLen); 
                       ctx.strokeStyle = grad;
                       ctx.lineWidth = 6;
@@ -707,7 +733,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
             </div>
 
             {gameState?.winner && (
-               <ShareOutcomeOverlay
+               <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
                  gameName={`Retro Pool (${config.mode})`}
                  stats={{ Result: gameState.winner === myPlayerId ? 'You Win!' : 'You Lose!' }}
                  onClose={() => onBack()}

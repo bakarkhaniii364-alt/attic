@@ -101,7 +101,7 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
   const restart = () => { setGrid(createGrid()); setScore(0); setGameOver(false); setWon(false); setShowOverlay(false); };
 
   if (showOverlay) {
-    return <ShareOutcomeOverlay gameName="2048" stats={{ Score: score, "Best": best, Result: won ? '🏆 You hit 2048!' : 'Game Over' }} onClose={() => { restart(); onBack(); }} onRematch={restart} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
+    return <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName="2048" stats={{ Score: score, "Best": best, Result: won ? '🏆 You hit 2048!' : 'Game Over' }} onClose={() => { restart(); onBack(); }} onRematch={restart} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
   }
 
   return (

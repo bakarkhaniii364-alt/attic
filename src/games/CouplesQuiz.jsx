@@ -278,7 +278,7 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
 
   if (view === 'result') {
       const score = judgments.filter(Boolean).length;
-      return ( <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName={`Couples Quiz`} stats={{"Category": category, "Final Score": `${score} / 5`, "Stakes": wager, "P1": "Grader", "P2": "Guesser"}} onClose={() => {setView('menu')}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
+      return ( <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName={`Couples Quiz`} stats={{"Category": category, "Final Score": `${score} / 5`, "Stakes": wager, "P1": "Grader", "P2": "Guesser"}} onClose={() => {setView('menu')}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
   }
 
   return null;

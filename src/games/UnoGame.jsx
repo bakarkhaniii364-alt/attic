@@ -165,6 +165,17 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
     
     let nextColor = chosenColor || card.color;
     let nextTurn = oppPlayerId;
+    let newUnoCalled = { ...unoCalled };
+
+    // Automatic Penalty for dropping to 1 card without calling UNO
+    if (newHands[myPlayerId].length === 1 && !unoCalled[myPlayerId]) {
+        showMessage('Penalty! +2 for no UNO call');
+        playAudio('error', sfx);
+        const res = drawCards(myPlayerId, 2, newDeck, newHands);
+        newDeck = res.newDeck;
+        newDiscard = res.newDiscard;
+        newHands[myPlayerId] = res.newHand;
+    }
 
     if (newHands[myPlayerId].length === 0) {
        // WIN!
@@ -203,7 +214,6 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
     }
 
     // Reset Uno status if I had 1 card and drew, or update if I forgot
-    let newUnoCalled = { ...unoCalled };
     if (newHands[myPlayerId].length !== 1) newUnoCalled[myPlayerId] = false;
 
     setGameState({
@@ -444,7 +454,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                     return (
                         <div 
                             key={c.id} 
-                            className={`shrink-0 transition-transform ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''} ${i > 0 ? '-ml-8 sm:-ml-10' : ''} -mt-16 hover:-translate-y-4 relative group`}
+                            className={`shrink-0 transition-transform ${!valid && isMyTurn ? 'opacity-70 cursor-not-allowed' : ''} ${i > 0 ? '-ml-8 sm:-ml-10' : ''} -mt-16 hover:-translate-y-4 relative group`}
                             style={{ zIndex: i }}
                         >
                             <div className="absolute inset-0 z-50 hidden group-hover:block pointer-events-none"></div>
@@ -481,7 +491,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
          {/* Outcome Modal */}
          {winner && (
-            <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
+            <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
               outcome={winner === myPlayerId ? 'win' : 'loss'}
               score={`Cards Left: You(${myHand.length}) vs Opp(${oppHand.length})`}
               gameName="Retro Uno"

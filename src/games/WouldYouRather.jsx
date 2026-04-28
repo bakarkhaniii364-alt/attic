@@ -38,7 +38,7 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile }) 
   const matchPct = myAnswers.length > 0 ? Math.round((matchCount / myAnswers.length) * 100) : 0;
 
   if (showOverlay) {
-    return <ShareOutcomeOverlay gameName="Would You Rather" stats={{ "Questions": QUESTIONS.length, "Matches": matchCount, "Match %": `${matchPct}%`, "Verdict": matchPct > 70 ? '💕 Perfect Match!' : matchPct > 40 ? '💛 Good Match' : '🌶️ Opposites Attract!' }} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
+    return <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName="Would You Rather" stats={{ "Questions": QUESTIONS.length, "Matches": matchCount, "Match %": `${matchPct}%`, "Verdict": matchPct > 70 ? '💕 Perfect Match!' : matchPct > 40 ? '💛 Good Match' : '🌶️ Opposites Attract!' }} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
   }
 
   return (
