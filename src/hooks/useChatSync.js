@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
