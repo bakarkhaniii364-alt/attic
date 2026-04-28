@@ -21,9 +21,9 @@ const createDeck = () => {
 const CardUI = ({ card, onClick, selected, hidden = false }) => {
   if (hidden) {
     return (
-      <div className="w-16 h-24 sm:w-20 sm:h-32 bg-blue-800 retro-border border-4 rounded-md flex items-center justify-center retro-shadow-dark shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] bg-pattern-grid">
-         <div className="w-8 h-8 rounded-full border-2 border-white/50 flex items-center justify-center">
-            <span className="font-black text-white/50 text-xs rotate-45">?</span>
+      <div className="w-16 h-24 sm:w-20 sm:h-32 bg-[var(--border)] retro-border border-4 rounded-md flex items-center justify-center retro-shadow-dark shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] bg-pattern-grid">
+         <div className="w-8 h-8 rounded-full border-2 border-[var(--bg-window)] flex items-center justify-center">
+            <span className="font-black text-[var(--bg-window)] text-xs rotate-45">?</span>
          </div>
       </div>
     );
@@ -311,19 +311,27 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
 
   return (
     <RetroWindow title="bluff.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="flex flex-col items-center justify-between p-4 min-h-[75vh] bg-[#1a4a2e] retro-border-thick relative overflow-hidden">
+      <div className="flex flex-col items-center justify-between p-4 min-h-[75vh] bg-[var(--bg-main)] text-[var(--text-main)] retro-border-thick relative overflow-hidden">
         
         {/* Opponent Info */}
         <div className="w-full flex justify-between items-start px-4">
-            <div className="bg-black/50 text-white font-bold text-xs px-3 py-2 retro-border uppercase flex flex-col items-center">
+            <div className="bg-[var(--bg-window)] text-[var(--text-main)] font-bold text-xs px-3 py-2 retro-border uppercase flex flex-col items-center retro-shadow-dark">
                 <span>{isMultiplayer ? 'Partner' : 'AI'}</span>
                 <span className="text-xl text-[var(--secondary)]">{handsCount[oppId]} Cards</span>
             </div>
             
-            <div className="bg-[var(--bg-window)] text-black px-6 py-3 retro-border retro-shadow-dark flex flex-col items-center">
+            <div className="bg-[var(--bg-window)] text-[var(--text-main)] px-6 py-3 retro-border retro-shadow-dark flex flex-col items-center">
                 <span className="font-black text-[10px] uppercase opacity-70 mb-1">Target Rank</span>
-                <span className="font-black text-4xl leading-none">{targetRank}</span>
+                <span className="font-black text-4xl leading-none text-[var(--primary)]">{targetRank}</span>
             </div>
+        </div>
+
+        {/* Action Prompts */}
+        <div className="w-full flex flex-col items-center justify-center mt-4">
+             {phase === 'action' && isMyTurn && <div className="text-xl sm:text-3xl font-black text-[var(--primary)] uppercase animate-bounce text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 retro-shadow-dark">YOUR TURN: Play {targetRank}s</div>}
+             {phase === 'action' && !isMyTurn && <div className="text-lg font-black opacity-70 uppercase text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 shadow-inner">Opponent is choosing {targetRank}s...</div>}
+             {phase === 'reaction' && lastPlay && lastPlay.player !== myId && <div className="text-xl sm:text-3xl font-black text-[var(--primary)] uppercase animate-pulse text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 retro-shadow-dark">CALL BLUFF or PASS?</div>}
+             {phase === 'reaction' && lastPlay && lastPlay.player === myId && <div className="text-lg font-black opacity-70 uppercase text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 shadow-inner">Waiting for opponent to react...</div>}
         </div>
 
         {/* Center Play Area */}
@@ -354,8 +362,8 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
                             </div>
                         </div>
                     ) : (
-                        <div className="w-20 h-32 border-4 border-dashed border-white/30 rounded-md flex items-center justify-center opacity-50">
-                            <span className="font-black text-white/50 text-xs uppercase tracking-widest rotate-90">Pile</span>
+                        <div className="w-20 h-32 border-4 border-dashed border-[var(--border)] rounded-md flex items-center justify-center opacity-50">
+                            <span className="font-black text-[var(--border)] text-xs uppercase tracking-widest rotate-90">Pile</span>
                         </div>
                     )}
                 </div>
@@ -366,18 +374,6 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
                 <div className="mt-8 flex gap-4 animate-in slide-in-from-bottom-4">
                     <RetroButton variant="primary" onClick={handlePass} className="px-6 py-4 text-sm font-black animate-pulse">Pass & Play</RetroButton>
                     <RetroButton variant="accent" onClick={handleCallBluff} className="px-6 py-4 text-sm font-black bg-red-500 text-white hover:bg-red-600">Call Bluff!</RetroButton>
-                </div>
-            )}
-
-            {phase === 'reaction' && lastPlay && lastPlay.player === myId && (
-                <div className="mt-8 bg-black/40 text-white font-bold text-sm px-4 py-2 retro-border uppercase animate-pulse">
-                    Waiting for opponent's reaction...
-                </div>
-            )}
-            
-            {phase === 'action' && !isMyTurn && (
-                <div className="mt-8 bg-black/40 text-white font-bold text-sm px-4 py-2 retro-border uppercase">
-                    Opponent is playing...
                 </div>
             )}
         </div>
@@ -394,20 +390,25 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
                 </RetroButton>
             )}
 
-            <div className="flex justify-center -space-x-8 sm:-space-x-6 mt-auto scale-90 sm:scale-100 origin-bottom flex-wrap px-4 pb-4 w-full max-w-4xl">
-               {sortedMyHand.map(c => {
+            <div className="flex justify-start sm:justify-center overflow-x-auto w-full px-4 pb-8 pt-8 custom-scrollbar min-h-[180px]">
+               {sortedMyHand.map((c, i) => {
                    const isSelected = selectedCards.some(sc => sc.id === c.id);
                    return (
-                       <CardUI 
-                          key={c.id} 
-                          card={c} 
-                          selected={isSelected}
-                          onClick={() => {
-                              if (phase !== 'action' || !isMyTurn) return;
-                              if (isSelected) setSelectedCards(p => p.filter(sc => sc.id !== c.id));
-                              else if (selectedCards.length < 4) setSelectedCards(p => [...p, c]);
-                          }} 
-                       />
+                       <div 
+                           key={c.id} 
+                           className={`shrink-0 transition-transform ${i > 0 ? '-ml-8 sm:-ml-10' : ''} hover:-translate-y-4 relative group`}
+                           style={{ zIndex: i + (isSelected ? 50 : 0) }}
+                       >
+                           <CardUI 
+                              card={c} 
+                              selected={isSelected}
+                              onClick={() => {
+                                  if (phase !== 'action' || !isMyTurn) return;
+                                  if (isSelected) setSelectedCards(p => p.filter(sc => sc.id !== c.id));
+                                  else if (selectedCards.length < 4) setSelectedCards(p => [...p, c]);
+                              }} 
+                           />
+                       </div>
                    )
                })}
             </div>

@@ -18,9 +18,9 @@ const POCKETS = [
 
 const COLORS = {
   0: '#ffffff', // Cue
-  1: '#eab308', 2: '#3b82f6', 3: '#ef4444', 4: '#8b5cf6', 5: '#f97316', 6: '#22c55e', 7: '#78350f', // Solids
+  1: '#ef4444', 2: '#ef4444', 3: '#ef4444', 4: '#ef4444', 5: '#ef4444', 6: '#ef4444', 7: '#ef4444', // Reds
   8: '#000000', // 8-ball
-  9: '#eab308', 10: '#3b82f6', 11: '#ef4444', 12: '#8b5cf6', 13: '#f97316', 14: '#22c55e', 15: '#78350f' // Stripes
+  9: '#3b82f6', 10: '#3b82f6', 11: '#3b82f6', 12: '#3b82f6', 13: '#3b82f6', 14: '#3b82f6', 15: '#3b82f6' // Blues
 };
 
 // Standard 8-ball rack triangle setup
@@ -40,7 +40,7 @@ const getInitialBalls = () => {
       const id = ids[idx];
       balls.push({
           id, x, y, vx: 0, vy: 0, 
-          type: id === 8 ? '8' : id < 8 ? 'solid' : 'stripe',
+          type: id === 8 ? '8' : id < 8 ? 'red' : 'blue',
           active: true
       });
       inRow++;
@@ -240,10 +240,10 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       if (!scratch && !winner) {
           pocketedThisTurn.forEach(b => {
-              if (b.type === 'solid' || b.type === 'stripe') {
+              if (b.type === 'red' || b.type === 'blue') {
                   if (newAssignments[myPlayerId] === null) {
                       newAssignments[oldState.turn] = b.type;
-                      newAssignments[nextTurn] = b.type === 'solid' ? 'stripe' : 'solid';
+                      newAssignments[nextTurn] = b.type === 'red' ? 'blue' : 'red';
                       msg = `You are ${b.type}s!`;
                   }
                   if (newAssignments[oldState.turn] === b.type) {
@@ -370,18 +370,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           // Draw balls
           engine.balls.forEach(b => {
               if (!b.active) return;
+              // Draw ball
               ctx.beginPath();
               ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
-              
-              if (b.type === 'stripe') {
-                  ctx.fillStyle = '#ffffff';
-                  ctx.fill();
-                  ctx.fillStyle = COLORS[b.id];
-                  ctx.fillRect(b.x - BALL_R, b.y - BALL_R * 0.45, BALL_R * 2, BALL_R * 0.9);
-              } else {
-                  ctx.fillStyle = COLORS[b.id];
-                  ctx.fill();
-              }
+              ctx.fillStyle = COLORS[b.id];
+              ctx.fill();
               
               // Retro chunky outline
               ctx.beginPath();
@@ -469,6 +462,77 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       engine.currentMouse = null;
   };
 
+  // AI Turn Logic
+  useEffect(() => {
+      if (!gameState || isMultiplayer || gameState.winner || engineRef.current.isSimulating) return;
+
+      if (gameState.turn === oppPlayerId) {
+          const aiTimer = setTimeout(() => {
+              const engine = engineRef.current;
+              const balls = engine.balls;
+              const cue = balls.find(b => b.id === 0);
+              const eight = balls.find(b => b.id === 8);
+              
+              if (!cue || !cue.active) return; // Wait for cue to be placed
+
+              let targetType = gameState.assignments[oppPlayerId];
+              let targets = balls.filter(b => b.active && b.type === targetType);
+              
+              if (!targetType) {
+                  targets = balls.filter(b => b.active && (b.type === 'red' || b.type === 'blue'));
+              }
+              
+              if (targets.length === 0 && eight && eight.active) {
+                  targets = [eight];
+              }
+              
+              if (targets.length === 0) return;
+
+              // Simple AI: pick random target and a pocket
+              const target = targets[Math.floor(Math.random() * targets.length)];
+              // Find closest pocket to target
+              let bestPocket = POCKETS[0];
+              let minDist = Infinity;
+              POCKETS.forEach(p => {
+                  const d = Math.hypot(p.x - target.x, p.y - target.y);
+                  if (d < minDist) { minDist = d; bestPocket = p; }
+              });
+
+              // Ghost ball: position cue ball needs to be to hit target into pocket
+              const dxTargetToPocket = bestPocket.x - target.x;
+              const dyTargetToPocket = bestPocket.y - target.y;
+              const distToPocket = Math.hypot(dxTargetToPocket, dyTargetToPocket);
+              const nx = dxTargetToPocket / distToPocket;
+              const ny = dyTargetToPocket / distToPocket;
+
+              const ghostX = target.x - nx * (BALL_R * 2);
+              const ghostY = target.y - ny * (BALL_R * 2);
+
+              // Vector from cue to ghost ball
+              const dxCueToGhost = ghostX - cue.x;
+              const dyCueToGhost = ghostY - cue.y;
+              const distCueToGhost = Math.hypot(dxCueToGhost, dyCueToGhost);
+
+              // Add randomness (error)
+              const errorAngle = (Math.random() - 0.5) * 0.15; // up to ~8.5 degrees error
+              const cos = Math.cos(errorAngle);
+              const sin = Math.sin(errorAngle);
+              const finalDx = dxCueToGhost * cos - dyCueToGhost * sin;
+              const finalDy = dxCueToGhost * sin + dyCueToGhost * cos;
+
+              let power = Math.min(30, distCueToGhost * 0.05 + 10);
+              
+              const vx = (finalDx / distCueToGhost) * power;
+              const vy = (finalDy / distCueToGhost) * power;
+
+              if (isMultiplayer) broadcastShot({ vx, vy, sender: userId });
+              executeShot(vx, vy);
+
+          }, 1500);
+          return () => clearTimeout(aiTimer);
+      }
+  }, [gameState, isMultiplayer, oppPlayerId]);
+
   if (!gameState) return <div className="p-8 text-center animate-pulse font-black uppercase text-xl">Racking balls...</div>;
 
   const isMyTurn = gameState.turn === myPlayerId;
@@ -477,30 +541,67 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
   return (
     <RetroWindow title="retro_pool.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-        <div className="flex flex-col w-full h-[75vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
+        <div className="flex flex-col md:flex-row w-full h-[80vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
             
+            {/* Side Panel */}
+            <div className="hidden md:flex flex-col w-[250px] h-full bg-[var(--bg-window)] border-r-2 border-[var(--border)] relative z-10">
+                <div className="bg-[var(--border)] px-4 py-2 text-[var(--bg-window)] font-bold tracking-widest uppercase text-sm border-b-2 border-[var(--border)]">
+                    retro_pool.sys
+                </div>
+                <div className="flex-1 p-4 flex flex-col gap-4">
+                    <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === myPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
+                        <div className="font-black uppercase text-xl mb-1">YOU</div>
+                        <div className="font-bold flex items-center gap-2">
+                           {myType === 'red' && <div className="w-4 h-4 rounded-full bg-red-500 border border-black"></div>}
+                           {myType === 'blue' && <div className="w-4 h-4 rounded-full bg-blue-500 border border-black"></div>}
+                           <span className="uppercase">{myType || 'OPEN TABLE'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="font-black text-2xl text-center opacity-50 uppercase">VS</div>
+
+                    <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === oppPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
+                        <div className="font-black uppercase text-xl mb-1">{isMultiplayer ? 'P2' : 'AI'}</div>
+                        <div className="font-bold flex items-center gap-2">
+                           {oppType === 'red' && <div className="w-4 h-4 rounded-full bg-red-500 border border-black"></div>}
+                           {oppType === 'blue' && <div className="w-4 h-4 rounded-full bg-blue-500 border border-black"></div>}
+                           <span className="uppercase">{oppType || 'OPEN TABLE'}</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-auto">
+                        <div className="text-xs opacity-70 font-bold mb-1 uppercase">Game Status</div>
+                        <div className="text-sm font-bold bg-[var(--bg-main)] p-2 retro-border shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
+                            {gameState?.message}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Window Content (Game Area) */}
             <div 
-                className="flex-1 relative overflow-hidden flex justify-center items-center bg-[var(--border)]"
+                className="flex-1 relative overflow-hidden flex justify-center items-center p-4 bg-[var(--bg-main)]"
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
-                <canvas 
-                   ref={canvasRef} 
-                   width={CANVAS_WIDTH} 
-                   height={CANVAS_HEIGHT} 
-                   className="block w-full h-full object-contain pointer-events-none"
-                />
+                <div className="retro-border-thick retro-shadow-dark bg-[var(--border)] relative p-2 max-h-full max-w-full aspect-[11/6]">
+                    <canvas 
+                       ref={canvasRef} 
+                       width={CANVAS_WIDTH} 
+                       height={CANVAS_HEIGHT} 
+                       className="block w-full h-full object-contain pointer-events-none"
+                    />
+                </div>
                 
-                {/* Messages */}
-                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] sm:text-[28px] font-bold text-center bg-[var(--bg-window)] text-[var(--text-main)] px-[30px] py-[15px] retro-border-thick retro-shadow-dark pointer-events-none transition-opacity duration-100 ${gameState?.message && gameState.message !== 'Break!' ? 'opacity-100' : 'opacity-0'}`}>
+                {/* Messages Over Canvas - Visible on Mobile */}
+                <div className={`md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] sm:text-[28px] font-bold text-center bg-[var(--bg-window)] text-[var(--text-main)] px-[30px] py-[15px] retro-border-thick retro-shadow-dark pointer-events-none transition-opacity duration-100 ${gameState?.message && gameState.message !== 'Break!' ? 'opacity-100' : 'opacity-0'}`}>
                     {gameState?.message}
                 </div>
 
-                {/* Status Indicator */}
-                <div className="absolute top-[10px] left-[10px] bg-[var(--bg-window)] retro-border-thick p-[5px] sm:p-[10px] text-[10px] sm:text-[12px] font-bold retro-shadow-dark pointer-events-none flex flex-col gap-1">
+                {/* Mobile Status Indicator */}
+                <div className="md:hidden absolute top-[10px] left-[10px] bg-[var(--bg-window)] retro-border-thick p-[5px] sm:p-[10px] text-[10px] sm:text-[12px] font-bold retro-shadow-dark pointer-events-none flex flex-col gap-1 z-20">
                      <div className={gameState?.turn === myPlayerId ? "text-[var(--primary)]" : "opacity-50"}>
                          YOU: {myType || 'open'}
                      </div>
@@ -508,10 +609,6 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                          OPP: {oppType || 'open'}
                      </div>
                 </div>
-            </div>
-
-            <div className="text-center text-[12px] sm:text-[14px] font-bold text-[var(--bg-window)] mt-0 bg-[var(--border)] px-[15px] py-[5px]">
-                Drag anywhere to aim & shoot
             </div>
 
             {gameState?.winner && (

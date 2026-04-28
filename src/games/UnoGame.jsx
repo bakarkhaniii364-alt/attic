@@ -273,6 +273,18 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       }
   };
 
+  const catchPlayer = (targetId) => {
+      if (winner) return;
+      playAudio('error', sfx);
+      const res = drawCards(targetId, 2, deck, hands);
+      setGameState(p => ({
+          ...p,
+          deck: res.newDeck,
+          discard: res.newDiscard,
+          hands: { ...p.hands, [targetId]: res.newHand }
+      }));
+  };
+
   // AI Logic
   useEffect(() => {
       if (!gameState) return;
@@ -282,7 +294,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
               
               // Catch player forgetting Uno
               if (hands[myPlayerId].length === 1 && !unoCalled[myPlayerId]) {
-                  catchOpponent();
+                  catchPlayer(myPlayerId);
                   return; // Will process turn next tick
               }
 
@@ -391,29 +403,12 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
              </div>
 
              {/* Opponent Hand */}
-             <div className="flex justify-center h-[120px] relative w-full perspective-[800px] opacity-90 scale-[0.75] origin-top mt-4">
-                 {oppHand.map((c, i) => {
-                    const totalCards = oppHand.length;
-                    const maxSpread = 500; 
-                    const offset = Math.min(40, maxSpread / Math.max(1, totalCards));
-                    const centerIndex = (totalCards - 1) / 2;
-                    const distFromCenter = i - centerIndex;
-                    const angle = distFromCenter * 3;
-                    const drop = Math.abs(distFromCenter) * 2;
-                    return (
-                        <div 
-                            key={i} 
-                            className="absolute"
-                            style={{
-                                left: `calc(50% - 43px + ${distFromCenter * offset}px)`,
-                                transform: `rotate(${angle}deg) translateY(${drop}px)`,
-                                zIndex: i
-                            }}
-                        >
-                            <CardUI card={{color:'back'}} hidden={true} />
-                        </div>
-                    )
-                 })}
+             <div className="flex justify-center overflow-hidden w-full h-[120px] mt-4 opacity-90 scale-[0.75] origin-top pointer-events-none">
+                 {oppHand.map((c, i) => (
+                     <div key={i} className={`shrink-0 ${i > 0 ? '-ml-12' : ''}`} style={{ zIndex: i }}>
+                         <CardUI card={{color:'back'}} hidden={true} />
+                     </div>
+                 ))}
              </div>
 
              <div className="absolute top-4 right-4 bg-[var(--bg-window)] retro-border px-3 py-1 text-xs font-bold shadow-[2px_2px_0_var(--border)]">
@@ -443,28 +438,17 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
              </div>
 
              {/* My Hand */}
-             <div className="flex justify-center h-[140px] relative w-full perspective-[800px] mb-4">
+             <div className="flex justify-start sm:justify-center overflow-x-auto w-full px-4 pb-8 pt-8 custom-scrollbar min-h-[160px]">
                 {myHand.map((c, i) => {
                     const valid = isValidPlay(c);
-                    const totalCards = myHand.length;
-                    const maxSpread = 600; 
-                    const offset = Math.min(45, maxSpread / Math.max(1, totalCards));
-                    const centerIndex = (totalCards - 1) / 2;
-                    const distFromCenter = i - centerIndex;
-                    const angle = distFromCenter * 3;
-                    const drop = Math.abs(distFromCenter) * 2;
-
                     return (
                         <div 
                             key={c.id} 
-                            className={`absolute transition-all duration-300 ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''}`}
-                            style={{
-                                left: `calc(50% - 43px + ${distFromCenter * offset}px)`,
-                                transform: `rotate(${angle}deg) translateY(${drop}px)`,
-                                zIndex: i
-                            }}
+                            className={`shrink-0 transition-transform ${!valid && isMyTurn ? 'opacity-70 grayscale cursor-not-allowed' : ''} ${i > 0 ? '-ml-8 sm:-ml-10' : ''} hover:-translate-y-4 relative group`}
+                            style={{ zIndex: i }}
                         >
-                            <CardUI card={c} onClick={() => valid && handleCardClick(c)} />
+                            <div className="absolute inset-0 z-50 hidden group-hover:block pointer-events-none"></div>
+                            <CardUI card={c} onClick={() => valid && handleCardClick(c)} className="group-hover:shadow-[0_10px_20px_rgba(0,0,0,0.5)]" />
                         </div>
                     )
                 })}

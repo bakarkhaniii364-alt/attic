@@ -269,21 +269,21 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
           </div>
         )}
 
-        <div className="bg-[#106b2e] retro-border-thick p-2 retro-shadow-dark mb-8">
-          <div className="grid grid-cols-8 gap-[1px] bg-black/20">
+        <div className="bg-[var(--border)] retro-border-thick p-2 retro-shadow-dark mb-8 max-w-full overflow-hidden">
+          <div className="grid grid-cols-8 gap-[2px] bg-[var(--border)]">
             {board.map((row, r) => row.map((cell, c) => {
               const isValid = validMoves.some(m => m.r === r && m.c === c);
               return (
                 <div 
                   key={`${r}-${c}`} 
                   onClick={() => handleMove(r, c)}
-                  className={`w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center bg-[#189443] ${isValid && isMyTurn ? 'hover:bg-[#1bb350] cursor-pointer' : ''}`}
+                  className={`w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center bg-[var(--bg-window)] transition-colors ${isValid && isMyTurn ? 'hover:bg-[var(--bg-main)] cursor-pointer' : ''}`}
                 >
                   {cell !== EMPTY && (
-                    <div className={`w-[80%] h-[80%] rounded-full shadow-[2px_2px_0_0_rgba(0,0,0,0.4)] border border-black/40 ${cell === BLACK ? 'bg-black' : 'bg-white'} animate-in zoom-in spin-in-12 duration-300`}></div>
+                    <div className={`w-[85%] h-[85%] rounded-full shadow-[inset_-2px_-2px_4px_rgba(0,0,0,0.5),2px_2px_2px_rgba(0,0,0,0.3)] border-2 border-black/40 ${cell === BLACK ? 'bg-black' : 'bg-white'} animate-in zoom-in spin-in-12 duration-300`}></div>
                   )}
                   {cell === EMPTY && isValid && isMyTurn && (
-                    <div className="w-2 h-2 rounded-full bg-black/30"></div>
+                    <div className="w-2 h-2 rounded-full bg-[var(--primary)] opacity-50 shadow-sm"></div>
                   )}
                 </div>
               );
