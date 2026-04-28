@@ -266,7 +266,7 @@ body {
 }
 
 .animate-shake { animation: shake 0.4s ease-in-out; }
-.cat-sprite { width: 128px; height: 128px; background-repeat: no-repeat; image-rendering: pixelated; }
+
 
 /* ════ THE HAWKINS GLITCH ════ */
 [data-theme="hawkins"] body {
@@ -493,4 +493,4 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
   transition: transform 0.2s;
 }
 
-/* Cat animations are now handled dynamically via Web Animations API in PixelPet.jsx */
+/* Cat animations are now handled via folder-based tiles in Dashboard.jsx */

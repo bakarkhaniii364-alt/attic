@@ -194,7 +194,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
   }, [start, frames, duration]);
 
   const frameId = (start + currentFrame).toString().padStart(3, '0');
-  const frameSrc = `${skinFolder}/tile${frameId}.png`;
+  const frameSrc = encodeURI(`${skinFolder}/tile${frameId}.png`);
 
   const scale = 4;
   const frameSize = 32 * scale; // 128px
