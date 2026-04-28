@@ -380,7 +380,7 @@ export default function App() {
 
   const isHost = !hasRoom || userId < partnerId;
 
-    const [theme, setTheme] = useLocalStorage('app_theme', 'default');
+    const [theme, setTheme] = useLocalStorage('app_theme', 'matcha');
   const [weather, setWeather] = useState('clear'); 
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
   const [triggerShake, setTriggerShake] = useState(false); 
@@ -1099,7 +1099,11 @@ export default function App() {
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  useEffect(() => { 
+    const forcedMatchaPaths = ['/dashboard', '/signin', '/signup', '/handshake', '/welcome'];
+    const isForced = forcedMatchaPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
+    document.documentElement.setAttribute('data-theme', isForced ? 'matcha' : theme); 
+  }, [theme, location.pathname]);
   
   // Solution 30: Mobile Viewport Jitter Fix
   useEffect(() => {
@@ -1119,8 +1123,10 @@ export default function App() {
   // Apply theme after core is ready to avoid blocking initial render
   useEffect(() => {
     if (!coreReady) return;
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [coreReady, theme]);
+    const forcedMatchaPaths = ['/dashboard', '/signin', '/signup', '/handshake', '/welcome'];
+    const isForced = forcedMatchaPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
+    document.documentElement.setAttribute('data-theme', isForced ? 'matcha' : theme);
+  }, [coreReady, theme, location.pathname]);
 
   useEffect(() => {
     if (!coreReady || !pendingRoomId || !userId) return;
