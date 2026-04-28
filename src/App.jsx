@@ -1518,8 +1518,16 @@ export default function App() {
           </Routes>
         </Suspense>
 
-        {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(true)} />}
-        {viewingDoodle && ( <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"><DoodleViewer doodle={viewingDoodle} onClose={() => setViewingDoodle(null)} profileName={profile?.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setReplyDoodle(d); navigateTo('doodle'); }} onReplyToChat={(t, i) => { handleShareToChat(t, i); setViewingDoodle(null); navigateTo('chat'); }} /></div>)}
+        {/* ADD THIS SUSPENSE WRAPPER */}
+        <Suspense fallback={<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60"><div className="w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>}>
+          {milestoneShown && getMilestoneToday(coupleData.anniversary) && <MilestoneCelebration milestone={getMilestoneToday(coupleData.anniversary)} onClose={() => setMilestoneShown(true)} />}
+          
+          {viewingDoodle && ( 
+            <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+               <DoodleViewer doodle={viewingDoodle} onClose={() => setViewingDoodle(null)} profileName={profile?.name} sfx={sfxEnabled} onRedoodle={(d) => { setViewingDoodle(null); setReplyDoodle(d); navigateTo('doodle'); }} onReplyToChat={(t, i) => { handleShareToChat(t, i); setViewingDoodle(null); navigateTo('chat'); }} />
+            </div>
+          )}
+        </Suspense>
       </div>
   );
 }
