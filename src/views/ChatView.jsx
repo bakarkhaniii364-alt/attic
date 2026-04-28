@@ -1,4 +1,4 @@
-import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2, Clock, Sparkles, Palette } from 'lucide-react';
+import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2, Clock, Sparkle, Palette } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
@@ -789,7 +789,7 @@ export function ChatView({
                  
                  <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
                    <div className="relative">
-                     <button onClick={() => { playAudio('click', sfx); setShowDecorationTray(!showDecorationTray); setShowEmojiPicker(false); }} className={`p-1.5 sm:p-2 hover:bg-black/5 transition-colors ${showDecorationTray ? 'text-primary' : 'text-main-text opacity-50'}`} title="Decorate Chat"><Sparkles size={20} /></button>
+                     <button onClick={() => { playAudio('click', sfx); setShowDecorationTray(!showDecorationTray); setShowEmojiPicker(false); }} className={`p-1.5 sm:p-2 hover:bg-black/5 transition-colors ${showDecorationTray ? 'text-primary' : 'text-main-text opacity-50'}`} title="Decorate Chat"><Sparkle size={20} /></button>
                      {showDecorationTray && (
                        <div className="absolute bottom-full left-0 mb-4 bg-window retro-border retro-shadow-dark p-3 w-48 z-50 decoration-tray">
                          <p className="text-[10px] font-black uppercase mb-3 border-b border-dashed border-border pb-1">Decorations</p>

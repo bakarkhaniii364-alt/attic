@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Mail, Send, Grid3X3, Sparkles, User, Lock, ArrowLeft, Loader, Check, Copy, Share2 } from 'lucide-react';
+import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, ArrowLeft, Loader, Check, Copy, Share2 } from 'lucide-react';
 import { RetroButton, RetroWindow, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 
@@ -20,7 +20,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
         <div className="absolute bottom-[35%] right-[22%] text-primary opacity-[0.12] animate-float-delayed"><Send size={48} /></div>
         <div className="absolute top-[30%] left-[15%] text-primary opacity-[0.08] animate-float"><Send size={38} className="rotate-[-15deg]" /></div>
         <div className="absolute bottom-[10%] right-[35%] text-accent opacity-[0.06] animate-float"><Grid3X3 size={60} /></div>
-        <div className="absolute top-[55%] left-[8%] text-secondary opacity-[0.05] animate-float"><Sparkles size={40} /></div>
+        <div className="absolute top-[55%] left-[8%] text-secondary opacity-[0.05] animate-float"><Sparkle size={40} /></div>
       </div>
 
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">

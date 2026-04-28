@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkles, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2 } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2 } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
@@ -263,7 +263,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               { id: 'snow', icon: <Snowflake size={14}/> },
               { id: 'thunder', icon: <Zap size={14}/> },
               { id: 'storm', icon: <CloudLightning size={14}/> },
-              { id: 'spores', icon: <Sparkles size={14}/> }
+              { id: 'spores', icon: <Sparkle size={14}/> }
             ].map(w => ( 
               <button 
                 key={w.id} 
