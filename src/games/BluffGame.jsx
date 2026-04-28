@@ -417,7 +417,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
         </div>
 
         {winner && (
-          <ShareOutcomeOverlay
+          <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
             outcome={winner === myId ? 'win' : 'loss'}
             score={winner === myId ? 'You emptied your hand!' : 'Opponent emptied their hand!'}
             gameName="Retro Bluff"

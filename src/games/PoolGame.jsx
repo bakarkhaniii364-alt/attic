@@ -708,10 +708,12 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
             {gameState?.winner && (
                <ShareOutcomeOverlay
-                 outcome={gameState.winner === myPlayerId ? 'win' : 'loss'}
-                 score={`Winner: ${gameState.winner === myPlayerId ? 'You' : 'Opponent'}`}
-                 gameName="Retro Pool"
+                 gameName={`Retro Pool (${config.mode})`}
+                 stats={{ Result: gameState.winner === myPlayerId ? 'You Win!' : 'You Lose!' }}
                  onClose={() => onBack()}
+                 onShareToChat={onShareToChat}
+                 onSaveToScrapbook={onSaveToScrapbook}
+                 partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined}
                />
             )}
         </div>

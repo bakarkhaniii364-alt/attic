@@ -292,7 +292,7 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
         </div>
 
         {gameOver && (
-          <ShareOutcomeOverlay
+          <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
             outcome={gameState.winner === myColor ? 'win' : gameState.winner === null ? 'draw' : 'loss'}
             score={`Black: ${countB} | White: ${countW}`}
             gameName="Othello"

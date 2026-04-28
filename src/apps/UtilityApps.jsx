@@ -9,20 +9,21 @@ import { floodFill } from '../utils/helpers.js';
 import { base64ToBlob } from '../utils/file.js';
 
 export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profileName, sfx }) {
-  const handleDownload = () => { playAudio('click', sfx); const a = document.createElement('a'); a.href = doodle.img; a.download = `doodle_from_partner_${Date.now()}.png`; a.click(); };
-  const handleReplyChat = () => { playAudio('send', sfx); if (onReplyToChat) onReplyToChat(`💌 ${profileName || 'You'} replied to a doodle`, doodle.img); };
+  const imageUrl = doodle.url || doodle.img;
+  const handleDownload = () => { playAudio('click', sfx); const a = document.createElement('a'); a.href = imageUrl; a.download = `doodle_from_partner_${Date.now()}.png`; a.click(); };
+  const handleReplyChat = () => { playAudio('send', sfx); if (onReplyToChat) onReplyToChat(`💌 ${profileName || 'You'} replied to a doodle`, imageUrl); };
   return (
     <RetroWindow title="received_doodle.msg" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
        <div className="flex-1 bg-[#fdfbf7] p-6 sm:p-8 flex flex-col retro-border shadow-inner relative overflow-y-auto">
           <div className="border-b-2 border-dashed border-[var(--border)] pb-4 mb-6 flex flex-col gap-2">
-             <div className="flex justify-between items-end"><span className="font-bold text-lg sm:text-xl text-[var(--primary)]">From: <span className="text-[var(--text-main)]">Partner ❤️</span></span><span className="text-xs opacity-50">{new Date(doodle.id).toLocaleDateString()}</span></div>
+             <div className="flex justify-between items-end"><span className="font-bold text-lg sm:text-xl text-[var(--primary)]">From: <span className="text-[var(--text-main)]">Partner ❤️</span></span><span className="text-xs opacity-50">{new Date(doodle.created_at || doodle.id).toLocaleDateString()}</span></div>
              <div className="font-bold text-lg sm:text-xl text-[var(--secondary)]">To: <span className="text-[var(--text-main)]">{profileName || 'Me'} ✨</span></div>
           </div>
-          <div className="flex-1 flex items-center justify-center bg-white retro-border retro-shadow-dark p-2 mb-6 min-h-[300px]"><img src={doodle.img} alt="Doodle from partner" className="max-w-full max-h-full object-contain" /></div>
+          <div className="flex-1 flex items-center justify-center bg-white retro-border retro-shadow-dark p-2 mb-6 min-h-[300px]"><img src={imageUrl} alt="Doodle from partner" className="max-w-full max-h-full object-contain" /></div>
           <p className="text-center italic opacity-50 text-sm mb-6">* Saved automatically to your Scrapbook *</p>
           <div className="flex-1 flex flex-col sm:flex-row gap-3 justify-center mt-auto">
              <RetroButton variant="secondary" onClick={handleDownload} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Download size={18}/> Save</RetroButton>
-             <RetroButton variant="primary" onClick={() => onRedoodle(doodle)} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Brush size={18}/> Redoodle</RetroButton>
+             <RetroButton variant="primary" onClick={() => onRedoodle(imageUrl)} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Brush size={18}/> Redoodle</RetroButton>
              {onReplyToChat && <RetroButton variant="accent" onClick={handleReplyChat} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Send size={18}/> Reply in Chat</RetroButton>}
           </div>
        </div>

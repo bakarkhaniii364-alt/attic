@@ -481,7 +481,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
          {/* Outcome Modal */}
          {winner && (
-            <ShareOutcomeOverlay
+            <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
               outcome={winner === myPlayerId ? 'win' : 'loss'}
               score={`Cards Left: You(${myHand.length}) vs Opp(${oppHand.length})`}
               gameName="Retro Uno"

@@ -267,6 +267,27 @@ function FloatingEnvelope({ doodle, onClick }) {
   );
 }
 
+
+/* ════ GAME INVITE MODAL ════ */
+function GameInviteModal({ invite, partnerName, onAccept, onDecline, sfx }) {
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+      <RetroWindow title="incoming_invite.exe" onClose={onDecline} className="max-w-md w-full border-4 border-dashed border-[var(--primary)] shadow-[0_0_50px_var(--primary)] animate-pulse">
+        <div className="flex flex-col items-center p-6 text-center">
+          <Gamepad2 size={64} className="text-[var(--primary)] mb-4 animate-bounce" />
+          <h2 className="text-2xl font-black uppercase mb-2">{partnerName} invited you!</h2>
+          <p className="font-bold opacity-80 mb-8">They are waiting in the lobby for <span className="text-[var(--secondary)] font-black">{invite.gameId}</span> ({invite.mode}).</p>
+          
+          <div className="flex gap-4 w-full">
+            <RetroButton variant="white" onClick={() => { playAudio('click', sfx); onDecline(); }} className="flex-1 py-4 text-black border-dashed">Decline</RetroButton>
+            <RetroButton variant="primary" onClick={() => { playAudio('click', sfx); onAccept(); }} className="flex-1 py-4 text-white font-black">Accept & Join</RetroButton>
+          </div>
+        </div>
+      </RetroWindow>
+    </div>
+  );
+}
+
 /* ════ DOODLE RECEIVER MODAL ════ */
 function DoodleReceiverModal({ doodleData, onClose, onScrapbook, onRedoodle, onReply }) {
   const [hearted, setHearted] = useState(false);
@@ -479,7 +500,10 @@ export default function App() {
   const callStateRef = useRef(callState);
   useEffect(() => { callStateRef.current = callState; }, [callState]);
   const [roomProfiles, setRoomProfiles] = useGlobalSync('room_profiles', {});
-  const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60, currentCanvas: null });
+    const [pictionaryState, setPictionaryState] = useGlobalSync('pictionary_state', { gameState: 'prep', drawerId: null, word: '', displayWord: [], timeLeft: 60, currentCanvas: null });
+  
+  const [activeGameInvite, setActiveGameInvite] = useState(null);
+  const processedInvites = useRef(new Set());
 
   // Ensure strict bidirectional sync of display names, PFP, and emojis
   useEffect(() => {

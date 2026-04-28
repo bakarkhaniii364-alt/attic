@@ -199,7 +199,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
            </div>
        );
 
-       return ( <ShareOutcomeOverlay gameName={`Retro Word (${config.mode})`} stats={outcomeStats} customElement={customNode} onClose={() => { setShowStats(false); onBack(); }} onShareToChat={(msg) => onShareToChat(msg + "\n\n" + emojiLines.join('\n'))} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
+       return ( <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName={`Retro Word (${config.mode})`} stats={outcomeStats} customElement={customNode} onClose={() => { setShowStats(false); onBack(); }} onShareToChat={(msg) => onShareToChat(msg + "\n\n" + emojiLines.join('\n'))} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
   }
 
   const currentRowIndex = boardState.findIndex(g => g === "");

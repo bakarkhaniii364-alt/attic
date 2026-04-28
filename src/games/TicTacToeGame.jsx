@@ -174,7 +174,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   if (gameOverOverlay) {
     const overallWinner = p1Wins >= winsRequired ? p1 : p2;
     return ( 
-        <ShareOutcomeOverlay gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {resetSeries(); onBack();}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> 
+        <ShareOutcomeOverlay gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {resetSeries(); onBack();}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined} /> 
     );
   }
 

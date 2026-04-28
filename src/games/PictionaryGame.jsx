@@ -256,7 +256,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   };
 
     if (gameState === 'won' || gameState === 'lost') { 
-      return ( <ShareOutcomeOverlay gameName="Pictionary" stats={{ Result: gameState === 'won' ? 'Victory!' : 'Time Up', Word: word, "Time Left": `${timeLeft}s` }} resultImage={finalImage} onClose={onBack} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> ); 
+      return ( <ShareOutcomeOverlay partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName="Pictionary" stats={{ Result: gameState === 'won' ? 'Victory!' : 'Time Up', Word: word, "Time Left": `${timeLeft}s` }} resultImage={finalImage} onClose={onBack} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> ); 
     }
 
   if (gameState === 'prep') {

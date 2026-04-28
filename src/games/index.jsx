@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader, Settings, Play, Swords, User, Monitor, Zap, Heart, Brush, X, Activity } from 'lucide-react';
-import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { RetroButton, RetroWindow, RetroInput, ScoreboardCountdown } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { playAudio } from '../utils/audio.js';
 
@@ -229,88 +229,121 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     );
   }
 
+
   // 2. Game Details / Mode Selector Phase
   if (currentPhase === 'details') {
       const partnerWaitingHere = lobbyState?.gameId === gameRoute && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status !== 'playing';
 
+      const hasSolo = game.modes.find(m => m.id === 'solo' || m.id === '1v1_local' || m.id === 'practice');
+      const hasAI = game.modes.find(m => m.id === 'vs_ai');
+      const partnerModes = game.modes.filter(m => m.type === 'remote');
+      const hasPartner = partnerModes.length > 0;
+
+      const topCategory = selectedModeId === 'solo' || selectedModeId === '1v1_local' || selectedModeId === 'practice' ? 'solo' : selectedModeId === 'vs_ai' ? 'ai' : partnerModes.some(m => m.id === selectedModeId) ? 'partner' : null;
+
+      const handleCategoryClick = (cat) => {
+          playAudio('click', sfx);
+          if (cat === 'solo') setSelectedModeId(hasSolo?.id || 'solo');
+          if (cat === 'ai') setSelectedModeId(hasAI?.id || 'vs_ai');
+          if (cat === 'partner') {
+              setSelectedModeId(partnerModes[0]?.id || 'partner');
+          }
+      };
+
+      const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
+
       return (
-        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
-          <div className="flex flex-col h-full bg-[var(--bg-main)]">
-             <div className="p-8 border-b-4 border-double border-[var(--border)] flex items-center gap-6 shrink-0">
-                 <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center retro-border bg-white" style={{ color: game.color }}>
-                    <Gamepad2 size={48} />
+        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col bg-white" noPadding>
+          <div className="flex flex-col h-full bg-white text-[var(--text-main)]">
+             <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex items-center gap-6 shrink-0">
+                 <div className="w-16 h-16 flex items-center justify-center retro-border bg-white shadow-[2px_2px_0_0_var(--border)]" style={{ color: game.color }}>
+                    <Gamepad2 size={32} />
                  </div>
                  <div>
-                    <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-widest text-[var(--primary)] text-shadow-sm leading-none">{game.title}</h1>
-                    <p className="text-sm sm:text-lg font-bold opacity-70 mt-2">{game.desc}</p>
+                    <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-widest text-[var(--primary)]">{game.title}</h1>
+                    <p className="text-sm font-bold opacity-70 mt-1">{game.desc}</p>
                  </div>
              </div>
 
-             <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+             <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col">
                  {partnerWaitingHere && (
-                     <div className="bg-[var(--secondary)] text-[var(--text-on-secondary)] p-6 mb-8 retro-border retro-shadow-dark animate-pulse flex flex-col sm:flex-row items-center justify-between gap-4">
+                     <div className="bg-[var(--secondary)] text-[var(--text-on-secondary)] p-4 mb-6 retro-border flex items-center justify-between gap-4 animate-pulse">
                          <div>
-                             <h2 className="text-xl font-black uppercase mb-1">Partner is Waiting!</h2>
-                             <p className="font-bold opacity-90 text-sm">They have set up a lobby for {game.title} and are waiting for you.</p>
+                             <h2 className="text-lg font-black uppercase mb-1">Partner is Waiting!</h2>
+                             <p className="font-bold text-xs opacity-90">They set up a lobby for {game.title}.</p>
                          </div>
-                         <RetroButton variant="white" className="text-black px-8 py-3 whitespace-nowrap" onClick={handleJoinLobby}>Join Lobby</RetroButton>
+                         <RetroButton variant="white" className="text-black px-4 py-2 text-sm" onClick={handleJoinLobby}>Join</RetroButton>
                      </div>
                  )}
 
-                 <h3 className="text-xl font-black uppercase tracking-widest mb-4 border-b-2 border-black/10 pb-2">Select Game Mode</h3>
+                 <h3 className="text-sm font-black uppercase tracking-widest mb-4 opacity-50">Game Mode</h3>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {game.modes.map(mode => (
-                         <div key={mode.id} className={`p-4 retro-border bg-[var(--bg-window)] flex flex-col gap-4 transition-transform ${selectedModeId === mode.id ? 'ring-4 ring-inset ring-[var(--primary)] scale-[1.02] retro-shadow-dark' : 'hover:scale-[1.01]'}`}>
-                             <div className="flex items-start justify-between cursor-pointer" onClick={() => { playAudio('click', sfx); setSelectedModeId(mode.id); }}>
-                                 <div>
-                                     <h4 className="text-lg font-black uppercase">{mode.label}</h4>
-                                     <p className="text-sm font-bold opacity-60 mt-1 leading-tight">{mode.desc}</p>
-                                 </div>
-                                 {mode.type === 'remote' ? <Users className="text-[var(--secondary)] shrink-0" /> : <User className="text-[var(--primary)] shrink-0" />}
-                             </div>
-                             
-                             {selectedModeId === mode.id && (
-                                 <div className="pt-4 border-t-2 border-dashed border-black/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-                                     {mode.diffs && (
-                                         <div>
-                                             <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-2 block">Difficulty</label>
-                                             <div className="flex gap-2">
-                                                 {mode.diffs.map(d => (
-                                                     <button key={d} onClick={() => { playAudio('click', sfx); setSelectedDiff(d); }} className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedDiff === d ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70 hover:opacity-100'}`}>
-                                                         {d}
-                                                     </button>
-                                                 ))}
-                                             </div>
-                                         </div>
-                                     )}
-
-                                     {mode.options && mode.options.map(opt => (
-                                         <div key={opt.key}>
-                                             <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-2 block">{opt.label}</label>
-                                             <div className="flex gap-2">
-                                                 {opt.choices.map(c => (
-                                                     <button key={c} onClick={() => { playAudio('click', sfx); setSelectedOptions(p => ({...p, [opt.key]: c})); }}
-                                                             className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedOptions[opt.key] === c ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70 hover:opacity-100'}`}>
-                                                         {c}
-                                                     </button>
-                                                 ))}
-                                             </div>
-                                         </div>
-                                     ))}
-                                     
-                                     <RetroButton 
-                                         variant={mode.type === 'remote' ? 'secondary' : 'primary'} 
-                                         className="w-full py-3 text-lg mt-2 retro-shadow-dark"
-                                         onClick={() => mode.type === 'remote' ? handleCreateLobby(mode) : handleStartLocal(mode)}
-                                     >
-                                         {mode.type === 'remote' ? 'Create Lobby & Invite' : 'Start Game'}
-                                     </RetroButton>
-                                 </div>
-                             )}
-                         </div>
-                     ))}
+                 <div className="flex gap-3 mb-6 shrink-0">
+                     {hasSolo && <RetroButton variant={topCategory === 'solo' ? 'primary' : 'white'} onClick={() => handleCategoryClick('solo')} className={`flex-1 py-3 text-sm ${topCategory !== 'solo' ? 'opacity-70' : ''}`}><User size={16} /> Solo</RetroButton>}
+                     {hasAI && <RetroButton variant={topCategory === 'ai' ? 'primary' : 'white'} onClick={() => handleCategoryClick('ai')} className={`flex-1 py-3 text-sm ${topCategory !== 'ai' ? 'opacity-70' : ''}`}><Monitor size={16} /> With AI</RetroButton>}
+                     {hasPartner && <RetroButton variant={topCategory === 'partner' ? 'primary' : 'white'} onClick={() => handleCategoryClick('partner')} className={`flex-1 py-3 text-sm ${topCategory !== 'partner' ? 'opacity-70' : ''}`}><Users size={16} /> With Partner</RetroButton>}
                  </div>
+                 
+                 {topCategory && (
+                     <div className="bg-[var(--bg-window)] retro-border p-4 sm:p-6 flex-1 flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+                        {topCategory === 'partner' && partnerModes.length > 1 && (
+                            <div className="mb-6">
+                               <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-3 block">Partner Mode</label>
+                               <div className="flex gap-2">
+                                  {partnerModes.map(m => (
+                                     <RetroButton key={m.id} variant={selectedModeId === m.id ? 'secondary' : 'white'} onClick={() => { playAudio('click', sfx); setSelectedModeId(m.id); }} className="flex-1 py-2 text-xs">
+                                        {m.label.replace(' (Online)', '')}
+                                     </RetroButton>
+                                  ))}
+                               </div>
+                            </div>
+                        )}
+
+                        {activeModeObj?.diffs && (
+                            <div className="mb-6">
+                                <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-3 block">Difficulty</label>
+                                <div className="flex gap-2">
+                                    {activeModeObj.diffs.map(d => (
+                                        <button key={d} onClick={() => { playAudio('click', sfx); setSelectedDiff(d); }} className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedDiff === d ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70 hover:opacity-100'}`}>
+                                            {d}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeModeObj?.options && activeModeObj.options.map(opt => (
+                            <div key={opt.key} className="mb-6">
+                                <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-3 block">{opt.label}</label>
+                                <div className="flex gap-2">
+                                    {opt.choices.map(c => (
+                                        <button key={c} onClick={() => { playAudio('click', sfx); setSelectedOptions(p => ({...p, [opt.key]: c})); }}
+                                                className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedOptions[opt.key] === c ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70 hover:opacity-100'}`}>
+                                            {c}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        
+                        <div className="mt-auto pt-6">
+                            <RetroButton 
+                                variant={topCategory === 'partner' ? 'accent' : 'primary'} 
+                                className="w-full py-4 text-lg retro-shadow-dark flex items-center justify-center gap-2"
+                                onClick={() => {
+                                    if (topCategory === 'partner') {
+                                        handleCreateLobby(activeModeObj);
+                                        onShareToChat(`I'm waiting in the lobby for ${game.title}!`, null, { gameId: gameRoute, mode: activeModeObj.label, type: 'game_invite_modal' });
+                                    } else {
+                                        handleStartLocal(activeModeObj);
+                                    }
+                                }}
+                            >
+                                {topCategory === 'partner' ? <><Zap size={20}/> Proceed to Lobby</> : <><Play size={20}/> Start Game</>}
+                            </RetroButton>
+                        </div>
+                     </div>
+                 )}
              </div>
           </div>
         </RetroWindow>
@@ -324,9 +357,9 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     const isReady = currentPlayers.includes(userId) && partnerInLobby;
 
     return (
-      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-2xl">
-         <div className="flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-main)] retro-border retro-shadow-dark">
-            <h2 className="text-3xl font-black uppercase mb-2">Arcade Lobby</h2>
+      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={() => navigate('/activities')} className="w-full max-w-2xl bg-white" noPadding>
+         <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-white">
+            <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
             
             <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
                 <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game.title}</span>
@@ -335,7 +368,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
             <div className="flex gap-8 items-center justify-center mb-10 w-full">
                <div className="flex flex-col items-center">
-                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[0_0_15px_var(--primary)]">
+                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[4px_4px_0_0_var(--border)]">
                      <span className="font-black text-2xl">P1</span>
                   </div>
                   <span className="mt-3 font-bold text-xs uppercase bg-black text-white px-2 py-1">READY</span>
@@ -344,7 +377,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                <div className="text-2xl font-black opacity-30">VS</div>
 
                <div className="flex flex-col items-center">
-                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[0_0_15px_var(--secondary)]' : 'bg-transparent border-dashed opacity-50'}`}>
+                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[4px_4px_0_0_var(--border)]' : 'bg-transparent border-dashed opacity-50'}`}>
                      <span className="font-black text-2xl">{partnerInLobby ? 'P2' : '?'}</span>
                   </div>
                   {partnerInLobby ? (
@@ -355,15 +388,19 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                </div>
             </div>
 
-            {isReady ? (
-               <button onClick={() => setLobbyState(prev => ({ ...prev, status: 'playing' }))} className="bg-[var(--primary)] text-[var(--text-on-primary)] font-black text-xl px-12 py-4 retro-border retro-shadow-dark hover:scale-105 transition-transform animate-pulse cursor-pointer">
-                 INSERT COIN (START)
+            {lobbyState.status === 'starting' ? (
+                <div className="py-4">
+                    <ScoreboardCountdown count={3} onComplete={() => setLobbyState(prev => ({ ...prev, status: 'playing' }))} sfx={sfx} />
+                </div>
+            ) : isReady ? (
+               <button onClick={() => setLobbyState(prev => ({ ...prev, status: 'starting' }))} className="bg-[var(--primary)] text-[var(--text-on-primary)] font-black text-xl px-12 py-4 retro-border shadow-[4px_4px_0_0_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all animate-pulse cursor-pointer">
+                 START GAME
                </button>
             ) : (
                <div className="flex flex-col gap-3">
                  <p className="text-xs font-bold opacity-60 italic">Waiting for partner to accept the invite...</p>
-                 <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game.title}!`, null, { gameId: gameRoute })} className="text-xs">
-                    Resend Invite to Chat
+                 <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game.title}!`, null, { gameId: gameRoute, mode: lobbyState.config?.mode, type: 'game_invite_modal' })} className="text-xs">
+                    Resend Invite
                  </RetroButton>
                </div>
             )}
