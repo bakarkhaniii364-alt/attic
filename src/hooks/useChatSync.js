@@ -59,6 +59,11 @@ export function useChatSync(roomId, e2eeKey) {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
 
+  const keyRef = useRef(e2eeKey);
+  useEffect(() => {
+    keyRef.current = e2eeKey;
+  }, [e2eeKey]);
+
   // 1. Initial Load & Cache Hydration
   useEffect(() => {
     if (!roomId) return;
@@ -92,7 +97,7 @@ export function useChatSync(roomId, e2eeKey) {
       }
 
       if (data && mounted) {
-        const mappedPromises = data.map(row => mapMessage(row, e2eeKey));
+        const mappedPromises = data.map(row => mapMessage(row, keyRef.current));
         const resolvedData = await Promise.all(mappedPromises);
         const sortedData = resolvedData.reverse(); // Newest at bottom
         setMessages(sortedData);
@@ -122,7 +127,7 @@ export function useChatSync(roomId, e2eeKey) {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            mapMessage(payload.new, e2eeKey).then(mapped => {
+            mapMessage(payload.new, keyRef.current).then(mapped => {
                 setMessages((prev) => {
                   if (prev.some(m => m.id === payload.new.id)) return prev;
                   const newMsgs = [...prev, mapped];
@@ -131,7 +136,7 @@ export function useChatSync(roomId, e2eeKey) {
                 });
             });
           } else if (payload.eventType === 'UPDATE') {
-            mapMessage(payload.new, e2eeKey).then(mapped => {
+            mapMessage(payload.new, keyRef.current).then(mapped => {
                 setMessages((prev) => {
                   const newMsgs = prev.map((m) => (m.id === mapped.id ? mapped : m));
                   localforage.setItem(`chat_cache_${roomId}`, newMsgs);
@@ -153,7 +158,7 @@ export function useChatSync(roomId, e2eeKey) {
     let unspentUpdateTest;
     if (isTestMode()) {
         unspentTest = onTestStateUpdate('chat_message', (payload) => {
-            mapMessage(payload, e2eeKey).then(mapped => {
+            mapMessage(payload, keyRef.current).then(mapped => {
                 setMessages((prev) => {
                     if (prev.some(m => m.id === payload.id)) return prev;
                     return [...prev, mapped];
@@ -272,7 +277,7 @@ export function useChatSync(roomId, e2eeKey) {
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
       throw err;
     }
-  }, [roomId]);
+  }, [roomId, e2eeKey]);
 
   // 4. Load More (Pagination)
   const loadMore = useCallback(async () => {
@@ -294,7 +299,7 @@ export function useChatSync(roomId, e2eeKey) {
     }
 
     if (data && data.length > 0) {
-      const mappedPromises = data.map(row => mapMessage(row, e2eeKey));
+      const mappedPromises = data.map(row => mapMessage(row, keyRef.current));
       const resolvedData = await Promise.all(mappedPromises);
       const moreMsgs = resolvedData.reverse();
       setMessages((prev) => [...moreMsgs, ...prev]);
