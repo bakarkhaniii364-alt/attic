@@ -201,24 +201,6 @@ export function DashboardRadio({ radioState, setRadioState }) {
         </div>
 
         <div className="mt-auto flex flex-col gap-3 z-10">
-            {/* Visualizer Row */}
-            <div className="h-10 bg-black/80 retro-border border-dashed p-1 flex items-center justify-center overflow-hidden">
-                <div className="w-full h-full opacity-50 flex items-center justify-center">
-                    {/* Note: This visualizer needs the audioRef from StrayTray to work properly in the Dashboard grid. 
-                        Since the audio is played in StrayTray, we'd need to pass the ref or use a context.
-                        For now, we'll use a CSS-based fallback visualizer for the dashboard card. */}
-                    <div className="flex gap-1 items-end h-full">
-                        {[...Array(12)].map((_, i) => (
-                            <div 
-                                key={i} 
-                                className={`w-2 bg-primary transition-all duration-300 ${radioState.isPlaying ? 'animate-visualizer' : 'h-1'}`}
-                                style={{ animationDelay: `${i * 0.1}s`, opacity: 0.3 + (i * 0.05) }}
-                            />
-                        ))}
-                    </div>
-                </div>
-            </div>
-
             <div className="bg-[var(--bg-window)] p-3 retro-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <button onClick={togglePlay} className={`px-6 py-2 font-black retro-border rounded active:scale-95 text-[10px] tracking-widest uppercase flex items-center gap-2 transition-all ${radioState.isPlaying ? 'bg-[var(--primary)] text-white shadow-[0_0_10px_var(--primary)]' : 'bg-window hover:bg-accent'}`}>
