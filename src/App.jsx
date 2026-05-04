@@ -69,19 +69,26 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
     setIsDragging(true);
     setDragOffset({ x: clientX - position.x, y: clientY - position.y });
   };
-  const handleMove = (clientX, clientY) => {
+  const rafRef = useRef();
+  const handleMove = useCallback((clientX, clientY) => {
     if (!isDragging) return;
-    setPosition({ x: clientX - dragOffset.x, y: clientY - dragOffset.y });
-  };
-  const handleEnd = () => setIsDragging(false);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setPosition({ x: clientX - dragOffset.x, y: clientY - dragOffset.y });
+    });
+  }, [isDragging, dragOffset]);
+
+  const handleEnd = useCallback(() => setIsDragging(false), []);
 
   useEffect(() => {
     const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
-    const onTouchMove = (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    const onTouchMove = (e) => {
+      if (e.touches[0]) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
     if (isDragging) {
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', handleEnd);
-      window.addEventListener('touchmove', onTouchMove);
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
       window.addEventListener('touchend', handleEnd);
     }
     return () => {
@@ -89,8 +96,9 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
       window.removeEventListener('mouseup', handleEnd);
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', handleEnd);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [isDragging, dragOffset]);
+  }, [isDragging, handleMove, handleEnd]);
 
   const mins = Math.floor(callDuration / 60);
   const secs = callDuration % 60;

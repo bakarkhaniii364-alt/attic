@@ -5,6 +5,7 @@ import { RetroButton, RetroWindow, RetroInput, useToast } from '../components/UI
 import { supabase } from '../lib/supabase.js';
 import { isTestMode } from '../lib/testMode.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { LegalView } from './LegalView.jsx';
 
 /* ═══════════════════════════════════════════════════════
    LANDING PAGE — cute & animated with floating elements
@@ -60,7 +61,7 @@ export function LandingView() {
 
       <footer className="absolute bottom-4 left-0 right-0 z-10 text-center">
         <p className="text-[10px] sm:text-xs font-black tracking-[0.2em] opacity-30">
-          Made with love, for the lovers by <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors border-b border-current">bakarkhaniii</a>
+          Built with love, for the lovers by <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors border-b border-current">bakarkhaniii</a>
         </p>
       </footer>
     </div>
@@ -82,6 +83,7 @@ export function AuthView({ mode }) {
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('attic_remembered_email'));
   const [authError, setAuthError] = useState(null);
   const [shake, setShake] = useState(false);
+  const [showLegal, setShowLegal] = useState(false);
   const addToast = useToast();
 
   const triggerShake = () => {
@@ -90,8 +92,16 @@ export function AuthView({ mode }) {
   };
 
 
-  const handleAuth = async (e) => {
+  const startAuthFlow = (e) => {
     e.preventDefault();
+    if (!termsAgreed) {
+        setShowLegal(true);
+        return;
+    }
+    handleAuth();
+  };
+
+  const handleAuth = async () => {
     setLoading(true);
     setAuthError(null);
     try {
@@ -125,7 +135,6 @@ export function AuthView({ mode }) {
         if (rememberMe) localStorage.setItem('attic_remembered_email', email);
         else localStorage.removeItem('attic_remembered_email');
 
-        // read metadata and forward display name for immediate UI update
         handleAuthSuccess(data.session);
         navigate('/dashboard');
       }
@@ -146,7 +155,7 @@ export function AuthView({ mode }) {
         className={`w-full max-w-[440px] shadow-2xl scale-up-15 ${shake ? 'animate-shake' : ''}`} 
         onClose={onBack}
       >
-        <form onSubmit={handleAuth} className="flex flex-col gap-4 py-4">
+        <form onSubmit={startAuthFlow} className="flex flex-col gap-4 py-4">
           <div className="flex flex-col items-center gap-1 mb-6 pb-4">
             <h2 className="text-3xl font-black tracking-tighter text-primary lowercase text-center">
               {mode === 'signup' ? 'join attic' : 'welcome back'}
@@ -186,20 +195,11 @@ export function AuthView({ mode }) {
                 required
               />
 
-              <label className="flex items-start gap-3 cursor-pointer group mt-1">
-                <input 
-                  type="checkbox" 
-                  required
-                  checked={termsAgreed}
-                  onChange={e => setTermsAgreed(e.target.checked)}
-                  className="mt-1 w-4 h-4 border-2 border-border accent-primary cursor-pointer"
-                />
-                <span className="text-[10px] leading-relaxed opacity-60 group-hover:opacity-100 transition-opacity">
-                  I agree to the <a href="/legal" target="_blank" className="text-primary underline">Terms of Service</a> and acknowledge that deleting a room permanently deletes all data for both partners.
-                </span>
-              </label>
+              <p className="text-[10px] leading-relaxed opacity-60 mt-1">
+                By creating an account, you agree to the <button type="button" onClick={() => setShowLegal(true)} className="text-primary underline cursor-pointer">Sanctuary Promise</button> and acknowledge the privacy rules.
+              </p>
 
-              <RetroButton type="submit" disabled={loading || !termsAgreed} className="py-3 text-lg mt-2">
+              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
               </RetroButton>
             </>
@@ -248,6 +248,21 @@ export function AuthView({ mode }) {
         </form>
       </RetroWindow>
 
+      {showLegal && (
+        <LegalView 
+          isOverlay 
+          onClose={() => setShowLegal(false)} 
+          onAccept={() => {
+            setTermsAgreed(true);
+            setShowLegal(false);
+            // If they are in the middle of a flow, we could trigger auth here but 
+            // since it's a form submit, we'll let them click the button again or 
+            // handle it automatically.
+            // Actually, let's trigger it automatically if they accepted.
+            setTimeout(() => handleAuth(), 100);
+          }} 
+        />
+      )}
     </div>
   );
 }

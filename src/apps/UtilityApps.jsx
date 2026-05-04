@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette, Undo } from 'lucide-react';
+import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette, Undo as UndoIcon } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { SecureImage } from '../components/SecureMedia.jsx';
 import { playAudio } from '../utils/audio.js';
@@ -146,7 +146,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
           disabled={snapshotHistory.current.length <= 1}
           title="Undo (Ctrl+Z)"
         >
-          <Undo size={18}/>
+          <UndoIcon size={18}/>
           <span>Undo</span>
         </button>
         <div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
@@ -195,11 +195,29 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
 
 export function PersistentDoodleApp({ onClose, sfx, userId }) {
   const [doodleData, setDoodleData] = useGlobalSync('persistent_doodle', { img: null, lastUpdate: 0, updater: null });
+  const { sendData } = useCall();
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#5c3a21');
   const [brushSize, setBrushSize] = useState(4);
   const containerRef = useRef(null);
+  const lastPosRef = useRef({ x: 0, y: 0 });
+
+  // P2P Stroke synchronization
+  useBroadcast('doodle_p2p_stroke', (payload) => {
+    if (payload.updater === userId) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.beginPath();
+    ctx.strokeStyle = payload.color;
+    ctx.lineWidth = payload.size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(payload.fromX, payload.fromY);
+    ctx.lineTo(payload.toX, payload.toY);
+    ctx.stroke();
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -217,6 +235,7 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
     canvas.width = rect.width;
     canvas.height = rect.height;
     const ctx = canvas.getContext('2d');
@@ -248,6 +267,7 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
   const handlePointerDown = (e) => {
     setIsDrawing(true);
     const { x, y } = getCoords(e);
+    lastPosRef.current = { x, y };
     const ctx = canvasRef.current.getContext('2d');
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -261,11 +281,28 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
     const ctx = canvasRef.current.getContext('2d');
     ctx.lineTo(x, y);
     ctx.stroke();
+
+    // Broadcast stroke P2P
+    sendData && sendData({
+      type: 'broadcast',
+      event: 'doodle_p2p_stroke',
+      payload: { 
+        fromX: lastPosRef.current.x, 
+        fromY: lastPosRef.current.y, 
+        toX: x, 
+        toY: y, 
+        color, 
+        size: brushSize,
+        updater: userId 
+      }
+    });
+    lastPosRef.current = { x, y };
   };
 
   const handlePointerUp = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
+    // Persist to DB only on lift, minimizing JSONB overhead
     const dataUrl = canvasRef.current.toDataURL('image/png');
     setDoodleData({ img: dataUrl, lastUpdate: Date.now(), updater: userId });
   };

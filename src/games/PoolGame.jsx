@@ -8,9 +8,9 @@ const PLAY_HEIGHT = 400;
 const BORDER_SIZE = 40;
 const CANVAS_WIDTH = PLAY_WIDTH + BORDER_SIZE * 2;
 const CANVAS_HEIGHT = PLAY_HEIGHT + BORDER_SIZE * 2;
-const BALL_R = 14;
-const POCKET_R = 28;
-const VISUAL_POCKET_R = 24;
+const BALL_R = 12;
+const POCKET_R = 30;
+const VISUAL_POCKET_R = 30;
 
 const POCKETS = [
   { x: 0, y: 0 }, { x: PLAY_WIDTH / 2, y: -2 }, { x: PLAY_WIDTH, y: 0 },
@@ -223,23 +223,32 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               
               if (b.vx !== 0 || b.vy !== 0) moving = true;
 
-              // Pockets
+              // Pockets - Improved detection and "pull" force
               let pocketed = false;
               for (const p of POCKETS) {
                   const distToPocket = Math.hypot(b.x - p.x, b.y - p.y);
                   if (distToPocket < POCKET_R) {
-                      b.active = false;
-                      b.vx = 0; b.vy = 0;
-                      playAudio('sink', sfx);
-                      pocketed = true;
-                      break;
+                      // Slight pull towards center for smoother feel
+                      if (distToPocket > 5) {
+                          const pull = 0.5;
+                          b.vx += (p.x - b.x) / distToPocket * pull;
+                          b.vy += (p.y - b.y) / distToPocket * pull;
+                      }
+
+                      if (distToPocket < 15) { // Final sink threshold
+                        b.active = false;
+                        b.vx = 0; b.vy = 0;
+                        playAudio('sink', sfx);
+                        pocketed = true;
+                        break;
+                      }
                   }
               }
 
               if (pocketed) continue;
 
               // Walls
-              const nearPocket = POCKETS.some(p => Math.hypot(b.x - p.x, b.y - p.y) < POCKET_R * 1.25);
+              const nearPocket = POCKETS.some(p => Math.hypot(b.x - p.x, b.y - p.y) < POCKET_R * 1.5);
               if (!nearPocket) {
                   if (b.x < BALL_R) { b.x = BALL_R; b.vx *= -0.8; }
                   if (b.x > PLAY_WIDTH - BALL_R) { b.x = PLAY_WIDTH - BALL_R; b.vx *= -0.8; }
@@ -483,157 +492,94 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   const nx = dx / pullDist;
                   const ny = dy / pullDist;
 
-                  // Raycast for collision (closed-form quadratic solution for sphere-ray intersection)
-                  let closestHit = null;
-                  let minT = Infinity;
-                  
-                  engine.balls.forEach(b => {
-                      if (!b.active || b.id === 0) return;
-                      const vx = cue.x - b.x;
-                      const vy = cue.y - b.y;
-                      const bTerm = vx * nx + vy * ny;
-                      const cTerm = vx * vx + vy * vy - (BALL_R * 2) ** 2;
-                      const disc = bTerm * bTerm - cTerm;
-                      if (disc >= 0) {
-                          const tHit = -bTerm - Math.sqrt(disc);
-                          if (tHit > 0 && tHit < minT) {
-                              minT = tHit;
-                              closestHit = { ball: b, tHit };
-                          }
-                      }
-                  });
-
-                  // Raycast for walls
-                  let wallT = Infinity;
-                  let wallNX = 0, wallNY = 0;
-                  if (nx > 0) { const t = (PLAY_WIDTH - BALL_R - cue.x) / nx; if(t > 0 && t < wallT) { wallT = t; wallNX = -1; wallNY = 0; } }
-                  else if (nx < 0) { const t = (BALL_R - cue.x) / nx; if(t > 0 && t < wallT) { wallT = t; wallNX = 1; wallNY = 0; } }
-                  
-                  if (ny > 0) { const t = (PLAY_HEIGHT - BALL_R - cue.y) / ny; if(t > 0 && t < wallT) { wallT = t; wallNX = 0; wallNY = -1; } }
-                  else if (ny < 0) { const t = (BALL_R - cue.y) / ny; if(t > 0 && t < wallT) { wallT = t; wallNX = 0; wallNY = 1; } }
-
-                  ctx.beginPath();
-                  ctx.moveTo(cue.x, cue.y);
-
-                  if (closestHit && minT < wallT) {
-                      const hx = cue.x + nx * minT;
-                      const hy = cue.y + ny * minT;
-                      ctx.lineTo(hx, hy);
-                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-                      ctx.lineWidth = 6;
-                      ctx.stroke();
-                      
-                      // Draw ghost cue ball outline
-                      ctx.beginPath();
-                      ctx.arc(hx, hy, BALL_R, 0, Math.PI * 2);
-                      ctx.strokeStyle = '#ffffff';
-                      ctx.lineWidth = 2;
-                      ctx.stroke();
-
-                      // Target ball trajectory
-                      const tBall = closestHit.ball;
-                      const nColX = tBall.x - hx;
-                      const nColY = tBall.y - hy;
-                      const nColDist = Math.hypot(nColX, nColY);
-                      const ncx = nColX / nColDist;
-                      const ncy = nColY / nColDist;
-                      
-                      // Raycast for target ball
-                      let tMinT = 150;
-                      let tClosestHit = null;
+                  // REFACTORED TRAJECTORY SYSTEM (Supports 1 bounce)
+                  const findIntersection = (ox, oy, dx, dy, ignoreId = null) => {
+                      let bestT = Infinity;
+                      let bestBall = null;
                       engine.balls.forEach(b => {
-                          if (!b.active || b.id === tBall.id || b.id === 0) return;
-                          const vx = b.x - tBall.x;
-                          const vy = b.y - tBall.y;
-                          const t = vx * ncx + vy * ncy;
-                          if (t > 0) {
-                              const qx = tBall.x + t * ncx;
-                              const qy = tBall.y + t * ncy;
-                              const dsq = (b.x - qx)**2 + (b.y - qy)**2;
-                              const rsq = (BALL_R * 2)**2;
-                              if (dsq <= rsq) {
-                                  const tInt = t - Math.sqrt(rsq - dsq);
-                                  if (tInt > 0.1 && tInt < tMinT) {
-                                      tMinT = tInt;
-                                      tClosestHit = b;
-                                  }
+                          if (!b.active || b.id === ignoreId) return;
+                          const vx = ox - b.x;
+                          const vy = oy - b.y;
+                          const bTerm = vx * dx + vy * dy;
+                          const cTerm = vx * vx + vy * vy - (BALL_R * 2) ** 2;
+                          const disc = bTerm * bTerm - cTerm;
+                          if (disc >= 0) {
+                              const t = -bTerm - Math.sqrt(disc);
+                              if (t > 0.1 && t < bestT) {
+                                  bestT = t;
+                                  bestBall = b;
                               }
                           }
                       });
                       
-                      // Also check walls for target ball
-                      let twallT = 150;
-                      if (ncx > 0) { const t = (PLAY_WIDTH - BALL_R - tBall.x) / ncx; if(t > 0.1 && t < twallT) twallT = t; }
-                      else if (ncx < 0) { const t = (BALL_R - tBall.x) / ncx; if(t > 0.1 && t < twallT) twallT = t; }
-                      if (ncy > 0) { const t = (PLAY_HEIGHT - BALL_R - tBall.y) / ncy; if(t > 0.1 && t < twallT) twallT = t; }
-                      else if (ncy < 0) { const t = (BALL_R - tBall.y) / ncy; if(t > 0.1 && t < twallT) twallT = t; }
-                      tMinT = Math.min(tMinT, twallT);
+                      let wallT = Infinity;
+                      let wallN = { x: 0, y: 0 };
+                      if (dx > 0) { const t = (PLAY_WIDTH - BALL_R - ox) / dx; if(t > 0.1 && t < wallT) { wallT = t; wallN = {x:-1, y:0}; } }
+                      else if (dx < 0) { const t = (BALL_R - ox) / dx; if(t > 0.1 && t < wallT) { wallT = t; wallN = {x:1, y:0}; } }
+                      if (dy > 0) { const t = (PLAY_HEIGHT - BALL_R - oy) / dy; if(t > 0.1 && t < wallT) { wallT = t; wallN = {x:0, y:-1}; } }
+                      else if (dy < 0) { const t = (BALL_R - oy) / dy; if(t > 0.1 && t < wallT) { wallT = t; wallN = {x:0, y:1}; } }
+                      
+                      if (bestBall && bestT < wallT) return { t: bestT, ball: bestBall, type: 'ball' };
+                      if (wallT < Infinity) return { t: wallT, n: wallN, type: 'wall' };
+                      return null;
+                  };
 
+                  const firstHit = findIntersection(cue.x, cue.y, nx, ny, 0);
+                  let path = [{ x: cue.x, y: cue.y }];
+
+                  if (firstHit) {
+                      const hx = cue.x + nx * firstHit.t;
+                      const hy = cue.y + ny * firstHit.t;
+                      path.push({ x: hx, y: hy });
+
+                      if (firstHit.type === 'wall') {
+                          // Calculate reflected ray for 1 bounce
+                          const rnx = nx + 2 * firstHit.n.x * (-(nx * firstHit.n.x + ny * firstHit.n.y));
+                          const rny = ny + 2 * firstHit.n.y * (-(nx * firstHit.n.x + ny * firstHit.n.y));
+                          const secondHit = findIntersection(hx, hy, rnx, rny, 0);
+                          if (secondHit) {
+                              path.push({ x: hx + rnx * secondHit.t, y: hy + rny * secondHit.t });
+                              if (secondHit.type === 'ball') path[path.length-1].hitBall = secondHit.ball;
+                          } else {
+                              path.push({ x: hx + rnx * 100, y: hy + rny * 100 });
+                          }
+                      } else {
+                          path[path.length-1].hitBall = firstHit.ball;
+                      }
+                  } else {
+                      path.push({ x: cue.x + nx * 100, y: cue.y + ny * 100 });
+                  }
+
+                  // Draw path
+                  ctx.beginPath();
+                  ctx.setLineDash([5, 5]);
+                  ctx.moveTo(path[0].x, path[0].y);
+                  for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+
+                  // Draw ghost cue and target impact
+                  if (path.some(p => p.hitBall)) {
+                      const impactPoint = path.find(p => p.hitBall);
+                      // Ghost cue
+                      ctx.beginPath();
+                      ctx.arc(impactPoint.x, impactPoint.y, BALL_R, 0, Math.PI * 2);
+                      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                      ctx.stroke();
+
+                      // Target ball direction
+                      const tBall = impactPoint.hitBall;
+                      const dtx = tBall.x - impactPoint.x;
+                      const dty = tBall.y - impactPoint.y;
+                      const ddist = Math.hypot(dtx, dty);
+                      const tx = dtx / ddist;
+                      const ty = dty / ddist;
                       ctx.beginPath();
                       ctx.moveTo(tBall.x, tBall.y);
-                      ctx.lineTo(tBall.x + ncx * tMinT, tBall.y + ncy * tMinT);
-                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                      ctx.lineWidth = 4;
-                      ctx.stroke();
-
-                      if (tClosestHit) {
-                          ctx.beginPath();
-                          ctx.arc(tBall.x + ncx * tMinT, tBall.y + ncy * tMinT, BALL_R, 0, Math.PI * 2);
-                          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                          ctx.lineWidth = 2;
-                          ctx.stroke();
-                      }
-
-                      // Cue ball post-collision trajectory
-                      const dot = nx * ncx + ny * ncy;
-                      const cueAx = nx - dot * ncx;
-                      const cueAy = ny - dot * ncy;
-                      const cueALen = Math.hypot(cueAx, cueAy);
-                      if (cueALen > 0.01) {
-                          const cnx = cueAx / cueALen;
-                          const cny = cueAy / cueALen;
-                          
-                          let cMinT = 100;
-                          let cwallT = 100;
-                          if (cnx > 0) { const t = (PLAY_WIDTH - BALL_R - hx) / cnx; if(t > 0.1 && t < cwallT) cwallT = t; }
-                          else if (cnx < 0) { const t = (BALL_R - hx) / cnx; if(t > 0.1 && t < cwallT) cwallT = t; }
-                          if (cny > 0) { const t = (PLAY_HEIGHT - BALL_R - hy) / cny; if(t > 0.1 && t < cwallT) cwallT = t; }
-                          else if (cny < 0) { const t = (BALL_R - hy) / cny; if(t > 0.1 && t < cwallT) cwallT = t; }
-                          cMinT = Math.min(cMinT, cwallT);
-                          
-                          ctx.beginPath();
-                          ctx.moveTo(hx, hy);
-                          ctx.lineTo(hx + cnx * cMinT, hy + cny * cMinT);
-                          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                          ctx.lineWidth = 4;
-                          ctx.stroke();
-                      }
-                  } else if (wallT !== Infinity) {
-                      const hx = cue.x + nx * wallT;
-                      const hy = cue.y + ny * wallT;
-                      ctx.lineTo(hx, hy);
-                      
-                      // Reflection
-                      const rx = nx - 2 * (nx * wallNX + ny * wallNY) * wallNX;
-                      const ry = ny - 2 * (nx * wallNX + ny * wallNY) * wallNY;
-                      
-                      ctx.lineTo(hx + rx * 200, hy + ry * 200);
-                      
-                      const grad = ctx.createLinearGradient(cue.x, cue.y, hx + rx * 200, hy + ry * 200);
-                      grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                      
-                      ctx.strokeStyle = grad;
-                      ctx.lineWidth = 6;
-                      ctx.stroke();
-                  } else {
-                      const aimLen = 600;
-                      const grad = ctx.createLinearGradient(cue.x, cue.y, cue.x + nx * aimLen, cue.y + ny * aimLen);
-                      grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                      ctx.lineTo(cue.x + nx * aimLen, cue.y + ny * aimLen); 
-                      ctx.strokeStyle = grad;
-                      ctx.lineWidth = 6;
+                      ctx.lineTo(tBall.x + tx * 100, tBall.y + ty * 100);
+                      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                       ctx.stroke();
                   }
                   

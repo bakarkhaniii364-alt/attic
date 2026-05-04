@@ -637,19 +637,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                     <span className="bg-yellow-400 text-black text-[10px] px-2 py-0.5 retro-border animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-black uppercase tracking-tighter">Master</span>
                   )}
                 </h1>
-                <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 retro-border border-dashed">
-                    <div className="relative group">
-                      <div className="w-10 h-10 retro-border bg-border flex items-center justify-center overflow-hidden">
-                        {profile.pfp ? (
-                          <img src={profile.pfp} alt="me" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-xl leading-none">{profile.emoji || '👤'}</span>
-                        )}
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white retro-border flex items-center justify-center text-[10px] leading-none shadow-sm cursor-help" title="Your current mood">
-                        {profile.mood || '😐'}
-                      </div>
-                    </div>
+                <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 retro-border border-dashed min-h-[50px]">
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {partnerProfile.pfp ? (
@@ -657,30 +645,25 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                       ) : (
                         <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
                       )}
-                      {/* Single dot indicator — purely decorative, color matches displayStatus */}
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                      {/* Presence indicator */}
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
-                      <div className="flex items-center gap-1.5">
-                        <div className="relative">
-                          <p className="text-sm font-bold truncate max-w-[120px] leading-none">
-                            {partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : (coupleData.partnerNickname && coupleData.partnerNickname !== 'You' ? coupleData.partnerNickname : 'Partner')}
-                          </p>
-                          {partnerProfile.mood && (
-                            <span className="absolute -top-3 -right-3 text-[10px]" title={`Current mood: ${partnerProfile.mood}`}>
-                              {partnerProfile.mood}
-                            </span>
-                          )}
-                        </div>
-                        <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
+                      <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner Connection</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold truncate max-w-[140px] leading-none">
+                          {partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner'}
+                        </p>
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="h-8 w-px bg-border opacity-20 mx-1"></div>
-                  <StreakBadge streak={streaks} />
+                  <div className="ml-auto flex items-center gap-3">
+                    <div className="h-8 w-px bg-border opacity-20"></div>
+                    <StreakBadge streak={streaks} />
+                  </div>
                 </div>
               </div>
             </div>
