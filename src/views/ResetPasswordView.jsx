@@ -132,7 +132,6 @@ export function ResetPasswordView({ sfx }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 bg-main relative overflow-hidden">
-      <div className="absolute inset-0 bg-pattern-grid opacity-40" />
       <div className="absolute inset-0 scanlines pointer-events-none opacity-30" />
 
       <RetroWindow title="reset_password.exe" className="w-full max-w-sm relative z-10" onClose={() => navigate('/signin')}>

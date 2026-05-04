@@ -2,6 +2,8 @@ import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, He
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { SecureImage } from '../components/SecureMedia.jsx';
+import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
 import { playAudio } from '../utils/audio.js';
 import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +24,21 @@ const globalAudioRef = { current: null };
 function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const audioRef = useRef(audioUrl ? new Audio(audioUrl) : null);
+  const { bucket, path } = parseSupabaseUrl(audioUrl);
+  const { signedUrl } = useSignedUrl(bucket, path);
+  const audioRef = useRef(null);
+  
+  useEffect(() => {
+    if (signedUrl) {
+      audioRef.current = new Audio(signedUrl);
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, [signedUrl]);
   
   useEffect(() => {
     const audio = audioRef.current;
@@ -79,9 +95,9 @@ function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
         {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
       </button>
       
-      <div onClick={handleSeek} className="flex-1 h-2 bg-black/20 rounded-full relative overflow-hidden cursor-pointer group">
+      <div onClick={handleSeek} className="flex-1 h-4 bg-black/20 retro-border border-dashed relative overflow-hidden cursor-pointer group">
         <div 
-          className={`absolute top-0 left-0 h-full rounded-full transition-all duration-75 ${isMe ? 'bg-primary-text' : 'bg-main-text'}`} 
+          className={`absolute top-0 left-0 h-full transition-all duration-75 ${isMe ? 'bg-primary-text' : 'bg-main-text'}`} 
           style={{ width: `${progress}%` }}
         ></div>
       </div>
@@ -681,14 +697,14 @@ export function ChatView({ onClose, sfx }) {
                             )}
                             {msg.type === 'image' && (
                               <div className="flex flex-col gap-2">
-                                <img src={msg.url} alt="" onClick={() => setViewerContext({ urls: [msg.url], index: 0, isOpen: true })} className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:brightness-95 transition-all`} />
+                                <SecureImage url={msg.url} alt="" onClick={() => setViewerContext({ urls: [msg.url], index: 0, isOpen: true })} className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:brightness-95 transition-all`} />
                                 {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
                               </div>
                             )}
                             {msg.type === 'image_group' && (
                               <div className="flex flex-col gap-2">
                                 <div className={`grid ${msg.urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-1 w-full max-w-xs`}>
-                                  {msg.urls.map((u, i) => <img key={i} src={u} onClick={() => setViewerContext({ urls: msg.urls, index: i, isOpen: true })} className="aspect-square object-cover retro-border cursor-pointer hover:scale-[1.02] transition-transform" />)}
+                                  {msg.urls.map((u, i) => <SecureImage key={i} url={u} onClick={() => setViewerContext({ urls: msg.urls, index: i, isOpen: true })} className="aspect-square object-cover retro-border cursor-pointer hover:scale-[1.02] transition-transform" />)}
                                 </div>
                                 {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
                               </div>

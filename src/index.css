@@ -571,6 +571,11 @@ svg, img, canvas {
   image-rendering: crisp-edges !important;
 }
 
+/* Fix 59: Prevent pull-to-refresh on mobile games */
+canvas, .game-container, .doodle-canvas {
+  touch-action: none !important;
+}
+
 /* Fix 70: Crisp inset pixel focus rings */
 button:focus, a:focus, input:focus, select:focus, textarea:focus {
   outline: 2px dashed var(--primary) !important;
@@ -578,12 +583,8 @@ button:focus, a:focus, input:focus, select:focus, textarea:focus {
 }
 
 /* Fix 61: Crisp solid-panel windows in default/retro themes */
-:root:not([data-theme="midnight"]):not([data-theme="cyberpunk"]) .backdrop-blur-sm,
-:root:not([data-theme="midnight"]):not([data-theme="cyberpunk"]) .backdrop-blur-md,
-:root:not([data-theme="midnight"]):not([data-theme="cyberpunk"]) .backdrop-blur-lg {
-  backdrop-filter: none !important;
-  background-color: var(--bg-window) !important;
-}
+/* Removed global backdrop-blur override to allow transparency/blur in modals */
+
 
 /* Fix 66: Unify all dashboard cards to use thick retro border */
 .md\:col-span-4.h-auto, .col-span-12, .grid .retro-window {

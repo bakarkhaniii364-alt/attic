@@ -31,21 +31,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-if ('serviceWorker' in navigator) {
-  // Ensure any old/incorrect service workers are removed so they don't serve stale
-  // or incorrect cached content (previous builds cached source files and broke the site).
-  window.addEventListener('load', async () => {
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const r of regs) {
-        await r.unregister();
-        console.log('Unregistered service worker:', r);
-      }
-    } catch (err) {
-      console.warn('Service worker cleanup failed:', err);
-    }
-    // Intentionally not re-registering a service worker here to avoid caching issues
-    // during rapid deploy iterations. If you want an offline SW, we can add a
-    // production-ready service worker that caches built assets only.
-  });
-}
+// Service worker logic for PWA and push notifications can be added here
+// currently relying on standard browser caching for stability.

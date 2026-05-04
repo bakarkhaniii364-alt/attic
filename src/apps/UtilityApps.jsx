@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette } from 'lucide-react';
+import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette, Undo } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { SecureImage } from '../components/SecureMedia.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { useAssetSync } from '../hooks/useAssetSync.js';
@@ -19,7 +20,7 @@ export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profi
              <div className="flex justify-between items-end"><span className="font-bold text-lg sm:text-xl text-[var(--primary)]">From: <span className="text-[var(--text-main)]">Partner ❤️</span></span><span className="text-xs opacity-50">{new Date(doodle.created_at || doodle.id).toLocaleDateString()}</span></div>
              <div className="font-bold text-lg sm:text-xl text-[var(--secondary)]">To: <span className="text-[var(--text-main)]">{profileName || 'Me'} ✨</span></div>
           </div>
-          <div className="flex-1 flex items-center justify-center bg-white retro-border retro-shadow-dark p-2 mb-6 min-h-[300px]"><img src={imageUrl} alt="Doodle from partner" className="max-w-full max-h-full object-contain" /></div>
+          <div className="flex-1 flex items-center justify-center bg-white retro-border retro-shadow-dark p-2 mb-6 min-h-[300px]"><SecureImage url={imageUrl} alt="Doodle from partner" className="max-w-full max-h-full object-contain" /></div>
           <p className="text-center italic opacity-50 text-sm mb-6">* Saved automatically to your Scrapbook *</p>
           <div className="flex-1 flex flex-col sm:flex-row gap-3 justify-center mt-auto">
              <RetroButton variant="secondary" onClick={handleDownload} className="px-5 py-3 flex items-center justify-center gap-2 retro-border"><Download size={18}/> Save</RetroButton>
@@ -657,7 +658,7 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {visibleImages.map((url, i) => (
               <div key={i} className="group relative aspect-square retro-border bg-white p-1 retro-shadow-dark hover:-translate-y-1 transition-transform">
-                <img src={url} alt="memory" loading="lazy" className="w-full h-full object-cover" />
+                <SecureImage url={url} alt="memory" loading="lazy" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                    <button onClick={() => { playAudio('click', sfx); setLayoutMode('collage'); setLayout(p => ({ ...p, [url]: { x: 10 + Math.random()*70, y: 10+Math.random()*70, rotate: 0 } })); }} className="p-2 bg-white retro-border hover:bg-[var(--accent)]"><ImageIcon size={16}/></button>
                 </div>
@@ -687,7 +688,7 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
                   }}
                   className="absolute w-32 sm:w-48 bg-white p-1 sm:p-2 retro-border shadow-xl cursor-grab active:cursor-grabbing group select-none"
                 >
-                <img src={url} alt="" className="w-full h-auto pointer-events-none" />
+                <SecureImage url={url} alt="" className="w-full h-auto pointer-events-none" />
                    <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 flex gap-1">
                       <button onClick={(e) => { e.stopPropagation(); rotateImage(url); }} className="p-1 bg-white retro-border rounded-full shadow-md hover:bg-[var(--accent)]"><Brush size={12}/></button>
                    </div>

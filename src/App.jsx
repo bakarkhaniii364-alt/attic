@@ -423,13 +423,9 @@ export default function App() {
     // Check if the current shared state is either empty or literally set to "You"
     const needsFix = !currentProfile.name || currentProfile.name === 'You' || !currentProfile.emoji;
     if (needsFix) {
-      updateSyncState('room_profiles', {
-        ...roomProfiles,
-        [userId]: {
-          ...currentProfile,
+      updateSyncStateAtomic('room_profiles', userId, {
           name: finalName,
           emoji: currentProfile.emoji || '👤'
-        }
       });
     }
   }, [userId, roomId, isInitialized, user]);
@@ -557,7 +553,18 @@ export default function App() {
               <p className="text-[10px] font-black text-primary mb-8 uppercase tracking-[0.2em] animate-pulse">Incoming {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call</p>
               <div className="flex gap-6 justify-center">
                 <button onClick={endCall} className="p-5 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-all hover:scale-110 shadow-lg group"><PhoneOff size={28} className="rotate-[135deg]"/></button>
-                <button onClick={acceptCall} className="p-5 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"><Phone size={28}/></button>
+                <button 
+                  onClick={() => {
+                    // Critical: Trigger audio play on user gesture to bypass autoplay blocks
+                    if (remoteAudioRef.current) {
+                      remoteAudioRef.current.play().catch(e => console.warn("[Call] Autoplay block bypass failed:", e));
+                    }
+                    acceptCall();
+                  }} 
+                  className="p-5 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"
+                >
+                  <Phone size={28}/>
+                </button>
               </div>
             </div>
           </div>
@@ -593,30 +600,33 @@ export default function App() {
         {gameInvite && (
           <GameInviteModal 
             invite={gameInvite} partnerName={partnerName}
-            onAccept={() => {
+            onAccept={async () => {
               setGameInvite(null);
               const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-              let currentLobby = lobbyState;
-              if (isTestMode()) {
-                const cached = localStorage.getItem('attic_test_arcade_lobby');
-                if (cached) {
-                  try {
-                    currentLobby = JSON.parse(cached);
-                  } catch (e) {}
+              
+              // 1. Attempt atomic join via RPC (safest)
+              try {
+                const { error } = await supabase.rpc('join_arcade_lobby', { 
+                  p_room_id: roomId, 
+                  p_user_id: userId 
+                });
+                if (error) throw error;
+                console.log("[Lobby] Atomic join successful via RPC");
+              } catch (err) {
+                // 2. Fallback to client-side merge if RPC is not yet deployed
+                console.warn("[Lobby] RPC join failed, falling back to client merge:", err);
+                let currentLobby = lobbyState;
+                if (currentLobby?.gameId === gId) {
+                  const currentPlayers = Array.from(new Set([...(currentLobby.players || []), userId]));
+                  const updatedLobby = {
+                    ...currentLobby,
+                    players: currentPlayers,
+                    status: currentPlayers.length >= 2 ? 'ready' : 'waiting'
+                  };
+                  updateSyncState('arcade_lobby', updatedLobby);
                 }
               }
-              if (currentLobby?.gameId === gId) {
-                const currentPlayers = Array.from(new Set([...(currentLobby.players || []), userId]));
-                const updatedLobby = {
-                  ...currentLobby,
-                  players: currentPlayers,
-                  status: currentPlayers.length >= 2 ? 'ready' : 'waiting'
-                };
-                if (isTestMode()) {
-                  localStorage.setItem('attic_test_arcade_lobby', JSON.stringify(updatedLobby));
-                }
-                updateSyncState('arcade_lobby', updatedLobby);
-              }
+              
               navigate(`/activities/${gId}`);
             }}
             onDecline={() => setGameInvite(null)}
@@ -680,7 +690,11 @@ export default function App() {
                 userId={userId}
                 partnerId={partnerId}
                 scores={globalState.game_scores}
-                setScores={(val) => updateSyncState('game_scores', typeof val === 'function' ? val(globalState.game_scores || {}) : val)}
+                setScores={(val) => {
+                  const newScores = typeof val === 'function' ? val(globalState.game_scores || {}) : val;
+                  // Atomic score update
+                  updateSyncStateAtomic('game_scores', userId, newScores[userId]);
+                }}
                 profile={roomProfiles[userId]}
                 roomProfiles={roomProfiles}
                 myName={roomProfiles[userId]?.name}

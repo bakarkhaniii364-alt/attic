@@ -22,3 +22,27 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : { title: 'Attic', body: 'New message from partner!' };
+  
+  const options = {
+    body: data.body,
+    icon: '/assets/icon-192.png',
+    badge: '/assets/badge-72.png',
+    data: {
+      url: data.url || '/'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url)
+  );
+});

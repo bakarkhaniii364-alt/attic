@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
-    sender_id UUID REFERENCES auth.users(id),
+    sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     type TEXT DEFAULT 'text', -- 'text', 'voice', 'image', 'system'
     content TEXT NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb, -- For reactions, replies, group info
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE TABLE IF NOT EXISTS shared_assets (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
-    owner_id UUID REFERENCES auth.users(id),
+    owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     type TEXT DEFAULT 'image', -- 'doodle', 'scrapbook', 'background'
     url TEXT NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb, -- For labels, dimensions, etc.
@@ -80,9 +80,9 @@ END $$;
 -- ============================================================
 -- NOTE: SUPABASE STORAGE BUCKETS
 -- You must manually create the following buckets in the dashboard:
--- 1. 'doodles' (Public: true)
--- 2. 'scrapbook' (Public: true)
--- 3. 'voice_notes' (Public: true)
+-- 1. 'doodles' (Public: false)
+-- 2. 'scrapbook' (Public: false)
+-- 3. 'voice_notes' (Public: false)
 -- ============================================================
 
 -- ============================================================
@@ -125,7 +125,7 @@ $$;
 
 -- 1. Create user_stats table
 CREATE TABLE IF NOT EXISTS user_stats (
-    user_id UUID REFERENCES auth.users(id) PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
     streaks JSONB DEFAULT '{"count": 0, "lastActiveDate": null}'::jsonb,
     game_scores JSONB DEFAULT '{}'::jsonb,
@@ -187,3 +187,156 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE room_metadata;
     END IF;
 END $$;
+
+-- ============================================================
+-- RPC: ATOMIC ARCADE LOBBY JOIN
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION join_arcade_lobby(p_room_id UUID, p_user_id TEXT)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE rooms
+  SET app_state = jsonb_set(
+    COALESCE(app_state, '{}'::jsonb),
+    '{arcade_lobby,players}',
+    (
+      SELECT jsonb_agg(DISTINCT x)
+      FROM (
+        SELECT jsonb_array_elements_text(COALESCE(app_state->'arcade_lobby'->'players', '[]'::jsonb)) AS x
+        UNION
+        SELECT p_user_id
+      ) AS t
+    )
+  )
+  WHERE id = p_room_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- RPC: ATOMIC JSONB STATE UPDATES (Prevents Race Conditions)
+-- ============================================================
+
+-- Safely updates a nested subkey (e.g., room_profiles -> user_id)
+CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id uuid, p_key text, p_subkey text, p_value jsonb)
+RETURNS void AS $$
+BEGIN
+  UPDATE app_state
+  SET state = jsonb_set(
+    COALESCE(state, '{}'::jsonb),
+    ARRAY[p_key, p_subkey],
+    COALESCE(state->p_key->p_subkey, '{}'::jsonb) || p_value,
+    true
+  )
+  WHERE room_id = p_room_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Safely merges data into a top-level key (e.g., couple_data)
+CREATE OR REPLACE FUNCTION merge_app_state(p_room_id uuid, p_key text, p_value jsonb)
+RETURNS void AS $$
+BEGIN
+  UPDATE app_state
+  SET state = jsonb_set(
+    COALESCE(state, '{}'::jsonb),
+    ARRAY[p_key],
+    COALESCE(state->p_key, '{}'::jsonb) || p_value,
+    true
+  )
+  WHERE room_id = p_room_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- ARCADE SESSION STATE MACHINE
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS arcade_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+    game_id TEXT NOT NULL,
+    player_a_id UUID REFERENCES auth.users(id),
+    player_b_id UUID REFERENCES auth.users(id),
+    player_a_ready BOOLEAN DEFAULT false,
+    player_b_ready BOOLEAN DEFAULT false,
+    status TEXT DEFAULT 'waiting', -- 'waiting', 'playing', 'ended'
+    game_state JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(room_id, game_id)
+);
+
+ALTER TABLE arcade_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view sessions in their room" 
+    ON arcade_sessions FOR SELECT 
+    USING (room_id IN (SELECT id FROM rooms WHERE (creator_id = auth.uid() OR partner_id = auth.uid())));
+
+CREATE POLICY "Users can update sessions in their room" 
+    ON arcade_sessions FOR UPDATE 
+    USING (room_id IN (SELECT id FROM rooms WHERE (creator_id = auth.uid() OR partner_id = auth.uid())));
+
+CREATE POLICY "Users can insert sessions in their room" 
+    ON arcade_sessions FOR INSERT 
+    WITH CHECK (room_id IN (SELECT id FROM rooms WHERE (creator_id = auth.uid() OR partner_id = auth.uid())));
+
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'arcade_sessions'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE arcade_sessions;
+    END IF;
+END $$;
+
+-- ============================================================
+-- ARCADE SESSION STATE TRANSITIONS
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION join_arcade_session(p_room_id UUID, p_game_id TEXT, p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_session arcade_sessions%ROWTYPE;
+BEGIN
+    INSERT INTO arcade_sessions (room_id, game_id, player_a_id)
+    VALUES (p_room_id, p_game_id, p_user_id)
+    ON CONFLICT (room_id, game_id) DO UPDATE
+    SET player_b_id = CASE WHEN arcade_sessions.player_a_id != p_user_id THEN p_user_id ELSE arcade_sessions.player_b_id END,
+        updated_at = now()
+    RETURNING * INTO v_session;
+
+    RETURN to_jsonb(v_session);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION set_arcade_ready(p_room_id UUID, p_game_id TEXT, p_user_id UUID, p_ready BOOLEAN)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_session arcade_sessions%ROWTYPE;
+BEGIN
+    UPDATE arcade_sessions
+    SET 
+        player_a_ready = CASE WHEN player_a_id = p_user_id THEN p_ready ELSE player_a_ready END,
+        player_b_ready = CASE WHEN player_b_id = p_user_id THEN p_ready ELSE player_b_ready END,
+        status = CASE 
+            WHEN (player_a_id = p_user_id AND p_ready AND player_b_ready) OR 
+                 (player_b_id = p_user_id AND p_ready AND player_a_ready) 
+            THEN 'playing' 
+            ELSE status 
+        END,
+        updated_at = now()
+    WHERE room_id = p_room_id AND game_id = p_game_id
+    RETURNING * INTO v_session;
+
+    RETURN to_jsonb(v_session);
+END;
+$$;

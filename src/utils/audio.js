@@ -12,6 +12,14 @@ export function playAudio(type, enabled) {
     else if (type === 'receive') { osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(1200, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
     else if (type === 'win') { osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.setValueAtTime(600, now+0.1); osc.frequency.setValueAtTime(800, now+0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.001, now+0.5); osc.start(now); osc.stop(now+0.5); }
     else if (type === 'notif') { osc.type = 'sine'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05); osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
+    
+    // Haptic Feedback
+    if (navigator.vibrate) {
+      if (type === 'click' || type === 'chalk') navigator.vibrate(10);
+      else if (type === 'send' || type === 'receive') navigator.vibrate(20);
+      else if (type === 'notif') navigator.vibrate([30, 50, 30]);
+      else if (type === 'win') navigator.vibrate([100, 50, 100]);
+    }
   } catch (e) {}
 }
 

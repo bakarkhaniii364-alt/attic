@@ -4,13 +4,18 @@ import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
-import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { RefreshCw } from 'lucide-react';
 
 export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {
   const { roomId } = useAuth();
   const [syncedState, setSyncedState] = useGlobalSync(`tictactoe_${roomId}`, null);
+  const sendMove = useBroadcast(`ttt_move_${roomId}`, (move) => {
+    if (isMultiplayer && move.sender !== userId) {
+      handleMove(move.index, true);
+    }
+  });
 
   const size = config.size || 3;
   const p1 = config.p1Avatar || 'X';
@@ -113,121 +118,22 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     return null;
   };
 
-  const winData = calculateWinner(board); 
-  const isDraw = !winData && !board.includes(null);
-
-  useEffect(() => {
-    if (winData && !processedWinRef.current) {
-      processedWinRef.current = true;
-      updateGameState({ winLine: winData.line });
-      playAudio('win', sfx);
-      let matchOver = false;
-      
-      const newP1Wins = winData.player === p1 ? p1Wins + 1 : p1Wins;
-      const newP2Wins = winData.player === p2 ? p2Wins + 1 : p2Wins;
-
-      if (newP1Wins >= winsRequired || newP2Wins >= winsRequired) matchOver = true;
-
-      setTimeout(() => {
-          if (matchOver) {
-              setGameOverOverlay(true);
-              if (winData.player === p1) {
-                  if (onWin) onWin(); 
-                  if (setScores) setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1));
-                  setLocalStats(p => ({...p, wins: p.wins+1}));
-              } else {
-                  setLocalStats(p => ({...p, losses: p.losses+1}));
-              }
-          } else {
-              updateGameState({
-                board: Array(size * size).fill(null),
-                pieceQueue: [],
-                winLine: null,
-                xIsNext: true,
-                p1Wins: newP1Wins,
-                p2Wins: newP2Wins
-              });
-          }
-      }, 1500);
-      
-    } else if (isDraw && !processedWinRef.current) { 
-        processedWinRef.current = true;
-        setTimeout(() => {
-             setLocalStats(p => ({...p, draws: p.draws+1}));
-             updateGameState({
-               board: Array(size * size).fill(null),
-               pieceQueue: [],
-               xIsNext: true
-             });
-        }, 1500); 
-    } else if (!winData && !isDraw) {
-        processedWinRef.current = false;
+  const handleMove = (i, isRemote = false) => {
+    if (board[i] || winLine || gameState.status === 'done' || gameOverOverlay) return;
+    
+    // Multiplayer turn check
+    if (isMultiplayer && !isRemote) {
+      const myTurn = (myPlayerId === 'p1' && xIsNext) || (myPlayerId === 'p2' && !xIsNext);
+      if (!myTurn) return;
     }
-  }, [winData, isDraw]);
 
-  const minimax = (currBoard, depth, isMaximizing, alpha=-Infinity, beta=Infinity) => {
-    const res = calculateWinner(currBoard);
-    if (res?.player === p2) return 10 - depth;
-    if (res?.player === p1) return depth - 10;
-    if (!currBoard.includes(null)) return 0;
-    if (size > 3 && depth >= 3) return 0; // Prevent freeze on 4x4+
+    const player = xIsNext ? p1 : p2;
+    handlePlacePiece(i, player);
 
-    if (isMaximizing) { 
-        let bestScore = -Infinity; 
-        for (let i = 0; i < size*size; i++) { 
-            if (!currBoard[i]) { 
-                currBoard[i] = p2; let score = minimax(currBoard, depth + 1, false, alpha, beta); currBoard[i] = null; 
-                bestScore = Math.max(score, bestScore); alpha = Math.max(alpha, score);
-                if (beta <= alpha) break;
-            } 
-        } 
-        return bestScore; 
-    } else { 
-        let bestScore = Infinity; 
-        for (let i = 0; i < size*size; i++) { 
-            if (!currBoard[i]) { 
-                currBoard[i] = p1; let score = minimax(currBoard, depth + 1, true, alpha, beta); currBoard[i] = null; 
-                bestScore = Math.min(score, bestScore); beta = Math.min(beta, score);
-                if (beta <= alpha) break;
-            } 
-        } 
-        return bestScore; 
+    if (isMultiplayer && !isRemote) {
+      sendMove({ index: i, sender: userId });
     }
   };
-
-  const makeAIMove = (currentBoard) => {
-    const empty = currentBoard.map((v, i) => v === null ? i : null).filter(v => v !== null); if (empty.length === 0) return null;
-    
-    // Safety for Memory Mode: AI should not use Minimax as board never fills up traditionally
-    if (config.mode === 'memory' || config.diff === 'easy' || (size > 3 && depthLimitRandom())) {
-        return empty[Math.floor(Math.random() * empty.length)];
-    }
-
-    if (config.diff === 'medium' && Math.random() > 0.4) return empty[Math.floor(Math.random() * empty.length)];
-    
-    let bestScore = -Infinity; let move = empty[0];
-    for (let i = 0; i < size*size; i++) { 
-        if (!currentBoard[i]) { 
-            currentBoard[i] = p2; let score = minimax(currentBoard, 0, false); currentBoard[i] = null; 
-            if (score > bestScore) { bestScore = score; move = i; } 
-        } 
-    }
-    return move;
-  };
-  
-  const depthLimitRandom = () => {
-    return (config.diff !== 'hard' && Math.random() > 0.2); // For 4x4/5x5 we fallback to random mostly unless Hard, where we still suffer 3 depth limit.
-  }
-
-  useEffect(() => {
-    if (config.mode === 'vs_ai' && !xIsNext && !winData && !isDraw) { 
-        const timer = setTimeout(() => { 
-            const aiMove = makeAIMove([...board]); 
-            if (aiMove !== null) handlePlacePiece(aiMove, p2); 
-        }, 600); 
-        return () => clearTimeout(timer); 
-    }
-  }, [xIsNext, board, winData, isDraw, config]);
 
   const handlePlacePiece = (i, player) => {
     playAudio('chalk', sfx); 
@@ -246,32 +152,86 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     }
     
     newBoard[i] = player; 
-    updateGameState({
-      board: newBoard,
-      pieceQueue: newQueue,
-      xIsNext: player === p2 // If player was P2, then X (P1) is next. Wait, xIsNext means P1 is next?
-      // In handleClick: xIsNext ? p1 : p2. 
-      // If we just placed p1, xIsNext should become false.
-    });
     
-    // Correcting xIsNext logic:
+    const winInfo = calculateWinner(newBoard);
+    const isDraw = !winInfo && newBoard.every(sq => sq !== null);
+
+    const nextX = player === p1 ? false : true;
+
     updateGameState({
       board: newBoard,
       pieceQueue: newQueue,
-      xIsNext: player === p1 ? false : true
+      xIsNext: nextX,
+      winLine: winInfo ? winInfo.line : null,
+      status: (winInfo || isDraw) ? 'done' : 'playing'
     });
   };
 
-  const handleClick = (i) => { 
-    if (board[i] || winData || isDraw || gameOverOverlay || (config.mode === 'vs_ai' && !xIsNext)) return; 
-    
-    // Multiplayer turn check
-    if (isMultiplayer) {
-      const myTurn = xIsNext ? (isHost) : (!isHost);
-      if (!myTurn) return;
-    }
+  const winData = calculateWinner(board); 
+  const isRoundDraw = !winData && board.every(sq => sq !== null);
 
-    handlePlacePiece(i, xIsNext ? p1 : p2); 
+  useEffect(() => {
+    if (winData && !processedWinRef.current) {
+      processedWinRef.current = true;
+      playAudio('win', sfx);
+      
+      const newP1Wins = winData.player === p1 ? p1Wins + 1 : p1Wins;
+      const newP2Wins = winData.player === p2 ? p2Wins + 1 : p2Wins;
+      const matchOver = newP1Wins >= winsRequired || newP2Wins >= winsRequired;
+
+      setTimeout(() => {
+          if (matchOver) {
+              setGameOverOverlay(true);
+              if (winData.player === p1) {
+                  if (onWin) onWin(); 
+                  if (setScores) setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1));
+                  setLocalStats(p => ({...p, wins: p.wins+1}));
+              } else {
+                  setLocalStats(p => ({...p, losses: p.losses+1}));
+              }
+          } else {
+              updateGameState({
+                board: Array(size * size).fill(null),
+                pieceQueue: [],
+                winLine: null,
+                xIsNext: true,
+                p1Wins: newP1Wins,
+                p2Wins: newP2Wins,
+                status: 'playing'
+              });
+          }
+      }, 1500);
+      
+    } else if (isRoundDraw && !processedWinRef.current) { 
+        processedWinRef.current = true;
+        setTimeout(() => {
+             setLocalStats(p => ({...p, draws: p.draws+1}));
+             updateGameState({
+               board: Array(size * size).fill(null),
+               pieceQueue: [],
+               winLine: null,
+               xIsNext: true,
+               status: 'playing'
+             });
+        }, 1500); 
+    } else if (!winData && !isRoundDraw) {
+        processedWinRef.current = false;
+    }
+  }, [winData, isRoundDraw]);
+
+  // AI Logic
+  useEffect(() => {
+    if (config.mode === 'vs_ai' && !xIsNext && !winData && !isRoundDraw && gameState.status === 'playing') { 
+        const timer = setTimeout(() => { 
+            const aiMove = makeAIMove([...board]); 
+            if (aiMove !== null) handleMove(aiMove, true); 
+        }, 600); 
+        return () => clearTimeout(timer); 
+    }
+  }, [xIsNext, board, winData, isRoundDraw, config, gameState.status]);
+
+  const handleClick = (i) => { 
+    handleMove(i, false);
   };
   
   const resetSeries = () => { 

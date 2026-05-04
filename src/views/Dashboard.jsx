@@ -462,7 +462,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     setLastActionTime(Date.now());
     playAudio('click', sfxEnabled);
     syncBroadcast('interaction', { type: 'kiss', from: userId, timestamp: Date.now().toString() });
-    updateSyncState('couple_data', { ...coupleData, lastKissFrom: userId, lastKissTimestamp: Date.now().toString() });
+    mergeSyncState('couple_data', { lastKissFrom: userId, lastKissTimestamp: Date.now().toString() });
   };
 
   const nav = (v) => setView(v);
@@ -506,11 +506,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             'Unknown';
           localStorage.setItem(cacheKey, city);
         }
-        const currentProfiles = globalState?.room_profiles || {};
-        updateSyncState('room_profiles', {
-          ...currentProfiles,
-          [userId]: { ...currentProfiles[userId], location: { lat, lon, city } }
-        });
+        updateSyncStateAtomic('room_profiles', userId, { location: { lat, lon, city } });
       } catch (e) {
         console.warn('[GEO] Reverse geocode failed:', e.message);
       }
@@ -580,7 +576,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const handleFeed = () => {
     if (petCooldown) return;
     playAudio('click', sfxEnabled);
-    updateSyncState('couple_data', { ...coupleData, petHappy: Math.min(100, (coupleData.petHappy || 60) + 20) });
+    mergeSyncState('couple_data', { petHappy: Math.min(100, (coupleData.petHappy || 60) + 20) });
     toast('Fed the pet!', 'success', 1500);
     setPetAction('eat');
     setTimeout(() => setPetAction(null), 3000);
@@ -591,7 +587,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const handlePet = () => {
     if (petCooldown) return;
     playAudio('click', sfxEnabled);
-    updateSyncState('couple_data', { ...coupleData, petHappy: Math.min(100, (coupleData.petHappy || 60) + 10) });
+    mergeSyncState('couple_data', { petHappy: Math.min(100, (coupleData.petHappy || 60) + 10) });
     toast('Petted the pet!', 'success', 1200);
     setPetCooldown(true);
     setTimeout(() => setPetCooldown(false), 2000);
@@ -600,7 +596,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const handleHit = () => {
     if (petCooldown) return;
     playAudio('click', sfxEnabled);
-    updateSyncState('couple_data', { ...coupleData, petHappy: Math.max(0, (coupleData.petHappy || 60) - 5) });
+    mergeSyncState('couple_data', { petHappy: Math.max(0, (coupleData.petHappy || 60) - 5) });
     toast('Ouch... that was a hit.', 'warning', 1400);
     setPetCooldown(true);
     setTimeout(() => setPetCooldown(false), 2000);
@@ -642,6 +638,18 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                   )}
                 </h1>
                 <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 retro-border border-dashed">
+                    <div className="relative group">
+                      <div className="w-10 h-10 retro-border bg-border flex items-center justify-center overflow-hidden">
+                        {profile.pfp ? (
+                          <img src={profile.pfp} alt="me" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xl leading-none">{profile.emoji || '👤'}</span>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white retro-border flex items-center justify-center text-[10px] leading-none shadow-sm cursor-help" title="Your current mood">
+                        {profile.mood || '😐'}
+                      </div>
+                    </div>
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {partnerProfile.pfp ? (
@@ -655,9 +663,16 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-bold truncate max-w-[120px] leading-none">
-                          {partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : (coupleData.partnerNickname && coupleData.partnerNickname !== 'You' ? coupleData.partnerNickname : 'Partner')}
-                        </p>
+                        <div className="relative">
+                          <p className="text-sm font-bold truncate max-w-[120px] leading-none">
+                            {partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : (coupleData.partnerNickname && coupleData.partnerNickname !== 'You' ? coupleData.partnerNickname : 'Partner')}
+                          </p>
+                          {partnerProfile.mood && (
+                            <span className="absolute -top-3 -right-3 text-[10px]" title={`Current mood: ${partnerProfile.mood}`}>
+                              {partnerProfile.mood}
+                            </span>
+                          )}
+                        </div>
                         <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
                           {displayStatus.toLowerCase()}
                         </span>
@@ -698,7 +713,22 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               )}
             </div>
             {/* Right: controls */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <div className="flex gap-1 bg-border/20 p-1 retro-border">
+                {['😊', '😴', '🏢', '🎮', '🍕', '😭', '❤️'].map(mood => (
+                  <button 
+                    key={mood} 
+                    onClick={() => {
+                      playAudio('click', sfxEnabled);
+                      updateSyncStateAtomic('room_profiles', userId, { mood });
+                    }}
+                    className={`w-6 h-6 flex items-center justify-center text-xs hover:bg-window transition-colors ${profile.mood === mood ? 'bg-window retro-shadow-dark' : ''}`}
+                    title={`Set mood to ${mood}`}
+                  >
+                    {mood}
+                  </button>
+                ))}
+              </div>
               <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
                 <SettingsIcon size={11} /> Control Panel
               </button>

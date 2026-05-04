@@ -187,8 +187,7 @@ export function ChatProvider({ children }) {
         const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, content);
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
-        finalContent = publicUrl;
+        finalContent = `${bucket}/${fileName}`;
       }
       // For text / game_invite / etc — finalContent is already the string
 

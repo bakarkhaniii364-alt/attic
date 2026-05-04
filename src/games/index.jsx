@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader, Settings, Play, Swords, User, Monitor, Zap, Heart, Brush, X, Activity } from 'lucide-react';
 import { RetroButton, RetroWindow, ScoreboardCountdown, ConfirmDialog } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useArcadeSession } from '../hooks/useArcadeSession.js';
 import { playAudio } from '../utils/audio.js';
 
 // Games
@@ -83,6 +84,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   
+  const { session: arcadeSession, joinSession, setReady } = useArcadeSession(gameRoute);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   
@@ -152,23 +154,26 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       setLocalPlayConfig({ mode: mode.id, diff: selectedDiff, ...selectedOptions });
   };
 
-  const handleCreateLobby = (mode) => {
+  const handleCreateLobby = async (mode) => {
       playAudio('click', sfx);
       const gameConfig = { mode: mode.id, diff: selectedDiff, ...selectedOptions };
-      setLobbyState({ players: [userId], hostId: userId, gameId: gameRoute, status: 'waiting', config: gameConfig });
-      if (game) {
-        onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute });
-      } else {
-        onShareToChat(`Join me for a game!`, null, { gameId: gameRoute });
+      
+      try {
+        await joinSession();
+        // We still use the broadcast for instant UI feedback in chat/notifications
+        onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute, type: 'game_invite_modal' });
+      } catch (e) {
+        console.error("Failed to create lobby:", e);
       }
   };
 
-  const handleJoinLobby = () => {
+  const handleJoinLobby = async () => {
       playAudio('click', sfx);
-      setLobbyState(prev => {
-          const p = Array.from(new Set([...(prev?.players || []), userId]));
-          return { ...prev, players: p, status: p.length >= 2 ? 'ready' : 'waiting' };
-      });
+      try {
+        await joinSession();
+      } catch (e) {
+        console.error("Failed to join lobby:", e);
+      }
   };
 
   // Determine current active phase
@@ -176,22 +181,20 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   if (gameRoute && game) {
       if (localPlayConfig) {
           currentPhase = 'playing_local';
-      } else if (lobbyState?.gameId === gameRoute && (lobbyState?.players || []).includes(userId)) {
-          if (lobbyState?.status === 'playing') currentPhase = 'playing_remote';
+      } else if (arcadeSession) {
+          if (arcadeSession.status === 'playing') currentPhase = 'playing_remote';
           else currentPhase = 'lobby';
       } else {
           currentPhase = 'details';
       }
   }
-  console.log('[ActivitiesHub] userId:', userId, 'gameRoute:', gameRoute, 'lobbyState:', lobbyState);
-  console.log('[ActivitiesHub] currentPhase:', currentPhase);
 
   const renderActiveGame = () => {
-    const activeConfig = currentPhase === 'playing_local' ? localPlayConfig : lobbyState?.config;
+    const activeConfig = currentPhase === 'playing_local' ? localPlayConfig : arcadeSession?.game_state;
     const isMultiplayer = currentPhase === 'playing_remote';
-    const isHost = isMultiplayer ? (lobbyState?.hostId === userId) : true;
-    const myPlayerId = userId;
-    const oppPlayerId = isMultiplayer ? partnerId : 'ai';
+    const isHost = isMultiplayer ? (arcadeSession?.player_a_id === userId) : true;
+    const myPlayerId = isMultiplayer ? (isHost ? 'p1' : 'p2') : 'p1';
+    const oppPlayerId = isMultiplayer ? (isHost ? 'p2' : 'p1') : 'ai';
 
     const commonProps = { 
         config: activeConfig || { diff: 'easy', mode: 'solo', matchType: 1 }, 
@@ -200,10 +203,6 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         onBack: () => {
              if (currentPhase === 'playing_local') setLocalPlayConfig(null);
              else {
-                 setLobbyState(prev => {
-                     const p = (prev?.players || []).filter(id => id !== userId);
-                     return { ...prev, players: p, status: p.length < 2 ? 'waiting' : prev?.status };
-                 });
                  navigate('/activities');
              }
         }, 
@@ -457,10 +456,13 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
   // 3. Lobby Waiting Phase
   if (currentPhase === 'lobby') {
-    const currentPlayers = lobbyState?.players || [];
-    const partnerInLobby = currentPlayers.includes(partnerId);
-    const isReady = currentPlayers.includes(userId) && partnerInLobby;
-    const isPartnerWhoWasLeft = !partnerInLobby && currentPlayers.length === 1 && lobbyState?.hostId !== userId;
+    const isPlayerA = arcadeSession.player_a_id === userId;
+    const playerA = isPlayerA ? userId : arcadeSession.player_a_id;
+    const playerB = isPlayerA ? arcadeSession.player_b_id : userId;
+    
+    const partnerInLobby = isPlayerA ? !!arcadeSession.player_b_id : !!arcadeSession.player_a_id;
+    const isReady = arcadeSession.player_a_ready && arcadeSession.player_b_ready;
+    const amIReady = isPlayerA ? arcadeSession.player_a_ready : arcadeSession.player_b_ready;
 
     return (
       <>
@@ -470,47 +472,31 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
             
             <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
                 <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game?.title || gameRoute}</span>
-                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {lobbyState?.config?.mode} | {lobbyState?.config?.diff ? `Diff: ${lobbyState.config.diff}` : 'Standard'}</span>
+                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession.game_state?.mode || 'Online'}</span>
             </div>
-
-            <div className="flex gap-8 items-center justify-center mb-10 w-full">
-               <div className="flex flex-col items-center">
-                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[4px_4px_0_0_var(--border)] overflow-hidden">
-                     {profile?.pfp ? <img src={profile.pfp} className="w-full h-full object-cover" /> : <span className="font-black text-2xl">P1</span>}
-                  </div>
-                  <span className="mt-3 font-bold text-[10px] uppercase bg-black text-white px-2 py-1 truncate max-w-[80px]">{myName || 'You'}</span>
-               </div>
-
-               <div className="text-2xl font-black opacity-30">VS</div>
-
-               <div className="flex flex-col items-center">
-                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all overflow-hidden ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[4px_4px_0_0_var(--border)]' : 'bg-transparent border-dashed opacity-50'}`}>
-                     {partnerInLobby && roomProfiles?.[partnerId]?.pfp ? <img src={roomProfiles[partnerId].pfp} className="w-full h-full object-cover" /> : <span className="font-black text-2xl">{partnerInLobby ? 'P2' : '?'}</span>}
-                  </div>
-                  {partnerInLobby ? (
-                     <span className="mt-3 font-bold text-[10px] uppercase bg-black text-white px-2 py-1 truncate max-w-[80px]">{partnerName}</span>
-                  ) : (
-                     <span className="mt-3 font-bold text-[10px] uppercase flex items-center gap-1 opacity-60"><Loader size={12} className="animate-spin" /> Waiting</span>
-                  )}
-               </div>
-            </div>
-
-            {lobbyState?.status === 'starting' ? (
+...
+            {arcadeSession.status === 'starting' ? (
                 <div className="py-4">
-                    <ScoreboardCountdown count={3} onComplete={() => setLobbyState(prev => ({ ...prev, status: 'playing' }))} sfx={sfx} />
+                    <ScoreboardCountdown count={3} onComplete={() => {/* Handled by DB trigger or setReady transition */}} sfx={sfx} />
                 </div>
             ) : isReady ? (
-               <button onClick={() => setLobbyState(prev => ({ ...prev, status: 'starting' }))} className="bg-[var(--primary)] text-[var(--text-on-primary)] font-black text-xl px-12 py-4 retro-border shadow-[4px_4px_0_0_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all animate-pulse cursor-pointer">
-                 START GAME
-               </button>
+               <div className="flex flex-col items-center gap-4">
+                  <p className="text-sm font-bold text-green-600 animate-bounce">Lobby Ready!</p>
+                  <RetroButton variant="primary" className="px-12 py-4 text-xl" onClick={() => setReady(true)}>START GAME</RetroButton>
+               </div>
             ) : (
                <div className="flex flex-col gap-3">
-                 <p className={`text-xs font-bold italic ${isPartnerWhoWasLeft ? 'text-red-500 opacity-100' : 'opacity-60'}`}>
-                    {isPartnerWhoWasLeft ? 'Your partner has left the lobby.' : 'Waiting for partner to accept the invite...'}
+                 <p className="text-xs font-bold italic opacity-60">
+                    {partnerInLobby ? (amIReady ? "Waiting for partner..." : "Ready up to start!") : "Waiting for partner to join..."}
                  </p>
-                 <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, mode: lobbyState?.config?.mode, type: 'game_invite_modal' })} className="text-xs">
-                    {isPartnerWhoWasLeft ? 'Send Invite Again' : 'Resend Invite'}
-                 </RetroButton>
+                 {!amIReady && partnerInLobby && (
+                   <RetroButton variant="accent" onClick={() => setReady(true)} className="px-8 py-3">I'm Ready!</RetroButton>
+                 )}
+                 {!partnerInLobby && (
+                   <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} className="text-xs">
+                      Resend Invite
+                   </RetroButton>
+                 )}
                </div>
             )}
          </div>

@@ -5,6 +5,7 @@ import { calculateLevenshtein, floodFill } from '../utils/helpers.js';
 import { incrementUserScore, getScoreForUser } from '../utils/userDataHelpers.js';
 import { PICTIONARY_CATEGORIES } from '../constants/data.js';
 import { useBroadcast } from '../hooks/useSupabaseSync.js';
+import { useCall } from '../context/CallContext.jsx';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
 export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState, isHost }) {
@@ -163,7 +164,31 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   }, [currentCanvas, isDrawer]);
 
   // Realtime Drawing Sync
-  const sendDraw = useBroadcast('pictionary_draw');
+  const { sendData } = useCall();
+  const sendDrawBroadcast = useBroadcast('pictionary_draw');
+  
+  const sendDraw = useCallback((payload) => {
+    // Try WebRTC Data Channel first for high-frequency data
+    const dataSent = sendData({ type: 'pictionary_draw', ...payload });
+    
+    // Fallback to Supabase Realtime if P2P is not connected or for critical state changes
+    if (!dataSent || payload.type === 'clear' || payload.type === 'fill') {
+      sendDrawBroadcast(payload);
+    }
+  }, [sendData, sendDrawBroadcast]);
+
+  // Listen for P2P Data
+  useEffect(() => {
+    const handleData = (e) => {
+      if (isDrawer) return;
+      const { type, ...payload } = e.detail;
+      if (type === 'pictionary_draw') {
+        handleRemoteDraw(payload);
+      }
+    };
+    window.addEventListener('webrtc_data', handleData);
+    return () => window.removeEventListener('webrtc_data', handleData);
+  }, [isDrawer, handleRemoteDraw]);
   
   const handleRemoteDraw = useCallback((payload) => {
       if (isDrawer) return; 
@@ -194,7 +219,25 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   useBroadcast('pictionary_draw', handleRemoteDraw);
 
-  const sendCursor = useBroadcast('pictionary_cursor');
+  const sendCursorBroadcast = useBroadcast('pictionary_cursor');
+  const sendCursor = useCallback((payload) => {
+    const dataSent = sendData({ type: 'pictionary_cursor', ...payload });
+    if (!dataSent) sendCursorBroadcast(payload);
+  }, [sendData, sendCursorBroadcast]);
+
+  // Listen for P2P Cursor
+  useEffect(() => {
+    const handleCursorData = (e) => {
+      if (isDrawer) return;
+      const { type, ...payload } = e.detail;
+      if (type === 'pictionary_cursor') {
+        setPartnerCursor(payload);
+      }
+    };
+    window.addEventListener('webrtc_data', handleCursorData);
+    return () => window.removeEventListener('webrtc_data', handleCursorData);
+  }, [isDrawer]);
+
   useBroadcast('pictionary_cursor', (payload) => {
       if (isDrawer) return;
       setPartnerCursor(payload);

@@ -195,6 +195,79 @@ export function SyncProvider({ children }) {
     });
   }, [roomId, isInitialized, userId]);
 
+  /**
+   * Atomic update for nested subkeys (e.g., room_profiles -> user_id)
+   * Prevents Last-Write-Wins race conditions.
+   */
+  const updateSyncStateAtomic = useCallback(async (key, subkey, value) => {
+    if (!roomId || !isInitialized) return;
+
+    // 1. Update local state immediately for responsiveness
+    setGlobalState(prev => {
+      const currentKeyData = prev[key] || {};
+      const currentSubkeyData = currentKeyData[subkey] || {};
+      const newSubkeyData = typeof value === 'object' ? { ...currentSubkeyData, ...value } : value;
+      const newKeyData = { ...currentKeyData, [subkey]: newSubkeyData };
+      const newState = { ...prev, [key]: newKeyData };
+
+      // 2. Broadcast the sub-update immediately
+      const channelId = `room_sync_${roomId}`;
+      if (channelsRef.current[channelId] && isSubscribedRef.current) {
+        channelsRef.current[channelId].send({
+          type: 'broadcast',
+          event: 'state_update',
+          payload: { key, value: newKeyData, senderId: userId }
+        });
+      }
+
+      // 3. Push to DB atomically via RPC
+      supabase.rpc('update_app_state_atomic', {
+        p_room_id: roomId,
+        p_key: key,
+        p_subkey: subkey,
+        p_value: typeof value === 'object' ? value : JSON.stringify(value)
+      }).then(({ error }) => {
+        if (error) console.error(`[SYNC] Atomic update failed for ${key}.${subkey}:`, error);
+      });
+
+      return newState;
+    });
+  }, [roomId, isInitialized, userId]);
+
+  /**
+   * Atomic merge for top-level keys (e.g., couple_data)
+   */
+  const mergeSyncState = useCallback(async (key, value) => {
+    if (!roomId || !isInitialized) return;
+
+    setGlobalState(prev => {
+      const currentData = prev[key] || {};
+      const newData = { ...currentData, ...value };
+      const newState = { ...prev, [key]: newData };
+
+      // Broadcast
+      const channelId = `room_sync_${roomId}`;
+      if (channelsRef.current[channelId] && isSubscribedRef.current) {
+        channelsRef.current[channelId].send({
+          type: 'broadcast',
+          event: 'state_update',
+          payload: { key, value: newData, senderId: userId }
+        });
+      }
+
+      // Push to DB via RPC
+      supabase.rpc('merge_app_state', {
+        p_room_id: roomId,
+        p_key: key,
+        p_value: value
+      }).then(({ error }) => {
+        if (error) console.error(`[SYNC] Merge failed for ${key}:`, error);
+      });
+
+      return newState;
+    });
+  }, [roomId, isInitialized, userId]);
+
   const broadcast = useCallback((eventName, payload) => {
     const channelId = `room_sync_${roomId}`;
     if (channelsRef.current[channelId] && isSubscribedRef.current) {
@@ -212,6 +285,8 @@ export function SyncProvider({ children }) {
     isInitialized,
     onlineUsers,
     updateSyncState,
+    updateSyncStateAtomic,
+    mergeSyncState,
     broadcast,
     roomProfiles: globalState.room_profiles || {}
   };
