@@ -146,10 +146,17 @@ export function CallProvider({ children }) {
     };
   }, [userId, myPeerId, calling, isRinging, cleanupCall]);
 
+  const callChannelRef = useRef(null);
+
   // Supabase fallback signaling listeners
   useEffect(() => {
     if (!roomId || !userId) return;
-    const channel = supabase.channel(`room_call_${roomId}`);
+    const channelId = `room_call_${roomId}`;
+    console.log(`[CallContext] Creating channel for signaling: ${channelId}`);
+
+    const channel = supabase.channel(channelId);
+    callChannelRef.current = channel;
+
     channel.on('broadcast', { event: 'call_signal' }, ({ payload }) => {
       console.log('[CallContext] Received call_signal broadcast:', payload);
       if (payload.action === 'ring' && payload.callerPeerId !== myPeerId) {
@@ -165,10 +172,14 @@ export function CallProvider({ children }) {
         setIsRinging(false);
         setCalling(payload.type || calling || 'audio');
       }
-    }).subscribe();
+    }).subscribe((status) => {
+      console.log(`[CallContext] Channel ${channelId} status: ${status}`);
+    });
 
     return () => {
+      console.log(`[CallContext] Unsubscribing channel: ${channelId}`);
       channel.unsubscribe();
+      callChannelRef.current = null;
     };
   }, [roomId, userId, myPeerId, calling, partnerId, cleanupCall]);
 
@@ -194,16 +205,14 @@ export function CallProvider({ children }) {
       localStreamRef.current = stream;
       setLocalStream(stream);
 
-      const channel = supabase.channel(`room_call_${roomId}`);
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          channel.send({
-            type: 'broadcast',
-            event: 'call_signal',
-            payload: { action: 'ring', callerPeerId: myPeerId, type }
-          });
-        }
-      });
+      if (callChannelRef.current) {
+        console.log('[CallContext] Broadcasting ring action');
+        callChannelRef.current.send({
+          type: 'broadcast',
+          event: 'call_signal',
+          payload: { action: 'ring', callerPeerId: myPeerId, type }
+        });
+      }
     } catch (e) {
       console.error("[CallContext] Failed to access local stream:", e);
       cleanupCall();
@@ -233,12 +242,14 @@ export function CallProvider({ children }) {
         call.on('close', () => cleanupCall());
       }
       // Also broadcast the accepted signal so the other side updates its UI immediately
-      const channel = supabase.channel(`room_call_${roomId}`);
-      channel.send({
-        type: 'broadcast',
-        event: 'call_signal',
-        payload: { action: 'accepted', receiverPeerId: myPeerId, type: incomingCall.type }
-      });
+      if (callChannelRef.current) {
+        console.log('[CallContext] Broadcasting accepted action');
+        callChannelRef.current.send({
+          type: 'broadcast',
+          event: 'call_signal',
+          payload: { action: 'accepted', receiverPeerId: myPeerId, type: incomingCall.type }
+        });
+      }
     } catch (err) {
       console.error('[CallContext] Failed to accept call:', err);
       cleanupCall();
@@ -247,8 +258,9 @@ export function CallProvider({ children }) {
 
   const endCall = () => {
     cleanupCall();
-    if (roomId) {
-        supabase.channel(`room_call_${roomId}`).send({
+    if (callChannelRef.current) {
+        console.log('[CallContext] Broadcasting ended action');
+        callChannelRef.current.send({
             type: 'broadcast',
             event: 'call_signal',
             payload: { action: 'ended' }
@@ -293,8 +305,9 @@ export function CallProvider({ children }) {
           }).catch(err => {
             console.error('[CallContext] Failed to add video track on toggle:', err);
           });
-          if (roomId) {
-            supabase.channel(`room_call_${roomId}`).send({
+          if (callChannelRef.current) {
+            console.log('[CallContext] Broadcasting upgrade action');
+            callChannelRef.current.send({
               type: 'broadcast',
               event: 'call_signal',
               payload: { action: 'upgrade', type: 'video' }
