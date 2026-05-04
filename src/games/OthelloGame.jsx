@@ -142,6 +142,7 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
   const isMultiplayer = config.mode === '1v1_remote';
   const myColor = isMultiplayer ? (userId > partnerId ? BLACK : WHITE) : BLACK;
   const aiColor = WHITE;
+  const isHost = !isMultiplayer || userId > partnerId;
 
   const [gameState, setGameState] = useGlobalSync(`othello_${roomId}`, {
     board: getInitialBoard(),
@@ -151,6 +152,19 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
     winner: null,
     skipMessage: null
   });
+
+  useEffect(() => {
+    if (isHost && (!gameState || gameState.gameOver)) {
+      setGameState({
+        board: getInitialBoard(),
+        turn: BLACK,
+        history: [],
+        gameOver: false,
+        winner: null,
+        skipMessage: null
+      });
+    }
+  }, [isHost, gameState?.gameOver]);
 
   const board = gameState?.board || getInitialBoard();
   const currentTurn = gameState?.turn || BLACK;
@@ -297,6 +311,7 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
             score={`Black: ${countB} | White: ${countW}`}
             gameName="Othello"
             onClose={() => setGameState({ board: getInitialBoard(), turn: BLACK, history: [], gameOver: false, winner: null })}
+            onRematch={() => setGameState({ board: getInitialBoard(), turn: BLACK, history: [], gameOver: false, winner: null })}
           />
         )}
       </div>

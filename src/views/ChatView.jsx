@@ -1,13 +1,18 @@
-import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2, Clock, Sparkle, Palette } from 'lucide-react';
+import { Phone, Video, Search, Image as ImageIcon, ChevronLeft, ChevronRight, Heart, Download, X, Reply, Smile, Edit2, Trash2, Ban, MoreVertical, Paperclip, Mic, Send, Play, Pause, Check, Pin, MicOff, Volume2, VolumeX, Bell, PhoneOff, History, Gamepad2, Clock, Palette } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
-import { useChatSync } from '../hooks/useChatSync.js';
 import { useNavigate } from 'react-router-dom';
 import { base64ToBlob, compressImage } from '../utils/file.js';
 import { isTestMode } from '../lib/testMode.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useSync } from '../context/SyncContext.jsx';
+import { useChat } from '../context/ChatContext.jsx';
+import { useCall } from '../context/CallContext.jsx';
+
+const RetroIcon = ({ icon: Icon, ...props }) => <Icon {...props} />;
 
 /* ═══════════════════════════════════════════════════════
    UTILITIES
@@ -70,7 +75,7 @@ function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
   // Removed the outer bg-white/50 border so it just acts as bubble content
   return (
     <div className="flex items-center gap-2 sm:gap-3 w-48 sm:w-56">
-      <button onClick={togglePlay} className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center hover:scale-105 transition-transform ${isMe ? 'bg-window text-primary' : 'bg-primary text-primary-text shadow-sm'}`}>
+      <button onClick={togglePlay} className={`w-8 h-8 retro-border retro-shadow-dark flex-shrink-0 flex items-center justify-center hover:brightness-110 transition-all ${isMe ? 'bg-window text-primary' : 'bg-primary text-white'}`}>
         {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
       </button>
       
@@ -126,13 +131,13 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
           <>
             <button onClick={onPrev} className="absolute left-0 sm:-left-16 top-1/2 -translate-y-1/2 p-3 text-white hover:scale-110 transition-transform"><ChevronLeft size={48} /></button>
             <button onClick={onNext} className="absolute right-0 sm:-right-16 top-1/2 -translate-y-1/2 p-3 text-white hover:scale-110 transition-transform"><ChevronRight size={48} /></button>
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full font-bold text-sm">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/75 text-white px-3 py-1 font-bold text-sm border-2 border-white retro-shadow-dark select-none">
               {currentIndex + 1} / {images.length}
             </div>
           </>
         )}
 
-        <button onClick={onClose} className="absolute top-0 right-0 sm:-right-16 p-3 text-white hover:rotate-90 transition-transform"><X size={32} /></button>
+        <button onClick={onClose} className="absolute top-0 right-0 sm:-right-16 p-2 bg-black text-white retro-border hover:bg-white hover:text-black transition-colors" title="Close"><X size={24} /></button>
 
         <div className="absolute bottom-4 flex gap-4">
           <RetroButton variant="primary" onClick={() => onSaveToScrapbook(currentUrl)} className="px-6 py-2 flex items-center gap-2"><ImageIcon size={18} /> Save to Scrapbook</RetroButton>
@@ -142,17 +147,37 @@ function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, pro
   );
 }
 
-export function ChatView({ 
-  onClose, profile, partnerProfile, roomProfiles = {}, partnerNickname, sfx, 
-  chatHistory, userId, partnerId, roomId, onStartCall, 
-  sharedImages, onlineUsers = {},
-  syncSendMessage, syncUpdateMessage, syncDeleteMessage, syncLoadMore, syncHasMore,
-  coupleData, setCoupleData 
-}) {
+export function ChatView({ onClose, sfx }) {
+  const { userId, partnerId, roomId } = useAuth();
+  const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
+  const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChat();
+  const { startCall } = useCall();
+  
+  const profile = globalState.room_profiles?.[userId] || {};
+  const partnerProfile = globalState.room_profiles?.[partnerId] || {};
+  const roomProfiles = globalState.room_profiles || {};
+  const coupleData = globalState.couple_data || {};
+  const partnerNickname = partnerProfile.name || 'Partner';
   const isNormalized = !!roomId;
   const isInputDisabled = false;
   const navigate = useNavigate();
-  const [input, setInput] = useState('');
+  const draftKey = `attic_chat_draft_${userId}`;
+  const [input, setInput] = useState(() => {
+    try {
+      return localStorage.getItem(draftKey) || '';
+    } catch (e) {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    if (input) {
+      localStorage.setItem(draftKey, input);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [input, draftKey]);
+
   const [showDetails, setShowDetails] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('media');
   const [isRecording, setIsRecording] = useState(false);
@@ -168,6 +193,7 @@ export function ChatView({
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const recordingStartTimeRef = useRef(0);
+  const voiceExtensionRef = useRef('webm');
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
@@ -178,32 +204,9 @@ export function ChatView({
   const [pendingImages, setPendingImages] = useState([]);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [showDecorationTray, setShowDecorationTray] = useState(false);
-  const [decorationHue, setDecorationHue] = useState(0);
-  const [droppingType, setDroppingType] = useState(null);
+  const readMsgIdsRef = useRef(new Set());
   
-  const decorations = coupleData?.settings?.decorations || [];
 
-  const addDecoration = (type, x, y) => {
-    setCoupleData(prev => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        decorations: [...(prev.settings.decorations || []), { id: Date.now(), type, x, y, hue: decorationHue }]
-      }
-    }));
-    setShowDecorationTray(false);
-  };
-
-  const removeDecoration = (id) => {
-    setCoupleData(prev => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        decorations: (prev.settings.decorations || []).filter(d => d.id !== id)
-      }
-    }));
-  };
   const textareaRef = useRef(null);
 
   // TYPING INDICATOR LOGIC
@@ -218,10 +221,10 @@ export function ChatView({
   const handleInputChange = (e) => {
     setInput(e.target.value);
     
-    // Auto-resize logic: Reset height, then set to scrollHeight capped at ~3 lines (72px)
+    // Auto-resize logic: Reset height, then set to scrollHeight capped at ~5 lines (120px)
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 72)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
     
     if (!isTypingLocal) {
@@ -267,14 +270,21 @@ export function ChatView({
   useEffect(() => {
     if (!Array.isArray(chatHistory)) return;
     
-    const unreadFromPartner = chatHistory.filter(m => m.sender === partnerId && m.status !== 'read');
+    const unreadFromPartner = chatHistory.filter(m => 
+      m.sender === partnerId && 
+      m.status !== 'read' && 
+      !readMsgIdsRef.current.has(m.id) &&
+      !String(m.id).startsWith('temp-')  // skip optimistic messages — not yet in DB
+    );
     
     if (unreadFromPartner.length > 0) {
       console.log(`[CHAT] Marking ${unreadFromPartner.length} messages as read from ${partnerId}`);
       if (isNormalized && syncUpdateMessage) {
-        unreadFromPartner.forEach(m => {
-          syncUpdateMessage(m.id, { status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+        const idsToUpdate = unreadFromPartner.map(m => {
+          readMsgIdsRef.current.add(m.id);
+          return m.id;
         });
+        syncUpdateMessage(idsToUpdate, { status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
       }
     }
   }, [chatHistory, partnerId, isNormalized, syncUpdateMessage]);
@@ -298,7 +308,8 @@ export function ChatView({
 
   const handleStartCall = (type) => {
     playAudio('click', sfx);
-    onStartCall(type);
+    startCall(type);
+    syncSendMessage(`${type === 'video' ? 'Video' : 'Voice'} Call`, 'call_invite', { status: 'accepted', callType: type });
   };
 
   const jumpToMessage = (id) => {
@@ -331,8 +342,8 @@ export function ChatView({
     if (isInputDisabled) return;
 
     // Check if it's a special invite message passed as 'e'
-    if (e && e.type === 'game_invite') {
-      syncSendMessage(e.text, 'game_invite', userId, { gameId: e.gameId, gameTitle: e.gameTitle, status: 'pending' });
+    if (e && e._isInvite) {
+      syncSendMessage(e.text, 'game_invite', { gameId: e.gameId, gameTitle: e.gameTitle, inviteStatus: 'pending' });
       return;
     }
 
@@ -348,14 +359,15 @@ export function ChatView({
       if (isNormalized) {
         pendingImages.forEach(img => {
           const blob = base64ToBlob(img);
-          syncSendMessage(blob, 'image', userId, { text: input.trim() });
+          const file = new File([blob], `image_${Date.now()}.png`, { type: 'image/png' });
+          syncSendMessage(file, 'image', { text: input.trim() });
         });
         setPendingImages([]);
       }
     }
     else {
       if (isNormalized) {
-        syncSendMessage(input, 'text', userId, { replyTo: replyingTo }).catch(err => {
+        syncSendMessage(input, 'text', { replyTo: replyingTo }).catch(err => {
           console.error("Failed to send message:", err);
         });
       }
@@ -374,13 +386,19 @@ export function ChatView({
       mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
       mediaRecorder.onstop = () => {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('webm') ? 'webm' : 'ogg';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const audioUrl = URL.createObjectURL(audioBlob);
         const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
         const reader = new FileReader(); reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
           setVoiceBase64(reader.result);
-          if (durationSecs >= 1) { setVoicePreview(durationSecs); setVoicePreviewUrl(audioUrl); }
+          if (durationSecs >= 1) { 
+            setVoicePreview(durationSecs); 
+            setVoicePreviewUrl(audioUrl);
+            // Store extension for confirmVoiceNote
+            voiceExtensionRef.current = extension;
+          }
         };
         stream.getTracks().forEach(track => track.stop());
       };
@@ -421,13 +439,13 @@ export function ChatView({
     if (isNormalized) {
       try {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+        const extension = voiceExtensionRef.current || 'webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         
-        // FIX: Wrap the raw Blob into a proper File object. 
-        // This gives Supabase the exact metadata it needs to not choke on the upload.
-        const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, { type: mimeType });
+        // FIX: Wrap the raw Blob into a proper File object with correct extension.
+        const audioFile = new File([audioBlob], `voice_${Date.now()}.${extension}`, { type: mimeType });
 
-        await syncSendMessage(audioFile, 'voice', userId, {
+        await syncSendMessage(audioFile, 'voice', {
           duration: `${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`,
           replyTo: replyingTo
         });
@@ -466,7 +484,7 @@ export function ChatView({
             // Assuming uploadAsset is available via prop or we can use syncSendMessage for images
             // In ChatView we don't have uploadAsset directly but we can use syncSendMessage or similar.
             // Actually Solution 18 says use uploadAsset. I should pass it to ChatView.
-            await syncSendMessage(blob, 'image', userId, { text: 'Saved from chat' });
+            await syncSendMessage(blob, 'image', { text: 'Saved from chat' });
             playAudio('click', sfx);
             alert("Saved to Scrapbook and shared to chat!");
         } catch (e) {
@@ -480,11 +498,11 @@ export function ChatView({
   const imageMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group') && !m.isDeleted);
   // Sort pinned messages by time (newest first)
   const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted).reverse();
-  const callHistory = safeHistory.filter(m => m.type === 'call_invite' && (m.status === 'ended' || m.status === 'missed' || m.status === 'accepted' || m.status === 'rejected'));
+  const callHistory = safeHistory.filter(m => m.type === 'call_invite');
   const headerActions = (
     <div className="flex gap-2">
-      <button onClick={() => onStartCall('audio')} className="p-1.5 border-2 border-border bg-window hover:bg-accent text-main-text shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Voice Call"><Phone size={18} /></button>
-      <button onClick={() => onStartCall('video')} className="p-1.5 border-2 border-border bg-window hover:bg-accent text-main-text shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none transition-all" title="Video Call"><Video size={18} /></button>
+      <button onClick={() => handleStartCall('audio')} className="p-1.5 retro-border bg-window text-main-text hover:bg-accent transition-all" title="Voice Call"><Phone size={18} /></button>
+      <button onClick={() => handleStartCall('video')} className="p-1.5 retro-border bg-window text-main-text hover:bg-accent transition-all" title="Video Call"><Video size={18} /></button>
     </div>
   );
   
@@ -510,34 +528,22 @@ export function ChatView({
           onSaveToScrapbook={handleSaveToScrapbook}
         />
       )}
-      <RetroWindow title="chat_room.exe" onClose={onClose} headerActions={headerActions} onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" noPadding>
+      <RetroWindow 
+        title="chat_room.exe" 
+        onClose={onClose} 
+        headerActions={headerActions} 
+        onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} 
+        className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300" 
+        noPadding
+        sfx={sfx}
+      >
         <div className="flex flex-1 h-full overflow-hidden relative">
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
             <div 
-              className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container chat-wallpaper-${coupleData.settings?.chatWallpaper || 'none'} ${droppingType ? 'cursor-crosshair' : ''}`}
-              onClick={(e) => {
-                if (!droppingType) return;
-                const bounds = e.currentTarget.getBoundingClientRect();
-                const x = ((e.clientX - bounds.left) / bounds.width) * 100;
-                const y = ((e.clientY - bounds.top + e.currentTarget.scrollTop) / e.currentTarget.scrollHeight) * 100;
-                addDecoration(droppingType, x, y);
-                setDroppingType(null);
-              }}
+              className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container chat-wallpaper-${coupleData.settings?.chatWallpaper || 'none'}`}
             >
-              
-              {/* Decorations Layer */}
-              {decorations.map(dec => (
-                <div 
-                  key={dec.id}
-                  className="absolute pointer-events-auto cursor-pointer hover:scale-110 transition-transform z-10"
-                  style={{ left: `${dec.x}%`, top: `${dec.y}%`, filter: `hue-rotate(${dec.hue}deg)` }}
-                  onClick={(e) => { e.stopPropagation(); removeDecoration(dec.id); }}
-                >
-                  <Palette size={24} className="text-primary fill-current" />
-                </div>
-              ))}
 
-              <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-dashed border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
+              <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
               {syncHasMore && (
                 <button
                   onClick={() => { 
@@ -587,7 +593,7 @@ export function ChatView({
                           ${isMe ? '-left-10 group-hover:left-[-45px]' : '-right-10 group-hover:right-[-45px]'}
                           opacity-0 group-hover:opacity-100
                         `}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 hover:bg-black/5 bg-window/80 backdrop-blur-sm border-2 border-border border-dashed shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] text-main-text">
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 retro-border bg-window/80 backdrop-blur-sm border-dashed text-main-text">
                             <MoreVertical size={14} className="opacity-70" />
                           </button>
                         </div>
@@ -610,10 +616,10 @@ export function ChatView({
 
                       <div className={`
                         relative flex flex-col group/bubble
-                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 border-2 border-border shadow-[1px_1px_0px_0px_var(--border)]'} 
-                        ${msg.isDeleted ? 'bg-gray-50 border-gray-200 text-gray-400 italic shadow-none' :
+                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 retro-border retro-shadow-dark'} 
+                        ${msg.isDeleted ? 'bg-transparent border-dashed border-border/50 text-main-text/50 italic shadow-none' :
                           isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
-                            isMe ? (noBubble ? '' : 'bg-primary text-primary-text') : (noBubble ? '' : 'bg-window text-main-text')}
+                            isMe ? (noBubble ? '' : 'bg-primary text-[color:var(--text-on-primary)]') : (noBubble ? '' : 'bg-window text-main-text')}
                         ${isHighlighted ? 'ring-4 ring-accent ring-opacity-50 animate-pulse' : ''}
                       `}>
                         {/* Reply Preview */}
@@ -627,7 +633,7 @@ export function ChatView({
                                 setTimeout(() => el.classList.remove('animate-shake'), 1000);
                               }
                             }}
-                            className={`border-l-4 border-border/40 bg-black/10 p-2 mb-2 text-[10px] opacity-90 cursor-pointer hover:bg-black/20 transition-all active:scale-95`}
+                            className={`border-l-4 border-border/40 bg-border/20 p-2 mb-2 text-[10px] opacity-90 cursor-pointer hover:bg-border/30 transition-all active:scale-95`}
                           >
                             <p className="font-black uppercase tracking-tighter mb-0.5 opacity-60">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || 'Partner')}</p>
                             <p className="truncate italic font-bold">{msg.replyTo.text || '📸 Media / Attachment'}</p>
@@ -636,29 +642,31 @@ export function ChatView({
 
                         {/* Content Types */}
                         {msg.isDeleted ? (
-                          <span className="flex items-center gap-2 opacity-50"><Ban size={12} /> message deleted</span>
+                          <span className="flex items-center gap-2 text-main-text/40 italic px-2 py-1"><Ban size={12} /> message deleted</span>
                         ) : (
                           <>
-                            {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
+                            {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block [word-break:break-word] overflow-hidden'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'game_invite' && (
-                              <div className="border-2 border-border bg-window shadow-[1px_1px_0px_0px_var(--border)] p-3 w-64 text-main-text mt-1">
-                                <div className="flex items-center gap-2 mb-3 border-b-2 border-dashed border-border/20 pb-2">
+                              <div className="retro-border retro-shadow-dark bg-window p-3 w-64 text-main-text mt-1">
+                                <div className="flex items-center gap-2 mb-3 border-b-2 border-border/20 pb-2">
                                   <Gamepad2 size={18} className="text-primary" />
                                   <span className="font-black text-[10px] uppercase tracking-widest">Activity Invite</span>
                                 </div>
                                 <p className="text-xs font-bold mb-4 opacity-80">{msg.text || `Join me for ${msg.gameTitle || "a game"}!`}</p>
-                                {!isMe ? (
-                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-accent text-accent-text border-2 border-border shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all">Join Now</button>
+                                {msg.inviteStatus === 'pending' || msg.metadata?.inviteStatus === 'pending' ? (
+                                  <button onClick={() => handleJoinGame(msg)} className="w-full py-2 text-xs font-bold bg-accent text-accent-text retro-border retro-shadow-dark hover:brightness-110 transition-all">Join Now</button>
                                 ) : (
-                                  <div className="bg-black/5 border-2 border-dashed border-border/30 p-2 text-center text-[9px] font-black uppercase opacity-60">Waiting for partner...</div>
+                                  <div className="bg-black/5 border-2 border-dashed border-border/30 p-2 text-center text-[9px] font-black uppercase opacity-60">
+                                    {msg.inviteStatus === 'accepted' || msg.metadata?.inviteStatus === 'accepted' ? 'Accepted' : 'Expired'}
+                                  </div>
                                 )}
                               </div>
                             )}
                             {msg.type === 'call_invite' && (
                               <div className="flex flex-col gap-1 py-1">
                                 <div className="flex items-center gap-3">
-                                  <div className={`p-2 rounded-full ${msg.status === 'missed' ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600'}`}>
+                                  <div className={`p-2 retro-border retro-shadow-dark ${msg.status === 'missed' ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600'}`}>
                                     {msg.callType === 'video' ? <Video size={16} /> : <Phone size={16} />}
                                   </div>
                                   <div className="flex flex-col">
@@ -689,7 +697,7 @@ export function ChatView({
 
                         {/* Reactions (Always visible and more stylized) */}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (
-                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-window text-main-text border-2 border-border px-2 py-0.5 text-[11px] flex gap-1 shadow-[2px_2px_0px_0px_var(--border)] z-10 animate-in zoom-in-50`}>
+                          <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-window text-main-text retro-border retro-shadow-dark px-2 py-0.5 text-[11px] flex gap-1 z-10 animate-in zoom-in-50`}>
                             {msg.reactions.map((r, i) => <span key={i} className="hover:scale-125 transition-transform cursor-default">{r}</span>)}
                           </div>
                         )}
@@ -698,18 +706,18 @@ export function ChatView({
                       {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
                         <div className={`
-                          message-options-menu absolute z-[100] bg-window border-2 border-border shadow-[4px_4px_0px_0px_var(--border)] py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text
+                          message-options-menu absolute z-[100] bg-window retro-border retro-shadow-dark py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text
                           ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
                           ${isNearBottom ? 'bottom-0' : 'top-0'} 
                         `}>
-                          <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
+                           <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
                           <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
 
                           <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-border/10 text-[9px] font-black uppercase opacity-50">
                             <Clock size={10} /> {msg.time}
                           </div>
 
-                          <div className="flex items-center justify-around px-1 py-2 border-y-2 border-dashed border-border/10 bg-black/5 my-1">
+                          <div className="flex items-center justify-around px-1 py-2 border-y-2 border-border/10 bg-border/5 my-1">
                             {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
                               <button key={emoji} onClick={() => {
                                 const rs = msg.reactions || [];
@@ -735,8 +743,8 @@ export function ChatView({
                         {msg.status && (
                           <div className="flex items-center gap-1">
                             <div className="flex -space-x-1.5">
-                              <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} strokeWidth={4} />
-                              {(msg.status === 'delivered' || msg.status === 'read') && <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} strokeWidth={4} />}
+                              <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} />
+                              {(msg.status === 'delivered' || msg.status === 'read') && <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} />}
                             </div>
                             {msg.status === 'read' && msg.readAt && <span>seen {msg.readAt}</span>}
                             {msg.status === 'delivered' && <span>delivered</span>}
@@ -769,52 +777,50 @@ export function ChatView({
                 </div>
               )}
               {pendingImages.length > 0 && (
-                <div className="p-3 bg-window border-b-2 border-dashed border-border flex flex-wrap gap-4 animate-in slide-in-from-bottom-2 text-main-text">
-                  {pendingImages.map((img, i) => (
-                    <div key={i} className="relative">
-                      <img src={img} alt="preview" className="w-16 h-16 object-cover border-2 border-border shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]" />
-                      <button onClick={() => setPendingImages(p => p.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 border-2 border-border shadow-[2px_2px_0px_0px_var(--border)] hover:scale-110"><X size={10} /></button>
-                    </div>
-                  ))}
+                <div className="p-3 bg-window border-b-2 border-dashed border-border flex flex-col gap-3 animate-in slide-in-from-bottom-2 text-main-text select-none">
+                  <div className="w-full flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-primary">Attachment(s) staged for upload:</span>
+                    <button onClick={() => setPendingImages([])} className="text-[9px] font-bold underline opacity-60 hover:opacity-100 uppercase tracking-tighter">Clear All</button>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {pendingImages.map((img, i) => (
+                      <div key={i} className="relative bg-black/5 p-1 retro-border border-dashed">
+                        <img src={img} alt="preview" className="w-16 h-16 object-cover retro-border" />
+                        <button onClick={() => setPendingImages(p => p.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-600 text-white p-1 retro-border hover:bg-white hover:text-black transition-colors" title="Remove"><X size={10} /></button>
+                      </div>
+                    ))}
+                  </div>
                   <div className="flex-1 min-w-[150px]">
-                    <p className="text-xs font-bold uppercase opacity-50 mb-1">Media Preview</p>
-                    <p className="text-[10px] italic">Sending {pendingImages.length} items at once.</p>
+                    <p>
+                        {voicePreview !== null && (<div className="p-3 bg-window border-b-2 border-border flex items-center justify-between gap-3 text-main-text"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-primary" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 retro-border bg-main text-main-text text-xs font-bold hover:brightness-110">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 retro-border bg-primary text-white text-xs font-bold hover:brightness-110">Send</button></div></div>)}
+                        {replyingTo && (
+                          <div className="p-2 bg-primary text-white border-b-2 border-border/20 flex justify-between items-center text-sm">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <Reply size={14} className="flex-shrink-0" />
+                              <span className="font-bold truncate">
+                                Replying to {replyingTo.sender === userId ? 'You' : (roomProfiles[replyingTo.sender]?.name || 'Partner')}: {replyingTo.text || '📸 Media / Attachment'}
+                              </span>
+                            </div>
+                            <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-white/10 retro-border flex-shrink-0 ml-2"><X size={14} /></button>
+                          </div>
+                        )}
+                    </p>
                   </div>
                 </div>
               )}
-              {voicePreview !== null && (<div className="p-3 bg-window border-b-2 border-dashed border-border flex items-center justify-between gap-3 text-main-text"><div className="flex items-center gap-3 flex-1"><Mic size={16} className="text-primary" /><span className="text-sm font-bold">Voice note: {Math.floor(voicePreview / 60)}:{(voicePreview % 60).toString().padStart(2, '0')}</span></div><div className="flex gap-2"><VoiceMessagePlayer duration={`${Math.floor(voicePreview / 60)}:${(voicePreview % 60).toString().padStart(2, '0')}`} audioUrl={voicePreviewUrl} /></div><div className="flex gap-2"><button onClick={() => discardVoiceNote()} className="px-3 py-1 border-2 border-border bg-main text-main-text text-xs font-bold hover:bg-gray-300">Discard</button><button onClick={confirmVoiceNote} className="px-3 py-1 border-2 border-border bg-primary text-primary-text text-xs font-bold hover:bg-green-500">Send</button></div></div>)}
-              {replyingTo && (<div className="p-2 bg-window border-b-2 border-dashed border-border flex justify-between items-center text-sm text-main-text"><div><span className="font-bold mr-2 text-primary"><Reply size={14} className="inline mr-1" />Replying to {replyingTo.sender === userId ? profile.name || 'You' : (replyingTo.senderName || partnerNickname || 'Partner')}:</span><span className="opacity-70 truncate max-w-[200px] inline-block align-bottom">{replyingTo.text || 'Attachment/Voice'}</span></div><button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-black/10 border-2 border-border"><X size={14} /></button></div>)}
               <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
                  
                  <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
-                   <div className="relative">
-                     <button onClick={() => { playAudio('click', sfx); setShowDecorationTray(!showDecorationTray); setShowEmojiPicker(false); }} className={`p-1.5 sm:p-2 hover:bg-black/5 transition-colors ${showDecorationTray ? 'text-primary' : 'text-main-text opacity-50'}`} title="Decorate Chat"><Sparkle size={20} /></button>
-                     {showDecorationTray && (
-                       <div className="absolute bottom-full left-0 mb-4 bg-window retro-border retro-shadow-dark p-3 w-48 z-50 decoration-tray">
-                         <p className="text-[10px] font-black uppercase mb-3 border-b border-dashed border-border pb-1">Decorations</p>
-                         <div className="grid grid-cols-4 gap-2 mb-4">
-                           {['flower', 'heart', 'star', 'cat'].map(t => (
-                             <button key={t} onClick={() => { setDroppingType(t); setShowDecorationTray(false); }} className={`aspect-square retro-border flex items-center justify-center hover:bg-primary hover:text-white transition-all ${droppingType === t ? 'bg-primary text-white' : ''}`}>
-                               <Palette size={16} />
-                             </button>
-                           ))}
-                         </div>
-                         <label className="block text-[8px] font-black uppercase mb-1 opacity-60">Hue Shift</label>
-                         <input type="range" min="0" max="360" value={decorationHue} onChange={(e) => setDecorationHue(parseInt(e.target.value))} className="w-full accent-primary" />
-                         <p className="text-[8px] italic opacity-50 mt-2">Pick an item then click on chat to drop it!</p>
-                       </div>
-                     )}
-                   </div>
-                   <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 border-2 border-border bg-window text-main-text hover:bg-gray-100 disabled:opacity-50 transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none">
+                   <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-border bg-window text-main-text hover:brightness-110 transition-all">
                      <Paperclip size={18} />
                    </button>
-                   <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowDecorationTray(false); }} className={`p-2 border-2 border-border transition-colors shadow-[1px_1px_0px_0px_var(--border)] active:translate-y-[2px] active:shadow-none ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:bg-gray-100'}`}>
+                   <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); }} className={`p-2 retro-border transition-all ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:brightness-110'}`}>
                      <Smile size={18} />
                    </button>
                  </div>
 
-                 <div className="flex-1 relative flex items-center bg-window border-2 border-border shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)] overflow-hidden">
+                 <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden">
                    <textarea 
                      ref={textareaRef}
                      rows={1}
@@ -828,26 +834,63 @@ export function ChatView({
                    />
                  </div>
                  {!input.trim() && !editingMsgId && voicePreview === null && pendingImages.length === 0 ? (
-                   <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 border-2 border-border transition-all flex-shrink-0 select-none shadow-[1px_1px_0px_0px_var(--border)] ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : (isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:bg-gray-50 hover:-translate-y-[1px]')}`}>
-                     <Mic size={18} className={isRecording ? 'animate-bounce' : ''} />
+                   <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : (isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
+                     <RetroIcon icon={Mic} size={18} className={isRecording ? 'animate-bounce' : ''} />
                    </button>
                  ) : (
-                   <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 border-2 border-border flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : 'bg-primary text-primary-text shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none'}`}>
-                     <Send size={18} />
+                   <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
+                     <RetroIcon icon={Send} size={18} />
                    </button>
                  )}
-               </form>
+              </form>
             </div>
           </div>
           {showDetails && (
             <div className="flex flex-col w-full md:w-1/3 bg-main overflow-y-auto relative border-l-2 border-border">
-              <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-border retro-shadow-dark z-10 rounded-full"><X size={16} /></button>
-              <div className="p-2 flex gap-1 bg-border shrink-0"><button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'media' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Media</button><button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'calls' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Calls</button><button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase ${activeSidebarTab === 'search' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Search</button></div>
+              <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
+              <div className="p-2 flex gap-1 bg-border shrink-0">
+                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'media' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Media</button>
+                <button onClick={() => setActiveSidebarTab('theme')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'theme' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Theme</button>
+                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'calls' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Calls</button>
+                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'search' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Search</button>
+              </div>
               <div className="p-4 flex flex-col gap-6">
+                {activeSidebarTab === 'theme' && (
+                  <div className="text-main-text">
+                    <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Palette} size={16} /> Chat Theme</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold mb-2 flex items-center gap-1">Chat Wallpaper</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { id: 'none', label: 'None', color: 'transparent' },
+                            { id: 'pixel-garden', label: 'Garden', color: '#90be6d' },
+                            { id: 'pixel-stars', label: 'Stars', color: '#2b2d42' },
+                            { id: 'pixel-clouds', label: 'Clouds', color: '#a2d2ff' }
+                          ].map(w => (
+                             <button 
+                               key={w.id} 
+                               onClick={() => setCoupleData(prev => ({ ...prev, settings: { ...prev.settings, chatWallpaper: w.id } }))} 
+                               className={`aspect-video retro-border flex flex-col items-center justify-center p-1 gap-1 transition-all ${coupleData.settings?.chatWallpaper === w.id ? 'ring-2 ring-primary scale-105' : 'opacity-70 hover:opacity-100'}`}
+                             >
+                                <div className="w-full h-full border border-border shadow-inner" style={{ backgroundColor: w.color }}></div>
+                                <span className="text-[10px] font-bold uppercase">{w.label}</span>
+                             </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-border/30">
+                        <p className="text-[10px] italic opacity-50">This setting is shared between both partners.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeSidebarTab === 'search' && (
                   <div className="text-main-text">
-                    <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><Search size={16} /> Search Logs</h3>
-                    <div className="flex bg-window border-2 border-border p-3 shadow-[1px_1px_0px_0px_var(--border)]">
+                    <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Search} size={16} /> Search Logs</h3>
+                    <div className="flex bg-window retro-inset p-3">
                       <input 
                         type="text" 
                         value={searchQuery} 
@@ -855,7 +898,7 @@ export function ChatView({
                         placeholder="Filter messages..." 
                         className="bg-transparent outline-none w-full text-sm font-black placeholder:font-normal uppercase" 
                       />
-                      {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><X size={14} className="opacity-50" /></button>}
+                      {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><RetroIcon icon={X} size={14} className="opacity-50" /></button>}
                     </div>
                     {searchQuery && (
                       <div className="flex flex-col gap-3 mt-4 overflow-y-auto max-h-[500px] pr-2">
@@ -866,7 +909,7 @@ export function ChatView({
                           <div 
                             key={m.id} 
                             onClick={() => jumpToMessage(m.id)}
-                            className="bg-window border-2 border-border p-3 cursor-pointer hover:bg-accent hover:text-accent-text transition-all group/res active:scale-95 shadow-[2px_2px_0px_0px_var(--border)]"
+                            className="bg-window retro-outset p-3 cursor-pointer hover:bg-accent hover:text-accent-text transition-all group/res active:translate-y-[2px]"
                           >
                             <div className="flex justify-between items-center mb-1">
                               <span className="text-[10px] font-black uppercase text-primary">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
@@ -879,13 +922,17 @@ export function ChatView({
                     )}
                   </div>
                 )}
+
                 {activeSidebarTab === 'media' && (
                   <>
-                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><Pin size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-window p-2 text-sm border-2 border-border border-l-4 border-l-accent"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>
-                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><ImageIcon size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewerContext({ urls: m.type === 'image_group' ? m.urls : [m.url], index: 0, isOpen: true })} className="aspect-square border-2 border-border shadow-md bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}></div>)))}</div></div>
+                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Pin} size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-window p-2 text-sm retro-outset border-l-4 border-l-accent"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>
+                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={ImageIcon} size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewerContext({ urls: m.type === 'image_group' ? m.urls : [m.url], index: 0, isOpen: true })} className="aspect-square retro-outset bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}></div>)))}</div></div>
                   </>
                 )}
-                {activeSidebarTab === 'calls' && (<div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><History size={16} /> Call History</h3><div className="flex flex-col gap-2 overflow-y-auto pr-1">{callHistory.length === 0 ? (<p className="text-sm opacity-50">No call history.</p>) : (callHistory.reverse().map(m => (<div key={m.id} className="bg-window p-3 text-xs border-2 border-border flex items-center justify-between"><div className="flex items-center gap-2">{m.callType === 'video' ? <Video size={14} className="text-secondary" /> : <Phone size={14} className="text-primary" />}<div><p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p><p className="opacity-50">{m.time}</p></div></div><span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 border-2 border-border ${m.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{m.status}</span></div>)))}</div></div>)}
+
+                {activeSidebarTab === 'calls' && (
+                  <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={History} size={16} /> Call History</h3><div className="flex flex-col gap-2 overflow-y-auto pr-1">{callHistory.length === 0 ? (<p className="text-sm opacity-50">No call history.</p>) : (callHistory.reverse().map(m => (<div key={m.id} className="bg-window p-3 text-xs retro-outset flex items-center justify-between"><div className="flex items-center gap-2">{m.callType === 'video' ? <RetroIcon icon={Video} size={14} className="text-secondary" /> : <RetroIcon icon={Phone} size={14} className="text-primary" />}<div><p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p><p className="opacity-50">{m.time}</p></div></div><span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 retro-outset ${m.status === 'accepted' || m.status === 'ended' ? 'bg-green-100 text-green-700' : m.status === 'missed' || m.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{m.status === 'sent' || !m.status ? 'Outgoing' : m.status}</span></div>)))}</div></div>
+                )}
               </div>
             </div>
           )}

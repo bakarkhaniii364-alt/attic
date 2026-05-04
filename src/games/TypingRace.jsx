@@ -36,7 +36,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
     setErrors(newErrors);
     setTyped(val);
 
-    if (val.length === passage.length) {
+    if (val === passage) {
       const end = Date.now();
       setEndTime(end);
       playAudio('win', sfx);
@@ -45,9 +45,9 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
     }
   }, [passage, started, sfx, onWin]);
 
-  const wpm = endTime && startTime ? Math.round((passage.split(' ').length / ((endTime - startTime) / 60000))) : (started && startTime ? Math.round((typed.split(' ').length / ((Date.now() - startTime) / 60000))) : 0);
+  const wpm = endTime && startTime ? Math.round((passage.split(' ').length / Math.max(0.0001, (endTime - startTime) / 60000))) : (started && startTime ? Math.round((typed.split(' ').length / Math.max(0.0001, (Date.now() - startTime) / 60000))) : 0);
   const accuracy = typed.length > 0 ? Math.round(((typed.length - errors) / typed.length) * 100) : 100;
-  const progress = Math.round((typed.length / passage.length) * 100);
+  const progress = Math.min(100, Math.round((typed.length / passage.length) * 100));
 
   const restart = () => { setTyped(''); setStarted(false); setStartTime(null); setEndTime(null); setErrors(0); setShowOverlay(false); inputRef.current?.focus(); };
 

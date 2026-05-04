@@ -49,13 +49,13 @@ create policy "access_app_state" on app_state
     )
   );
 
--- ── Claim an invite code (partner joining) ──
-create or replace function claim_invite(code text)
+-- ── Pair with a code (partner joining) ──
+create or replace function pair_with_code(target_code text)
 returns json as $$
 declare
   room_row rooms%rowtype;
 begin
-  select * into room_row from rooms where invite_code = upper(code) and is_active = true;
+  select * into room_row from rooms where invite_code = upper(target_code) and is_active = true;
 
   if not found then
     return json_build_object('error', 'invalid_code', 'message', 'that code doesn''t exist. double-check and try again.');
@@ -141,16 +141,75 @@ create or replace function delete_user_data()
 returns json as $$
 declare
   uid uuid := auth.uid();
+  r record;
 begin
-  -- Delete from app_state for any rooms where user was involved
-  delete from app_state where room_id in (
-    select id::text from rooms where creator_id = uid or partner_id = uid
-  );
-  
-  -- Delete the rooms themselves
-  delete from rooms where creator_id = uid or partner_id = uid;
+  -- Loop through all rooms the user is part of
+  for r in select * from rooms where creator_id = uid or partner_id = uid loop
+    if r.partner_id is not null then
+      -- Room is paired, don't delete it. Just remove the deleting user.
+      if r.creator_id = uid then
+        -- User is creator, promote partner to creator and clear partner slot
+        update rooms set creator_id = r.partner_id, partner_id = null where id = r.id;
+      else
+        -- User is partner, just clear the partner slot
+        update rooms set partner_id = null where id = r.id;
+      end if;
+    else
+      -- Solo room, safe to delete everything
+      delete from app_state where room_id = r.id::text;
+      delete from rooms where id = r.id;
+    end if;
+  end loop;
   
   return json_build_object('success', true);
 end;
 $$ language plpgsql security definer;
 
+-- ── Trigger to auto-create rooms for new users ──
+create or replace function public.handle_new_user_room()
+returns trigger as $$
+declare
+  new_invite_code text;
+begin
+  -- Generate a random 6-character code
+  new_invite_code := upper(substring(md5(random()::text) from 1 for 6));
+  
+  -- Ensure it's unique
+  while exists(select 1 from public.rooms where invite_code = new_invite_code) loop
+    new_invite_code := upper(substring(md5(random()::text) from 1 for 6));
+  end loop;
+
+  -- Create their initial solo room
+  insert into public.rooms (invite_code, creator_id)
+  values (new_invite_code, new.id);
+  
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user_room();
+
+-- ── Migration: Create rooms for existing users who don't have one ──
+do $$
+declare
+  user_record record;
+  existing_room_id uuid;
+  new_code text;
+begin
+  for user_record in select id from auth.users loop
+    select id into existing_room_id from public.rooms where creator_id = user_record.id or partner_id = user_record.id limit 1;
+    
+    if existing_room_id is null then
+       new_code := upper(substring(md5(random()::text) from 1 for 6));
+       while exists(select 1 from public.rooms where invite_code = new_code) loop
+         new_code := upper(substring(md5(random()::text) from 1 for 6));
+       end loop;
+       
+       insert into public.rooms (invite_code, creator_id)
+       values (new_code, user_record.id);
+    end if;
+  end loop;
+end $$;

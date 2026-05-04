@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useCall } from '../context/CallContext.jsx';
 import { playAudio } from '../utils/audio.js';
 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
@@ -69,15 +71,34 @@ const CardUI = ({ card, onClick, className = "", hidden = false }) => {
   );
 };
 
-export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId }) {
-  const isMultiplayer = config.mode === '1v1_remote';
-  const myPlayerId = isMultiplayer ? userId : 'p1';
-  const oppPlayerId = isMultiplayer ? partnerId : 'ai';
-  
-  // Deterministic initialization for host
-  const isHost = !isMultiplayer || userId < partnerId;
-
+export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer, config, userId, setScores, sfx, onWin }) {
+  const { sendData } = useCall();
+  const { roomId } = useAuth();
   const [gameState, setGameState] = useGlobalSync(`uno_${roomId}`, null);
+
+  // 1. WebRTC Data Channel Listener
+  useEffect(() => {
+    const handleData = (e) => {
+      const data = e.detail;
+      if (data.type === 'uno_move' && data.roomId === roomId) {
+        console.log('[UNO] Received Move via P2P:', data.state);
+        setGameState(data.state);
+      }
+    };
+    window.addEventListener('webrtc_data', handleData);
+    return () => window.removeEventListener('webrtc_data', handleData);
+  }, [roomId, setGameState]);
+
+  // Optimized setter that sends via P2P first
+  const broadcastMove = useCallback((newState) => {
+    // 1. P2P (Low Latency)
+    const p2pSent = sendData({ type: 'uno_move', roomId, state: newState });
+    if (p2pSent) console.log('[UNO] Move broadcast via P2P');
+    
+    // 2. Supabase (Reliability/Persistence)
+    setGameState(newState);
+  }, [roomId, sendData, setGameState]);
+
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pendingWildCard, setPendingWildCard] = useState(null);
   const [actionMessage, setActionMessage] = useState("");
@@ -90,18 +111,25 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
   // Initialize game
   useEffect(() => {
-    if (isHost && !gameState) {
-      setTimeout(() => {
+    if (isHost && (!gameState || gameState.winner)) {
+      const initTimer = setTimeout(() => {
+        if (gameState && !gameState.winner) return; // Already initialized by someone else or previous run
+        
+        console.log('[UNO] Host initializing game state...');
         let deck = createDeck();
         const p1Hand = deck.splice(0, 7);
         const p2Hand = deck.splice(0, 7);
         let firstCard = deck.pop();
-        while (firstCard.color === 'wild') {
-           deck.unshift(firstCard);
-           firstCard = deck.pop();
+        
+        // Safety: Ensure first card is not wild
+        let attempts = 0;
+        while (firstCard.color === 'wild' && attempts < 10) {
+            deck.unshift(firstCard);
+            firstCard = deck.pop();
+            attempts++;
         }
         
-        setGameState({
+        const initialState = {
           deck,
           discard: [firstCard],
           hands: {
@@ -111,11 +139,14 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
           turn: myPlayerId,
           currentColor: firstCard.color,
           unoCalled: { [myPlayerId]: false, [oppPlayerId]: false },
-          winner: null
-        });
-      }, 2000);
+          winner: null,
+          initializedAt: Date.now()
+        };
+        broadcastMove(initialState);
+      }, 1000); // Reduced to 1s
+      return () => clearTimeout(initTimer);
     }
-  }, [isHost, gameState, myPlayerId, oppPlayerId, setGameState]);
+  }, [isHost, gameState?.winner, myPlayerId, oppPlayerId, broadcastMove]);
 
   const { deck, discard, hands, turn, currentColor, unoCalled, winner } = gameState || {};
   const topCard = discard ? discard[discard.length - 1] : null;
@@ -150,11 +181,11 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
   };
 
   const endTurn = (nextPlayer, newGameStateUpdates) => {
-      setGameState(prev => ({
-          ...prev,
+      broadcastMove({
+          ...gameState,
           ...newGameStateUpdates,
           turn: nextPlayer
-      }));
+      });
   };
 
   const playCard = (card, chosenColor = null) => {
@@ -186,7 +217,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
        if (setScores) {
            setScores(p => ({ ...p, uno: { ...(p.uno || {}), [userId]: (p.uno?.[userId] || 0) + 1 } }));
        }
-       setGameState(prev => ({ ...prev, winner: myPlayerId, hands: newHands, discard: newDiscard }));
+       broadcastMove({ ...gameState, winner: myPlayerId, hands: newHands, discard: newDiscard });
        return;
     }
 
@@ -218,7 +249,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
     // Reset Uno status if I had 1 card and drew, or update if I forgot
     if (newHands[myPlayerId].length !== 1) newUnoCalled[myPlayerId] = false;
 
-    setGameState({
+    broadcastMove({
         deck: newDeck,
         discard: newDiscard,
         hands: newHands,
@@ -252,14 +283,14 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
     let newUnoCalled = { ...unoCalled };
     newUnoCalled[myPlayerId] = false;
 
-    setGameState(prev => ({
-        ...prev,
+    broadcastMove({
+        ...gameState,
         deck: res.newDeck,
         discard: res.newDiscard,
         hands: { ...hands, [myPlayerId]: res.newHand },
         turn: oppPlayerId,
         unoCalled: newUnoCalled
-    }));
+    });
   };
 
   const callUno = () => {
@@ -267,7 +298,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       if (myHand.length <= 2) {
           playAudio('success', sfx);
           showMessage('UNO!');
-          setGameState(p => ({ ...p, unoCalled: { ...p.unoCalled, [myPlayerId]: true }}));
+          broadcastMove({ ...gameState, unoCalled: { ...gameState.unoCalled, [myPlayerId]: true }});
       }
   };
 
@@ -276,12 +307,12 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       if (oppHand.length === 1 && !unoCalled[oppPlayerId]) {
           playAudio('error', sfx);
           const res = drawCards(oppPlayerId, 2, deck, hands);
-          setGameState(p => ({
-              ...p,
+          broadcastMove({
+              ...gameState,
               deck: res.newDeck,
               discard: res.newDiscard,
-              hands: { ...p.hands, [oppPlayerId]: res.newHand }
-          }));
+              hands: { ...gameState.hands, [oppPlayerId]: res.newHand }
+          });
       }
   };
 
@@ -289,12 +320,12 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       if (winner) return;
       playAudio('error', sfx);
       const res = drawCards(targetId, 2, deck, hands);
-      setGameState(p => ({
-          ...p,
+      broadcastMove({
+          ...gameState,
           deck: res.newDeck,
           discard: res.newDiscard,
-          hands: { ...p.hands, [targetId]: res.newHand }
-      }));
+          hands: { ...gameState.hands, [targetId]: res.newHand }
+      });
   };
 
   // AI Logic
@@ -302,21 +333,20 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
       if (!gameState) return;
       if (!isMultiplayer && turn === 'ai' && !winner) {
           aiTimeoutRef.current = setTimeout(() => {
-              const aiHand = hands['ai'];
+              const aiHand = hands['ai'] || [];
+              const top = discard[discard.length - 1];
               
-              // Catch player forgetting Uno
-              if (hands[myPlayerId].length === 1 && !unoCalled[myPlayerId]) {
-                  catchPlayer(myPlayerId);
-                  return; // Will process turn next tick
-              }
+              const valid = aiHand.filter(c => 
+                  c.color === 'wild' || 
+                  c.color === currentColor || 
+                  c.value === top.value
+              );
 
-              // Play a card
-              const valid = aiHand.filter(c => isValidPlay(c));
               if (valid.length > 0) {
-                  // Heuristic: action cards first
+                  // Strategy: play highest value first
                   valid.sort((a, b) => {
-                      const aAct = isNaN(a.value) ? 1 : 0;
-                      const bAct = isNaN(b.value) ? 1 : 0;
+                      const aAct = typeof a.value === 'string' ? 20 : a.value;
+                      const bAct = typeof b.value === 'string' ? 20 : b.value;
                       return bAct - aAct;
                   });
                   const cardToPlay = valid[0];
@@ -329,13 +359,11 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
                   let chosenCol = null;
                   if (cardToPlay.color === 'wild') {
-                      // pick most common color
                       const colCounts = {red:0, blue:0, green:0, yellow:0};
                       aiHand.forEach(c => { if(c.color !== 'wild') colCounts[c.color]++; });
                       chosenCol = Object.keys(colCounts).reduce((a, b) => colCounts[a] > colCounts[b] ? a : b) || 'red';
                   }
 
-                  // Execute AI play
                   let newHands = { ...hands };
                   newHands['ai'] = aiHand.filter(c => c.id !== cardToPlay.id);
                   let newDiscard = [...discard, cardToPlay];
@@ -343,7 +371,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                   let nextTurn = myPlayerId;
 
                   if (newHands['ai'].length === 0) {
-                      setGameState(p => ({ ...p, winner: 'ai', hands: newHands, discard: newDiscard }));
+                      broadcastMove({ ...gameState, winner: 'ai', hands: newHands, discard: newDiscard });
                       playAudio('error', sfx);
                       return;
                   }
@@ -360,23 +388,22 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
                      nextTurn = 'ai'; 
                   }
 
-                  setGameState(p => ({
-                      ...p, deck: newDeck, discard: newDiscard, hands: newHands, turn: nextTurn, currentColor: chosenCol || cardToPlay.color, unoCalled: newUno
-                  }));
+                  broadcastMove({
+                      ...gameState, deck: newDeck, discard: newDiscard, hands: newHands, turn: nextTurn, currentColor: chosenCol || cardToPlay.color, unoCalled: newUno
+                  });
                   playAudio('place', sfx);
 
               } else {
-                  // AI must draw
                   const res = drawCards('ai', 1, deck, hands);
-                  setGameState(p => ({
-                      ...p, deck: res.newDeck, discard: res.newDiscard, hands: { ...p.hands, ['ai']: res.newHand }, turn: myPlayerId
-                  }));
+                  broadcastMove({
+                      ...gameState, deck: res.newDeck, discard: res.newDiscard, hands: { ...gameState.hands, ['ai']: res.newHand }, turn: myPlayerId
+                  });
                   playAudio('click', sfx);
               }
           }, 1500);
           return () => clearTimeout(aiTimeoutRef.current);
       }
-  }, [turn, isMultiplayer, winner, deck, discard, hands, unoCalled, currentColor, myPlayerId]);
+  }, [turn, winner, isMultiplayer]);
 
   if (!gameState) {
     return (
@@ -457,7 +484,7 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
 
              {/* Turn Indicator */}
              <div className={`absolute left-[20px] font-bold bg-window border-2 border-border px-[15px] py-[8px] text-[16px] shadow-retro transition-all duration-400 z-10 uppercase ${isMyTurn ? 'bottom-[150px] border-primary' : 'top-[150px] border-border'}`}>
-                 {isMyTurn ? 'Your Turn' : 'CPU Processing...'}
+                 {isMyTurn ? 'Your Turn' : isMultiplayer ? "Partner's Turn" : 'CPU Processing...'}
              </div>
 
              {/* My Hand */}
@@ -509,6 +536,26 @@ export function UnoGame({ config, sfx, userId, partnerId, setScores, onWin, onBa
               score={`Cards Left: You(${myHand.length}) vs Opp(${oppHand.length})`}
               gameName="Retro Uno"
               onClose={() => onBack()}
+              onRematch={() => {
+                  let d = createDeck();
+                  const p1Hand = d.splice(0, 7);
+                  const p2Hand = d.splice(0, 7);
+                  let firstCard = d.pop();
+                  while (firstCard.color === 'wild') {
+                      d.unshift(firstCard);
+                      firstCard = d.pop();
+                  }
+                  broadcastMove({
+                    deck: d,
+                    discard: [firstCard],
+                    hands: { [myPlayerId]: p1Hand, [oppPlayerId]: p2Hand },
+                    turn: myPlayerId,
+                    currentColor: firstCard.color,
+                    unoCalled: { [myPlayerId]: false, [oppPlayerId]: false },
+                    winner: null,
+                    initializedAt: Date.now()
+                  });
+              }}
             />
          )}
       </div>

@@ -83,6 +83,19 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     } else { ctx.lineTo(x, y); ctx.stroke(); }
   };
   const handlePointerUp = () => { if(isDrawing){ setIsDrawing(false); snapshotRef.current = null; snapshotHistory.current.push(canvasRef.current.toDataURL()); } };
+  const handleUndo = () => {
+    if (snapshotHistory.current.length <= 1) return;
+    playAudio('click', sfx);
+    snapshotHistory.current.pop(); // Remove current state
+    const prevState = snapshotHistory.current[snapshotHistory.current.length - 1];
+    const img = new Image();
+    img.onload = () => {
+      const ctx = canvasRef.current.getContext('2d');
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = prevState;
+  };
   const clearCanvas = () => { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); setHasUnsavedChanges(true); snapshotHistory.current=[canvas.toDataURL()]; };
   const [showSentOverlay, setShowSentOverlay] = useState(false);
   const handleSend = async () => {
@@ -90,15 +103,8 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     const dataUrl = canvasRef.current.toDataURL('image/png');
     
     if (isNormalized) {
-        try {
-            const blob = base64ToBlob(dataUrl);
-            const file = new File([blob], `doodle_${Date.now()}.png`, { type: 'image/png' });
-            await uploadAsset(file, 'doodle', userId);
-            if (onSendDoodle) onSendDoodle(dataUrl);
-        } catch (e) {
-            alert("Failed to send doodle: " + e.message);
-            return;
-        }
+        // App.jsx handles the upload and broadcast for the chat message/interaction
+        if (onSendDoodle) onSendDoodle(dataUrl);
     } else {
         if (onSendDoodle) onSendDoodle({img: dataUrl, history: snapshotHistory.current});
     }
@@ -131,7 +137,18 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   return (
     <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose hasUnsavedChanges={hasUnsavedChanges} onSaveBeforeClose={() => { handleSaveScrapbook(); onClose && onClose(); }} sfx={sfx} noPadding>
       <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none">
-        <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
+        <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button>
+        <div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
+        <button 
+          onClick={handleUndo} 
+          className={`p-2 rounded-md transition-all retro-border flex items-center gap-1 font-bold text-[10px] uppercase ${snapshotHistory.current.length > 1 ? 'bg-white shadow-md hover:bg-[var(--accent)]' : 'opacity-20 cursor-not-allowed'}`}
+          disabled={snapshotHistory.current.length <= 1}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo size={18}/>
+          <span>Undo</span>
+        </button>
+        <div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
         {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> ))}
         <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
            <Pipette size={12} />

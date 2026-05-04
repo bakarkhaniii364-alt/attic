@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2 } from 'lucide-react';
-import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { playAudio } from '../utils/audio.js';
@@ -11,10 +11,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const navigate = useNavigate();
   const toast = useToast();
   
+  const safeProfile = profile || { name: 'You', emoji: '👤' };
+  
   // Cache the initial state so we can revert if "Cancel" is clicked
   const [initialState] = useState({
     theme, weather, profile, coupleData, sfxEnabled, notificationsEnabled
   });
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -30,6 +34,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const availableThemes = ['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins', 'lavender', 'coffee', 'nord'];
 
   const handleCancel = () => {
+    playAudio('click', sfxEnabled);
     setTheme(initialState.theme);
     setWeather(initialState.weather);
     setProfile(initialState.profile);
@@ -150,11 +155,11 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><User size={20}/> user profile</h2>
           <div className="flex flex-col sm:flex-row gap-4 items-center mb-4">
              <div className="relative group cursor-pointer">
-                {profile.pfp ? <img src={profile.pfp} alt="Avatar" className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-shadow-dark object-cover" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
+                {safeProfile?.pfp ? <img src={safeProfile?.pfp} alt="Avatar" className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-shadow-dark object-cover" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{safeProfile?.emoji}</div>}
                 <label className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity backdrop-blur-sm"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
              </div>
              <div className="flex-1 w-full space-y-2">
-               <div><label className="block text-sm font-bold mb-1">display name</label><input type="text" value={profile.name} onChange={(e) => setProfile({...profile, name: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
+               <div><label className="block text-sm font-bold mb-1">display name</label><input type="text" value={safeProfile.name || ''} onChange={(e) => setProfile({...safeProfile, name: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div><label className="block text-sm font-bold mb-1">pet's name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border retro-bg-window focus:outline-none" /></div>
                <div>
                   <label className="block text-sm font-bold mb-1">pet skin</label>
@@ -199,7 +204,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                   <span className="font-bold text-[10px]"><Gamepad2 size={12} className="inline mr-1"/> Game Invites</span>
                 </div>
              </div>
-             <RetroButton onClick={onLogout} variant="secondary" className="px-6 py-2 flex items-center gap-2"><LogOut size={16}/> Log Out</RetroButton>
+             <RetroButton onClick={() => setShowLogoutConfirm(true)} variant="secondary" className="px-6 py-2 flex items-center gap-2"><LogOut size={16}/> Log Out</RetroButton>
           </div>
         </section>
 
@@ -383,10 +388,22 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   );
 
   return (
-    <RetroWindow title="control_panel.exe" onClose={handleCancel} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative overflow-hidden">
-       {contentArea}
-       {footerArea}
-    </RetroWindow>
+    <>
+      <RetroWindow title="control_panel.exe" onClose={handleCancel} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative overflow-hidden">
+         {contentArea}
+         {footerArea}
+      </RetroWindow>
+
+      {showLogoutConfirm && (
+        <ConfirmDialog
+          title="logout.exe"
+          message="Are you sure you want to log out of the Attic?"
+          onConfirm={() => { onLogout && onLogout(); }}
+          onCancel={() => setShowLogoutConfirm(false)}
+          sfx={sfxEnabled}
+        />
+      )}
+    </>
   );
 }
 

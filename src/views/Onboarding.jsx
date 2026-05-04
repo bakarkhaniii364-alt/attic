@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, ArrowLeft, Loader, Check, Copy, Share2 } from 'lucide-react';
-import { RetroButton, RetroWindow, useToast } from '../components/UI.jsx';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, Loader, Check, Copy, Share2, Eye, EyeOff } from 'lucide-react';
+import { RetroButton, RetroWindow, RetroInput, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
+import { isTestMode } from '../lib/testMode.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /* ═══════════════════════════════════════════════════════
    LANDING PAGE — cute & animated with floating elements
    ═══════════════════════════════════════════════════════ */
-export function LandingView({ onTryAttic, onSignIn }) {
+export function LandingView() {
+  const navigate = useNavigate();
+  const onTryAttic = () => navigate('/signin');
+  const onSignIn = () => navigate('/signup');
   return (
-    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden mesh-bg scale-up-15">
-      <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
+    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden scale-up-15">
+
 
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[10%] left-[5%] text-primary opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
@@ -45,7 +51,7 @@ export function LandingView({ onTryAttic, onSignIn }) {
               <span className="relative z-10">enter attic</span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </RetroButton>
-            <RetroButton variant="white" onClick={onSignIn} className="w-56 py-3 sm:py-4 text-base sm:text-lg border-dashed opacity-80 hover:opacity-100 shadow-xl">
+            <RetroButton variant="white" onClick={onSignIn} className="w-56 py-3 sm:py-4 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-xl">
               start new journey
             </RetroButton>
           </div>
@@ -64,87 +70,134 @@ export function LandingView({ onTryAttic, onSignIn }) {
 /* ═══════════════════════════════════════════════════════
    AUTH VIEW — Login & Signup with 3D Depth
    ═══════════════════════════════════════════════════════ */
-export function AuthView({ mode, onAuthSuccess, onBack }) {
-  const [email, setEmail] = useState('');
+export function AuthView({ mode }) {
+  const navigate = useNavigate();
+  const onBack = () => navigate('/');
+  const { handleAuthSuccess } = useAuth();
+  const [email, setEmail] = useState(() => localStorage.getItem('attic_remembered_email') || '');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('attic_remembered_email'));
+  const [authError, setAuthError] = useState(null);
+  const [shake, setShake] = useState(false);
   const addToast = useToast();
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 500);
+  };
+
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setAuthError(null);
     try {
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({ 
             email, password, options: { data: { name } } 
         });
         if (error) throw error;
-        // Ensure user metadata persisted (best-effort) and reflect in UI
-        try { await supabase.auth.updateUser({ data: { name } }); } catch(e) { /* ignore */ }
-        addToast("Welcome to Attic! Check your email to verify.", "success");
-        onAuthSuccess({ session: data.session, name, mode: 'signup' });
+        
+        if (data.user && !data.session) {
+          addToast("Verification email sent! Please check your inbox before logging in.", "success");
+          navigate('/signin');
+          return;
+        }
+
+        if (rememberMe) localStorage.setItem('attic_remembered_email', email);
+        else localStorage.removeItem('attic_remembered_email');
+
+        addToast("Welcome! Attic is ready.", "success");
+        handleAuthSuccess(data.session);
+        navigate('/dashboard');
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+           if (error.message.includes('Email not confirmed')) {
+              throw new Error('Please verify your email before logging in. Check your inbox!');
+           }
+           throw error;
+        }
+        
+        if (rememberMe) localStorage.setItem('attic_remembered_email', email);
+        else localStorage.removeItem('attic_remembered_email');
+
         // read metadata and forward display name for immediate UI update
-        const metaName = data?.user?.user_metadata?.name;
-        onAuthSuccess({ session: data.session, name: metaName, mode: 'signin' });
+        handleAuthSuccess(data.session);
+        navigate('/dashboard');
       }
-    } catch (err) { addToast(err.message, "error"); }
+    } catch (err) { 
+      triggerShake();
+      setAuthError(err.message);
+      addToast(err.message, "error"); 
+    }
     finally { setLoading(false); }
   };
 
+
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 mesh-bg">
-      <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
-      <RetroWindow title={`${mode === 'signup' ? 'join attic' : 'welcome back'}.exe`} className="w-full max-w-[440px] shadow-2xl scale-up-15" onClose={onBack}>
+    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
+
+      <RetroWindow 
+        title={`${mode === 'signup' ? 'join attic' : 'welcome back'}.exe`} 
+        className={`w-full max-w-[440px] shadow-2xl scale-up-15 ${shake ? 'animate-shake' : ''}`} 
+        onClose={onBack}
+      >
         <form onSubmit={handleAuth} className="flex flex-col gap-4 py-4">
-          <div className="flex items-center gap-3 mb-6 border-b-2 border-dashed border-border pb-4">
-            <RetroButton variant="white" onClick={onBack} className="p-2 rounded-full border-none shadow-none hover:bg-black/5"><ArrowLeft size={20} /></RetroButton>
-            <h2 className="text-2xl font-black tracking-tight text-primary lowercase">{mode === 'signup' ? 'join attic' : 'welcome back'}</h2>
+          <div className="flex flex-col items-center gap-1 mb-6 pb-4">
+            <h2 className="text-3xl font-black tracking-tighter text-primary lowercase text-center">
+              {mode === 'signup' ? 'join attic' : 'welcome back'}
+            </h2>
           </div>
 
           {mode === 'signup' ? (
             <>
-              <div className="space-y-1">
-                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">display name</label>
-                <div className="relative">
-                  <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-                  <input required type="text" placeholder="alex" value={name} onChange={e => setName(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-accent/10 outline-none font-bold" />
-                </div>
-              </div>
+              <RetroInput 
+                label="display name"
+                icon={User}
+                placeholder="alex"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                required
+                autoFocus
+                className="focus:ring-2 focus:ring-primary/50"
+              />
 
-              <div className="space-y-1">
-                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">email</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-                  <input required type="email" placeholder="you@love.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-accent/10 outline-none font-bold" />
-                </div>
-              </div>
+              <RetroInput 
+                label="email"
+                icon={Mail}
+                type="email"
+                placeholder="you@love.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
 
-              <div className="space-y-1">
-                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">password</label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-                  <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-accent/10 outline-none font-bold" />
-                </div>
-                {mode === 'signup' && (
-                  <label className="flex items-start gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      required
-                      checked={termsAgreed}
-                      onChange={e => setTermsAgreed(e.target.checked)}
-                      className="mt-1 w-4 h-4 border-2 border-border accent-primary"
-                    />
-                    <span className="text-[10px] leading-relaxed opacity-60 group-hover:opacity-100 transition-opacity">
-                      I agree to the <a href="/legal" target="_blank" className="text-primary underline">Terms of Service</a> and acknowledge that deleting a room permanently deletes all data for both partners.
-                    </span>
-                  </label>
-                )}
-              </div>
+              <RetroInput 
+                label="password"
+                icon={Lock}
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+
+              <label className="flex items-start gap-3 cursor-pointer group mt-1">
+                <input 
+                  type="checkbox" 
+                  required
+                  checked={termsAgreed}
+                  onChange={e => setTermsAgreed(e.target.checked)}
+                  className="mt-1 w-4 h-4 border-2 border-border accent-primary cursor-pointer"
+                />
+                <span className="text-[10px] leading-relaxed opacity-60 group-hover:opacity-100 transition-opacity">
+                  I agree to the <a href="/legal" target="_blank" className="text-primary underline">Terms of Service</a> and acknowledge that deleting a room permanently deletes all data for both partners.
+                </span>
+              </label>
 
               <RetroButton type="submit" disabled={loading || !termsAgreed} className="py-3 text-lg mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
@@ -152,32 +205,49 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
             </>
           ) : (
             <>
+              <RetroInput 
+                label="email"
+                icon={Mail}
+                type="email"
+                placeholder="you@love.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoFocus
+              />
+
               <div className="space-y-1">
-                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">email</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-                  <input required type="email" placeholder="you@love.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-accent/10 outline-none font-bold" />
+                <RetroInput 
+                  label="password"
+                  icon={Lock}
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+                <div className="flex justify-between items-center mt-1 px-1">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      checked={rememberMe}
+                      onChange={e => setRememberMe(e.target.checked)}
+                      className="w-3.5 h-3.5 border-2 border-border accent-primary cursor-pointer"
+                    />
+                    <span className="text-[10px] font-bold opacity-50 group-hover:opacity-80 lowercase">remember me</span>
+                  </label>
+                  <a href="/password-reset" className="text-[10px] font-bold opacity-70 hover:text-primary transition-colors lowercase">forgot password?</a>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[12px] font-mono opacity-60 ml-1 lowercase">password</label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" />
-                  <input required type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-3 retro-border focus:bg-accent/10 outline-none font-bold" />
-                </div>
-                <div className="text-left mt-1">
-                  <a href="/password-reset" className="text-xs opacity-70 lowercase">forgot password?</a>
-                </div>
-              </div>
-
-              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
+              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-4">
                 {loading ? <Loader className="animate-spin" /> : 'enter attic'}
               </RetroButton>
             </>
           )}
         </form>
       </RetroWindow>
+
     </div>
   );
 }
@@ -185,45 +255,110 @@ export function AuthView({ mode, onAuthSuccess, onBack }) {
 /* ═══════════════════════════════════════════════════════
    HANDSHAKE VIEW — Pairing Couples with Glass Depth
    ═══════════════════════════════════════════════════════ */
-export function HandshakeView({ session, onPaired, onLogout }) {
-  const [pairingCode, setPairingCode] = useState('');
+export function HandshakeView() {
+  const { user, roomId, logout, handlePaired } = useAuth();
+  const navigate = useNavigate();
+  const onPaired = handlePaired;
+  const onLogout = () => { logout(); navigate('/'); };
+  const [pairingCode, setPairingCode] = useState('LOADING...');
   const [partnerCode, setPartnerCode] = useState('');
   const [loading, setLoading] = useState(false);
   const addToast = useToast();
 
+  const pairingTriggeredRef = useRef(false);
+
   useEffect(() => {
-    if (session?.user?.id) {
-      setPairingCode(session.user.id.slice(0, 8).toUpperCase());
-      const checkPairing = setInterval(async () => {
+    if (!user?.id || pairingTriggeredRef.current) return;
+
+    let myRoomId = null;
+
+    const fetchMyCode = async () => {
+      try {
         const { data } = await supabase.rpc('get_my_room');
-        if (data && data.is_paired) {
-          clearInterval(checkPairing);
-          onPaired(data.id);
+        if (data) {
+          if (data.is_paired) {
+            pairingTriggeredRef.current = true;
+            onPaired(data.id);
+          } else {
+            setPairingCode(data.invite_code);
+            myRoomId = data.id;
+            listenForPartner(data.id);
+          }
         }
-      }, 3000);
-      return () => clearInterval(checkPairing);
-    }
-  }, [session, onPaired]);
+      } catch (err) {
+        console.error("Failed to fetch code", err);
+      }
+    };
+
+    const listenForPartner = (roomId) => {
+      supabase.channel(`waiting_room_${roomId}`)
+        .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'rooms',
+            filter: `id=eq.${roomId}` 
+        }, (payload) => {
+            if (payload.new.partner_id) {
+                pairingTriggeredRef.current = true;
+                onPaired(roomId);
+            }
+        }).subscribe();
+    };
+
+    fetchMyCode();
+
+    return () => {
+      if (myRoomId) supabase.removeAllChannels();
+    };
+  }, [user, onPaired]);
 
   const handlePair = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.rpc('pair_with_code', { target_code: partnerCode });
+      const { data, error } = await supabase.rpc('pair_with_code', { target_code: partnerCode });
+      
       if (error) throw error;
-      addToast("Pairing request sent!", "success");
-    } catch (err) { addToast(err.message, "error"); }
-    finally { setLoading(false); }
+      if (data?.session) {
+        handleAuthSuccess(data.session);
+        navigate('/handshake');
+      }
+      addToast("Successfully paired!", "success");
+      
+      let roomId = data?.room_id;
+      
+      // Fallback: If data is null but no error, try to fetch the room manually
+      if (!roomId) {
+          const { data: roomData, error: roomError } = await supabase.rpc('get_my_room');
+          if (roomError) throw roomError;
+          if (roomData?.id) roomId = roomData.id;
+      }
+
+      if (roomId) {
+          onPaired(roomId);
+      } else {
+          throw new Error("Pairing succeeded but couldn't retrieve room ID. Please refresh.");
+      }
+      
+    } catch (err) { 
+      addToast(err.message || "Failed to pair", "error"); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  const handleDebugBypass = () => {
+    onPaired('test-room-id');
   };
 
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 mesh-bg">
-      <div className="absolute inset-0 bg-pattern-grid opacity-10 pointer-events-none" />
+    <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
+
       
       <RetroWindow title="handshake_protocol.exe" className="w-full max-w-[440px] shadow-2xl scale-up-15">
         <div className="flex flex-col gap-8 py-4">
-          <div className="space-y-6 animate-in zoom-in-95 duration-500">
-             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <div className="space-y-4 animate-in zoom-in-95 duration-500 text-center">
+             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse">
                 <Heart size={32} className="text-primary" fill="currentColor" />
              </div>
              <p className="font-bold opacity-60 text-sm">Send this code to your partner to pair up!</p>
@@ -240,18 +375,33 @@ export function HandshakeView({ session, onPaired, onLogout }) {
 
           <form onSubmit={handlePair}>
              <div className="space-y-3">
-                <p className="font-bold opacity-60 text-sm">...or enter your partner's code:</p>
-                <div className="flex gap-2">
-                   <input required type="text" placeholder="XXXXXXX" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase())} className="flex-1 px-4 py-4 border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-xl text-center tracking-widest" />
-                   <RetroButton type="submit" disabled={loading} className="w-16 h-16 shrink-0">
+                <p className="font-bold opacity-60 text-sm text-center">...or enter your partner's code:</p>
+                <div className="flex gap-2 justify-center">
+                   <input required type="text" placeholder="XXXXXX" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase())} className="w-full max-w-[200px] px-4 py-4 border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-xl text-center tracking-widest uppercase" />
+                   <RetroButton type="submit" disabled={loading || !partnerCode} className="w-16 h-16 shrink-0">
                       {loading ? <Loader className="animate-spin" /> : <Check />}
                    </RetroButton>
                 </div>
              </div>
           </form>
 
-             <p className="text-[10px] font-bold opacity-40 uppercase max-w-[240px] text-center">Send your ID to your partner. Once they enter it, the Sanctuary will unlock.</p>
-             <RetroButton variant="white" onClick={onLogout} className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100">Terminate Session</RetroButton>
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-[10px] font-bold opacity-40 uppercase max-w-[240px] text-center mx-auto">Once they enter your code, the Attic will unlock instantly.</p>
+            
+            <div className="flex flex-col gap-2 w-full">
+              <RetroButton variant="white" onClick={onLogout} className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100">Terminate Session</RetroButton>
+              
+              {isTestMode() && (
+                <button 
+                  type="button"
+                  onClick={handleDebugBypass}
+                  className="mt-2 text-[9px] font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest"
+                >
+                  [DEBUG] Bypass Handshake
+                </button>
+              )}
+            </div>
+          </div>
           </div>
       </RetroWindow>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { Download, Trash2, PaintBucket, Eraser, Pipette, MousePointer2, Undo, Redo } from 'lucide-react';
@@ -9,6 +9,7 @@ const PALETTE = ['#5c3a21','#e94560','#4f9ef8','#f9e2af','#b5c99a','#ffffff','#0
 export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
   const SIZE = 24;
   const [grid, setGrid] = useGlobalSync('pixel_art_grid', Array(SIZE).fill(null).map(() => Array(SIZE).fill('#ffffff')));
+  const [localGrid, setLocalGrid] = useState(grid);
   const [color, setColor] = useState('#5c3a21');
   const [tool, setTool] = useState('pen'); 
   const [isDrawing, setIsDrawing] = useState(false);
@@ -25,6 +26,10 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
       setHistory([grid]);
       setHistoryStep(0);
     }
+  }, [grid]);
+
+  useEffect(() => {
+    setLocalGrid(grid);
   }, [grid]);
 
   const pushToHistory = (newGrid) => {
@@ -53,20 +58,29 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
     }
   };
 
+  const handlePointerUp = () => {
+    setIsDrawing(false);
+    // Sync the final state to Supabase once drawing is done
+    setGrid(localGrid);
+    if (JSON.stringify(grid) !== JSON.stringify(localGrid)) {
+        pushToHistory(localGrid);
+    }
+  };
+
   const paint = (r, c) => {
     if (tool === 'bucket') {
-      floodFill(r, c, grid[r][c], color);
+      floodFill(r, c, localGrid[r][c], color);
       return;
     }
-    const newGrid = grid.map(row => [...row]);
+    const newGrid = localGrid.map(row => [...row]);
     newGrid[r][c] = tool === 'eraser' ? '#ffffff' : color;
-    setGrid(newGrid);
+    setLocalGrid(newGrid);
     setDirty(true);
   };
 
   const floodFill = (r, c, targetColor, replacementColor) => {
     if (targetColor === replacementColor) return;
-    const newGrid = grid.map(row => [...row]);
+    const newGrid = localGrid.map(row => [...row]);
     const stack = [[r, c]];
     while (stack.length > 0) {
       const [currR, currC] = stack.pop();
@@ -114,16 +128,49 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
         <div className="h-6 w-px bg-[var(--border)] mx-1"></div>
         
         <div className="flex gap-1">
-          <button onClick={() => setTool('pen')} className={`p-1.5 retro-border ${tool === 'pen' ? 'bg-white shadow-inner' : 'retro-bg-window opacity-70'}`}><Eraser size={14} className={tool === 'pen' ? 'hidden' : ''} /> 🖊️</button>
-          <button onClick={() => setTool('eraser')} className={`p-1.5 retro-border ${tool === 'eraser' ? 'bg-white shadow-inner' : 'retro-bg-window opacity-70'}`}><Eraser size={14} /></button>
-          <button onClick={() => setTool('bucket')} className={`p-1.5 retro-border ${tool === 'bucket' ? 'bg-white shadow-inner' : 'retro-bg-window opacity-70'}`}><PaintBucket size={14} /></button>
+          <button 
+            onClick={() => { playAudio('click', sfx); setTool('pen'); }} 
+            className={`p-2 retro-border transition-all ${tool === 'pen' ? 'bg-white shadow-inner scale-110 z-10' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
+            title="Pen Tool"
+          >
+            <PenTool size={18} />
+          </button>
+          <button 
+            onClick={() => { playAudio('click', sfx); setTool('eraser'); }} 
+            className={`p-2 retro-border transition-all flex items-center gap-1 ${tool === 'eraser' ? 'bg-pink-100 shadow-inner scale-110 z-10 border-pink-400' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
+            title="Eraser Tool"
+          >
+            <Eraser size={18} className={tool === 'eraser' ? 'text-pink-600' : ''} />
+            {tool === 'eraser' && <span className="text-[9px] font-black uppercase text-pink-600">Eraser</span>}
+          </button>
+          <button 
+            onClick={() => { playAudio('click', sfx); setTool('bucket'); }} 
+            className={`p-2 retro-border transition-all ${tool === 'bucket' ? 'bg-white shadow-inner scale-110 z-10' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
+            title="Fill Bucket"
+          >
+            <PaintBucket size={18} />
+          </button>
         </div>
 
         <div className="h-6 w-px bg-[var(--border)] mx-1"></div>
 
         <div className="flex gap-1">
-          <button onClick={handleUndo} disabled={historyStep <= 0} className="p-1.5 retro-border bg-white disabled:opacity-30"><Undo size={14}/></button>
-          <button onClick={handleRedo} disabled={historyStep >= history.length - 1} className="p-1.5 retro-border bg-white disabled:opacity-30"><Redo size={14}/></button>
+          <button 
+            onClick={handleUndo} 
+            disabled={historyStep <= 0} 
+            className="p-2 retro-border bg-white disabled:opacity-30 hover:bg-[var(--accent)] transition-colors"
+            title="Undo"
+          >
+            <Undo size={18}/>
+          </button>
+          <button 
+            onClick={handleRedo} 
+            disabled={historyStep >= history.length - 1} 
+            className="p-2 retro-border bg-white disabled:opacity-30 hover:bg-[var(--accent)] transition-colors"
+            title="Redo"
+          >
+            <Redo size={18}/>
+          </button>
         </div>
 
         <RetroButton variant="white" onClick={() => { clear(); setDirty(false); }} className="px-2 py-1 text-xs ml-auto retro-border"><Trash2 size={12}/></RetroButton>
@@ -134,10 +181,10 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
         <div 
           className={`retro-border retro-shadow-dark aspect-square w-full max-w-[480px] grid select-none cursor-crosshair`} 
           style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, cursor: tool === 'bucket' ? 'cell' : 'crosshair' }}
-          onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); pushToHistory(grid); } }}
-          onMouseUp={() => { if (isDrawing) { setIsDrawing(false); pushToHistory(grid); } }}
+          onMouseLeave={handlePointerUp}
+          onMouseUp={handlePointerUp}
         >
-          {grid.map((row, r) => row.map((c, ci) => (
+          {localGrid.map((row, r) => row.map((c, ci) => (
             <div key={`${r}-${ci}`}
               style={{ backgroundColor: c, border: '0.5px solid rgba(0,0,0,0.05)' }}
               onMouseDown={() => { setIsDrawing(true); paint(r, ci); }}

@@ -16,6 +16,7 @@ export function playAudio(type, enabled) {
 }
 
 let lofiCtx = null;
+let lofiTimerId = null;
 export function toggleLoFi(play) {
   if (play) {
     if(!lofiCtx) lofiCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -28,7 +29,10 @@ export function toggleLoFi(play) {
       osc.frequency.value = notes[Math.floor(Math.random() * notes.length)] / 2; osc.type = 'sine';
       gain.gain.setValueAtTime(0, lofiCtx.currentTime); gain.gain.linearRampToValueAtTime(0.05, lofiCtx.currentTime + 1); gain.gain.linearRampToValueAtTime(0, lofiCtx.currentTime + 3);
       osc.start(lofiCtx.currentTime); osc.stop(lofiCtx.currentTime + 3);
-      setTimeout(playNote, Math.random() * 2000 + 1000);
+      lofiTimerId = setTimeout(playNote, Math.random() * 2000 + 1000);
     }; playNote();
-  } else { if(lofiCtx) { lofiCtx.close(); lofiCtx = null; } }
+  } else {
+    if (lofiTimerId) { clearTimeout(lofiTimerId); lofiTimerId = null; }
+    if(lofiCtx) { lofiCtx.close(); lofiCtx = null; }
+  }
 }

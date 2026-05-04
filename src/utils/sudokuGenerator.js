@@ -22,32 +22,45 @@ function isValid(board, r, c, num) {
  * Solves the board and returns true if solvable.
  * Used for generating a full board.
  */
-function solveBoard(board) {
-    for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-            if (board[r][c] === 0) {
-                const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
-                for (let num of nums) {
-                    if (isValid(board, r, c, num)) {
-                        board[r][c] = num;
-                        if (solveBoard(board)) return true;
-                        board[r][c] = 0;
+function solveBoard(board, maxIterations = 5000) {
+    let iterations = 0;
+    
+    function solve(b) {
+        iterations++;
+        if (iterations > maxIterations) return false;
+        
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                if (b[r][c] === 0) {
+                    const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+                    for (let num of nums) {
+                        if (isValid(b, r, c, num)) {
+                            b[r][c] = num;
+                            if (solve(b)) return true;
+                            b[r][c] = 0;
+                        }
                     }
+                    return false;
                 }
-                return false;
             }
         }
+        return true;
     }
-    return true;
+    
+    return solve(board);
 }
 
 /**
  * Counts the number of solutions to ensure uniqueness.
  */
-function countSolutions(board, limit = 2) {
+function countSolutions(board, limit = 2, maxIterations = 2000) {
     let count = 0;
+    let iterations = 0;
     
     function solve() {
+        iterations++;
+        if (iterations > maxIterations || count >= limit) return;
+
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
                 if (board[r][c] === 0) {
@@ -56,7 +69,7 @@ function countSolutions(board, limit = 2) {
                             board[r][c] = num;
                             solve();
                             board[r][c] = 0;
-                            if (count >= limit) return;
+                            if (count >= limit || iterations > maxIterations) return;
                         }
                     }
                     return;

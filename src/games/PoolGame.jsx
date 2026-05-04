@@ -9,11 +9,12 @@ const BORDER_SIZE = 40;
 const CANVAS_WIDTH = PLAY_WIDTH + BORDER_SIZE * 2;
 const CANVAS_HEIGHT = PLAY_HEIGHT + BORDER_SIZE * 2;
 const BALL_R = 14;
-const POCKET_R = 26;
+const POCKET_R = 28;
+const VISUAL_POCKET_R = 24;
 
 const POCKETS = [
-  { x: 0, y: 0 }, { x: PLAY_WIDTH / 2, y: -10 }, { x: PLAY_WIDTH, y: 0 },
-  { x: 0, y: PLAY_HEIGHT }, { x: PLAY_WIDTH / 2, y: PLAY_HEIGHT + 10 }, { x: PLAY_WIDTH, y: PLAY_HEIGHT }
+  { x: 0, y: 0 }, { x: PLAY_WIDTH / 2, y: -2 }, { x: PLAY_WIDTH, y: 0 },
+  { x: 0, y: PLAY_HEIGHT }, { x: PLAY_WIDTH / 2, y: PLAY_HEIGHT + 2 }, { x: PLAY_WIDTH, y: PLAY_HEIGHT }
 ];
 
 const COLORS = {
@@ -101,7 +102,7 @@ const drawBall = (ctx, x, y, radius, color, id) => {
     }
 };
 
-const solveCollision = (b1, b2) => {
+const solveCollision = (b1, b2, onCueHit) => {
   const dx = b2.x - b1.x;
   const dy = b2.y - b1.y;
   const dist = Math.hypot(dx, dy);
@@ -114,6 +115,9 @@ const solveCollision = (b1, b2) => {
   // Move apart
   b1.x -= nx * overlap; b1.y -= ny * overlap;
   b2.x += nx * overlap; b2.y += ny * overlap;
+
+  if (b1.id === 0 && onCueHit) onCueHit(b2);
+  if (b2.id === 0 && onCueHit) onCueHit(b1);
   
   // Velocity response
   const rvx = b2.vx - b1.vx;
@@ -132,13 +136,14 @@ const solveCollision = (b1, b2) => {
   b2.vx += ix; b2.vy += iy;
 };
 
-export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId }) {
+export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myPlayerId = isMultiplayer ? userId : 'p1';
   const oppPlayerId = isMultiplayer ? partnerId : 'p2';
   const isHost = !isMultiplayer || userId < partnerId;
 
   const canvasRef = useRef(null);
+  const firstBallHitRef = useRef(null);
   const engineRef = useRef({
       balls: [],
       isSimulating: false,
@@ -152,11 +157,14 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
   // Init game
   useEffect(() => {
-      if (isHost && !gameState) {
+      if (isHost && gameState?.winner) {
+          setGameState(null);
+      } else if (isHost && !gameState) {
           setGameState({
               ballsState: getInitialBalls(), // snapshot
               turn: myPlayerId,
               assignments: { [myPlayerId]: null, [oppPlayerId]: null }, // 'solid' or 'stripe'
+              points: { [myPlayerId]: 0, [oppPlayerId]: 0 },
               winner: null,
               message: "Break!"
           });
@@ -187,6 +195,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           cue.vx = vx;
           cue.vy = vy;
           engineRef.current.isSimulating = true;
+          firstBallHitRef.current = null;
           playAudio('hit', sfx);
           startPhysicsLoop();
       }
@@ -214,31 +223,42 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               
               if (b.vx !== 0 || b.vy !== 0) moving = true;
 
-              // Walls
-              if (b.x < BALL_R) { b.x = BALL_R; b.vx *= -0.8; }
-              if (b.x > PLAY_WIDTH - BALL_R) { b.x = PLAY_WIDTH - BALL_R; b.vx *= -0.8; }
-              if (b.y < BALL_R) { b.y = BALL_R; b.vy *= -0.8; }
-              if (b.y > PLAY_HEIGHT - BALL_R) { b.y = PLAY_HEIGHT - BALL_R; b.vy *= -0.8; }
-
               // Pockets
+              let pocketed = false;
               for (const p of POCKETS) {
                   const distToPocket = Math.hypot(b.x - p.x, b.y - p.y);
                   if (distToPocket < POCKET_R) {
                       b.active = false;
                       b.vx = 0; b.vy = 0;
                       playAudio('sink', sfx);
+                      pocketed = true;
                       break;
                   }
+              }
+
+              if (pocketed) continue;
+
+              // Walls
+              const nearPocket = POCKETS.some(p => Math.hypot(b.x - p.x, b.y - p.y) < POCKET_R * 1.25);
+              if (!nearPocket) {
+                  if (b.x < BALL_R) { b.x = BALL_R; b.vx *= -0.8; }
+                  if (b.x > PLAY_WIDTH - BALL_R) { b.x = PLAY_WIDTH - BALL_R; b.vx *= -0.8; }
+                  if (b.y < BALL_R) { b.y = BALL_R; b.vy *= -0.8; }
+                  if (b.y > PLAY_HEIGHT - BALL_R) { b.y = PLAY_HEIGHT - BALL_R; b.vy *= -0.8; }
               }
           }
 
           // Collisions - sub-stepping for better accuracy
-          for (let step = 0; step < 2; step++) {
+          for (let step = 0; step < 10; step++) {
               for (let i = 0; i < balls.length; i++) {
                   if (!balls[i].active) continue;
                   for (let j = i + 1; j < balls.length; j++) {
                       if (!balls[j].active) continue;
-                      solveCollision(balls[i], balls[j]);
+                      solveCollision(balls[i], balls[j], (other) => {
+                          if (firstBallHitRef.current === null) {
+                              firstBallHitRef.current = other.id;
+                          }
+                      });
                   }
               }
           }
@@ -268,6 +288,15 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       let scratch = false;
       let legitimateSink = false;
+
+      const currentTurnPlayer = oldState.turn;
+      const myType = oldState.assignments[currentTurnPlayer];
+      const myBallsLeft = balls.filter(b => b.active && b.type === myType);
+
+      if (firstBallHitRef.current === 8 && (myType === null || myBallsLeft.length > 0)) {
+          winner = nextTurn;
+          msg = "Hit 8-ball first! You lose.";
+      }
 
       if (!cue.active) {
           scratch = true;
@@ -317,18 +346,41 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               }
           });
 
-          if (legitimateSink) {
-              nextTurn = oldState.turn;
-              if(!msg) msg = "Good shot! Shoot again.";
-          }
-      }
+           if (legitimateSink) {
+               nextTurn = oldState.turn;
+               if(!msg) msg = "Good shot! Shoot again.";
+           }
+
+           // Explicit end condition: if one player scores all the balls of their color, game ends
+           const myType = newAssignments[myPlayerId];
+           const oppType = newAssignments[oppPlayerId];
+           if (myType && balls.filter(b => b.active && b.type === myType).length === 0) {
+               winner = myPlayerId;
+               msg = "You pocketed all your balls! You win!";
+           } else if (oppType && balls.filter(b => b.active && b.type === oppType).length === 0) {
+               winner = oppPlayerId;
+               msg = "Opponent pocketed all their balls! You lose.";
+           }
+       }
+
+       const oldPoints = oldState.points || { [myPlayerId]: 0, [oppPlayerId]: 0 };
+       const newPoints = { ...oldPoints };
+       pocketedThisTurn.forEach(b => {
+           if (b.type === 'red' || b.type === 'blue') {
+               if (newAssignments[oldState.turn] === b.type) {
+                   newPoints[oldState.turn] += 100;
+               }
+           } else if (b.type === '8' && winner === oldState.turn) {
+               newPoints[oldState.turn] += 500;
+           }
+       });
 
       if (winner && setScores && winner === myPlayerId) {
           setScores(p => ({ ...p, pool: { ...(p.pool || {}), [userId]: (p.pool?.[userId] || 0) + 1 } }));
           try {
               import('../utils/userDataHelpers.js').then(({ submitHighscore }) => {
                   const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
-                  submitHighscore('pool', config?.mode || 'arcade', 1, profile?.name || 'Player', userId);
+                  submitHighscore('pool', config?.mode || 'arcade', newPoints[myPlayerId] || 1, profile?.name || 'Player', userId);
               });
           } catch(e) {}
           if (onWin) onWin();
@@ -338,6 +390,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ballsState: balls.map(b => ({ ...b })),
           turn: nextTurn,
           assignments: newAssignments,
+          points: newPoints,
           winner,
           message: msg || (nextTurn === oldState.turn ? "Shoot again" : "Turn passed")
       });
@@ -348,6 +401,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
+      canvas.width = CANVAS_WIDTH * 2;
+      canvas.height = CANVAS_HEIGHT * 2;
+      ctx.scale(2, 2);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       const bodyStyles = getComputedStyle(document.body);
 
       let frameId;
@@ -405,8 +463,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           ctx.fillStyle = '#000000';
           POCKETS.forEach(p => {
               ctx.beginPath();
-              // Smooth large black circles
-              ctx.arc(p.x, p.y, POCKET_R + 2, 0, Math.PI * 2);
+              // Smooth black circles
+              ctx.arc(p.x, p.y, VISUAL_POCKET_R, 0, Math.PI * 2);
               ctx.fill();
           });
 
@@ -425,26 +483,22 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   const nx = dx / pullDist;
                   const ny = dy / pullDist;
 
-                  // Raycast for collision
+                  // Raycast for collision (closed-form quadratic solution for sphere-ray intersection)
                   let closestHit = null;
                   let minT = Infinity;
                   
                   engine.balls.forEach(b => {
                       if (!b.active || b.id === 0) return;
-                      // Sphere-ray intersection (simplified)
-                      const vx = b.x - cue.x;
-                      const vy = b.y - cue.y;
-                      const bProj = vx * nx + vy * ny;
-                      if (bProj > 0) {
-                          const perpDistSq = (vx * vx + vy * vy) - (bProj * bProj);
-                          const radiusSumSq = (BALL_R * 2 + 0.5) ** 2; // Add tiny buffer for accuracy
-                          if (perpDistSq < radiusSumSq) {
-                              const tOffset = Math.sqrt(radiusSumSq - perpDistSq);
-                              const tHit = bProj - tOffset;
-                              if (tHit > 0 && tHit < minT) {
-                                  minT = tHit;
-                                  closestHit = { ball: b, tHit };
-                              }
+                      const vx = cue.x - b.x;
+                      const vy = cue.y - b.y;
+                      const bTerm = vx * nx + vy * ny;
+                      const cTerm = vx * vx + vy * vy - (BALL_R * 2) ** 2;
+                      const disc = bTerm * bTerm - cTerm;
+                      if (disc >= 0) {
+                          const tHit = -bTerm - Math.sqrt(disc);
+                          if (tHit > 0 && tHit < minT) {
+                              minT = tHit;
+                              closestHit = { ball: b, tHit };
                           }
                       }
                   });
@@ -756,7 +810,10 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                 </div>
                 <div className="flex-1 p-4 flex flex-col gap-4">
                     <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === myPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
-                        <div className="font-black uppercase text-xl mb-1">YOU</div>
+                        <div className="font-black uppercase text-xl mb-1 flex justify-between items-center">
+                            <span>YOU</span>
+                            <span className="text-sm font-bold opacity-80">{gameState?.points?.[myPlayerId] || 0} pts</span>
+                        </div>
                         <div className="font-bold flex items-center gap-2">
                            {myType === 'red' && <div className="w-4 h-4 rounded-full bg-red-500 border border-black"></div>}
                            {myType === 'blue' && <div className="w-4 h-4 rounded-full bg-blue-500 border border-black"></div>}
@@ -767,7 +824,10 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                     <div className="font-black text-2xl text-center opacity-50 uppercase">VS</div>
 
                     <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === oppPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
-                        <div className="font-black uppercase text-xl mb-1">{isMultiplayer ? 'P2' : 'AI'}</div>
+                        <div className="font-black uppercase text-xl mb-1 flex justify-between items-center">
+                            <span>{isMultiplayer ? 'P2' : 'AI'}</span>
+                            <span className="text-sm font-bold opacity-80">{gameState?.points?.[oppPlayerId] || 0} pts</span>
+                        </div>
                         <div className="font-bold flex items-center gap-2">
                            {oppType === 'red' && <div className="w-4 h-4 rounded-full bg-red-500 border border-black"></div>}
                            {oppType === 'blue' && <div className="w-4 h-4 rounded-full bg-blue-500 border border-black"></div>}
@@ -842,6 +902,16 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                  gameName={`Retro Pool (${config.mode})`}
                  stats={{ Result: gameState.winner === myPlayerId ? 'You Win!' : 'You Lose!' }}
                  onClose={() => onBack()}
+                 onRematch={() => {
+                     setGameState({
+                         ballsState: getInitialBalls(),
+                         turn: myPlayerId,
+                         assignments: { [myPlayerId]: null, [oppPlayerId]: null },
+                         points: { [myPlayerId]: 0, [oppPlayerId]: 0 },
+                         winner: null,
+                         message: "Break!"
+                     });
+                 }}
                  onShareToChat={onShareToChat}
                  onSaveToScrapbook={onSaveToScrapbook}
                  partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined}

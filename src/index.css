@@ -6,10 +6,12 @@
 /* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
   --bg-main: #f9e2cf;
-  --bg-pattern: #b48e6c;    /* Sharper contrast */
+  --bg-pattern: #b48e6c;
   --bg-window: #fffdf9;
-  --bg-header: #f9e2af;     /* Light cream headers */
-  --border: #5c3a21;        /* Thick retro brown borders */
+  --bg-header: #f9e2af;
+  --border: #5c3a21;
+  --border-light: #d6bda4;
+  --border-dark: #3a2515;
   --text-on-border: #ffffff;
   --text-on-header: #5c3a21;
   --primary: #e94560;
@@ -20,6 +22,15 @@
   --text-on-primary: #ffffff;
   --text-on-secondary: #ffffff;
   --text-on-accent: #5c3a21;
+  
+  /* ════ Z-INDEX SYSTEM ════ */
+  --z-background: 0;
+  --z-stray-tray: 10;
+  --z-callhub: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+  --z-notification: 300;
+  --z-overlay: 1000;
 }
 
 /* ════ THEMES ════ */
@@ -221,17 +232,23 @@ body {
   font-size: 14px;
 }
 
+img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
 .bg-pattern-grid {
-  background-image: linear-gradient(var(--bg-pattern) 1px, transparent 1px), linear-gradient(90deg, var(--bg-pattern) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image: linear-gradient(var(--bg-pattern) 1.8px, transparent 1.8px), linear-gradient(90deg, var(--bg-pattern) 1.8px, transparent 1.8px);
+  background-size: 45px 45px;
 }
 .bg-pattern-dots {
-  background-image: radial-gradient(var(--bg-pattern) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image: radial-gradient(var(--bg-pattern) 1.8px, transparent 1.8px);
+  background-size: 45px 45px;
 }
 .bg-pattern-lines {
-  background-image: linear-gradient(var(--bg-pattern) 1px, transparent 1px);
-  background-size: 100% 20px;
+  background-image: linear-gradient(var(--bg-pattern) 1.8px, transparent 1.8px);
+  background-size: 100% 45px;
 }
 .bg-pattern-none {
   background: transparent;
@@ -246,17 +263,10 @@ body {
 .retro-shadow-dark { box-shadow: 1.5px 1.5px 0px 0px var(--border); }
 .retro-shadow-primary { box-shadow: 2px 2px 0px 0px var(--primary); }
 
-.mesh-bg { background-color: var(--bg-main); background-image: none !important; }
-
 .retro-bg-window { background-color: var(--bg-window); }
 .retro-bg-primary { background-color: var(--primary); color: var(--text-on-primary); border: 2px solid var(--primary); }
 .retro-bg-secondary { background-color: var(--secondary); color: var(--text-on-secondary); border: 2px solid var(--secondary); }
 .retro-bg-accent { background-color: var(--accent); color: var(--text-on-accent); border: 2px solid var(--accent); }
-
-/* Force Window Headers to use the new contrasting text variable */
-.window-header-text {
-  color: var(--text-on-header) !important;
-}
 
 @media (max-width: 640px) {
   body { font-size: 13px; }
@@ -278,10 +288,9 @@ body {
 
 
 /* ════ THE HAWKINS GLITCH ════ */
-[data-theme="hawkins"] body {
+.app-glitch-wrapper[data-hawkins="true"] {
   animation: hawkins-upside-down 60s infinite; 
   transform-origin: center center;
-  overflow-x: hidden;
 }
 
 @keyframes hawkins-upside-down {
@@ -515,4 +524,86 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
 .chat-wallpaper-pixel-clouds {
   background-color: #a2d2ff !important;
   background-image: url('https://www.transparenttextures.com/patterns/clouds.png');
+}
+
+/* ════ ANIMATIONS ════ */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  50% { transform: translateX(8px); }
+  75% { transform: translateX(-8px); }
+}
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes scale-up {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.scale-up-15 {
+  animation: scale-up 0.15s ease-out forwards;
+}
+
+/* ════ AESTHETIC VIBE FIXES ════ */
+/* Fix 53: Crisp corners on tooltips, popups, and windows */
+[class*="tooltip"], [class*="popup"], [class*="modal"], .rounded-lg, .rounded-xl, .rounded-md {
+  border-radius: 0 !important;
+}
+
+/* Fix 55: Gradient background bleeding in dark/midnight themes */
+[data-theme="midnight"] *, [data-theme="synthwave"] * {
+  background-image: none !important;
+}
+[data-theme="midnight"] .bg-pattern-grid, [data-theme="midnight"] .bg-pattern-dots, [data-theme="midnight"] .bg-pattern-lines {
+  background-image: inherit !important;
+}
+
+/* Fix 56: Retro 2D solid shadows globally */
+.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+  box-shadow: 2.5px 2.5px 0px 0px var(--border) !important;
+}
+
+/* Fix 58: Pixelate all vector icons and images */
+svg, img, canvas {
+  image-rendering: pixelated !important;
+  image-rendering: -moz-crisp-edges !important;
+  image-rendering: crisp-edges !important;
+}
+
+/* Fix 70: Crisp inset pixel focus rings */
+button:focus, a:focus, input:focus, select:focus, textarea:focus {
+  outline: 2px dashed var(--primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Fix 61: Crisp solid-panel windows in default/retro themes */
+:root:not([data-theme="midnight"]):not([data-theme="cyberpunk"]) .backdrop-blur-sm,
+:root:not([data-theme="midnight"]):not([data-theme="cyberpunk"]) .backdrop-blur-md,
+:root:not([data-theme="midnight"]):not([data-theme="cyberpunk"]) .backdrop-blur-lg {
+  backdrop-filter: none !important;
+  background-color: var(--bg-window) !important;
+}
+
+/* Fix 66: Unify all dashboard cards to use thick retro border */
+.md\:col-span-4.h-auto, .col-span-12, .grid .retro-window {
+  border-width: 2px !important;
+}
+
+/* Fix 75: Ensure high contrast over soft opacities */
+.opacity-40, .opacity-50, .opacity-60 {
+  opacity: 0.75 !important;
+}
+.opacity-70 {
+  opacity: 0.85 !important;
+}
+
+/* Fix 76 & 77: Solid theme borders and high contrast shadows */
+.message-options-menu, .options-menu, .context-menu {
+  border: 2px solid var(--border) !important;
+}
+
+.retro-border-thick, .retro-shadow-dark {
+  border-color: var(--border) !important;
+  box-shadow: 2px 2px 0px 0px var(--border) !important;
 }

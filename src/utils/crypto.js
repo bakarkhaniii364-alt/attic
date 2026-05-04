@@ -2,6 +2,16 @@
  * Web Crypto API Utility for End-to-End Encryption
  */
 
+// Robust base64 conversion helper to prevent stack overflow on large arrays
+function uint8ArrayToBase64(bytes) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 // Generate a new AES-GCM 256-bit key
 export async function generateKey() {
   return await window.crypto.subtle.generateKey(
@@ -18,7 +28,7 @@ export async function generateKey() {
 export async function exportKey(key) {
   const exported = await window.crypto.subtle.exportKey("raw", key);
   const exportedKeyBuffer = new Uint8Array(exported);
-  const base64Key = btoa(String.fromCharCode.apply(null, exportedKeyBuffer));
+  const base64Key = uint8ArrayToBase64(exportedKeyBuffer);
   return base64Key;
 }
 
@@ -60,8 +70,8 @@ export async function encryptMessage(text, key) {
   const ciphertextBytes = new Uint8Array(ciphertextBuffer);
   
   return {
-    ciphertext: btoa(String.fromCharCode.apply(null, ciphertextBytes)),
-    iv: btoa(String.fromCharCode.apply(null, iv))
+    ciphertext: uint8ArrayToBase64(ciphertextBytes),
+    iv: uint8ArrayToBase64(iv)
   };
 }
 

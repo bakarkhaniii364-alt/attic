@@ -9,7 +9,8 @@ export function useLocalStorage(key, initialValue) {
     let mounted = true;
     const load = async () => {
       try {
-        const item = await localforage.getItem(key);
+        const prefix = window.__ATTIC_STORAGE_PREFIX__ || '';
+        const item = await localforage.getItem(prefix + key);
         if (mounted && item !== null) {
           setStoredValue(item);
         }
@@ -22,9 +23,17 @@ export function useLocalStorage(key, initialValue) {
 
   useEffect(() => {
     if (!loading) {
-      localforage.setItem(key, storedValue).catch(e => console.error(e));
+      const prefix = window.__ATTIC_STORAGE_PREFIX__ || '';
+      localforage.setItem(prefix + key, storedValue).catch(e => console.error(e));
     }
   }, [key, storedValue, loading]);
 
-  return [storedValue, setStoredValue, loading];
+  const setValue = (value) => {
+    setStoredValue((prevValue) => {
+      const valueToStore = value instanceof Function ? value(prevValue) : value;
+      return valueToStore;
+    });
+  };
+
+  return [storedValue, setValue, loading];
 }

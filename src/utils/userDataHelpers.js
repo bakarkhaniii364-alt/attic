@@ -33,19 +33,24 @@ export const getTotalScoreForUser = (scores, userId) => {
   return Object.values(scores[userId]).reduce((sum, val) => sum + (val || 0), 0);
 };
 
-export const incrementUserScore = (scores, userId, game, amount = 1) => {
-  const newScore = (scores?.[userId]?.[game] || 0) + amount;
+export const incrementUserScore = (scores, userId, game, amount = 1, playerName = 'Player') => {
+  if (!userId || !game) return scores;
+  
+  // Strict Validation: ensure score is numeric and non-negative
+  const validatedAmount = Number.isNaN(Number(amount)) ? 0 : Math.max(0, Number(amount));
+  if (validatedAmount === 0) return scores;
+
+  const currentScore = (scores?.[userId]?.[game] || 0);
+  const newScore = currentScore + validatedAmount;
   
   try {
-      const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
-      // Fire and forget
-      submitHighscore(game, 'arcade', newScore, profile?.name || 'Player', userId);
+      submitHighscore(game, 'arcade', newScore, playerName, userId);
   } catch(e) {}
 
   return {
     ...scores,
     [userId]: {
-      ...scores?.[userId],
+      ...(scores?.[userId] || {}),
       [game]: newScore,
     }
   };
@@ -56,18 +61,28 @@ export const getStreakForUser = (streaks, userId) => {
 };
 
 export const updateUserStreak = (streaks, userId, today) => {
+  if (!userId) return streaks;
   const userStreak = getStreakForUser(streaks, userId);
-  const lastActive = userStreak.lastActiveDate ? new Date(userStreak.lastActiveDate) : null;
-  const todayDate = new Date(today);
   
-  // Reset streak if more than 1 day has passed
-  const diffTime = lastActive ? todayDate - lastActive : 0;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
+  // Use YYYY-MM-DD for consistent UTC comparisons
+  const todayDateStr = new Date(today).toISOString().split('T')[0];
+  const lastActiveStr = userStreak.lastActiveDate ? new Date(userStreak.lastActiveDate).toISOString().split('T')[0] : null;
+
+  if (todayDateStr === lastActiveStr) return streaks; // Already updated today
+
   let newStreak = userStreak.currentStreak;
-  if (diffDays === 1) {
-    newStreak = userStreak.currentStreak + 1;
-  } else if (diffDays > 1) {
+  
+  if (lastActiveStr) {
+    const lastActive = new Date(lastActiveStr);
+    const current = new Date(todayDateStr);
+    const diffDays = Math.round((current - lastActive) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      newStreak += 1;
+    } else if (diffDays > 1) {
+      newStreak = 1;
+    }
+  } else {
     newStreak = 1;
   }
   
@@ -75,9 +90,9 @@ export const updateUserStreak = (streaks, userId, today) => {
     ...streaks,
     [userId]: {
       ...userStreak,
-      lastActiveDate: today,
+      lastActiveDate: todayDateStr,
       currentStreak: newStreak,
-      longestStreak: Math.max(userStreak.longestStreak, newStreak),
+      longestStreak: Math.max(userStreak.longestStreak || 0, newStreak),
     }
   };
 };
@@ -97,11 +112,26 @@ export const getBothUsersActive = (streaks, userId, partnerId) => {
 };
 
 export const submitHighscore = async (gameId, mode, score, playerName, userId) => {
+  const localObj = {
+    id: `local-${Date.now()}-${Math.random()}`,
+    user_id: userId,
+    player_name: playerName || 'Player',
+    game_id: gameId,
+    mode: mode,
+    score: score,
+    created_at: new Date().toISOString()
+  };
+  try {
+    const cached = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+    cached.push(localObj);
+    localStorage.setItem('attic_local_highscores', JSON.stringify(cached));
+  } catch(e) {}
+
   try {
      const { supabase } = await import('../lib/supabase.js');
      await supabase.from('highscores').insert([{
          user_id: userId,
-         player_name: playerName,
+         player_name: playerName || 'Player',
          game_id: gameId,
          mode: mode,
          score: score

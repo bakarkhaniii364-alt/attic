@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -8,38 +8,52 @@ import { WebrtcProvider } from 'y-webrtc'
 import { RetroWindow } from '../components/UI.jsx'
 
 export function SharedNotes({ onClose, sfx, roomName, userName, userColor }) {
+  const ydoc = useMemo(() => new Y.Doc(), []);
   const [provider, setProvider] = useState(null);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ history: false }),
-      Collaboration.configure({
-        document: new Y.Doc(),
-      }),
-      CollaborationCursor.configure({
-        provider: provider,
-        user: { name: userName, color: userColor || '#e94560' },
-      }),
-    ],
-  })
-
   useEffect(() => {
-    if (!editor) return;
-
-    const ydoc = editor.extensionManager.extensions.find(e => e.name === 'collaboration').options.document;
     const webrtcProvider = new WebrtcProvider(`attic-notes-${roomName}`, ydoc);
-    
     setProvider(webrtcProvider);
-
     return () => {
       webrtcProvider.destroy();
     }
-  }, [editor, roomName])
+  }, [roomName, ydoc]);
+
+  const extensions = useMemo(() => {
+    const base = [
+      StarterKit.configure({ history: false }),
+      Collaboration.configure({
+        document: ydoc,
+      }),
+    ];
+
+    if (provider) {
+      base.push(
+        CollaborationCursor.configure({
+          provider: provider,
+          user: { name: userName, color: userColor || '#e94560' },
+        })
+      );
+    }
+    return base;
+  }, [provider, ydoc, userName, userColor]);
+
+  const editor = useEditor({
+    extensions,
+  }, [extensions]);
 
   if (!editor) return null;
 
   return (
-    <RetroWindow title="shared_notes.exe" onClose={onClose} sfx={sfx} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" noPadding>
+    <RetroWindow 
+      title="shared_notes.exe" 
+      onClose={onClose} 
+      sfx={sfx} 
+      className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" 
+      noPadding
+      confirmOnClose={true}
+      hasUnsavedChanges={() => editor?.getText().trim() !== ''}
+    >
       <div className="flex flex-col h-full bg-white">
         <div className="p-3 border-b-2 border-dashed border-[var(--border)] bg-[var(--bg-window)] flex items-center justify-between">
            <h2 className="font-black text-xs uppercase tracking-widest">Shared Notepad</h2>

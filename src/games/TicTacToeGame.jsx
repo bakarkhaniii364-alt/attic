@@ -1,27 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { RefreshCw } from 'lucide-react';
 
-export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
+export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {
+  const { roomId } = useAuth();
+  const [syncedState, setSyncedState] = useGlobalSync(`tictactoe_${roomId}`, null);
+
   const size = config.size || 3;
   const p1 = config.p1Avatar || 'X';
   const p2 = config.p2Avatar || 'O';
   const matchType = config.matchType || 1;
   const winsRequired = Math.ceil(matchType / 2);
 
-  const [board, setBoard] = useState(Array(size * size).fill(null));
-  const [xIsNext, setXIsNext] = useState(true);
+  const [localGameState, setLocalGameState] = useState({
+    board: Array(size * size).fill(null),
+    xIsNext: true,
+    p1Wins: 0,
+    p2Wins: 0,
+    pieceQueue: [],
+    winLine: null,
+    status: 'playing'
+  });
+
+  const gameState = isMultiplayer ? syncedState : localGameState;
+
+  const setGameState = (val) => {
+    if (isMultiplayer) {
+      setSyncedState(val);
+    } else {
+      setLocalGameState(typeof val === 'function' ? val(localGameState) : val);
+    }
+  };
+
+  useEffect(() => {
+    if (!isMultiplayer) {
+      setLocalGameState({
+        board: Array(size * size).fill(null),
+        xIsNext: true,
+        p1Wins: 0,
+        p2Wins: 0,
+        pieceQueue: [],
+        winLine: null,
+        status: 'playing'
+      });
+    }
+  }, [config.mode, config.size, isMultiplayer]);
+
+  const board = gameState?.board || Array(size * size).fill(null);
+  const xIsNext = gameState?.xIsNext ?? true;
+  const p1Wins = gameState?.p1Wins || 0;
+  const p2Wins = gameState?.p2Wins || 0;
+  const pieceQueue = gameState?.pieceQueue || [];
+  const winLine = gameState?.winLine || null;
+
   const [gameOverOverlay, setGameOverOverlay] = useState(false);
-  const [p1Wins, setP1Wins] = useState(0); 
-  const [p2Wins, setP2Wins] = useState(0);
-  const [pieceQueue, setPieceQueue] = useState([]); 
-  const [winLine, setWinLine] = useState(null); 
-  
+  const processedWinRef = useRef(false);
   const [stats, setLocalStats] = useLocalStorage('tictactoe_lifetime', { wins: 0, losses: 0, draws: 0 });
+
+  // Initialize multiplayer game state
+  useEffect(() => {
+    if (isMultiplayer && isHost && (!gameState || gameState.status === 'done' || (gameState.p1Wins >= winsRequired || gameState.p2Wins >= winsRequired))) {
+      setGameState({
+        board: Array(size * size).fill(null),
+        xIsNext: true,
+        p1Wins: 0,
+        p2Wins: 0,
+        pieceQueue: [],
+        winLine: null,
+        status: 'playing'
+      });
+    }
+  }, [isMultiplayer, isHost, gameState, size]);
+
+  const updateGameState = (updates) => {
+    setGameState(prev => ({ ...(prev || {}), ...updates }));
+  };
 
   const calculateWinner = (squares) => {
     const minReq = size === 3 ? 3 : 4;
@@ -58,37 +117,51 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   const isDraw = !winData && !board.includes(null);
 
   useEffect(() => {
-    if (winData) {
-      setWinLine(winData.line);
+    if (winData && !processedWinRef.current) {
+      processedWinRef.current = true;
+      updateGameState({ winLine: winData.line });
       playAudio('win', sfx);
       let matchOver = false;
-      if (winData.player === p1) { 
-          if (p1Wins + 1 >= winsRequired) matchOver = true; 
-      } else { 
-          if (p2Wins + 1 >= winsRequired) matchOver = true; 
-      }
+      
+      const newP1Wins = winData.player === p1 ? p1Wins + 1 : p1Wins;
+      const newP2Wins = winData.player === p2 ? p2Wins + 1 : p2Wins;
+
+      if (newP1Wins >= winsRequired || newP2Wins >= winsRequired) matchOver = true;
 
       setTimeout(() => {
-          if (winData.player === p1) setP1Wins(w=>w+1); else setP2Wins(w=>w+1);
           if (matchOver) {
               setGameOverOverlay(true);
               if (winData.player === p1) {
-                  onWin(); 
-                  setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1));
+                  if (onWin) onWin(); 
+                  if (setScores) setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1));
                   setLocalStats(p => ({...p, wins: p.wins+1}));
               } else {
                   setLocalStats(p => ({...p, losses: p.losses+1}));
               }
           } else {
-              setBoard(Array(size * size).fill(null)); setPieceQueue([]); setWinLine(null); setXIsNext(true);
+              updateGameState({
+                board: Array(size * size).fill(null),
+                pieceQueue: [],
+                winLine: null,
+                xIsNext: true,
+                p1Wins: newP1Wins,
+                p2Wins: newP2Wins
+              });
           }
       }, 1500);
       
-    } else if (isDraw) { 
+    } else if (isDraw && !processedWinRef.current) { 
+        processedWinRef.current = true;
         setTimeout(() => {
              setLocalStats(p => ({...p, draws: p.draws+1}));
-             setBoard(Array(size * size).fill(null)); setPieceQueue([]); setXIsNext(true);
+             updateGameState({
+               board: Array(size * size).fill(null),
+               pieceQueue: [],
+               xIsNext: true
+             });
         }, 1500); 
+    } else if (!winData && !isDraw) {
+        processedWinRef.current = false;
     }
   }, [winData, isDraw]);
 
@@ -157,24 +230,67 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   }, [xIsNext, board, winData, isDraw, config]);
 
   const handlePlacePiece = (i, player) => {
-    playAudio('chalk', sfx); let newBoard = [...board]; let newQueue = [...pieceQueue];
+    playAudio('chalk', sfx); 
+    let newBoard = [...board]; 
+    let newQueue = [...pieceQueue];
+    
     if (config.mode === 'memory') {
       const maxPieces = size === 3 ? 3 : 4;
       const playerPieces = newQueue.filter(p => p.player === player);
-      if (playerPieces.length >= maxPieces) { const oldest = newQueue.find(p => p.player === player); newBoard[oldest.index] = null; newQueue = newQueue.filter(p => p !== oldest); }
-      newQueue.push({ player, index: i }); setPieceQueue(newQueue);
+      if (playerPieces.length >= maxPieces) { 
+        const oldest = newQueue.find(p => p.player === player); 
+        newBoard[oldest.index] = null; 
+        newQueue = newQueue.filter(p => p !== oldest); 
+      }
+      newQueue.push({ player, index: i });
     }
-    newBoard[i] = player; setBoard(newBoard); setXIsNext(player === p2);
+    
+    newBoard[i] = player; 
+    updateGameState({
+      board: newBoard,
+      pieceQueue: newQueue,
+      xIsNext: player === p2 // If player was P2, then X (P1) is next. Wait, xIsNext means P1 is next?
+      // In handleClick: xIsNext ? p1 : p2. 
+      // If we just placed p1, xIsNext should become false.
+    });
+    
+    // Correcting xIsNext logic:
+    updateGameState({
+      board: newBoard,
+      pieceQueue: newQueue,
+      xIsNext: player === p1 ? false : true
+    });
   };
 
-  const handleClick = (i) => { if (board[i] || winData || (config.mode === 'vs_ai' && !xIsNext)) return; handlePlacePiece(i, xIsNext ? p1 : p2); };
+  const handleClick = (i) => { 
+    if (board[i] || winData || isDraw || gameOverOverlay || (config.mode === 'vs_ai' && !xIsNext)) return; 
+    
+    // Multiplayer turn check
+    if (isMultiplayer) {
+      const myTurn = xIsNext ? (isHost) : (!isHost);
+      if (!myTurn) return;
+    }
+
+    handlePlacePiece(i, xIsNext ? p1 : p2); 
+  };
   
-  const resetSeries = () => { playAudio('click', sfx); setBoard(Array(size*size).fill(null)); setXIsNext(true); setGameOverOverlay(false); setWinLine(null); setPieceQueue([]); setP1Wins(0); setP2Wins(0); };
+  const resetSeries = () => { 
+    playAudio('click', sfx); 
+    updateGameState({
+      board: Array(size*size).fill(null),
+      xIsNext: true,
+      p1Wins: 0,
+      p2Wins: 0,
+      pieceQueue: [],
+      winLine: null
+    });
+    setGameOverOverlay(false); 
+  };
 
   if (gameOverOverlay) {
     const overallWinner = p1Wins >= winsRequired ? p1 : p2;
     return ( 
-        <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {resetSeries(); onBack();}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined} /> 
+        <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {resetSeries(); onBack();}} onRematch={resetSeries} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined} /> 
     );
   }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
-import { X, MessageSquare, Download, Snowflake, Check, AlertTriangle } from 'lucide-react';
+import { X, MessageSquare, Download, Snowflake, Check, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+
 import { playAudio } from '../utils/audio.js';
 import html2canvas from 'html2canvas';
 
@@ -17,13 +18,16 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none max-w-xs">
+      <div className="fixed top-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none max-w-sm w-full break-words">
         {toasts.map(t => (
-          <div key={t.id} className={`pointer-events-auto retro-border retro-shadow-dark p-3 flex items-start gap-2 font-bold text-sm animate-in slide-in-from-right duration-300 ${t.type === 'success' ? 'bg-primary text-primary-text' :
-            t.type === 'warn' ? 'bg-yellow-400 text-black' :
-              t.type === 'error' ? 'bg-red-500 text-white' :
-                'bg-window text-main-text'
-            }`}>
+          <div key={t.id} className={`pointer-events-auto retro-border retro-shadow-dark p-3 flex items-start gap-2 font-bold text-sm animate-in slide-in-from-right duration-300 ${t.type === 'warn' ? 'bg-yellow-400 text-black' :
+            t.type === 'error' ? 'bg-red-500 text-white' :
+            t.type === 'success' ? 'bg-primary text-primary-text' :
+            'bg-window text-main-text'}`}
+            style={{
+              backgroundColor: t.type === 'success' ? 'var(--primary)' : t.type === 'accent' ? 'var(--accent)' : undefined,
+              color: t.type === 'success' ? 'var(--text-on-primary)' : t.type === 'accent' ? 'var(--text-on-accent)' : undefined
+            }}>
             {t.type === 'success' && <Check size={16} className="shrink-0 mt-0.5" />}
             {t.type === 'warn' && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
             <span>{t.message}</span>
@@ -82,23 +86,21 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   return (
     <>
       <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
-        <div className="bg-header text-header-text retro-border border-t-0 border-l-0 border-r-0 border-b-[1px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden">
-          {/* Subtle header sheen - Bypassing Gradient Killer with inline style */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.2), transparent)' }} />
-          
-          <div className={`relative z-10 flex gap-2 items-center ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
-            <div className="flex flex-col gap-[2px] w-4">
-              <div className="h-[2px] w-full opacity-40 bg-header-text"></div>
-              <div className="h-[2px] w-full opacity-60 bg-header-text"></div>
-              <div className="h-[2px] w-full bg-header-text"></div>
+        <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+          <div className={`relative z-10 flex gap-2 items-center flex-1 ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
+            <div className="flex flex-col gap-[3px] w-5 flex-shrink-0">
+              <div className="h-[2px] w-full bg-current opacity-50"></div>
+              <div className="h-[2px] w-full bg-current opacity-50"></div>
+              <div className="h-[2px] w-full bg-current opacity-50"></div>
             </div>
-            <span className="font-black lowercase text-xs sm:text-sm tracking-tight flex items-center gap-2">{title}</span>
+            <h2 className="font-black lowercase text-xs sm:text-sm tracking-tight flex items-center gap-2 flex-shrink-0" role="heading" aria-level="2" aria-label={title}>{title}</h2>
+            <div className="flex-1 h-px bg-current opacity-30 ml-2"></div>
           </div>
           <div className="relative z-10 flex items-center gap-2">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 border-2 border-border bg-primary text-primary-text shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none transition-all active:scale-95">
-                <X size={16} strokeWidth={3} />
+              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 retro-border hover:brightness-110 transition-all active:brightness-90" style={{ backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }}>
+                <X size={14} />
               </button>
             )}
           </div>
@@ -110,7 +112,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           title={confirmType === 'unsaved' ? 'Unsaved Changes' : 'Close'}
           message={confirmType === 'unsaved' ? 'You have unsaved changes. Save before closing?' : 'Close this window? Progress may be lost.'}
           showSave={confirmType === 'unsaved'}
-          showCancel={false}
+          showCancel={true}
           onSave={() => {
             playAudio('click', sfx);
             if (onSaveBeforeClose) onSaveBeforeClose();
@@ -126,24 +128,60 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   );
 }
 
+// ── RetroInput ──
+export function RetroInput({ label, icon: Icon, type = 'text', error, className = "", ...props }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+
+  return (
+    <div className={`space-y-1 w-full ${error ? 'animate-shake' : ''} ${className}`}>
+      {label && <label className="text-[10px] sm:text-[11px] font-mono opacity-60 ml-1 lowercase tracking-widest">{label}</label>}
+      <div className="relative group">
+        {Icon && <Icon size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${error ? 'text-red-500' : 'opacity-30 group-focus-within:opacity-100 group-focus-within:text-primary'}`} />}
+        <input 
+          type={inputType}
+          className={`w-full ${Icon ? 'pl-12' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3 retro-border bg-window focus:bg-accent/5 outline-none font-bold transition-all placeholder:opacity-30 ${error ? 'border-red-500 text-red-600 bg-red-50' : 'focus:ring-1 focus:ring-primary/20'}`} 
+          {...props} 
+        />
+        {isPassword && (
+          <button 
+            type="button" 
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity"
+            tabIndex="-1"
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
+      {error && <p className="text-[9px] font-bold text-red-600 ml-1 animate-in fade-in slide-in-from-top-1">{error}</p>}
+    </div>
+  );
+}
+
 // ── RetroButton ──
-export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) {
-  const base = "font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none border-2 border-border shadow-[1px_1px_0px_0px_var(--border)] hover:translate-y-[2px] hover:shadow-none lowercase flex items-center justify-center gap-2";
+export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, style = {}, type = "button", ...props }) {
+  const base = "font-bold transition-all active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:pointer-events-none retro-border retro-shadow-dark lowercase flex items-center justify-center gap-2";
   
   const variants = { 
-    primary: "bg-primary text-primary-text", 
-    secondary: "bg-secondary text-secondary-text", 
-    white: "bg-window text-main-text hover:bg-gray-50", 
-    accent: "bg-accent text-accent-text", 
-    disabled: "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50 shadow-none border-gray-400" 
+    primary: { backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }, 
+    secondary: { backgroundColor: 'var(--secondary)', color: 'var(--text-on-secondary)' }, 
+    white: { backgroundColor: 'var(--bg-window)', color: 'var(--text-main)' }, 
+    accent: { backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }, 
+    disabled: { backgroundColor: '#e5e7eb', color: '#9ca3af', opacity: 0.5, border: '1px solid #94a3b8' } 
   };
   
+  const currentVariant = disabled ? variants.disabled : (variants[variant] || variants.primary);
+
   return (
     <button 
       type={type} 
       onClick={onClick} 
       disabled={disabled} 
-      className={`${base} ${disabled ? variants.disabled : variants[variant]} ${className}`}
+      className={`${base} ${className}`}
+      style={{ ...currentVariant, ...style }}
+      {...props}
     >
       {children}
     </button>
@@ -153,7 +191,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
 // ── Confirm Dialog ──
 export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = true }) {
   return (
-    <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
         <p className="font-bold text-sm mb-6">{message}</p>
         <div className="flex gap-2">
@@ -176,21 +214,45 @@ export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = 
 }
 
 // ── AppIcon ──
-export function AppIcon({ icon, label, color, onClick, badge }) {
+export function AppIcon({ icon, label, color, hue, onClick, badge }) {
+  const bgColor = color || (hue != null ? `hsl(${hue}, 72%, 50%)` : 'var(--primary)');
+
   const handleKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick && onClick(); } };
   return (
-    <div role="button" tabIndex={0} className="flex flex-col items-center gap-2 group cursor-pointer" onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}>
-      <div className="w-16 h-16 sm:w-20 sm:h-20 border-2 border-border flex items-center justify-center shadow-[2px_2px_0px_0px_var(--border)] relative text-border" style={{ backgroundColor: color || 'var(--bg-window)' }}>
-        {icon} {badge && <div className="absolute -top-3 -right-3 bg-border text-window w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 border-window">{badge}</div>}
+    <div
+      role="button" tabIndex={0}
+      data-testid={`app-icon-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      className="flex flex-col items-center gap-2 group cursor-pointer select-none"
+      onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}
+    >
+      {/* Outer shell: retro-border gives the retro border+shadow only */}
+      <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border retro-shadow-dark relative transition-all group-hover:-translate-y-1 group-active:translate-y-0.5 group-active:shadow-none overflow-hidden">
+        {/* Dedicated color layer — lives inside, can't be overridden by parent classes */}
+        <div className="absolute inset-0" style={{ backgroundColor: bgColor }} />
+        {/* Icon */}
+        <div className="absolute inset-0 flex items-center justify-center z-10 text-white">
+          {React.cloneElement(icon, { size: 30, strokeWidth: 2 })}
+        </div>
+        {badge && (
+          <div className="absolute top-0 right-0 bg-red-600 text-white min-w-[20px] h-5 px-1 flex items-center justify-center font-black text-[10px] border-2 border-white shadow-[1px_1px_0px_0px_black] z-20 select-none">
+            {badge}
+          </div>
+        )}
       </div>
-      <span className="font-bold bg-window px-2 border-2 border-border text-sm text-main-text group-hover:bg-accent group-hover:text-accent-text transition-colors">{label}</span>
+      <span className="font-black uppercase tracking-tighter text-[10px] px-2 py-0.5 retro-border shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] text-main-text bg-window group-hover:bg-accent group-hover:text-accent-text transition-colors">
+        {label}
+      </span>
     </div>
   );
 }
 
 // ── ShareOutcomeOverlay ──
 export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElement, onClose, onShareToChat, onSaveToScrapbook, sfx, onRematch, profile, partnerNickname, isSolo }) {
-  const localProfile = profile || JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const localProfile = profile || (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user_profile') || '{}');
+    } catch(e) { return {}; }
+  })();
   const playerName = localProfile?.name || 'You';
   const partner = partnerNickname || (() => {
     try {
@@ -209,6 +271,10 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
 
   const handleDownload = async () => {
     playAudio('click', sfx);
+    if (typeof html2canvas === 'undefined') {
+      alert('Unable to generate image because the screenshot library is currently unavailable.');
+      return;
+    }
     const card = document.getElementById('outcome-card');
     if (card) {
       const canvas = await html2canvas(card, {
@@ -220,6 +286,30 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
       const a = document.createElement('a');
       a.href = img; a.download = `${gameName.replace(/ /g, '_')}_Result_${Date.now()}.png`;
       a.click();
+    }
+  };
+
+  const handleSaveToAlbum = async () => {
+    playAudio('click', sfx);
+    if (!onSaveToScrapbook) return;
+    let imgToSave = resultImage;
+    if (!imgToSave) {
+      if (typeof html2canvas === 'undefined') {
+        alert('Unable to generate image because the screenshot library is currently unavailable.');
+        return;
+      }
+      const card = document.getElementById('outcome-card');
+      if (card) {
+        const canvas = await html2canvas(card, {
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-window').trim() || '#fffdf9',
+          scale: 2,
+          useCORS: true
+        });
+        imgToSave = canvas.toDataURL('image/png');
+      }
+    }
+    if (imgToSave) {
+      onSaveToScrapbook(imgToSave);
     }
   };
 
@@ -281,7 +371,7 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
               <RetroButton onClick={handleChatShare} className="flex-1 py-2 flex justify-center items-center gap-2 text-sm"><MessageSquare size={16} /> Share</RetroButton>
               <RetroButton variant="secondary" onClick={handleDownload} className="flex-1 py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save</RetroButton>
             </div>
-            {onSaveToScrapbook && <RetroButton variant="accent" onClick={() => { playAudio('click', sfx); onSaveToScrapbook(resultImage); }} className="py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save to Album</RetroButton>}
+            {onSaveToScrapbook && <RetroButton variant="accent" onClick={handleSaveToAlbum} className="py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save to Album</RetroButton>}
             {onRematch && <RetroButton variant="primary" onClick={onRematch} className="py-2 flex justify-center items-center gap-2 text-sm font-bold">⚡ Rematch</RetroButton>}
           </div>
         </RetroWindow>
@@ -290,7 +380,6 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
   );
 }
 
-// ── ScoreboardCountdown ──
 export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
   const [current, setCurrent] = useState(count);
   const [isFlipping, setIsFlipping] = useState(false);
@@ -313,13 +402,19 @@ export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
   }, [current, onComplete, sfx]);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
-      <div className="relative w-48 h-64 sm:w-64 sm:h-80 bg-[var(--bg-window)] border-8 border-[var(--border)] retro-shadow-dark flex flex-col items-center justify-center overflow-hidden animate-in zoom-in duration-300">
-        <div className="absolute w-full h-1 bg-black/40 top-1/2 -translate-y-1/2 z-20 shadow-lg"></div>
-        <div className={`relative text-[12rem] sm:text-[16rem] font-black leading-none select-none transition-all duration-500 transform ${isFlipping ? 'scale-y-0 opacity-0' : 'scale-y-100 opacity-100'}`} style={{ color: '#ff3e3e', textShadow: '0 0 30px rgba(255,62,62,0.4)', fontFamily: 'monospace' }}>
-          {current === 0 ? 'GO!' : current}
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none animate-in fade-in">
+      <div className="relative w-80 h-80 bg-window retro-border-thick retro-shadow-dark flex flex-col items-center justify-between p-6 overflow-hidden animate-in zoom-in duration-300 select-none" style={{ backgroundColor: 'var(--bg-window)' }}>
+        <div className="font-black text-xs sm:text-sm uppercase tracking-[0.3em] text-center text-main-text select-none animate-pulse opacity-70">
+          🎮 Game will start in
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+        <div className="flex-1 flex items-center justify-center select-none w-full">
+          <div className={`relative text-8xl sm:text-9xl font-black leading-none select-none transition-all duration-300 transform-gpu ${isFlipping ? 'scale-0 rotate-12 opacity-0' : 'scale-100 rotate-0 opacity-100'}`} style={{ color: 'var(--primary)', textShadow: '4px 4px 0px var(--border)' }}>
+            {current === 0 ? 'GO!' : current}
+          </div>
+        </div>
+        <div className="w-full bg-[var(--bg-main)] p-2 retro-border text-center text-[10px] font-black uppercase tracking-widest text-main-text" style={{ backgroundColor: 'var(--bg-main)' }}>
+          Get Ready! ⚡
+        </div>
       </div>
     </div>
   );

@@ -16,25 +16,55 @@ const realClient = createClient(supabaseUrl, supabaseKey);
 const createMockProxy = (target) => {
     return new Proxy(target, {
         get(obj, prop) {
-            // High-level services we want to mock
-            if (prop === 'from' || prop === 'rpc' || prop === 'storage' || prop === 'auth' || prop === 'channel') {
-                if (isTestMode()) {
-                    return (...args) => {
-                        let isSingle = false;
-                        const chain = () => ({
-                            select: chain, insert: chain, update: chain, delete: chain, eq: chain, 
-                            order: chain, limit: chain, lt: chain, match: chain,
-                            on: chain, subscribe: chain, track: chain, unsubscribe: () => {},
-                            single: () => { isSingle = true; return chain(); },
+            if (isTestMode()) {
+                if (prop === 'auth') {
+                    return {
+                        getSession: async () => ({ data: { session: null }, error: null }),
+                        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+                        signInWithPassword: async () => ({ data: { user: { id: 'mock' }, session: { access_token: 'mock' } }, error: null }),
+                        signUp: async () => ({ data: { user: { id: 'mock' }, session: { access_token: 'mock' } }, error: null }),
+                        signOut: async () => ({ error: null }),
+                        updateUser: async () => ({ data: { user: {} }, error: null }),
+                    };
+                }
+                if (prop === 'storage') {
+                    return {
+                        from: () => ({
                             upload: async () => ({ data: { path: 'mock' }, error: null }),
                             getPublicUrl: () => ({ data: { publicUrl: 'mock-url' } }),
-                            getSession: async () => ({ data: { session: null }, error: null }),
-                            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-                            // The final execution
-                            then: (resolve) => resolve({ data: isSingle ? {} : (prop === 'rpc' ? null : []), error: null }),
-                            catch: (reject) => reject(new Error("Mock Fail")),
+                        })
+                    };
+                }
+                if (prop === 'from' || prop === 'rpc' || prop === 'channel') {
+                    return (...args) => {
+                        let isSingle = false;
+                        let insertedData = null; // Capture what was inserted
+                        const chain = (lastInsert) => ({
+                            select: () => chain(lastInsert),
+                            insert: (data) => chain(data), // Capture the inserted payload
+                            update: (data) => chain(data),
+                            delete: () => chain(lastInsert),
+                            eq: () => chain(lastInsert),
+                            order: () => chain(lastInsert),
+                            limit: () => chain(lastInsert),
+                            lt: () => chain(lastInsert),
+                            match: () => chain(lastInsert),
+                            on: () => chain(lastInsert),
+                            subscribe: () => chain(lastInsert),
+                            track: () => chain(lastInsert),
+                            unsubscribe: () => {},
+                            single: () => { isSingle = true; return chain(lastInsert); },
+                            // Echo back the inserted data so sender_id/content survive
+                            then: (resolve) => {
+                                if (isSingle && lastInsert) {
+                                    const echo = { id: `mock-${Date.now()}`, created_at: new Date().toISOString(), ...lastInsert };
+                                    return resolve({ data: echo, error: null });
+                                }
+                                return resolve({ data: isSingle ? null : (prop === 'rpc' ? null : []), error: null });
+                            },
+                            catch: (reject) => reject(new Error('Mock Fail')),
                         });
-                        return chain();
+                        return chain(null);
                     };
                 }
             }

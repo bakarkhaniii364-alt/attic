@@ -256,7 +256,7 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
              <section className="space-y-6">
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-border mb-4 pb-1 flex items-center gap-2"><Star size={14}/> Core Competencies</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-border mb-4 pb-1 flex items-center gap-2"><Star size={14}/> Core Competencies</h2>
                    <ul className="space-y-2 font-bold text-sm">
                       <li className="flex items-center gap-2">✨ Infinite Cuddling & Emotional Support</li>
                       <li className="flex items-center gap-2">🍕 Advanced Pizza Selection Skills</li>
@@ -265,7 +265,7 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
                    </ul>
                 </div>
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-border mb-4 pb-1 flex items-center gap-2"><Trophy size={14}/> High Scores</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-border mb-4 pb-1 flex items-center gap-2"><Trophy size={14}/> High Scores</h2>
                    <div className="grid grid-cols-2 gap-4">
                       <div className="p-3 border-2 border-border bg-main text-center">
                          <p className="text-[9px] font-black uppercase opacity-50">Days Sync'd</p>
@@ -280,19 +280,19 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
              </section>
              <section className="space-y-6">
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-dashed border-border mb-4 pb-1 flex items-center gap-2"><Calendar size={14}/> Key Milestones</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-border mb-4 pb-1 flex items-center gap-2"><Calendar size={14}/> Key Milestones</h2>
                    <div className="space-y-4">
-                      <div className="flex justify-between items-end border-b border-dashed border-border pb-1">
+                      <div className="flex justify-between items-end border-b border-border pb-1">
                          <p className="text-[10px] font-black uppercase opacity-40">The Beginning</p>
                          <p className="font-bold text-sm">{anniversary || '---'}</p>
                       </div>
-                      <div className="flex justify-between items-end border-b border-dashed border-border pb-1">
+                      <div className="flex justify-between items-end border-b border-border pb-1">
                          <p className="text-[10px] font-black uppercase opacity-40">First Collaborative Art</p>
                          <p className="font-bold text-sm">2026-04-27</p>
                       </div>
                    </div>
                 </div>
-                <div className="p-4 bg-accent text-accent-text border-2 border-border border-dashed text-center">
+                <div className="p-4 bg-accent text-accent-text border-2 border-border text-center">
                    <p className="italic font-serif leading-relaxed text-sm">
                       "Certified authentic connection, synchronized across all digital dimensions."
                    </p>
@@ -319,27 +319,15 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores, 
   );
 }
 // ── WEATHER WIDGET (Optimized) ──
-export function WeatherWidget({ compact = false }) {
-  const [weatherData, setWeatherData] = useState(() => {
-    try {
-      const cached = window.localStorage.getItem('attic_weather_cache');
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        // Cache valid for 30 minutes
-        if (Date.now() - timestamp < 1800000) return data;
-      }
-    } catch (e) {}
-    return null;
-  });
-
-  const [loading, setLoading] = useState(!weatherData);
-
+export function WeatherWidget({ compact = false, userId, partnerId }) {
+  const [broadcasts, setBroadcasts] = useGlobalSync('weather_broadcasts', {});
+  
   useEffect(() => {
-    const fetchWeather = async () => {
+    if (!userId) return;
+
+    const fetchAndBroadcast = async () => {
       try {
         // wttr.in format: ?format=j1 (JSON format)
-        // Using a generic location or user-set city if we had one. 
-        // For now, let's use auto-location based on IP via wttr.in
         const res = await fetch('https://wttr.in/?format=j1');
         if (!res.ok) throw new Error('Weather fetch failed');
         const data = await res.json();
@@ -347,64 +335,61 @@ export function WeatherWidget({ compact = false }) {
         const simplified = {
           temp: data.current_condition[0].temp_C,
           desc: data.current_condition[0].weatherDesc[0].value,
-          city: data.nearest_area[0].areaName[0].value
+          city: data.nearest_area[0].areaName[0].value,
+          timestamp: Date.now()
         };
 
-        setWeatherData(simplified);
-        window.localStorage.setItem('attic_weather_cache', JSON.stringify({
-          data: simplified,
-          timestamp: Date.now()
+        // Broadcast to shared state so partner can see it
+        setBroadcasts(prev => ({
+          ...(prev || {}),
+          [userId]: simplified
         }));
       } catch (err) {
-        console.warn("Weather fetch failed:", err);
-      } finally {
-        setLoading(false);
+        console.warn("Weather broadcast failed:", err);
       }
     };
 
-    // If no cache or cache expired, fetch
-    if (!weatherData) fetchWeather();
-    else {
-      // Silently refresh in background even if cache exists
-      const timer = setTimeout(fetchWeather, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+    // Initial fetch
+    fetchAndBroadcast();
+    
+    // Refresh and broadcast every 30 minutes
+    const interval = setInterval(fetchAndBroadcast, 1800000);
+    return () => clearInterval(interval);
+  }, [userId, setBroadcasts]);
 
-  if (!weatherData && loading) return (
-    <div className="border-t border-dashed border-border pt-2 mt-2 text-[10px] font-bold opacity-30 uppercase tracking-widest text-center animate-pulse text-main-text">
-      Fetching sky status...
-    </div>
-  );
+  const partnerWeather = partnerId ? (broadcasts || {})[partnerId] : null;
+  const isStale = partnerWeather && (Date.now() - partnerWeather.timestamp > 3600000); // 1 hour limit
 
-  if (!weatherData) return null;
+  // If partner's weather is not available or too old, don't show the widget
+  if (!partnerWeather || isStale) return null;
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 text-main-text">
+      <div className="flex items-center gap-2 text-main-text animate-in fade-in duration-700">
         <div className="w-8 h-8 border-2 border-border bg-accent text-accent-text flex items-center justify-center font-bold text-[10px] shadow-sm">
-          {weatherData.temp}°C
+          {partnerWeather.temp}°C
         </div>
         <div className="flex flex-col">
-          <p className="font-bold text-[9px] uppercase leading-none">{weatherData.desc}</p>
-          <p className="text-[8px] opacity-40 uppercase tracking-tighter leading-none">{weatherData.city}</p>
+          <p className="font-bold text-[9px] uppercase leading-none">{partnerWeather.desc}</p>
+          <p className="text-[8px] opacity-40 uppercase tracking-tighter leading-none">{partnerWeather.city}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border-t border-dashed border-border pt-2 mt-2 text-main-text">
-      <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-1">🌤️ Local Weather</p>
+    <div className="border-t border-border pt-2 mt-2 text-main-text animate-in fade-in duration-700">
+      <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-1">🌤️ Partner's Weather</p>
       <div className="flex items-center gap-2">
         <div className="w-10 h-10 border-2 border-border bg-accent text-accent-text flex items-center justify-center font-bold text-xs shadow-sm">
-          {weatherData.temp}°C
+          {partnerWeather.temp}°C
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-xs truncate leading-none mb-1">{weatherData.desc}</p>
-          <p className="text-[10px] opacity-40 uppercase tracking-tighter">{weatherData.city}</p>
+          <p className="font-bold text-xs truncate leading-none mb-1">{partnerWeather.desc}</p>
+          <p className="text-[10px] opacity-40 uppercase tracking-tighter">{partnerWeather.city}</p>
         </div>
       </div>
     </div>
   );
 }
+

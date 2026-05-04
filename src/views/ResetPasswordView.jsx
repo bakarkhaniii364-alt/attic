@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, Loader, Check, ArrowLeft } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader, Check } from 'lucide-react';
 import { RetroWindow, RetroButton, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 import { playAudio } from '../utils/audio.js';
@@ -23,7 +23,14 @@ export function ResetPasswordView({ sfx }) {
 
   useEffect(() => {
     const code = searchParams.get('code');
-    if (!code) setValidToken(false);
+    const hash = window.location.hash;
+    const hasTokenInHash = hash && (hash.includes('access_token=') || hash.includes('type=recovery'));
+    
+    if (!code && !hasTokenInHash) {
+      setValidToken(false);
+    } else {
+      setValidToken(true);
+    }
   }, [searchParams]);
 
   const validatePassword = () => {
@@ -68,6 +75,7 @@ export function ResetPasswordView({ sfx }) {
         setLoading(false);
         return;
       }
+      window.history.replaceState(null, '', window.location.pathname);
       setSuccess(true);
       if (toast) toast('Password reset successfully!', 'success');
     } catch (err) {
@@ -146,7 +154,7 @@ export function ResetPasswordView({ sfx }) {
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 placeholder="••••••••"
                 minLength={6}
                 required
@@ -171,7 +179,7 @@ export function ResetPasswordView({ sfx }) {
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
                 placeholder="••••••••"
                 minLength={6}
                 required

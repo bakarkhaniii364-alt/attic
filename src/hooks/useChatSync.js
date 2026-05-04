@@ -161,6 +161,8 @@ export function useChatSync(roomId) {
 
     if (isBlob) {
       finalContent = URL.createObjectURL(content); 
+    } else if (type === 'text') {
+      finalContent = content; // Ensure text is captured
     }
 
     const tempId = `temp-${crypto.randomUUID()}`;

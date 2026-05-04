@@ -13,5 +13,5 @@ export async function loginAsTestUser(page: Page, emailOrUser: string) {
     user = emailOrUser.includes('userB') || emailOrUser.includes('B') ? 'userB' : 'userA';
   }
   await page.goto(`/dashboard?test_mode=true&user=${user}`);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('load');
 }

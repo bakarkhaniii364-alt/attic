@@ -23,7 +23,7 @@ import { BluffGame } from './BluffGame.jsx';
 
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5', modes: [
-    { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'One draws, the other guesses in real-time.', diffs: ['easy', 'hard'], options: [{key: 'genre', label: 'Word Genre', choices: ['General', 'Animals', 'Movies', 'Food']}] }
+    { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'One draws, the other guesses in real-time.', diffs: ['easy', 'hard'], options: [{key: 'genre', label: 'Word Genre', choices: ['General', 'Animals', 'Movies', 'Food']}, {key: 'rounds', label: 'Rounds', choices: [1, 2, 3, 5]}] }
   ]},
   tictactoe: { title: 'Tic-Tac-Toe', desc: 'Classic 3x3 match.', color: '#ef4444', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], options: [{key: 'matchType', label: 'Best Of', choices: [1, 3, 5]}], desc: 'Play locally against the computer.' },
@@ -79,7 +79,7 @@ const GAME_CATALOG = {
   ]}
 };
 
-export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId, pictionaryState, setPictionaryState, onSaveToScrapbook, syncedRoomId }) {
+export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId, pictionaryState, setPictionaryState, onSaveToScrapbook, syncedRoomId, myName, partnerName, roomProfiles }) {
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   
@@ -97,9 +97,26 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
          import('../lib/supabase.js').then(({ supabase }) => {
              supabase.from('highscores').select('*').order('score', { ascending: false }).limit(100)
                .then(({ data }) => {
-                   if (data) setLeaderboardData(data);
+                   const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+                   const combined = [...(data || []), ...localScores];
+                   const seen = new Set();
+                   const unique = [];
+                   for (const s of combined) {
+                      const key = `${s.user_id}_${s.game_id}_${s.mode}_${s.score}`;
+                      if (!seen.has(key)) {
+                         seen.add(key);
+                         unique.push(s);
+                      }
+                   }
+                   unique.sort((a, b) => (b.score || 0) - (a.score || 0));
+                   setLeaderboardData(unique);
                    setLoadingLeaderboard(false);
-               }).catch(() => setLoadingLeaderboard(false));
+               }).catch(() => {
+                   const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+                   localScores.sort((a, b) => (b.score || 0) - (a.score || 0));
+                   setLeaderboardData(localScores);
+                   setLoadingLeaderboard(false);
+               });
          });
      }
   }, [view]);
@@ -139,7 +156,11 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       playAudio('click', sfx);
       const gameConfig = { mode: mode.id, diff: selectedDiff, ...selectedOptions };
       setLobbyState({ players: [userId], hostId: userId, gameId: gameRoute, status: 'waiting', config: gameConfig });
-      onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute });
+      if (game) {
+        onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute });
+      } else {
+        onShareToChat(`Join me for a game!`, null, { gameId: gameRoute });
+      }
   };
 
   const handleJoinLobby = () => {
@@ -156,18 +177,26 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       if (localPlayConfig) {
           currentPhase = 'playing_local';
       } else if (lobbyState?.gameId === gameRoute && (lobbyState?.players || []).includes(userId)) {
-          if (lobbyState.status === 'playing') currentPhase = 'playing_remote';
+          if (lobbyState?.status === 'playing') currentPhase = 'playing_remote';
           else currentPhase = 'lobby';
       } else {
           currentPhase = 'details';
       }
   }
+  console.log('[ActivitiesHub] userId:', userId, 'gameRoute:', gameRoute, 'lobbyState:', lobbyState);
+  console.log('[ActivitiesHub] currentPhase:', currentPhase);
 
   const renderActiveGame = () => {
     const activeConfig = currentPhase === 'playing_local' ? localPlayConfig : lobbyState?.config;
+    const isMultiplayer = currentPhase === 'playing_remote';
+    const isHost = isMultiplayer ? (lobbyState?.hostId === userId) : true;
+    const myPlayerId = userId;
+    const oppPlayerId = isMultiplayer ? partnerId : 'ai';
+
     const commonProps = { 
         config: activeConfig || { diff: 'easy', mode: 'solo', matchType: 1 }, 
         sfx, userId, partnerId, setScores, onWin: handleWin,
+        isHost, isMultiplayer, myPlayerId, oppPlayerId,
         onBack: () => {
              if (currentPhase === 'playing_local') setLocalPlayConfig(null);
              else {
@@ -179,12 +208,13 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
              }
         }, 
         onShareToChat, onSaveToScrapbook, profile,
+        myName, partnerName, roomProfiles,
         roomId: syncedRoomId || 'global'
     };
 
     switch (gameRoute) {
       case 'tictactoe': return <TicTacToe {...commonProps} />;
-      case 'pictionary': return <PictionaryGame {...commonProps} gameState={pictionaryState} setGameState={setPictionaryState} />;
+      case 'pictionary': return <PictionaryGame {...commonProps} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} />;
       case 'memory': return <MemoryGame {...commonProps} roomId={commonProps.roomId} />;
       case 'wordle': return <WordleClone {...commonProps} />;
       case 'sudoku': return <Sudoku {...commonProps} />;
@@ -256,20 +286,22 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                   <div className="flex items-center gap-3">
                       <Users className="shrink-0" />
                       <div>
-                          <h2 className="text-sm font-black uppercase mb-0.5">Partner is Waiting!</h2>
-                          <p className="font-bold text-[10px] opacity-90">They are in a lobby for {GAME_CATALOG[lobbyState.gameId]?.title || lobbyState.gameId}.</p>
+                          <h2 className="text-sm font-black uppercase mb-0.5">{partnerName} is Waiting!</h2>
+                          <p className="font-bold text-[10px] opacity-90">They are in a lobby for {GAME_CATALOG[lobbyState?.gameId]?.title || lobbyState?.gameId}.</p>
                       </div>
                   </div>
                   <RetroButton variant="white" className="text-black px-4 py-1.5 text-xs whitespace-nowrap" onClick={() => {
-                    navigate(`/activities/${lobbyState.gameId}`);
+                    navigate(`/activities/${lobbyState?.gameId}`);
                   }}>View Lobby</RetroButton>
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full">
             {Object.entries(GAME_CATALOG).map(([id, g]) => (
               <button 
-                key={id} onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
-                className="flex flex-col items-start p-6 bg-white border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
+                key={id} 
+                onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
+                data-testid={`game-card-${id}`}
+                className="game-card flex flex-col items-start p-6 bg-white border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
               >
                 <div className="w-5 h-5 mb-4 border-2 border-[var(--border)] shadow-[2px_2px_0_0_var(--border)]" style={{ backgroundColor: g.color }}></div>
                 <h3 className="font-black text-lg mb-2 text-[var(--text-main)] tracking-tight">{g.title}</h3>
@@ -437,33 +469,33 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
             <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
             
             <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
-                <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game.title}</span>
-                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {lobbyState.config?.mode} | {lobbyState.config?.diff ? `Diff: ${lobbyState.config.diff}` : 'Standard'}</span>
+                <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game?.title || gameRoute}</span>
+                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {lobbyState?.config?.mode} | {lobbyState?.config?.diff ? `Diff: ${lobbyState.config.diff}` : 'Standard'}</span>
             </div>
 
             <div className="flex gap-8 items-center justify-center mb-10 w-full">
                <div className="flex flex-col items-center">
-                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[4px_4px_0_0_var(--border)]">
-                     <span className="font-black text-2xl">P1</span>
+                  <div className="w-20 h-20 bg-[var(--primary)] retro-border flex items-center justify-center text-[var(--text-on-primary)] shadow-[4px_4px_0_0_var(--border)] overflow-hidden">
+                     {profile?.pfp ? <img src={profile.pfp} className="w-full h-full object-cover" /> : <span className="font-black text-2xl">P1</span>}
                   </div>
-                  <span className="mt-3 font-bold text-xs uppercase bg-black text-white px-2 py-1">READY</span>
+                  <span className="mt-3 font-bold text-[10px] uppercase bg-black text-white px-2 py-1 truncate max-w-[80px]">{myName || 'You'}</span>
                </div>
 
                <div className="text-2xl font-black opacity-30">VS</div>
 
                <div className="flex flex-col items-center">
-                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[4px_4px_0_0_var(--border)]' : 'bg-transparent border-dashed opacity-50'}`}>
-                     <span className="font-black text-2xl">{partnerInLobby ? 'P2' : '?'}</span>
+                  <div className={`w-20 h-20 retro-border flex items-center justify-center transition-all overflow-hidden ${partnerInLobby ? 'bg-[var(--secondary)] text-[var(--text-on-secondary)] shadow-[4px_4px_0_0_var(--border)]' : 'bg-transparent border-dashed opacity-50'}`}>
+                     {partnerInLobby && roomProfiles?.[partnerId]?.pfp ? <img src={roomProfiles[partnerId].pfp} className="w-full h-full object-cover" /> : <span className="font-black text-2xl">{partnerInLobby ? 'P2' : '?'}</span>}
                   </div>
                   {partnerInLobby ? (
-                     <span className="mt-3 font-bold text-xs uppercase bg-black text-white px-2 py-1 animate-pulse">READY</span>
+                     <span className="mt-3 font-bold text-[10px] uppercase bg-black text-white px-2 py-1 truncate max-w-[80px]">{partnerName}</span>
                   ) : (
                      <span className="mt-3 font-bold text-[10px] uppercase flex items-center gap-1 opacity-60"><Loader size={12} className="animate-spin" /> Waiting</span>
                   )}
                </div>
             </div>
 
-            {lobbyState.status === 'starting' ? (
+            {lobbyState?.status === 'starting' ? (
                 <div className="py-4">
                     <ScoreboardCountdown count={3} onComplete={() => setLobbyState(prev => ({ ...prev, status: 'playing' }))} sfx={sfx} />
                 </div>
@@ -476,7 +508,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                  <p className={`text-xs font-bold italic ${isPartnerWhoWasLeft ? 'text-red-500 opacity-100' : 'opacity-60'}`}>
                     {isPartnerWhoWasLeft ? 'Your partner has left the lobby.' : 'Waiting for partner to accept the invite...'}
                  </p>
-                 <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game.title}!`, null, { gameId: gameRoute, mode: lobbyState.config?.mode, type: 'game_invite_modal' })} className="text-xs">
+                 <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, mode: lobbyState?.config?.mode, type: 'game_invite_modal' })} className="text-xs">
                     {isPartnerWhoWasLeft ? 'Send Invite Again' : 'Resend Invite'}
                  </RetroButton>
                </div>

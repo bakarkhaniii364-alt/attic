@@ -20,8 +20,8 @@ test.describe('Communication E2E Suite', () => {
     await loginAsTestUser(pageB, `userB_${sessionId}`);
     
     // Both navigate to chat
-    await pageA.getByText('chat', { exact: true }).click();
-    await pageB.getByText('chat', { exact: true }).click();
+    await pageA.getByTestId('app-icon-chat').click();
+    await pageB.getByTestId('app-icon-chat').click();
     
     // Step 2: User A types in the chat box (do not press send yet)
     await pageA.getByPlaceholder('type a message...').click();

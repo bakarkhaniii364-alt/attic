@@ -28,7 +28,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
   const [hintUsed, setHintUsed] = useState(false);
   const [perfectWin, setPerfectWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [showCountdown, setShowCountdown] = useState(true);
+  const [showCountdown, setShowCountdown] = useState(!['solo', 'practice', 'local', 'vs_ai', '1v1_local'].includes(config?.mode));
   const [mastermindPhase, setMastermindPhase] = useState(config.mode === 'competitive' ? 'SETUP' : 'PLAYING');
   const [customTarget, setCustomTarget] = useState('');
 
@@ -200,7 +200,23 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
            </div>
        );
 
-       return ( <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName={`Retro Word (${config.mode})`} stats={outcomeStats} customElement={customNode} onClose={() => { setShowStats(false); onBack(); }} onShareToChat={(msg) => onShareToChat(msg + "\n\n" + emojiLines.join('\n'))} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
+       return ( <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName={`Retro Word (${config.mode})`} stats={outcomeStats} customElement={customNode} onClose={() => { setShowStats(false); onBack(); }} onRematch={() => {
+             setBoardState(Array(maxGuesses).fill(""));
+             setCurrentGuess("");
+             setGameStatus("playing");
+             setTurn(1);
+             setAnimatingRow(-1);
+             setShakingRow(-1);
+             setKeyColors({});
+             setHintUsed(false);
+             setPerfectWin(false);
+             setShowStats(false);
+             if (config.category === 'custom' && config.customWord) {
+                 setTargetWord(config.customWord.toUpperCase());
+             } else {
+                 fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { setTargetWord(w.toUpperCase()) }); 
+             }
+        }} onShareToChat={(msg) => onShareToChat(msg + "\n\n" + emojiLines.join('\n'))} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
   }
 
   const currentRowIndex = boardState.findIndex(g => g === "");

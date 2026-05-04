@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 
@@ -9,6 +9,9 @@ import { supabase } from '../lib/supabase.js';
 export function useAssetSync(roomId, assetType = null, userId = null) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const assetsRef = useRef([]);
+  assetsRef.current = assets;
 
   // 1. Fetch Assets
   useEffect(() => {
@@ -126,7 +129,7 @@ export function useAssetSync(roomId, assetType = null, userId = null) {
   const markAssetRead = useCallback(async (id) => {
     if (!id || !userId) return;
     try {
-      const asset = assets.find(a => a.id === id);
+      const asset = assetsRef.current.find(a => a.id === id);
       if (!asset) return;
       
       const metadata = asset.metadata || {};
@@ -138,7 +141,7 @@ export function useAssetSync(roomId, assetType = null, userId = null) {
         setAssets(prev => prev.map(a => a.id === id ? { ...a, metadata: newMetadata } : a));
       }
     } catch(e) { console.error('Failed to mark read', e); }
-  }, [assets, userId]);
+  }, [userId]);
 
   return { assets, uploadAsset, deleteAsset, markAssetRead, loading };
 }

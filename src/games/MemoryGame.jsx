@@ -107,7 +107,9 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
   const handleMouseMove = (e) => {
       if (!flashlightMode) return;
       const rect = e.currentTarget.getBoundingClientRect();
-      setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const x = (e.pageX || e.clientX) - (rect.left + window.scrollX);
+      const y = (e.pageY || e.clientY) - (rect.top + window.scrollY);
+      setMousePos({ x, y });
   };
 
   if (gameOverOverlay) {

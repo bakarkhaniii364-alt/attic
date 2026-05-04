@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3 } from 'lucide-react';
-import { RetroWindow, RetroButton, AppIcon, useToast } from '../components/UI.jsx';
+import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2 } from 'lucide-react';
+import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
 import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useSync } from '../context/SyncContext.jsx';
+import { useChat } from '../context/ChatContext.jsx';
+import { supabase } from '../lib/supabase.js';
 
 const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, externalAction }) => {
   const [isHovering, setIsHovering] = useState(false);
@@ -24,7 +28,7 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
 
   // Handle skin path (convert .png to folder path if needed)
   let skinFolder = '/assets/cat_1_9';
-  if (skin && skin !== 'undefined' && skin !== 'null') {
+  if (skin && typeof skin === 'string' && skin !== 'undefined' && skin !== 'null' && !skin.includes('[object')) {
     skinFolder = skin;
     // Legacy migration: map old sprite sheet path to the new folder structure
     if (skinFolder.includes('Cat Sprite Sheet')) skinFolder = '/assets/cat_1_9';
@@ -235,10 +239,19 @@ const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, external
       <img
         src={frameSrc}
         alt="pet"
+        draggable="false"
+        onDragStart={e => e.preventDefault()}
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = '/assets/cat_1_9/tile0.png';
+        }}
         style={{
           width: `${frameSize}px`,
           height: `${frameSize}px`,
-          imageRendering: 'pixelated'
+          imageRendering: 'pixelated',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          pointerEvents: 'none',
         }}
       />
       {isSleeping && (
@@ -333,7 +346,7 @@ export const Unit = React.memo(({ val, label }) => {
       const timer = setTimeout(() => {
         setDisplayVal(val);
         setIsFlipping(false);
-      }, 600); // Duration of the full flip
+      }, 600);
       return () => clearTimeout(timer);
     }
   }, [val, displayVal]);
@@ -409,52 +422,47 @@ export function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, profile, myDisplayName, partnerProfile, scores, doodles, onOpenDoodle, sfx, setTriggerShake, radioState, setRadioState, userId, partnerId, theme, setTheme, setProfile, sfxEnabled, setSfxEnabled, onLogout, onDelete, weather, setWeather, coupleData, setCoupleData, chatHistory, onlineUsers = {}, sendInteraction, streaks, isPartnerAfk, lobbyState, roomId }) {
+export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, weather, setWeather, radioState, setRadioState }) {
+  const { userId, partnerId, roomId, logout } = useAuth();
+  const { globalState, updateSyncState, broadcast: syncBroadcast, onlineUsers } = useSync();
+  const { messages: chatHistory } = useChat();
+  const toast = useToast();
+
+  // Derived State
+  const profile = globalState?.room_profiles?.[userId] || {};
+  const partnerProfile = globalState?.room_profiles?.[partnerId] || {};
+  const coupleData = globalState?.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9', petHappy: 60 };
+  const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
+  
+  const partnerName = partnerProfile.name || 'Partner';
+  const partnerStatus = partnerProfile.status || 'offline';
+
   const partnerPresence = onlineUsers[partnerId] || {};
   const isPartnerOnline = partnerPresence.status === 'active';
-  
+  const isPartnerIdle = partnerPresence.status === 'idle';
+
   let displayStatus = 'Offline';
-  if (isPartnerAfk) {
-      displayStatus = 'Zzz... (Away)';
-  } else if (lobbyState.players?.includes(partnerId) && lobbyState.gameId) {
-      displayStatus = `Playing ${lobbyState.gameId}`;
-  } else if (isPartnerOnline) {
-      displayStatus = 'Online';
-  } else if (partnerPresence.lastActive) {
-      const diffMins = Math.floor((Date.now() - new Date(partnerPresence.lastActive).getTime()) / 60000);
-      if (diffMins < 1) displayStatus = 'Last seen just now';
-      else if (diffMins < 60) displayStatus = `Last seen ${diffMins}m ago`;
-      else displayStatus = `Last seen ${Math.floor(diffMins/60)}h ago`;
+  if (isPartnerOnline) displayStatus = 'Online';
+  else if (isPartnerIdle) displayStatus = 'Idle (Away)';
+  else if (partnerPresence.online_at) {
+    const diffMins = Math.floor((Date.now() - new Date(partnerPresence.online_at).getTime()) / 60000);
+    displayStatus = diffMins < 60 ? `Last seen ${diffMins}m ago` : `Last seen ${Math.floor(diffMins/60)}h ago`;
   }
-  // SAFEGUARD: Ensure objects are never null when mapping
-  const safeCoupleData = coupleData || {};
-  const safeChatHistory = chatHistory || [];
-  const safeDoodles = doodles || [];
-  
-  const unreadChatCount = safeChatHistory.filter(m => m.sender === partnerId && (!m.status || m.status !== 'read') && !m.isDeleted).length;
-  const updatePetHappy = (val) => setCoupleData({ ...safeCoupleData, petHappy: val });
-  const mood = profile?.mood || '😊';
-  const setMood = (m) => setProfile(prev => ({ ...prev, mood: m }));
+
+  const scores = globalState?.game_scores || {};
+  const myDisplayName = profile.name || 'you';
+  const mood = coupleData.petHappy > 80 ? '✨' : coupleData.petHappy > 50 ? '❤️' : '☁️';
+  const safeDoodles = globalState?.doodles || [];
+
+  const unreadChatCount = (chatHistory || []).filter(m => m.sender === partnerId && (!m.status || m.status !== 'read')).length;
   const [lastActionTime, setLastActionTime] = useState(0);
-  const toast = useToast();
-  const streak = useLocalStorage('streak_data', { count: 0, best: 0 })[0];
-  const hr = new Date().getHours(); const isSleeping = hr < 6 || hr > 22;
   
   const handleSendKiss = () => {
     if (Date.now() - lastActionTime < 3000) return;
-    const now = Date.now().toString();
-    setLastActionTime(Number(now));
+    setLastActionTime(Date.now());
     playAudio('click', sfxEnabled);
-    
-    // 1. Instant broadcast (ephemeral flurry for active session)
-    if (sendInteraction) sendInteraction({ type: 'kiss', from: userId, timestamp: now });
-    
-    // 2. Persistent update (offline flurry for next session)
-    setCoupleData(prev => ({
-      ...prev,
-      lastKissFrom: userId,
-      lastKissTimestamp: now
-    }));
+    syncBroadcast('interaction', { type: 'kiss', from: userId, timestamp: Date.now().toString() });
+    updateSyncState('couple_data', { ...coupleData, lastKissFrom: userId, lastKissTimestamp: Date.now().toString() });
   };
 
   const nav = (v) => setView(v);
@@ -464,22 +472,103 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
   });
   const [petCooldown, setPetCooldown] = useState(false);
   const [petAction, setPetAction] = useState(null); // eat or other triggered external actions
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Fetch and manage doodles
   const [seenAssets, setSeenAssets] = useLocalStorage('seen_assets', []);
   const [unviewedDoodle, setUnviewedDoodle] = useState(null);
 
+  // ── Geolocation: store MY location in room_profiles on mount ──
   useEffect(() => {
-    if (!roomId) return;
-    import('../hooks/useAssetSync.js').then(({ getAssets }) => {
-      getAssets(roomId, 'doodle').then(assets => {
-        const newDoodles = assets.filter(a => a.sender_id === partnerId && !seenAssets.includes(a.id));
-        if (newDoodles.length > 0) {
-          setUnviewedDoodle(newDoodles[newDoodles.length - 1]);
+    if (!userId || !roomId || !updateSyncState) return;
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      try {
+        const cacheKey = `geo_${lat.toFixed(2)}_${lon.toFixed(2)}`;
+        const cachedGeo = localStorage.getItem(cacheKey);
+        let city = 'Unknown';
+        if (cachedGeo) {
+          city = cachedGeo;
+        } else {
+          // Reverse geocode to get city name with unique User-Agent and specific locale
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+            { headers: { 'Accept-Language': 'en', 'User-Agent': 'AtticArcade/1.0 (contact@atticarcade.internal)' } }
+          );
+          const geo = await res.json();
+          city =
+            geo?.address?.city ||
+            geo?.address?.town ||
+            geo?.address?.village ||
+            geo?.address?.county ||
+            'Unknown';
+          localStorage.setItem(cacheKey, city);
         }
+        const currentProfiles = globalState?.room_profiles || {};
+        updateSyncState('room_profiles', {
+          ...currentProfiles,
+          [userId]: { ...currentProfiles[userId], location: { lat, lon, city } }
+        });
+      } catch (e) {
+        console.warn('[GEO] Reverse geocode failed:', e.message);
+      }
+    }, () => { /* permission denied — silent */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, roomId]); // Run once on mount
+
+  // ── Partner weather: fetch when their location is available ──
+  const WMO_EMOJI = {
+    0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️',
+    45: '🌫', 48: '🌫',
+    51: '🌦', 53: '🌦', 55: '🌧',
+    61: '🌧', 63: '🌧', 65: '🌧',
+    71: '🌨', 73: '🌨', 75: '❄️',
+    80: '🌦', 81: '🌧', 82: '⛈',
+    95: '⛈', 96: '⛈', 99: '⛈',
+  };
+  const [partnerWeather, setPartnerWeather] = useState(null);
+  useEffect(() => {
+    const loc = partnerProfile?.location;
+    if (!loc?.lat || !loc?.lon) return;
+    let cancelled = false;
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current_weather=true&temperature_unit=celsius`
+    )
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        const cw = data?.current_weather;
+        if (cw) {
+          const emoji = WMO_EMOJI[cw.weathercode] ?? '🌡';
+          setPartnerWeather({ temp: Math.round(cw.temperature), emoji, city: loc.city });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [partnerProfile?.location?.lat, partnerProfile?.location?.lon]);
+
+  useEffect(() => {
+    if (!roomId || !partnerId) return;
+    const fetchDoodles = async () => {
+      const { data, error } = await supabase
+        .from('shared_assets')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('type', 'doodle')
+        .eq('owner_id', partnerId)          // ← correct column name
+        .order('created_at', { ascending: false });
+      if (error || !data) return;
+      // seenAssets read via closure snapshot — does not need to be a dep
+      setSeenAssets(prev => {
+        const newDoodles = data.filter(a => !prev.includes(a.id));
+        if (newDoodles.length > 0) setUnviewedDoodle(newDoodles[0]);
+        return prev; // don't change seenAssets, just read it
       });
-    });
-  }, [roomId, partnerId, seenAssets]);
+    };
+    fetchDoodles();
+  }, [roomId, partnerId]); // ← no seenAssets — prevents re-fetch spam
 
   const markDoodleAsSeen = (id) => {
     if (!seenAssets.includes(id)) {
@@ -490,8 +579,8 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
   const handleFeed = () => {
     if (petCooldown) return;
-    playAudio('click', sfx);
-    updatePetHappy(Math.min(100, (safeCoupleData.petHappy || 60) + 20));
+    playAudio('click', sfxEnabled);
+    updateSyncState('couple_data', { ...coupleData, petHappy: Math.min(100, (coupleData.petHappy || 60) + 20) });
     toast('Fed the pet!', 'success', 1500);
     setPetAction('eat');
     setTimeout(() => setPetAction(null), 3000);
@@ -501,8 +590,8 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
   const handlePet = () => {
     if (petCooldown) return;
-    playAudio('click', sfx);
-    updatePetHappy(Math.min(100, (safeCoupleData.petHappy || 60) + 10));
+    playAudio('click', sfxEnabled);
+    updateSyncState('couple_data', { ...coupleData, petHappy: Math.min(100, (coupleData.petHappy || 60) + 10) });
     toast('Petted the pet!', 'success', 1200);
     setPetCooldown(true);
     setTimeout(() => setPetCooldown(false), 2000);
@@ -510,23 +599,22 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
   const handleHit = () => {
     if (petCooldown) return;
-    playAudio('click', sfx);
-    updatePetHappy(Math.max(0, (safeCoupleData.petHappy || 60) - 5));
+    playAudio('click', sfxEnabled);
+    updateSyncState('couple_data', { ...coupleData, petHappy: Math.max(0, (coupleData.petHappy || 60) - 5) });
     toast('Ouch... that was a hit.', 'warning', 1400);
     setPetCooldown(true);
     setTimeout(() => setPetCooldown(false), 2000);
   };
 
-  const partnerName = partnerProfile?.name || safeCoupleData.partnerNickname || 'Partner';
-  const petSkin = safeCoupleData.petSkin || '/assets/cat_1_9';
-  const petHappy = safeCoupleData.petHappy ?? 60;
-  const petName = safeCoupleData.petName || 'pet';
+  const petSkin = coupleData.petSkin || '/assets/cat_1_9';
+  const petHappy = coupleData.petHappy ?? 60;
+  const petName = coupleData.petName || 'pet';
 
   return (
     <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8">
       {unreadDoodles.length > 0 && (
         <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
-          <div className="animate-in zoom-in-50 spin-in-6 duration-500 cursor-pointer hover:scale-110 transition-transform flex flex-col items-center" onClick={() => onOpenDoodle(unreadDoodles[0])}>
+          <div className="animate-in zoom-in-50 spin-in-6 duration-500 cursor-pointer hover:scale-110 transition-transform flex flex-col items-center" onClick={() => nav('doodle')}>
             <div className="relative"><Mail size={120} className="text-window drop-shadow-2xl" fill="var(--primary)" /><div className="absolute inset-0 flex items-center justify-center animate-pulse"><Heart size={40} className="text-white" fill="white" /></div></div>
             <div className="text-center font-bold text-main-text mt-6 bg-accent text-accent-text retro-border retro-shadow-dark px-6 py-2 text-lg">You have a new doodle!</div>
             <p className="text-window font-bold mt-2 animate-pulse">Click to open</p>
@@ -547,19 +635,22 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
             <div className="flex items-center gap-4">
               {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
               <div>
-                <h1 className="text-2xl sm:text-3xl font-black mb-1 leading-none lowercase">hi {myDisplayName}! {mood}</h1>
+                <h1 className="text-2xl sm:text-3xl font-black mb-1 leading-none lowercase flex items-center gap-2">
+                  hi {myDisplayName}! {mood}
+                  {coupleData.settings?.masterMode && (
+                    <span className="bg-yellow-400 text-black text-[10px] px-2 py-0.5 retro-border animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-black uppercase tracking-tighter">Master</span>
+                  )}
+                </h1>
                 <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 retro-border border-dashed">
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {partnerProfile.pfp ? (
-                        <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white retro-shadow-dark rounded-full" />
+                        <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white retro-shadow-dark" />
                       ) : (
-                        <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg rounded-full">{partnerProfile.emoji || '👤'}</div>
+                        <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
                       )}
-                      <div 
-                        className={`absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-border transition-all ${onlineUsers[partnerId] === 'active' ? 'bg-green-400 animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]' : 'bg-gray-400 opacity-50'}`}
-                        title={onlineUsers[partnerId] === 'active' ? 'Online' : 'Offline'}
-                      ></div>
+                      {/* Single dot indicator — purely decorative, color matches displayStatus */}
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
@@ -567,14 +658,14 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
                         <p className="text-sm font-bold truncate max-w-[120px] leading-none">
                           {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
                         </p>
-                        <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : onlineUsers[partnerId] ? 'bg-blue-400 text-white' : 'bg-gray-200 opacity-50'}`}>
+                        <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="h-8 w-px bg-border opacity-20 mx-1"></div>
-                  <StreakBadge streak={streak} />
+                  <StreakBadge streak={streaks} />
                 </div>
               </div>
             </div>
@@ -589,11 +680,31 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-dashed border-border mt-auto">
-            <WeatherWidget compact />
+          <div className="flex flex-wrap gap-2 items-center justify-between pt-2 border-t border-dashed border-border mt-auto">
+            {/* Left: partner's local weather */}
+            <div className="flex items-center gap-2">
+              {partnerWeather ? (
+                <>
+                  <span className="text-xl leading-none">{partnerWeather.emoji}</span>
+                  <div className="leading-none">
+                    <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">{partnerProfile.name || 'Partner'}'s weather</p>
+                    <p className="text-xs font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-[10px] opacity-30 font-bold uppercase tracking-widest">
+                  {partnerProfile?.location ? 'fetching weather…' : 'partner location unknown'}
+                </p>
+              )}
+            </div>
+            {/* Right: controls */}
             <div className="flex gap-2">
-              <button onClick={() => nav('settings')} className="bg-window text-main-text font-bold py-2 px-4 retro-border hover:-translate-y-1 transition-transform text-xs">Control panel</button>
-              <button onClick={onLogout} className="bg-red-600 text-white font-bold py-2 px-4 retro-border border-red-800 retro-shadow-dark hover:-translate-y-1 transition-transform text-xs">Log out</button>
+              <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
+                <SettingsIcon size={11} /> Control Panel
+              </button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-red-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider">
+                Log Out
+              </button>
             </div>
           </div>
         </div>
@@ -601,8 +712,16 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
 
       <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
         <div className="flex flex-col items-center text-center h-full justify-between">
-          <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerAfk} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
-          <div className="w-full px-4 mt-2"><div className="h-4 retro-border bg-main w-full relative overflow-hidden"><div className="absolute top-0 left-0 h-full bg-primary transition-all" style={{ width: `${petHappy}%` }}></div></div></div>
+          <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerIdle} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
+          <div className="w-full px-4 mt-2 flex flex-col gap-1 select-none">
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider select-none text-main-text">
+              <span>Happiness</span>
+              <span>{petHappy}%</span>
+            </div>
+            <div className="h-5 retro-border bg-main w-full relative overflow-hidden flex items-center">
+              <div className="h-full bg-primary transition-all duration-300" style={{ width: `${petHappy}%` }}></div>
+            </div>
+          </div>
           <div className="flex gap-2 w-full mt-4">
             <RetroButton variant="secondary" className="flex-1 py-2 text-xs" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
           </div>
@@ -631,22 +750,31 @@ export function Dashboard({ setView, profile, myDisplayName, partnerProfile, sco
       </RetroWindow>
 
       <RetroWindow title="applications" className="md:col-span-12">
-        <div className="flex flex-wrap justify-center gap-6 sm:gap-8 py-4">
-          <AppIcon icon={<MessageSquare size={28} />} label="chat" color="var(--primary)" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
-          <AppIcon icon={<Gamepad2 size={28} />} label="games" color="var(--secondary)" onClick={() => nav('activities')} />
-          <AppIcon icon={<Brush size={28} />} label="doodle" color="var(--primary)" onClick={() => nav('doodle')} />
-          <AppIcon icon={<Grid3x3 size={28} />} label="pixels" color="#a855f7" onClick={() => nav('pixelart')} />
-          <AppIcon icon={<Clock size={28} />} label="capsule" color="var(--secondary)" onClick={() => nav('capsule')} />
-          <AppIcon icon={<Moon size={28} />} label="dreams" color="#6366f1" onClick={() => nav('dreams')} />
-          <AppIcon icon={<MessageCircle size={28} />} label="daily Q" color="#ec4899" onClick={() => nav('dailyq')} />
-          <AppIcon icon={<ListTodo size={28} />} label="lists" color="var(--primary)" onClick={() => nav('lists')} />
-          <AppIcon icon={<CalendarIcon size={28} />} label="calendar" color="var(--accent)" onClick={() => nav('calendar')} />
-          <AppIcon icon={<ImageIcon size={28} />} label="album" color="var(--bg-window)" onClick={() => nav('scrapbook')} />
-          <AppIcon icon={<FileText size={28} />} label="notes" color="#f59e0b" onClick={() => nav('notes')} />
-          <AppIcon icon={<FileText size={28} />} label="our story" color="#f472b6" onClick={() => nav('resume')} />
-          <AppIcon icon={<SettingsIcon size={28} />} label="settings" color="var(--accent)" onClick={() => nav('settings')} />
+        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-6 sm:gap-8 p-4">
+          <AppIcon icon={<MessageSquare size={28} />} label="Chat"     color="#3b82f6" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
+          <AppIcon icon={<Gamepad2     size={28} />} label="Arcade"   color="#a855f7" onClick={() => nav('activities')} />
+          <AppIcon icon={<Pen          size={28} />} label="Doodle"   color="#ec4899" onClick={() => nav('doodle')} />
+          <AppIcon icon={<Brush        size={28} />} label="Pixels"   color="#f97316" onClick={() => nav('pixelart')} />
+          <AppIcon icon={<Clock        size={28} />} label="Capsule"  color="#10b981" onClick={() => nav('capsule')} />
+          <AppIcon icon={<Moon         size={28} />} label="Dreams"   color="#6366f1" onClick={() => nav('dreams')} />
+          <AppIcon icon={<ListTodo     size={28} />} label="Lists"    color="#ef4444" onClick={() => nav('lists')} />
+          <AppIcon icon={<CalendarIcon size={28} />} label="Calendar" color="#06b6d4" onClick={() => nav('calendar')} />
+          <AppIcon icon={<ImageIcon    size={28} />} label="Album"    color="#eab308" onClick={() => nav('scrapbook')} />
+          <AppIcon icon={<FileText     size={28} />} label="Notes"    color="#0ea5e9" onClick={() => nav('notes')} />
+          <AppIcon icon={<Heart        size={28} />} label="Story"    color="#f43f5e" onClick={() => nav('resume')} />
+          <AppIcon icon={<SettingsIcon size={28} />} label="Settings" color="#64748b" onClick={() => nav('settings')} />
         </div>
       </RetroWindow>
+
+      {showLogoutConfirm && (
+        <ConfirmDialog
+          title="logout.exe"
+          message="Are you sure you want to log out of the Attic?"
+          onConfirm={logout}
+          onCancel={() => setShowLogoutConfirm(false)}
+          sfx={sfxEnabled}
+        />
+      )}
     </div>
   );
 }

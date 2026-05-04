@@ -6,12 +6,25 @@ import App from './App.jsx'
 import './index.css'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 
+import { AuthProvider } from './context/AuthContext.jsx'
+import { SyncProvider } from './context/SyncContext.jsx'
+import { CallProvider } from './context/CallContext.jsx'
+import { ChatProvider } from './context/ChatContext.jsx'
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
         <ToastProvider>
-          <App />
+          <AuthProvider>
+            <SyncProvider>
+              <CallProvider>
+                <ChatProvider>
+                  <App />
+                </ChatProvider>
+              </CallProvider>
+            </SyncProvider>
+          </AuthProvider>
         </ToastProvider>
       </BrowserRouter>
     </ErrorBoundary>

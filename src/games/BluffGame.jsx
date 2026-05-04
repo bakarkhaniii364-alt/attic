@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { playAudio } from '../utils/audio.js';
@@ -136,15 +136,19 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
      });
   };
 
-  const processBluffCall = (callerId, lastPlayerId) => {
-     const lastCards = trueCenterPile.current.slice(-gameState.lastPlay.count);
-     const targetRank = gameState.lastPlay.rank;
+  const gameStateRef = useRef(gameState);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+  const processBluffCall = useCallback((callerId, lastPlayerId) => {
+     const currentGS = gameStateRef.current;
+     if (!currentGS || !currentGS.lastPlay) return;
+
+     const lastCards = trueCenterPile.current.slice(-currentGS.lastPlay.count);
+     const targetRank = currentGS.lastPlay.rank;
      const isLying = lastCards.some(c => c.rank !== targetRank);
      
      const loser = isLying ? lastPlayerId : callerId;
-     const winner = isLying ? callerId : lastPlayerId;
      
-     // Loser takes the pile
      const pileToTake = [...trueCenterPile.current];
      trueCenterPile.current = [];
 
@@ -159,7 +163,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
      }
 
      setGameState({
-         ...gameState,
+         ...currentGS,
          phase: 'reveal',
          revealResult: {
              caller: callerId,
@@ -168,7 +172,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
              loser
          }
      });
-  };
+  }, [myId, isMultiplayer, broadcast, setGameState, sfx]);
 
   const handleCallBluff = () => {
      if (!isHost) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
@@ -46,7 +46,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     setSolution(solution); setBoard(puzzle2D); setSelected(null); setTime(0); setPaused(false); setMistakes(0); setGameOverOverlay(false);
   };
 
-  const checkWin = (currBoard) => {
+  const checkWin = useCallback((currBoard, currentTime) => {
     let isWin = true;
     for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (currBoard[r][c].val === null) isWin = false;
     if (isWin) {
@@ -56,13 +56,13 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       setTimeout(() => setGameOverOverlay(true), 1500);
       setStats(p => {
         const s = { ...p, played: p.played + 1, won: p.won + 1 };
-        if (config.diff === 'easy' && time < s.bestTimeEasy) s.bestTimeEasy = time;
-        if (config.diff === 'medium' && time < s.bestTimeMedium) s.bestTimeMedium = time;
-        if (config.diff === 'hard' && time < s.bestTimeHard) s.bestTimeHard = time;
+        if (config.diff === 'easy' && currentTime < s.bestTimeEasy) s.bestTimeEasy = currentTime;
+        if (config.diff === 'medium' && currentTime < s.bestTimeMedium) s.bestTimeMedium = currentTime;
+        if (config.diff === 'hard' && currentTime < s.bestTimeHard) s.bestTimeHard = currentTime;
         return s;
       });
     }
-  };
+  }, [sfx, userId, onWin, config.diff, setScores, setStats]);
 
   const handleInput = useCallback((num, forceNotes = false) => {
     if (!selected || paused || gameOverOverlay) return;
@@ -90,7 +90,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     if (num === solution[r][c]) {
       newBoard[r][c].val = num; newBoard[r][c].fixed = true; newBoard[r][c].notes = []; newBoard[r][c].error = false;
       setBoard(newBoard);
-      checkWin(newBoard);
+      checkWin(newBoard, time);
       // Clear notes in same row/col/box
       for (let i = 0; i < 9; i++) {
         newBoard[r][i].notes = newBoard[r][i].notes.filter(n => n !== num);
@@ -106,11 +106,14 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       newBoard[r][c].error = true;
       setBoard(newBoard);
     }
-  }, [selected, paused, gameOverOverlay, board, solution, tool, sfx]);
+  }, [selected, paused, gameOverOverlay, board, solution, tool, sfx, checkWin, time]);
 
-  // Keyboard input
+  const refs = useRef({});
+  refs.current = { handleInput, selected, board, paused, gameOverOverlay, tool };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
+      const { handleInput, selected, board, paused, gameOverOverlay, tool } = refs.current;
       if (gameOverOverlay || paused) return;
 
       let num = parseInt(e.key);
@@ -118,7 +121,6 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         num = parseInt(e.code.slice(5));
       }
 
-      // Use '*' key as tool toggle: switches between pen and pencil
       if (e.key === '*') { setTool(t => t === 'pencil' ? 'pen' : 'pencil'); return; }
 
       if (!isNaN(num) && num >= 1 && num <= 9) {
@@ -136,7 +138,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleInput, selected, board, paused, gameOverOverlay, sfx, notesMode]);
+  }, [sfx]);
 
   const useHint = () => {
     if (paused) return;
@@ -148,7 +150,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     const newBoard = board.map(row => row.map(cell => ({ ...cell })));
     newBoard[r][c] = { val: solution[r][c], fixed: true, notes: [], error: false };
     setBoard(newBoard);
-    checkWin(newBoard);
+    checkWin(newBoard, time);
     setTime(t => t + 30); // 30s penalty
   };
 
@@ -212,7 +214,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         )}
 
         {/* Board */}
-        <div className="retro-border retro-shadow-dark p-1 flex-shrink-0 w-full max-w-[340px] sm:max-w-[420px] aspect-square select-none bg-[var(--border)]">
+        <div className="retro-border retro-shadow-dark p-1 flex-shrink-0 w-full max-w-[400px] sm:max-w-[480px] md:max-w-[540px] aspect-square select-none bg-[var(--border)]">
           {board.length > 0 && (
             <div className="w-full h-full grid grid-cols-9 grid-rows-9 gap-[1px] bg-[var(--border)]">
               {board.map((row, r) => row.map((cell, c) => {
@@ -231,11 +233,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
                 if (cell.error) {
                   cellStyle.backgroundColor = 'rgba(239, 68, 68, 0.25)';
                 } else if (isSelected) {
-                  cellStyle.backgroundColor = 'var(--bg-window)';
-                  extraClass = 'ring-2 ring-inset ring-[var(--primary)]';
-                } else if (isNumHighlight) {
-                  cellStyle.backgroundColor = 'var(--bg-window)';
-                  extraClass = 'ring-1 ring-inset ring-[var(--primary)]';
+                  cellStyle.backgroundColor = 'rgba(0, 0, 0, 0.06)';
                 } else if (isRelated) {
                   cellStyle.backgroundColor = 'var(--bg-main)';
                 }
@@ -253,11 +251,11 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
                              nb[r] = [...nb[r]];
                              nb[r][c] = { ...nb[r][c], val: null, notes: [], error: false };
                              return nb;
-                         });
+                          });
                       }
                     }}
                     style={cellStyle}
-                    className={`relative flex items-center justify-center text-sm sm:text-xl md:text-2xl cursor-pointer ${borders} ${extraClass} ${cell.fixed ? 'text-[var(--border)]' : 'text-[var(--primary)]'} ${isNumMatch ? 'font-black !text-[var(--secondary)] scale-110 drop-shadow-sm' : (cell.fixed ? 'font-bold' : 'font-medium')} transition-colors`}
+                    className={`relative flex items-center justify-center text-sm sm:text-xl md:text-2xl cursor-pointer ${borders} ${extraClass} ${cell.fixed ? 'text-[var(--border)]' : 'text-[var(--primary)]'} ${isNumMatch ? 'font-black !text-[var(--secondary)]' : (cell.fixed ? 'font-bold' : 'font-medium')} transition-colors`}
                   >
                     {cell.val || ''}
                     {!cell.val && cell.notes.length > 0 && (
