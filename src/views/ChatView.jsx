@@ -272,6 +272,7 @@ export function ChatView({ onClose, sfx }) {
     
     const unreadFromPartner = chatHistory.filter(m => 
       m.sender === partnerId && 
+      m.sender !== userId && 
       m.status !== 'read' && 
       !readMsgIdsRef.current.has(m.id) &&
       !String(m.id).startsWith('temp-')  // skip optimistic messages — not yet in DB
