@@ -17,7 +17,7 @@ export function SyncProvider({ children }) {
 
   // Initialize Room Sync
   useEffect(() => {
-    if (!roomId) {
+    if (!roomId || !userId) {
       setIsInitialized(false);
       setGlobalState({});
       return;
@@ -161,7 +161,7 @@ export function SyncProvider({ children }) {
       channelsRef.current = {};
       isSubscribedRef.current = false;
     };
-  }, [roomId]);
+  }, [roomId, userId]);
 
   const updateSyncState = useCallback(async (key, value) => {
     if (!roomId || !isInitialized) return;

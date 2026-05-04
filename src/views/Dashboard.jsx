@@ -434,12 +434,12 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const coupleData = globalState?.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9', petHappy: 60 };
   const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
   
-  const partnerName = partnerProfile.name || 'Partner';
+  const partnerName = partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner';
   const partnerStatus = partnerProfile.status || 'offline';
 
-  const partnerPresence = onlineUsers[partnerId] || {};
-  const isPartnerOnline = partnerPresence.status === 'active';
-  const isPartnerIdle = partnerPresence.status === 'idle';
+  const partnerPresence = partnerId ? (onlineUsers[partnerId] || {}) : {};
+  const isPartnerOnline = partnerId && partnerPresence.status === 'active';
+  const isPartnerIdle = partnerId && partnerPresence.status === 'idle';
 
   let displayStatus = 'Offline';
   if (isPartnerOnline) displayStatus = 'Online';
@@ -656,7 +656,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                       <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner</p>
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-bold truncate max-w-[120px] leading-none">
-                          {partnerProfile.name || coupleData.partnerNickname || 'Partner'}
+                          {partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : (coupleData.partnerNickname && coupleData.partnerNickname !== 'You' ? coupleData.partnerNickname : 'Partner')}
                         </p>
                         <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
                           {displayStatus.toLowerCase()}

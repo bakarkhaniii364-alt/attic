@@ -44,14 +44,21 @@ const AppLoader = () => (
   </div>
 );
 
-function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteStream, isRinging, type }) {
+function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteStream, localStream, isRinging, type }) {
+  const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
 
   useEffect(() => {
-    if (remoteStream && localVideoRef.current && !isRinging && type === 'video') {
-      localVideoRef.current.srcObject = remoteStream;
+    if (remoteStream && remoteVideoRef.current && !isRinging) {
+      remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [remoteStream, isRinging, type]);
+  }, [remoteStream, isRinging]);
+
+  useEffect(() => {
+    if (localStream && localVideoRef.current && !isCameraOff) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, isCameraOff]);
 
   const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
   const [isDragging, setIsDragging] = useState(false);
@@ -90,7 +97,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
 
   return (
     <div
-      className={`fixed z-[var(--z-callhub)] bg-window retro-border-thick transition-all duration-500 ease-in-out ${isMinimized ? 'w-64 h-14 overflow-hidden' : 'w-[90vw] sm:w-[420px] retro-shadow-dark'} animate-in zoom-in-95 fade-in select-none`}
+      className={`fixed z-[var(--z-callhub)] bg-window retro-border-thick ${isDragging ? '' : 'transition-all duration-300 ease-in-out'} ${isMinimized ? 'w-64 h-14 overflow-hidden' : 'w-[90vw] sm:w-[420px] retro-shadow-dark'} animate-in zoom-in-95 fade-in select-none`}
       style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       onMouseDown={(e) => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
       onTouchStart={(e) => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
@@ -127,8 +134,22 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
               </div>
             ) : (
               <>
-                {type === 'video' && !isCameraOff ? (
-                  <video ref={localVideoRef} autoPlay playsInline className="w-full h-full object-cover animate-in fade-in duration-1000" />
+                {type === 'video' ? (
+                  <div className="w-full h-full bg-black relative">
+                    {remoteStream ? (
+                      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover animate-in fade-in duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                        <VideoOff size={32} className="text-white/40" />
+                        <span className="text-[10px] font-bold text-white/40 uppercase">Waiting for partner's camera...</span>
+                      </div>
+                    )}
+                    {!isCameraOff && localStream && (
+                      <div className="absolute bottom-3 right-3 w-28 aspect-video bg-border retro-border overflow-hidden shadow-lg z-20">
+                        <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-4 group animate-in fade-in">
                     <div className="w-20 h-20 retro-bg-accent retro-border flex items-center justify-center transition-transform group-hover:scale-105 duration-500">
@@ -136,7 +157,7 @@ function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOf
                     </div>
                     <div className="flex flex-col items-center">
                         <p className="text-[11px] font-black text-white/50 uppercase tracking-[0.3em]">{partnerName}</p>
-                        <p className="text-[10px] font-bold text-white/30 uppercase mt-1 italic tracking-wider">{type === 'video' ? (isCameraOff ? 'Camera Off' : 'Connecting...') : 'Voice Only'}</p>
+                        <p className="text-[10px] font-bold text-white/30 uppercase mt-1 italic tracking-wider">Voice Only</p>
                     </div>
                   </div>
                 )}
@@ -320,11 +341,11 @@ export default function App() {
 
   
   const { user, userId, roomId, partnerId, loading: authLoading, roomLoading } = useAuth();
-  const { globalState, onlineUsers, updateSyncState, roomProfiles, broadcast } = useSync();
+  const { globalState, onlineUsers, updateSyncState, roomProfiles, broadcast, isInitialized } = useSync();
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
     calling, isRinging, incomingCall, callDuration, 
-    remoteStream, isMuted, isDeafened, isCameraOff,
+    remoteStream, localStream, isMuted, isDeafened, isCameraOff,
     acceptCall, endCall, toggleMic, toggleCamera, toggleDeafen, isOnline
   } = useCall();
 
@@ -366,7 +387,7 @@ export default function App() {
   const partnerProfile = globalState.room_profiles?.[partnerId] || {};
   const partnerName = partnerProfile.name || 'Partner';
   const coupleData = globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' };
-  const isPartnerOnline = onlineUsers[partnerId]?.status === 'active';
+  const isPartnerOnline = partnerId && onlineUsers[partnerId]?.status === 'active';
   const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
   useEffect(() => {
@@ -394,21 +415,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!userId || !roomId) return;
-    const syncProfile = async () => {
-        const currentProfile = roomProfiles?.[userId];
-        if (!currentProfile) return;
-        updateSyncState('room_profiles', {
-            ...roomProfiles,
-            [userId]: {
-                ...currentProfile,
-                status: isOnline ? 'online' : 'offline',
-                lastSeen: new Date().toISOString()
-            }
-        });
-    };
-    syncProfile();
-  }, [userId, roomId, isOnline]);
+    if (!userId || !roomId || !isInitialized) return;
+    const currentProfile = roomProfiles?.[userId] || {};
+    const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner';
+    const finalName = currentProfile.name && currentProfile.name !== 'You' ? currentProfile.name : metaName;
+
+    // Check if the current shared state is either empty or literally set to "You"
+    const needsFix = !currentProfile.name || currentProfile.name === 'You' || !currentProfile.emoji;
+    if (needsFix) {
+      updateSyncState('room_profiles', {
+        ...roomProfiles,
+        [userId]: {
+          ...currentProfile,
+          name: finalName,
+          emoji: currentProfile.emoji || '👤'
+        }
+      });
+    }
+  }, [userId, roomId, isInitialized, user]);
 
   const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
   const [partnerOnlineModal, setPartnerOnlineModal] = useState(false);
@@ -540,7 +564,7 @@ export default function App() {
         )}
 
         {calling && (
-          <PremiumCallHub calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} isCameraOff={isCameraOff} onMicToggle={toggleMic} onDeafenToggle={toggleDeafen} onCameraToggle={toggleCamera} onEndCall={endCall} partnerName={partnerName} partnerPfp={partnerProfile.pfp} sfx={sfxEnabled} remoteStream={remoteStream} isRinging={isRinging} type={calling} />
+          <PremiumCallHub calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} isCameraOff={isCameraOff} onMicToggle={toggleMic} onDeafenToggle={toggleDeafen} onCameraToggle={toggleCamera} onEndCall={endCall} partnerName={partnerName} partnerPfp={partnerProfile.pfp} sfx={sfxEnabled} remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling} />
         )}
         
         <audio ref={remoteAudioRef} autoPlay style={{display: 'none'}} />
@@ -634,7 +658,7 @@ export default function App() {
                 roomId ? <Navigate to="/dashboard" replace /> :
                 <HandshakeView />
               } />
-              <Route path="/settings" element={<ProtectedRoute><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} profile={roomProfiles?.[userId] || { name: 'You', emoji: '👤' }} setProfile={(newProf) => updateSyncState('room_profiles', { ...globalState.room_profiles, [userId]: typeof newProf === 'function' ? newProf(roomProfiles?.[userId] || { name: 'You', emoji: '👤' }) : newProf })} coupleData={globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' }} setCoupleData={(newData) => updateSyncState('couple_data', typeof newData === 'function' ? newData(globalState.couple_data || {}) : newData)} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} profile={roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }} setProfile={(newProf) => updateSyncState('room_profiles', { ...globalState.room_profiles, [userId]: typeof newProf === 'function' ? newProf(roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }) : newProf })} coupleData={globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' }} setCoupleData={(newData) => updateSyncState('couple_data', typeof newData === 'function' ? newData(globalState.couple_data || {}) : newData)} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />

@@ -213,7 +213,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-bold mb-1">partner's nickname</label>
-              <input type="text" value={coupleData.nicknames?.[partnerId] || coupleData.partnerNickname || ''} onChange={(e) => { const newNicknames = { ...coupleData.nicknames, [partnerId]: e.target.value }; setCoupleData({ ...coupleData, nicknames: newNicknames, partnerNickname: e.target.value }); }} placeholder="e.g. Fiona" className="w-full p-2 border-2 border-border bg-main focus:outline-none" />
+              <input type="text" value={(coupleData.nicknames?.[partnerId] !== 'You' && coupleData.nicknames?.[partnerId]) || (coupleData.partnerNickname !== 'You' && coupleData.partnerNickname) || ''} onChange={(e) => { const newNicknames = { ...coupleData.nicknames, [partnerId]: e.target.value }; setCoupleData({ ...coupleData, nicknames: newNicknames, partnerNickname: e.target.value }); }} placeholder="e.g. Fiona" className="w-full p-2 border-2 border-border bg-main focus:outline-none" />
             </div>
             <div>
               <label className="block text-sm font-bold mb-1 flex items-center gap-1"><Calendar size={14}/> anniversary / started dating</label>

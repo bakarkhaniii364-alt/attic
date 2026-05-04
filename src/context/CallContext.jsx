@@ -163,16 +163,7 @@ export function CallProvider({ children }) {
         setIsCameraOff(false);
       } else if (payload.action === 'accepted' && payload.receiverPeerId !== myPeerId) {
         setIsRinging(false);
-        // The deterministic rule initiator calls the receiver directly!
-        if (userId < partnerId) {
-          console.log(`[CallContext] Initiator calling the receiver peer ${payload.receiverPeerId}`);
-          if (peerRef.current && localStreamRef.current) {
-            const call = peerRef.current.call(payload.receiverPeerId, localStreamRef.current, { metadata: { type: calling } });
-            currentCallRef.current = call;
-            call.on('stream', (rs) => setRemoteStream(rs));
-            call.on('close', () => cleanupCall());
-          }
-        }
+        setCalling(payload.type || calling || 'audio');
       }
     }).subscribe();
 
@@ -233,22 +224,21 @@ export function CallProvider({ children }) {
       setIsRinging(false);
       setIncomingCall(null);
 
-      // Rule: If receiver is the initiator (userId < partnerId), they directly make the PeerJS call
-      if (userId < partnerId && peerRef.current) {
-        console.log(`[CallContext] Initiator calling back peer: ${incomingCall.callerPeerId}`);
+      // Directly make the PeerJS call to the caller
+      if (peerRef.current && incomingCall.callerPeerId) {
+        console.log(`[CallContext] Directly calling peer back: ${incomingCall.callerPeerId}`);
         const call = peerRef.current.call(incomingCall.callerPeerId, stream, { metadata: { type: incomingCall.type } });
         currentCallRef.current = call;
         call.on('stream', (rs) => setRemoteStream(rs));
         call.on('close', () => cleanupCall());
-      } else {
-        // Just broadcast acceptance; the other peer (initiator) will call
-        const channel = supabase.channel(`room_call_${roomId}`);
-        channel.send({
-          type: 'broadcast',
-          event: 'call_signal',
-          payload: { action: 'accepted', receiverPeerId: myPeerId }
-        });
       }
+      // Also broadcast the accepted signal so the other side updates its UI immediately
+      const channel = supabase.channel(`room_call_${roomId}`);
+      channel.send({
+        type: 'broadcast',
+        event: 'call_signal',
+        payload: { action: 'accepted', receiverPeerId: myPeerId, type: incomingCall.type }
+      });
     } catch (err) {
       console.error('[CallContext] Failed to accept call:', err);
       cleanupCall();
