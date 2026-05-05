@@ -359,7 +359,6 @@ function DoodleReceiverModal({ doodleData, partnerName, onClose, onScrapbook, on
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
 
 
   
