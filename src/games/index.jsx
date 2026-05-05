@@ -232,7 +232,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
     })();
 
     return (
-      <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white"><div className="animate-pulse font-black text-primary uppercase tracking-widest">Loading Game...</div></div>}>
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-[var(--bg-window)]"><div className="animate-pulse font-black text-primary uppercase tracking-widest">Loading Game...</div></div>}>
         {gameComponent}
       </Suspense>
     );
@@ -269,7 +269,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                                <h3 className="font-black text-xl uppercase text-[var(--primary)] mb-4 bg-black text-white inline-block px-3 py-1">{groupKey}</h3>
                                <div className="space-y-2">
                                   {scores.slice(0, 10).map((s, i) => (
-                                      <div key={s.id || i} className="flex justify-between items-center bg-white p-2 border-b-2 border-dashed border-[var(--border)]">
+                                      <div key={s.id || i} className="flex justify-between items-center bg-[var(--bg-window)] p-2 border-b-2 border-dashed border-[var(--border)]">
                                           <div className="flex items-center gap-4">
                                               <span className="font-black text-xl opacity-40 w-6">#{i+1}</span>
                                               <span className="font-bold">{s.player_name || 'Unknown'}</span>
@@ -308,7 +308,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                 key={id} 
                 onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
                 data-testid={`game-card-${id}`}
-                className="game-card flex flex-col items-start p-6 bg-white border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
+                className="game-card flex flex-col items-start p-6 bg-[var(--bg-window)] border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
               >
                 <div className="w-5 h-5 mb-4 border-2 border-[var(--border)] shadow-[2px_2px_0_0_var(--border)]" style={{ backgroundColor: g.color }}></div>
                 <h3 className="font-black text-lg mb-2 text-[var(--text-main)] tracking-tight">{g.title}</h3>
@@ -370,8 +370,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
 
       return (
-        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-white transition-all duration-300" noPadding>
-          <div className="flex flex-col bg-white text-[var(--text-main)]">
+        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)] transition-all duration-300" noPadding>
+          <div className="flex flex-col bg-[var(--bg-window)] text-[var(--text-main)]">
              <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
                  <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-widest" style={{ color: game.color || 'var(--primary)' }}>{game.title}</h1>
                  <p className="text-sm font-bold opacity-70 mt-2">{game.desc}</p>
@@ -416,7 +416,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                                 <label className="text-xs font-black uppercase tracking-widest opacity-50 mb-3 block">Difficulty</label>
                                 <div className="flex gap-2">
                                     {activeModeObj.diffs.map(d => (
-                                        <button key={d} onClick={() => { playAudio('click', sfx); setSelectedDiff(d); }} className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedDiff === d ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70 hover:opacity-100'}`}>
+                                        <button key={d} onClick={() => { playAudio('click', sfx); setSelectedDiff(d); }} className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedDiff === d ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-window)] opacity-70 hover:opacity-100'}`}>
                                             {d}
                                         </button>
                                     ))}
@@ -430,7 +430,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
                                 <div className="flex gap-2">
                                     {opt.choices.map(c => (
                                         <button key={c} onClick={() => { playAudio('click', sfx); setSelectedOptions(p => ({...p, [opt.key]: c})); }}
-                                                className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedOptions[opt.key] === c ? 'bg-[var(--primary)] text-white' : 'bg-white opacity-70 hover:opacity-100'}`}>
+                                                className={`flex-1 py-2 text-xs font-bold uppercase retro-border transition-colors ${selectedOptions[opt.key] === c ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-window)] opacity-70 hover:opacity-100'}`}>
                                             {c}
                                         </button>
                                     ))}
@@ -474,8 +474,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
     return (
       <>
-      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl bg-white" noPadding>
-         <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-white">
+      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl bg-[var(--bg-window)]" noPadding>
+         <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-[var(--bg-window)]">
             <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
             
             <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
