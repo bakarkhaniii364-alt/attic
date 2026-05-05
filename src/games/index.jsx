@@ -129,14 +129,20 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const game = GAME_CATALOG[gameRoute];
 
+  const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
+
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
   if (gameRoute && game) {
       if (localPlayConfig) {
           currentPhase = 'playing_local';
       } else if (arcadeSession) {
-          if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING') currentPhase = 'playing_remote';
-          else currentPhase = 'lobby';
+          // UX INTERCEPT: If partner is offline, skip the lobby roadblock and go straight to game!
+          if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING' || !partnerIsOnline) {
+              currentPhase = 'playing_remote';
+          } else {
+              currentPhase = 'lobby';
+          }
       } else {
           currentPhase = 'details';
       }
@@ -189,8 +195,13 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           }
         }, 800);
         return () => clearTimeout(timer);
+  // Auto-finalize solo sessions to 'playing' status
+  useEffect(() => {
+    if (currentPhase === 'playing_remote' && !partnerIsOnline && arcadeSession?.status === 'waiting') {
+       console.log("🚦 [ARCADE] Solo auto-start: Finalizing session status...");
+       supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
     }
-  }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
+  }, [currentPhase, partnerIsOnline, arcadeSession, syncedRoomId, gameRoute]);
 
   const handleWin = () => { 
     try { if (sfx) { const winAudio = new Audio('/assets/win.mp3'); winAudio.volume = 0.5; winAudio.play().catch(()=>{}); } } catch(e){}
