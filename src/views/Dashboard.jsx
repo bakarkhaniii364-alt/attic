@@ -424,7 +424,7 @@ export function CalendarReminder() {
 
 export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
   const { userId, partnerId, roomId, logout } = useAuth();
-  const { globalState, updateSyncState, broadcast: syncBroadcast, onlineUsers } = useSync();
+  const { globalState, updateSyncState, updateSyncStateAtomic, broadcast: syncBroadcast, onlineUsers } = useSync();
   const { messages: chatHistory } = useChat();
   const toast = useToast();
 
@@ -748,9 +748,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2 items-center justify-between pt-2 border-t border-dashed border-border mt-auto">
+          <div className="flex flex-col sm:flex-row gap-4 items-end justify-between pt-4 border-t border-dashed border-border mt-auto">
             {/* Left: partner's local weather */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-h-[40px]">
               {partnerWeather ? (
                 <>
                   <span className="text-xl leading-none">{partnerWeather.emoji}</span>
@@ -765,36 +765,39 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 </p>
               )}
             </div>
+
             {/* Right: controls */}
-            <div className="flex gap-2 items-center">
-              <div className="flex gap-1 bg-border/20 p-1 retro-border">
-                {['😊', '😴', '🏢', '🎮', '🍕', '😭', '❤️'].map(mood => (
-                  <button 
-                    key={mood} 
-                    onClick={() => {
-                      playAudio('click', sfxEnabled);
-                      updateSyncStateAtomic('room_profiles', userId, { mood });
-                    }}
-                    className={`w-6 h-6 flex items-center justify-center text-xs hover:bg-window transition-colors ${profile.mood === mood ? 'bg-window retro-shadow-dark' : ''}`}
-                    title={`Set mood to ${mood}`}
-                  >
-                    {mood}
-                  </button>
-                ))}
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex gap-2 items-center">
+                <div className="flex gap-1 bg-border/20 p-1 retro-border">
+                  {['😊', '😴', '🏢', '🎮', '🍕', '😭', '❤️'].map(mood => (
+                    <button 
+                      key={mood} 
+                      onClick={() => {
+                        playAudio('click', sfxEnabled);
+                        updateSyncStateAtomic('room_profiles', userId, { mood });
+                      }}
+                      className={`w-6 h-6 flex items-center justify-center text-xs hover:bg-window transition-colors ${profile.mood === mood ? 'bg-window retro-shadow-dark' : ''}`}
+                      title={`Set mood to ${mood}`}
+                    >
+                      {mood}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
+                  <SettingsIcon size={11} /> Control Panel
+                </button>
+                <button 
+                  onClick={handleResetRoom} 
+                  className="bg-orange-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-orange-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5"
+                  title="Wipe ghost activity and reset game states"
+                >
+                  <Zap size={11} /> Reset Room
+                </button>
+                <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-red-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider">
+                  Log Out
+                </button>
               </div>
-              <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
-                <SettingsIcon size={11} /> Control Panel
-              </button>
-              <button 
-                onClick={handleResetRoom} 
-                className="bg-orange-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-orange-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5"
-                title="Wipe ghost activity and reset game states"
-              >
-                <Zap size={11} /> Reset Room
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-red-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider">
-                Log Out
-              </button>
             </div>
           </div>
         </div>
