@@ -11,7 +11,7 @@ export function ProtectedRoute({ children, requireRoom = true }) {
   const location = useLocation();
 
   if (loading || (user && requireRoom && roomLoading)) return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-[#f9e2cf]">
+    <div className="w-full min-h-[100dvh] flex items-center justify-center bg-[#f9e2cf] z-50 relative">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
         <p className="font-black text-[var(--primary)] text-xs uppercase tracking-widest animate-pulse">Entering Attic...</p>

@@ -568,7 +568,7 @@ export default function App() {
     }
   }, [remoteStream, isDeafened]);
 
-  if (authLoading) return <div className="min-h-[100dvh] flex items-center justify-center bg-window"><AppLoader /></div>;
+  if (authLoading) return <div className="w-full min-h-[100dvh] flex items-center justify-center bg-window"><AppLoader /></div>;
 
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
