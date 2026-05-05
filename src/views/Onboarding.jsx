@@ -60,7 +60,7 @@ export function LandingView() {
       <footer className="relative z-10 py-6 text-center">
         <button 
           onClick={() => navigate('/legal')}
-          className="text-[10px] font-black uppercase tracking-[0.2em] opacity-20 hover:opacity-100 transition-opacity cursor-pointer"
+          className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
         >
           Terms & Conditions / Legal
         </button>

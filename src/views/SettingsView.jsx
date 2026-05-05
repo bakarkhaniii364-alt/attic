@@ -366,6 +366,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <button onClick={handleDeleteAccount} className="font-bold py-2 px-4 border-2 shadow-md hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm" style={{ backgroundColor: 'var(--color-danger)', color: 'var(--text-on-danger)', borderColor: 'var(--text-on-danger)' }}><Trash2 size={16}/> Delete Room & Data</button>
         </div>
       </section>
+
+      <section className="p-4 bg-window border-2 border-border border-dashed">
+          <h2 className="font-bold text-xl mb-4 flex items-center gap-2 text-main-text opacity-40 uppercase tracking-tighter"><ShieldCheck size={20}/> Privacy & Support</h2>
+          <div className="flex gap-2">
+            <RetroButton onClick={() => navigate('/legal')} variant="white" className="flex-1 text-[10px] uppercase font-black tracking-widest py-3">Terms & Conditions</RetroButton>
+            <a href="mailto:support.attic.app@gmail.com" className="flex-1 border-2 border-border flex items-center justify-center font-black uppercase text-[10px] tracking-widest bg-main hover:bg-accent transition-colors">Support</a>
+          </div>
+        </section>
     </div>
   );
 
