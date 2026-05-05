@@ -43,38 +43,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [ephemeralChat]);
 
-    // --- HIGH SPEED NETWORKING ---
-    useEffect(() => {
-        const handleBroadcast = ({ detail: { event, payload } }) => {
-            if (event === 'watcher_chat') {
-                setEphemeralChat(prev => [...prev, payload]);
-            }
-            if (event === 'watcher_heart') {
-                const newHeart = { id: Date.now(), x: payload.x, y: payload.y };
-                setHearts(prev => [...prev, newHeart]);
-                setTimeout(() => setHearts(prev => prev.filter(h => h.id !== newHeart.id)), 2000);
-            }
-            if (event === 'watcher_control' && playerRef.current) {
-                if (payload.action === 'PLAY') {
-                    setPlaying(true);
-                }
-                if (payload.action === 'PAUSE') {
-                    setPlaying(false);
-                }
-                if (payload.action === 'SEEK_FRACTION') {
-                    playerRef.current.seekTo(payload.time, 'fraction');
-                    setPlayedFraction(payload.time);
-                }
-                if (payload.action === 'SEEK_SECONDS') {
-                    playerRef.current.seekTo(payload.time, 'seconds');
-                    setPlayedSeconds(payload.time);
-                }
-            }
-        };
 
-        window.addEventListener('sync_broadcast', handleBroadcast);
-        return () => window.removeEventListener('sync_broadcast', handleBroadcast);
-    }, []);
 
     // --- CONTROLS ---
     const handlePlayPause = () => {
@@ -87,10 +56,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const handleSkip = (seconds) => {
         playAudio('click', sfx);
         if (playerRef.current) {
-            const currentTime = playerRef.current.currentTime || 0;
+            const currentTime = playerRef.current.getCurrentTime() || 0;
             const newTime = Math.max(0, currentTime + seconds);
             
-            playerRef.current.currentTime = newTime;
+            playerRef.current.seekTo(newTime, 'seconds');
             setPlayedSeconds(newTime);
             broadcast('watcher_control', { action: 'SEEK_SECONDS', time: newTime });
         }
@@ -99,8 +68,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const handleSeekMouseUp = (e) => {
         const newFraction = parseFloat(e.target.value);
         if (playerRef.current) {
-            const dur = playerRef.current.duration;
-            if (dur > 0) playerRef.current.currentTime = newFraction * dur;
+            playerRef.current.seekTo(newFraction, 'fraction');
             broadcast('watcher_control', { action: 'SEEK_FRACTION', time: newFraction });
         }
         isSeeking.current = false;
@@ -140,6 +108,59 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         setTimeout(() => setHearts(prev => prev.filter(h => h.id !== newHeart.id)), 2000);
         broadcast('watcher_heart', { x, y });
     };
+
+    // --- LOW LATENCY SYNC PULSE ---
+    useEffect(() => {
+        if (!playing || isSeeking.current) return;
+        
+        const pulseInterval = setInterval(() => {
+            if (playerRef.current) {
+                const ct = playerRef.current.getCurrentTime();
+                if (ct > 0) {
+                    broadcast('watcher_pulse', { time: ct, timestamp: Date.now() });
+                }
+            }
+        }, 3000); // Pulse every 3s when playing
+
+        return () => clearInterval(pulseInterval);
+    }, [playing]);
+
+    useEffect(() => {
+        const handleBroadcast = ({ detail: { event, payload } }) => {
+            if (event === 'watcher_chat') {
+                setEphemeralChat(prev => [...prev, payload]);
+            }
+            if (event === 'watcher_heart') {
+                const newHeart = { id: Date.now(), x: payload.x, y: payload.y };
+                setHearts(prev => [...prev, newHeart]);
+                setTimeout(() => setHearts(prev => prev.filter(h => h.id !== newHeart.id)), 2000);
+            }
+            if (event === 'watcher_pulse' && playerRef.current && playing) {
+                const ct = playerRef.current.getCurrentTime();
+                const diff = Math.abs(ct - payload.time);
+                // If drift is more than 1.5s, force a seek to match
+                if (diff > 1.5) {
+                    console.log(`[SYNC] Correcting drift of ${diff.toFixed(2)}s`);
+                    playerRef.current.seekTo(payload.time, 'seconds');
+                }
+            }
+            if (event === 'watcher_control' && playerRef.current) {
+                if (payload.action === 'PLAY') setPlaying(true);
+                if (payload.action === 'PAUSE') setPlaying(false);
+                if (payload.action === 'SEEK_FRACTION') {
+                    playerRef.current.seekTo(payload.time, 'fraction');
+                    setPlayedFraction(payload.time);
+                }
+                if (payload.action === 'SEEK_SECONDS') {
+                    playerRef.current.seekTo(payload.time, 'seconds');
+                    setPlayedSeconds(payload.time);
+                }
+            }
+        };
+
+        window.addEventListener('sync_broadcast', handleBroadcast);
+        return () => window.removeEventListener('sync_broadcast', handleBroadcast);
+    }, [playing]); // need playing in deps for the pulse listener logic
 
     const sendChat = (e) => {
         e.preventDefault();

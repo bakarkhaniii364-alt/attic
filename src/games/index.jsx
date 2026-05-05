@@ -84,7 +84,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   
-  const { session: arcadeSession, joinSession, setReady } = useArcadeSession(gameRoute);
+  const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(gameRoute);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   
@@ -132,7 +132,10 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
   useEffect(() => {
       setLocalPlayConfig(null);
       setSelectedModeId(null);
-  }, [gameRoute]);
+      return () => {
+          if (gameRoute) leaveSession();
+      };
+  }, [gameRoute, leaveSession]);
 
   useEffect(() => {
       if (!gameRoute || gameRoute === '') {

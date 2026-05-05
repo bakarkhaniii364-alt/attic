@@ -77,5 +77,29 @@ export function useArcadeSession(gameId) {
     if (error) throw error;
   }, [roomId, gameId]);
 
-  return { session, loading, joinSession, setReady, updateGameState };
+  const leaveSession = useCallback(async () => {
+    const { error } = await supabase.rpc('leave_arcade_session', {
+      p_room_id: roomId,
+      p_game_id: gameId,
+      p_user_id: userId
+    });
+    if (error) console.error("[LOBBY] Leave failed:", error);
+  }, [roomId, gameId, userId]);
+
+  const resetSession = useCallback(async () => {
+    const { error } = await supabase
+      .from('arcade_sessions')
+      .update({ 
+        status: 'idle', 
+        player_a_ready: false, 
+        player_b_ready: false, 
+        game_state: null,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('room_id', roomId)
+      .eq('game_id', gameId);
+    if (error) console.error("[LOBBY] Reset failed:", error);
+  }, [roomId, gameId]);
+
+  return { session, loading, joinSession, setReady, updateGameState, leaveSession, resetSession };
 }

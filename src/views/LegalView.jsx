@@ -11,57 +11,57 @@ export function LegalView({ onClose, onAccept, isOverlay = false }) {
       <RetroWindow 
         title="sanctuary_promise.pdf" 
         onClose={onClose || (() => navigate(-1))} 
-        className="w-full max-w-2xl h-full max-h-[800px] flex flex-col shadow-2xl scale-up-15"
+        className="w-full max-w-2xl h-full max-h-[700px] flex flex-col shadow-2xl"
         noPadding
       >
-        <div className="flex-1 overflow-y-auto bg-window p-6 sm:p-10 space-y-12">
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-window p-6 sm:p-10 space-y-10">
             <header className="border-b-4 border-border pb-6">
-                <div className="flex items-center gap-4 mb-4">
-                    <ShieldCheck size={40} className="text-primary" />
+                <div className="flex items-center gap-4">
+                    <ShieldCheck size={32} className="text-primary" />
                     <div>
-                        <h1 className="text-3xl font-black uppercase tracking-tighter text-main-text">Sanctuary Promise</h1>
+                        <h1 className="text-2xl font-black uppercase tracking-tighter text-main-text">Sanctuary Promise</h1>
                         <p className="font-bold opacity-40 text-[9px] uppercase tracking-[0.3em]">Legal Terms & Privacy Agreement</p>
                     </div>
                 </div>
             </header>
 
-            <div className="space-y-10">
-                <section className="space-y-3">
-                    <h2 className="text-lg font-black uppercase flex items-center gap-2 text-primary">
-                        <Heart size={18} fill="currentColor" /> 01. The Mission
+            <div className="space-y-8">
+                <section className="space-y-2">
+                    <h2 className="text-base font-black uppercase flex items-center gap-2 text-primary">
+                        <Heart size={16} fill="currentColor" /> 01. The Mission
                     </h2>
                     <p className="text-sm leading-relaxed font-medium opacity-80 text-main-text italic">
                         "Attic is not a social network. It is a social sanctuary."
                     </p>
                     <p className="text-sm leading-relaxed font-medium opacity-70 text-main-text">
-                        We promise to never sell your data, never display advertisements, and never allow public algorithms to touch your private space. Our only objective is to provide a reliable, beautiful container for your connection.
+                        We promise to never sell your data, never display advertisements, and never allow public algorithms to touch your private space.
                     </p>
                 </section>
 
-                <section className="space-y-3">
-                    <h2 className="text-lg font-black uppercase flex items-center gap-2 text-secondary">
-                        <Lock size={18} fill="currentColor" /> 02. Sovereign Data
+                <section className="space-y-2">
+                    <h2 className="text-base font-black uppercase flex items-center gap-2 text-secondary">
+                        <Lock size={16} fill="currentColor" /> 02. Sovereign Data
                     </h2>
                     <p className="text-sm leading-relaxed font-medium opacity-70 text-main-text">
-                        You retain 100% ownership of your media. We use end-to-end signaled WebRTC for real-time games and high-frequency data, meaning much of your interaction never even touches our persistent database. Your voice notes and images are stored in private, signed buckets accessible only to your room's participants.
+                        You retain 100% ownership of your media. Your voice notes and images are stored in private, signed buckets accessible only to your room's participants.
                     </p>
                 </section>
 
-                <section className="space-y-3">
-                    <h2 className="text-lg font-black uppercase flex items-center gap-2 text-accent">
-                        <Trash2 size={18} fill="currentColor" /> 03. The 'Burn it Down' Clause
+                <section className="space-y-2">
+                    <h2 className="text-base font-black uppercase flex items-center gap-2 text-accent">
+                        <Trash2 size={16} fill="currentColor" /> 03. The 'Burn it Down' Clause
                     </h2>
                     <p className="text-sm leading-relaxed font-medium opacity-70 text-main-text">
-                        In Attic, deletion is absolute. If you choose to delete your room, we trigger an Atomic Cascade Deletion. This wipes all messages, assets, and metadata for both partners simultaneously. There is no 'trash bin' and no recovery.
+                        In Attic, deletion is absolute. If you choose to delete your room, we trigger an Atomic Cascade Deletion. There is no recovery.
                     </p>
                 </section>
 
-                <section className="space-y-3">
-                    <h2 className="text-lg font-black uppercase flex items-center gap-2 opacity-50">
-                        <FileText size={18} fill="currentColor" /> 04. Terms of Conduct
+                <section className="space-y-2">
+                    <h2 className="text-base font-black uppercase flex items-center gap-2 opacity-50">
+                        <FileText size={16} fill="currentColor" /> 04. Conduct
                     </h2>
                     <p className="text-sm leading-relaxed font-medium opacity-70 text-main-text">
-                        By using Attic, you agree to treat the space with respect. We do not monitor your content, but we reserve the right to suspend accounts involved in illegal activities or platform abuse. This is your home; keep it clean.
+                        By using Attic, you agree to treat the space with respect. We do not monitor your content, but reserve the right to suspend accounts for illegal activities.
                     </p>
                 </section>
             </div>
@@ -78,13 +78,8 @@ export function LegalView({ onClose, onAccept, isOverlay = false }) {
         </div>
 
         {onAccept && (
-            <div className="p-4 bg-border/10 border-t-2 border-border flex justify-end gap-3">
-                <RetroButton 
-                    variant="primary"
-                    onClick={onAccept}
-                >
-                    I Accept the Promise
-                </RetroButton>
+            <div className="p-4 bg-border/10 border-t-2 border-border flex justify-end">
+                <RetroButton variant="primary" onClick={onAccept}>I Accept the Promise</RetroButton>
             </div>
         )}
       </RetroWindow>

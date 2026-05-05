@@ -174,32 +174,32 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <div className="flex justify-between pt-4 border-t border-dashed border-border items-end">
              <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
-                  <button onClick={() => {playAudio('click', true); setSfxEnabled(!sfxEnabled)}} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors ${sfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
-                    <div className={`w-5 h-5 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${sfxEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                  <button onClick={() => {playAudio('click', true); setSfxEnabled(!sfxEnabled)}} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors ${sfxEnabled ? 'bg-primary' : 'bg-disabled opacity-50'}`}>
+                    <div className={`w-5 h-5 border-2 border-border rounded-full absolute top-0 transition-transform ${sfxEnabled ? 'translate-x-6 bg-window' : 'translate-x-0 bg-white'}`}></div>
                   </button>
                   <span className="font-bold text-sm"><Volume2 size={16} className="inline mr-1"/> UI Sounds</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => {playAudio('click', sfxEnabled); setNotificationsEnabled(!notificationsEnabled)}} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
-                    <div className={`w-5 h-5 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                  <button onClick={() => {playAudio('click', sfxEnabled); setNotificationsEnabled(!notificationsEnabled)}} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors ${notificationsEnabled ? 'bg-primary' : 'bg-disabled opacity-50'}`}>
+                    <div className={`w-5 h-5 border-2 border-border rounded-full absolute top-0 transition-transform ${notificationsEnabled ? 'translate-x-6 bg-window' : 'translate-x-0 bg-white'}`}></div>
                   </button>
                   <span className="font-bold text-sm"><Bell size={16} className="inline mr-1"/> Global Notifs</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, notifyDoodles: !coupleData.settings?.notifyDoodles } })} 
-                    className={`w-10 h-5 rounded-full border-2 border-border relative transition-colors ${coupleData.settings?.notifyDoodles !== false ? 'bg-primary' : 'bg-gray-300'}`}
+                    className={`w-10 h-5 rounded-full border-2 border-border relative transition-colors ${coupleData.settings?.notifyDoodles !== false ? 'bg-primary' : 'bg-disabled opacity-50'}`}
                   >
-                    <div className={`w-4 h-4 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${coupleData.settings?.notifyDoodles !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                    <div className={`w-4 h-4 border-2 border-border rounded-full absolute top-0 transition-transform ${coupleData.settings?.notifyDoodles !== false ? 'translate-x-5 bg-window' : 'translate-x-0 bg-white'}`}></div>
                   </button>
                   <span className="font-bold text-[10px]"><Brush size={12} className="inline mr-1"/> Doodle Alerts</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, notifyGames: !coupleData.settings?.notifyGames } })} 
-                    className={`w-10 h-5 rounded-full border-2 border-border relative transition-colors ${coupleData.settings?.notifyGames !== false ? 'bg-primary' : 'bg-gray-300'}`}
+                    className={`w-10 h-5 rounded-full border-2 border-border relative transition-colors ${coupleData.settings?.notifyGames !== false ? 'bg-primary' : 'bg-disabled opacity-50'}`}
                   >
-                    <div className={`w-4 h-4 bg-white border-2 border-border rounded-full absolute top-0 transition-transform ${coupleData.settings?.notifyGames !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                    <div className={`w-4 h-4 border-2 border-border rounded-full absolute top-0 transition-transform ${coupleData.settings?.notifyGames !== false ? 'translate-x-5 bg-window' : 'translate-x-0 bg-white'}`}></div>
                   </button>
                   <span className="font-bold text-[10px]"><Gamepad2 size={12} className="inline mr-1"/> Game Invites</span>
                 </div>

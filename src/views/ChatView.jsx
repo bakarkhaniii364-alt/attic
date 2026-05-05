@@ -173,7 +173,7 @@ export function ChatView({ onClose, sfx }) {
   const partnerProfile = globalState.room_profiles?.[partnerId] || {};
   const roomProfiles = globalState.room_profiles || {};
   const coupleData = globalState.couple_data || {};
-  const partnerNickname = partnerProfile.name || 'Partner';
+  const partnerNickname = coupleData.nicknames?.[partnerId] || partnerProfile.name || 'Partner';
   const isNormalized = !!roomId;
   const isInputDisabled = false;
   const navigate = useNavigate();

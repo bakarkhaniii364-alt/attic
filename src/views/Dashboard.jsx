@@ -456,7 +456,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const coupleData = globalState?.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9', petHappy: 60 };
   const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
   
-  const partnerName = partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner';
+  const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const partnerStatus = partnerProfile.status || 'offline';
 
   const partnerPresence = partnerId ? (onlineUsers[partnerId] || {}) : {};

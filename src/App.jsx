@@ -350,7 +350,7 @@ export default function App() {
 
   
   const { user, userId, roomId, partnerId, loading: authLoading, roomLoading } = useAuth();
-  const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, roomProfiles, broadcast, isInitialized } = useSync();
+  const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, mergeSyncState, roomProfiles, broadcast, isInitialized } = useSync();
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
     calling, isRinging, incomingCall, callDuration, 
@@ -395,8 +395,8 @@ export default function App() {
   const processedInvites = useRef(new Set());
 
   const partnerProfile = globalState.room_profiles?.[partnerId] || {};
-  const partnerName = partnerProfile.name || 'Partner';
   const coupleData = globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' };
+  const partnerName = coupleData.nicknames?.[partnerId] || partnerProfile.name || 'Partner';
   const isPartnerOnline = partnerId && onlineUsers[partnerId]?.status === 'active';
   const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
@@ -428,7 +428,7 @@ export default function App() {
     if (!userId || !roomId || !isInitialized) return;
     const currentProfile = roomProfiles?.[userId] || {};
     const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner';
-    const finalName = currentProfile.name && currentProfile.name !== 'You' ? currentProfile.name : metaName;
+    const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
 
     // Check if the current shared state is either empty or literally set to "You"
     const needsFix = !currentProfile.name || currentProfile.name === 'You' || !currentProfile.emoji;

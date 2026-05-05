@@ -178,32 +178,34 @@
   --text-disabled: #a1a1aa;
 }
 
+
+
 [data-theme="monochrome"] {
   --bg-main: #000000;
-  --bg-pattern: #404040;
-  --bg-window: #0a0a0a;
-  --bg-header: var(--border);
+  --bg-pattern: #1a1a1a;
+  --bg-window: #000000;
+  --bg-header: #ffffff;
   --border: #ffffff;
   --text-on-border: #000000;
-  --text-on-header: var(--text-on-border);
+  --text-on-header: #000000;
   --primary: #ffffff;
-  --primary-hover: #cccccc;
-  --secondary: #737373;
-  --accent: #171717;
+  --primary-hover: #e5e5e5;
+  --secondary: #262626;
+  --accent: #404040;
   --text-main: #ffffff;
   --text-on-primary: #000000;
   --text-on-secondary: #ffffff;
   --text-on-accent: #ffffff;
-  --text-muted: #a3a3a3;
+  --text-muted: #737373;
 
-  --color-success: #737373; 
-  --text-on-success: #ffffff;
+  --color-success: #ffffff; 
+  --text-on-success: #000000;
   --color-warning: #a3a3a3;
   --text-on-warning: #000000;
   --color-danger: #ffffff;
   --text-on-danger: #000000;
   --bg-disabled: #171717;
-  --text-disabled: #52525b;
+  --text-disabled: #525252;
 }
 
 [data-theme="val-killjoy"] {

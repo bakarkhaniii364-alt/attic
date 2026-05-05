@@ -155,7 +155,8 @@ export function AuthProvider({ children }) {
       const { data: room } = await supabase.rpc('get_my_room');
       if (room) {
         setRoomId(room.id);
-        setPartnerId(room.partner_id);
+        const actualPartnerId = room.creator_id === newSession.user.id ? room.partner_id : room.creator_id;
+        setPartnerId(actualPartnerId);
       }
     } catch (err) {
       console.error('[AUTH] Post-login room fetch failed:', err);
@@ -170,8 +171,11 @@ export function AuthProvider({ children }) {
     try {
       const { data: room } = await supabase.rpc('get_my_room');
       if (room) {
-        setPartnerId(room.partner_id);
+        const actualPartnerId = room.creator_id === user.id ? room.partner_id : room.creator_id;
+        setPartnerId(actualPartnerId);
       }
+    } catch(err) {
+      console.warn('[AUTH] handlePaired room fetch failed:', err);
     } finally {
       setLoading(false);
     }
