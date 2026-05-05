@@ -554,7 +554,43 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                 <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game?.title || gameRoute}</span>
                 <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession.game_state?.mode || 'Online'}</span>
             </div>
-...
+            <div className="flex justify-center gap-8 mb-10 w-full max-w-md">
+                {/* Player 1 Slot (Always You) */}
+                <div className="flex-1 flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark min-w-[120px]">
+                    <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-2 border-2 border-primary">
+                        <User size={24} className="text-primary" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase opacity-40">Player 1</span>
+                    <span className="text-sm font-black truncate">{myName || 'You'}</span>
+                    <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white')}`}>
+                        {isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING')}
+                    </div>
+                </div>
+
+                {/* VS Divider */}
+                <div className="flex items-center justify-center">
+                    <span className="text-2xl font-black italic opacity-20">VS</span>
+                </div>
+
+                {/* Player 2 Slot (Partner) */}
+                <div className="flex-1 flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark min-w-[120px]">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 border-2 ${partnerInLobby ? 'bg-accent/20 border-accent' : 'bg-border/10 border-dashed border-border'}`}>
+                        {partnerInLobby ? <User size={24} className="text-accent" /> : <Monitor size={24} className="opacity-20" />}
+                    </div>
+                    <span className="text-[10px] font-black uppercase opacity-40">Player 2</span>
+                    <span className={`text-sm font-black truncate ${!partnerInLobby ? 'opacity-30' : ''}`}>
+                        {partnerInLobby ? (partnerName || 'Partner') : 'WAITING...'}
+                    </span>
+                    {partnerInLobby ? (
+                        <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white')}`}>
+                            {isPlayerA ? (arcadeSession.player_b_ready ? 'READY' : 'WAITING') : (arcadeSession.player_a_ready ? 'READY' : 'WAITING')}
+                        </div>
+                    ) : (
+                        <div className="mt-2 px-2 py-0.5 text-[8px] font-black uppercase opacity-30 border-2 border-dashed border-black/10">EMPTY</div>
+                    )}
+                </div>
+            </div>
+
             {lobbyPhase === 'STARTING' || arcadeSession.status === 'starting' ? (
                 <div className="py-4">
                     <ScoreboardCountdown count={3} onComplete={async () => {
@@ -567,19 +603,15 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
             ) : lobbyPhase === 'WAITING' ? (
                <div className="flex flex-col items-center gap-4">
                   <p className="text-sm font-bold text-green-600 animate-pulse uppercase">
-                    {partnerIsOnline ? `Waiting for ${partnerName}...` : "Initializing Solo Mode..."}
+                    Synchronizing Handshake...
                   </p>
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">Synchronizing Handshake...</p>
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">Ready Signal Sent</p>
                </div>
             ) : (
-               <div className="flex flex-col gap-3">
-                 <p className="text-xs font-bold italic opacity-60">
-                    {partnerInLobby 
-                      ? "Ready up to start match!" 
-                      : "Ready up to start solo practice!"}
-                 </p>
+               <div className="flex flex-col gap-4 w-full max-w-xs">
                  <RetroButton 
                    variant="accent" 
+                   disabled={!partnerInLobby}
                    onClick={async () => {
                      console.log("🚦 [LOBBY] 1. 'I'm Ready' clicked. isPartnerOnline:", partnerIsOnline);
                      setLobbyPhase('WAITING');
@@ -588,20 +620,21 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                         console.log("🚦 [LOBBY] 2. Ready signal sent to DB.");
                      } catch (e) {
                         console.error("🛑 [LOBBY] Handshake signal rejected by DB:", e);
-                        // Fallback: If DB rejected but we are solo, just start
                         if (!partnerIsOnline) setLobbyPhase('STARTING');
                      }
                    }} 
-                   className="px-8 py-3"
+                   className={`w-full py-3 ${!partnerInLobby ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                  >
-                   I'm Ready!
+                   {partnerInLobby ? "I'm Ready!" : "Waiting for partner..."}
                  </RetroButton>
                  
-                 {!partnerInLobby && (
-                   <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} className="text-xs">
-                      Resend Invite
-                   </RetroButton>
-                 )}
+                 <RetroButton 
+                   variant="secondary"
+                   onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} 
+                   className="w-full py-2 text-xs"
+                 >
+                    {partnerInLobby ? "Ping Partner" : "Resend Invite"}
+                 </RetroButton>
                </div>
             )}
          </div>
