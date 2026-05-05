@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/assets/favicon.png" />
     <title>attic</title>
+    <script>
+      (function() {
+        try {
+          var theme = JSON.parse(localStorage.getItem('app_theme')) || 'matcha';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

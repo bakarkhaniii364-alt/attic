@@ -40,9 +40,13 @@ const ProtectedRoute = lazy(() => import('./components/AuthGuards.jsx').then(m =
 const PublicRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => ({ default: m.PublicRoute })));
 
 const AppLoader = () => (
-  <div className="flex flex-col items-center justify-center p-8 min-h-[200px]">
-    <div className="font-black text-xl text-[var(--primary)] uppercase tracking-[0.3em] animate-pulse bg-[var(--bg-window)] retro-border-thick px-4 py-2 retro-shadow-dark mb-4">LOADING...</div>
-    <p className="font-bold text-[10px] opacity-40 tracking-widest uppercase">Please Wait</p>
+  <div className="flex-1 w-full h-full flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+    <div className="flex flex-col items-center gap-4">
+       <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin"></div>
+       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-main-text animate-pulse">
+          Verifying Connection...
+       </p>
+    </div>
   </div>
 );
 
@@ -574,7 +578,7 @@ export default function App() {
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
   return (
-    <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+    <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative animate-in fade-in zoom-in-[0.98] duration-700 ease-out ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} opacity-10 pointer-events-none`} />
         <LivingBackground weather={weather} />
         <WeatherOverlay weather={weather} />
