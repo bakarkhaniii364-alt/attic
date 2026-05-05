@@ -19,23 +19,41 @@ import { Dashboard } from './views/Dashboard.jsx';
 import { supabase } from './lib/supabase.js';
 import { isTestMode } from './lib/testMode.js';
 
-const ChatView = lazy(() => import('./views/ChatView.jsx').then(m => ({ default: m.ChatView })));
-const SettingsView = lazy(() => import('./views/SettingsView.jsx').then(m => ({ default: m.SettingsView })));
-const DoodleApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.DoodleApp })));
-const PersistentDoodleApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.PersistentDoodleApp })));
-const TimeCapsuleApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.TimeCapsuleApp })));
-const ListsApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ListsApp })));
-const CalendarApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.CalendarApp })));
-const ScrapbookApp = lazy(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ScrapbookApp })));
-const PixelArtApp = lazy(() => import('./apps/PixelArtApp.jsx').then(m => ({ default: m.PixelArtApp })));
-const SharedNotes = lazy(() => import('./apps/SharedNotes.jsx').then(m => ({ default: m.SharedNotes })));
-const DreamJournal = lazy(() => import('./apps/DreamJournal.jsx').then(m => ({ default: m.DreamJournal })));
-const DailyQuestion = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.DailyQuestion })));
-const MilestoneCelebration = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.MilestoneCelebration })));
-const RelationshipResume = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.RelationshipResume })));
-const ActivitiesHub = lazy(() => import('./games/index.jsx').then(m => ({ default: m.ActivitiesHub })));
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const pageHasBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasBeenForceRefreshed) {
+        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+        return window.location.reload();
+      }
+      throw error;
+    }
+  });
+
+const ChatView = lazyWithRetry(() => import('./views/ChatView.jsx').then(m => ({ default: m.ChatView })));
+const SettingsView = lazyWithRetry(() => import('./views/SettingsView.jsx').then(m => ({ default: m.SettingsView })));
+const DoodleApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.DoodleApp })));
+const PersistentDoodleApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.PersistentDoodleApp })));
+const TimeCapsuleApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.TimeCapsuleApp })));
+const ListsApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ListsApp })));
+const CalendarApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.CalendarApp })));
+const ScrapbookApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ScrapbookApp })));
+const PixelArtApp = lazyWithRetry(() => import('./apps/PixelArtApp.jsx').then(m => ({ default: m.PixelArtApp })));
+const SharedNotes = lazyWithRetry(() => import('./apps/SharedNotes.jsx').then(m => ({ default: m.SharedNotes })));
+const DreamJournal = lazyWithRetry(() => import('./apps/DreamJournal.jsx').then(m => ({ default: m.DreamJournal })));
+const DailyQuestion = lazyWithRetry(() => import('./components/Features.jsx').then(m => ({ default: m.DailyQuestion })));
+const MilestoneCelebration = lazyWithRetry(() => import('./components/Features.jsx').then(m => ({ default: m.MilestoneCelebration })));
+const RelationshipResume = lazyWithRetry(() => import('./components/Features.jsx').then(m => ({ default: m.RelationshipResume })));
+const ActivitiesHub = lazyWithRetry(() => import('./games/index.jsx').then(m => ({ default: m.ActivitiesHub })));
 import SyncWatcher from './games/SyncWatcher.jsx';
-const ResetPasswordView = lazy(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
+const ResetPasswordView = lazyWithRetry(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
 
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 

@@ -18,6 +18,9 @@ export class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const isChunkError = this.state.error?.name === 'ChunkLoadError' || 
+                          this.state.error?.message?.includes('Failed to fetch dynamically imported module');
+
       return (
         // 1. Outer Container: Matches your app's theme background
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8 bg-[var(--bg-main)] text-[var(--text-main)] font-mono">
@@ -31,7 +34,7 @@ export class ErrorBoundary extends React.Component {
             {/* Window Header (Theme colored) */}
             <div className="bg-[var(--border)] text-[var(--text-on-border)] px-3 py-2 flex justify-between items-center border-b-2 border-[var(--border)] select-none">
               <span className="font-black text-xs sm:text-sm tracking-widest uppercase flex items-center gap-2">
-                fatal_exception.exe
+                {isChunkError ? 'system_update.exe' : 'fatal_exception.exe'}
               </span>
               {/* Fake window controls */}
               <div className="flex gap-1.5">
@@ -46,11 +49,15 @@ export class ErrorBoundary extends React.Component {
               <h1 className="text-6xl sm:text-8xl font-bold mb-6" style={{ fontFamily: "'Pixelify Sans', cursive" }}>:(</h1>
               
               <p className="text-lg sm:text-2xl font-bold leading-tight mb-4">
-                Your attic ran into a problem that it couldn't handle, and now it needs to refresh.
+                {isChunkError 
+                  ? "A new version of the Attic is available, but some local files are out of sync."
+                  : "Your attic ran into a problem that it couldn't handle, and now it needs to refresh."}
               </p>
               
               <p className="text-sm sm:text-base opacity-90 mb-8">
-                You can look for the error in the console.
+                {isChunkError 
+                  ? "Please update to synchronize with the latest sanctuary protocols."
+                  : "You can look for the error in the console."}
               </p>
 
               {/* The Error Output Box */}
@@ -86,7 +93,7 @@ export class ErrorBoundary extends React.Component {
                   onClick={() => window.location.href = '/'}
                   className="px-6 py-2 bg-white text-[#0078d7] font-black uppercase tracking-widest hover:bg-gray-200 transition-transform active:translate-y-[2px] border-2 border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] text-xs sm:text-sm"
                 >
-                  Restart Attic
+                  {isChunkError ? 'Update & Synchronize' : 'Restart Attic'}
                 </button>
               </div>
 
