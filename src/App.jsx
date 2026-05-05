@@ -9,6 +9,7 @@ import { INITIAL_CHAT } from './constants/data.js';
 import { StrayTray } from './components/LofiPlayer.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import { useSync } from './context/SyncContext.jsx';
+import { useAssetSync } from './hooks/useAssetSync.js';
 import { useCall } from './context/CallContext.jsx';
 import { useChat } from './context/ChatContext.jsx';
 
@@ -361,6 +362,30 @@ export default function App() {
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
   const [showKiss, setShowKiss] = useState(false);
   
+  const { uploadAsset } = useAssetSync(roomId);
+  
+  const handleSendDoodle = async (doodleData) => {
+    if (!roomId || !userId) return;
+    try {
+      const dataUrl = typeof doodleData === 'string' ? doodleData : doodleData.img;
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `doodle_${Date.now()}.png`, { type: 'image/png' });
+      
+      const asset = await uploadAsset(file, 'doodle', userId);
+      if (asset) {
+        broadcast('doodle_alert', { 
+          action: 'doodle', 
+          image: asset.url, 
+          sender: userId, 
+          timestamp: Date.now() 
+        });
+      }
+    } catch (e) {
+      console.error("[APP] Doodle send failed:", e);
+    }
+  };
+
   const handleShareToChat = (text, image, metadata) => {
     if (!roomId) return;
     const msg = {
@@ -530,13 +555,15 @@ export default function App() {
         playAudio('notif', sfxEnabled);
         setTimeout(() => setShowKiss(false), 4500);
       }
-      if (payload.action === 'doodle' && payload.image) {
-        setDoodleQueue(prev => [...prev, { image: payload.image, sender: payload.sender }]);
+      if (event === 'doodle_alert' && payload.sender !== userId) {
+        setFloatingDoodles(prev => [...prev, { id: Date.now(), data: payload.image, sender: payload.sender }]);
+        playAudio('notif', sfxEnabled);
       }
       if (payload.action === 'invite' && payload.sender !== userId) {
         const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 30000);
         if (isRecent) {
            setGameInvite(payload);
+           playAudio('notif', sfxEnabled);
         }
       }
       if (event === 'watchparty_invite' && payload.sender !== userId) {
@@ -748,7 +775,7 @@ export default function App() {
                 onClose={()=>navigateTo('dashboard')} 
               /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} /></ProtectedRoute>} />
+              <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
               <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/capsule" element={<ProtectedRoute><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/lists" element={<ProtectedRoute><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />

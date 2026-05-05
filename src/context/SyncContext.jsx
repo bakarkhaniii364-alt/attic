@@ -93,9 +93,10 @@ export function SyncProvider({ children }) {
             setGlobalState(prev => ({ ...prev, [payload.key]: payload.value }));
           }
         })
-        .on('broadcast', { event: '*' }, ({ event, payload }) => {
-          // Centralized event bus for non-state broadcasts (kisses, doodle alerts)
+        .on('broadcast', {}, ({ event, payload }) => {
+          // Centralized event bus for non-state broadcasts (kisses, doodle alerts, etc.)
           if (event !== 'state_update') {
+            console.log(`[SYNC] Broadcast Received: ${event}`, payload);
             window.dispatchEvent(new CustomEvent('sync_broadcast', { detail: { event, payload } }));
           }
         })

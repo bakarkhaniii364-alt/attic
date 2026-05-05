@@ -327,7 +327,8 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
 
 
   
-  const leaveLobby = () => {
+  const leaveLobby = async () => {
+      playAudio('click', sfx);
       setLobbyState(prev => {
           const newPlayers = (prev.players || []).filter(p => p !== userId);
           if (newPlayers.length === 0) {
@@ -335,6 +336,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
           }
           return { ...prev, players: newPlayers };
       });
+      await leaveSession();
       setShowLeaveConfirm(false);
       navigate('/activities');
   };
