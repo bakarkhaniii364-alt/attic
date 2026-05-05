@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, Loader, Check, Copy, Share2, Eye, EyeOff } from 'lucide-react';
+import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, Loader, Check, Copy, Share2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { RetroButton, RetroWindow, RetroInput, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode } from '../lib/testMode.js';
@@ -85,7 +85,8 @@ export function AuthView({ mode }) {
   const [authError, setAuthError] = useState(null);
   const [shake, setShake] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
-  const addToast = useToast();
+  const [linkSent, setLinkSent] = useState(false);
+  const { toast: addToast } = useToast();
 
   const triggerShake = () => {
     setShake(true);
@@ -148,6 +149,8 @@ export function AuthView({ mode }) {
   };
 
   const handleOAuthLogin = async (provider) => {
+    setLoading(true);
+    setAuthError(null);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
@@ -159,8 +162,54 @@ export function AuthView({ mode }) {
     } catch (err) {
       setAuthError(err.message);
       addToast(err.message, "error");
+      setLoading(false);
     }
   };
+
+  const handleMagicLinkLogin = async () => {
+    if (!email) {
+      addToast('Please enter an email address first', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    setAuthError(null);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      
+      if (error) throw error;
+      
+      setLinkSent(true);
+      addToast('Magic link sent!', 'success');
+    } catch (err) {
+      setAuthError(err.message);
+      addToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (linkSent) {
+    return (
+      <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
+        <RetroWindow title="transmission_sent.exe" className="w-full max-w-[440px] shadow-2xl p-6 text-center" onClose={onBack}>
+          <div className="flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-300 py-8">
+            <CheckCircle size={48} className="text-primary animate-bounce" />
+            <h2 className="text-2xl font-black uppercase tracking-widest text-main-text">Check your inbox</h2>
+            <p className="text-sm opacity-70">We sent a magic link to <strong>{email}</strong>.<br/>Click it to instantly enter the Attic.</p>
+            <RetroButton variant="secondary" onClick={() => setLinkSent(false)} className="mt-4 text-xs py-2 px-6">
+              Try a different email
+            </RetroButton>
+          </div>
+        </RetroWindow>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
@@ -268,9 +317,9 @@ export function AuthView({ mode }) {
           </div>
 
           <div className="flex gap-3">
-            <RetroButton type="button" onClick={() => handleOAuthLogin('google')} className="flex-1 py-3 text-xs flex items-center justify-center gap-2 bg-window hover:bg-accent text-main-text">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
-              Google
+            <RetroButton type="button" onClick={handleMagicLinkLogin} className="flex-1 py-3 text-xs flex items-center justify-center gap-2 bg-window hover:bg-accent text-main-text border-2 border-border">
+              <Mail className="w-4 h-4" />
+              Magic Link
             </RetroButton>
             <RetroButton type="button" onClick={() => handleOAuthLogin('facebook')} className="flex-1 py-3 text-xs flex items-center justify-center gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white border-[#0c4b9e]">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/></svg>
