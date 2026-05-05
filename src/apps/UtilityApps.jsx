@@ -230,9 +230,14 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     img.onload = () => {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-      const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+      ctx.drawImage(img, 0, 0, canvas.width/dpr, canvas.height/dpr);
+      
+      // CRITICAL: Sync offscreen canvas!
+      const oCtx = offscreenCanvasRef.current.getContext('2d');
+      oCtx.clearRect(0, 0, canvas.width, canvas.height);
+      oCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
     img.src = prevState;
   };
@@ -240,10 +245,17 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   const clearCanvas = () => { 
     playAudio('click', sfx); 
     const canvas = canvasRef.current; 
-    const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d'); 
+    const dpr = window.devicePixelRatio || 1;
+    
     ctx.fillStyle = '#ffffff'; 
-    ctx.fillRect(0, 0, rect.width, rect.height); 
+    ctx.fillRect(0, 0, canvas.width/dpr, canvas.height/dpr); 
+    
+    // Sync offscreen
+    const oCtx = offscreenCanvasRef.current.getContext('2d');
+    oCtx.fillStyle = '#ffffff';
+    oCtx.fillRect(0, 0, canvas.width, canvas.height);
+    
     setHasUnsavedChanges(true); 
     snapshotHistory.current=[canvas.toDataURL()]; 
   };
@@ -350,6 +362,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
           onPointerUp={handlePointerUp} 
           onPointerLeave={handlePointerUp} 
           className="absolute inset-0 w-full h-full bg-white shadow-inner" 
+          style={{ touchAction: 'none' }}
         />
         
         {/* Brush Cursor Preview */}

@@ -217,9 +217,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================
 
 -- Safely updates a nested subkey (e.g., room_profiles -> user_id)
-CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id uuid, p_key text, p_subkey text, p_value jsonb)
+CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id text, p_key text, p_subkey text, p_value jsonb)
 RETURNS void AS $$
 BEGIN
+  -- We use text for p_room_id to be safe, then cast as needed
   UPDATE app_state
   SET state = jsonb_set(
     COALESCE(state, '{}'::jsonb),
@@ -227,7 +228,7 @@ BEGIN
     COALESCE(state->p_key->p_subkey, '{}'::jsonb) || p_value,
     true
   )
-  WHERE room_id = p_room_id;
+  WHERE room_id::text = p_room_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
