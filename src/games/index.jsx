@@ -493,12 +493,16 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 ...
             {arcadeSession.status === 'starting' ? (
                 <div className="py-4">
-                    <ScoreboardCountdown count={3} onComplete={() => {/* Handled by DB trigger or setReady transition */}} sfx={sfx} />
+                    <ScoreboardCountdown count={3} onComplete={async () => {
+                        if (isPlayerA) {
+                            await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
+                        }
+                    }} sfx={sfx} />
                 </div>
             ) : isReady ? (
                <div className="flex flex-col items-center gap-4">
-                  <p className="text-sm font-bold text-green-600 animate-bounce">Lobby Ready!</p>
-                  <RetroButton variant="primary" className="px-12 py-4 text-xl" onClick={() => setReady(true)}>START GAME</RetroButton>
+                  <p className="text-sm font-bold text-green-600 animate-bounce">Both Players Ready!</p>
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">Synchronizing Handshake...</p>
                </div>
             ) : (
                <div className="flex flex-col gap-3">

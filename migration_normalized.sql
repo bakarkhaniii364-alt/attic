@@ -311,7 +311,12 @@ BEGIN
     INSERT INTO arcade_sessions (room_id, game_id, player_a_id)
     VALUES (p_room_id, p_game_id, p_user_id)
     ON CONFLICT (room_id, game_id) DO UPDATE
-    SET player_b_id = CASE WHEN arcade_sessions.player_a_id != p_user_id THEN p_user_id ELSE arcade_sessions.player_b_id END,
+    SET 
+        player_a_id = CASE WHEN arcade_sessions.player_a_id IS NULL THEN p_user_id ELSE arcade_sessions.player_a_id END,
+        player_b_id = CASE WHEN arcade_sessions.player_a_id IS NOT NULL AND arcade_sessions.player_a_id != p_user_id THEN p_user_id ELSE arcade_sessions.player_b_id END,
+        player_a_ready = CASE WHEN arcade_sessions.player_a_id = p_user_id THEN false ELSE arcade_sessions.player_a_ready END,
+        player_b_ready = CASE WHEN arcade_sessions.player_b_id = p_user_id THEN false ELSE arcade_sessions.player_b_ready END,
+        status = CASE WHEN arcade_sessions.status IN ('playing', 'ended') THEN 'waiting' ELSE arcade_sessions.status END,
         updated_at = now()
     RETURNING * INTO v_session;
 
@@ -334,7 +339,7 @@ BEGIN
         status = CASE 
             WHEN (player_a_id = p_user_id AND p_ready AND player_b_ready) OR 
                  (player_b_id = p_user_id AND p_ready AND player_a_ready) 
-            THEN 'playing' 
+            THEN 'starting' -- Transition to starting first for countdown
             ELSE status 
         END,
         updated_at = now()
@@ -342,6 +347,29 @@ BEGIN
     RETURNING * INTO v_session;
 
     RETURN to_jsonb(v_session);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION leave_arcade_session(p_room_id UUID, p_game_id TEXT, p_user_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE arcade_sessions
+  SET 
+    player_a_id = CASE WHEN player_a_id = p_user_id THEN NULL ELSE player_a_id END,
+    player_b_id = CASE WHEN player_b_id = p_user_id THEN NULL ELSE player_b_id END,
+    player_a_ready = CASE WHEN player_a_id = p_user_id THEN false ELSE player_a_ready END,
+    player_b_ready = CASE WHEN player_b_id = p_user_id THEN false ELSE player_b_ready END,
+    status = CASE WHEN status = 'playing' THEN 'waiting' ELSE status END,
+    updated_at = now()
+  WHERE room_id = p_room_id AND game_id = p_game_id;
+
+  -- Delete session if both players are gone
+  DELETE FROM arcade_sessions
+  WHERE room_id = p_room_id AND game_id = p_game_id
+  AND player_a_id IS NULL AND player_b_id IS NULL;
 END;
 $$;
 
