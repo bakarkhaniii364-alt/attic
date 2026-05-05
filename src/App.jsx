@@ -350,7 +350,7 @@ export default function App() {
 
   
   const { user, userId, roomId, partnerId, loading: authLoading, roomLoading } = useAuth();
-  const { globalState, onlineUsers, updateSyncState, roomProfiles, broadcast, isInitialized } = useSync();
+  const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, roomProfiles, broadcast, isInitialized } = useSync();
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
     calling, isRinging, incomingCall, callDuration, 
