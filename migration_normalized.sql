@@ -216,6 +216,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- RPC: ATOMIC JSONB STATE UPDATES (Prevents Race Conditions)
 -- ============================================================
 
+-- Clear old versions to prevent overloading conflicts
+DROP FUNCTION IF EXISTS update_app_state_atomic(text, text, text, jsonb);
+DROP FUNCTION IF EXISTS update_app_state_atomic(uuid, text, text, jsonb);
+
 -- Safely updates a nested subkey (e.g., room_profiles -> user_id)
 CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id text, p_key text, p_subkey text, p_value jsonb)
 RETURNS void AS $$
@@ -241,6 +245,10 @@ BEGIN
   WHERE room_id::text = p_room_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Clear old versions
+DROP FUNCTION IF EXISTS merge_app_state(text, text, jsonb);
+DROP FUNCTION IF EXISTS merge_app_state(uuid, text, jsonb);
 
 -- Safely merges data into a top-level key (e.g., couple_data)
 CREATE OR REPLACE FUNCTION merge_app_state(p_room_id uuid, p_key text, p_value jsonb)
