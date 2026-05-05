@@ -123,12 +123,14 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
       <div className="p-2 bg-[var(--bg-window)] border-b-2 border-border flex flex-wrap gap-2 items-center select-none">
         <div className="flex gap-1 flex-wrap">
           {PALETTE.map(c => (
-            <button key={c} onClick={() => { setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125 z-10' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />
+            <button key={c} onClick={() => { setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-5 h-5 rounded-sm retro-border transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125 z-10' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />
           ))}
-          <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex items-center justify-center bg-white" title="Custom Color">
-             <Pipette size={12} className="text-black" />
-             <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
-          </button>
+          <div className="relative w-6 h-6 flex-shrink-0 ml-1">
+             <input type="color" ref={colorInputRef} value={color} onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Custom Color" />
+             <div className="absolute inset-0 rounded-sm retro-border flex items-center justify-center pointer-events-none" style={{backgroundColor: color}}>
+                <Pipette size={12} className="text-white mix-blend-difference" />
+             </div>
+          </div>
         </div>
         
         <div className="h-6 w-px bg-border/20 mx-1"></div>

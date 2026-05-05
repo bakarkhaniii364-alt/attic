@@ -43,7 +43,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   const [brushSize, setBrushSize] = useState(6);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  const [points, setPoints] = useState([]);
+  const pointsRef = useRef([]);
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [showCursor, setShowCursor] = useState(false);
 
@@ -144,7 +144,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     startPosRef.current = { x, y }; 
     
     if (!['rect', 'circle', 'line'].includes(tool)) { 
-      setPoints([[x, y, 0.5]]);
+      pointsRef.current = [[x, y, 0.5]];
     }
   };
 
@@ -176,10 +176,9 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       else if (tool === 'line') { ctx.moveTo(startX, startY); ctx.lineTo(x, y); }
       ctx.stroke();
     } else { 
-      const newPoints = [...points, [x, y, 0.5]];
-      setPoints(newPoints);
+      pointsRef.current.push([x, y, 0.5]);
       
-      const stroke = getStroke(newPoints, {
+      const stroke = getStroke(pointsRef.current, {
         size: tool === 'eraser' ? brushSize * 4 : brushSize,
         thinning: 0.5,
         smoothing: 0.5,
@@ -203,7 +202,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       oCtx.clearRect(0, 0, canvas.width, canvas.height);
       oCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
       
-      setPoints([]);
+      pointsRef.current = [];
       snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
     } 
   };
@@ -301,19 +300,18 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
           <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full accent-[var(--primary)] h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer" />
         </div>
 
-        <div className="flex gap-1 px-2 border-r border-border/20">
-          <button onClick={() => {playAudio('click', sfx); setTool('stamp_❤️')}} className={toolBtnClass('stamp_❤️')}>❤️</button>
-          <button onClick={() => {playAudio('click', sfx); setTool('stamp_⭐')}} className={toolBtnClass('stamp_⭐')}>⭐</button>
-        </div>
+
 
         <div className="flex gap-1 px-2 items-center">
           {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( 
-            <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125' : 'hover:scale-110'}`} style={{backgroundColor: c}} /> 
+            <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-5 h-5 rounded-sm retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125' : 'hover:scale-110'}`} style={{backgroundColor: c}} /> 
           ))}
-          <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
-             <Pipette size={12} className="text-black" />
-             <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
-          </button>
+          <div className="relative w-6 h-6 flex-shrink-0 ml-1">
+             <input type="color" ref={colorInputRef} value={color} onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Custom Color" />
+             <div className="absolute inset-0 rounded-sm retro-border flex items-center justify-center pointer-events-none" style={{backgroundColor: color}}>
+                <Pipette size={12} className="text-white mix-blend-difference" />
+             </div>
+          </div>
         </div>
 
         <div className="ml-auto flex gap-2 items-center pl-2">
@@ -343,10 +341,10 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         {/* Brush Cursor Preview */}
         {showCursor && (
           <div 
-            className="pointer-events-none fixed z-[9999] rounded-full border-2 border-white mix-blend-difference"
+            className="pointer-events-none absolute z-[9999] rounded-full border-2 border-white mix-blend-difference"
             style={{ 
-              left: cursorPos.x + (canvasRef.current?.getBoundingClientRect().left || 0), 
-              top: cursorPos.y + (canvasRef.current?.getBoundingClientRect().top || 0),
+              left: cursorPos.x, 
+              top: cursorPos.y,
               width: tool === 'eraser' ? brushSize * 4 : brushSize, 
               height: tool === 'eraser' ? brushSize * 4 : brushSize,
               transform: 'translate(-50%, -50%)',
@@ -523,7 +521,7 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
       <div className="p-2 bg-[var(--bg-window)] border-b-2 border-border flex gap-4 items-center select-none overflow-x-auto no-scrollbar">
         <div className="flex gap-1">
           {['#5c3a21', '#e94560', '#4f9ef8', '#f4d06f', '#4ade80', '#000000'].map(c => (
-            <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full retro-border transition-transform ${color === c ? 'scale-125 ring-2 ring-[var(--primary)] z-10' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />
+            <button key={c} onClick={() => setColor(c)} className={`w-5 h-5 rounded-sm retro-border transition-transform ${color === c ? 'scale-125 ring-2 ring-[var(--primary)] z-10' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />
           ))}
         </div>
         <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 sm:w-24 accent-[var(--primary)]" />

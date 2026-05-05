@@ -38,11 +38,7 @@ const ResetPasswordView = lazy(() => import('./views/ResetPasswordView.jsx').the
 
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 
-const AppLoader = () => (
-  <div className="flex-1 w-full h-full flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
-     <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin"></div>
-  </div>
-);
+const AppLoader = () => null;
 
 function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteStream, localStream, isRinging, type }) {
   const remoteVideoRef = useRef(null);
