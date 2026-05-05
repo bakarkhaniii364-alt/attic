@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2 } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, ShieldCheck } from 'lucide-react';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
