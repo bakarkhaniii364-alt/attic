@@ -10,6 +10,20 @@ import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { floodFill } from '../utils/helpers.js';
 import { base64ToBlob } from '../utils/file.js';
 
+function getSvgPathFromStroke(stroke) {
+  if (!stroke.length) return "";
+  const d = stroke.reduce(
+    (acc, [x0, y0], i, arr) => {
+      const [x1, y1] = arr[(i + 1) % arr.length];
+      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      return acc;
+    },
+    ["M", ...stroke[0], "Q"]
+  );
+  d.push("Z");
+  return d.join(" ");
+}
+
 export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profileName, sfx }) {
   const imageUrl = doodle.url || doodle.img;
   const handleDownload = () => { playAudio('click', sfx); const a = document.createElement('a'); a.href = imageUrl; a.download = `doodle_from_partner_${Date.now()}.png`; a.click(); };
