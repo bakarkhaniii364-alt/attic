@@ -155,11 +155,9 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   const [gameState, setGameState] = useGlobalSync(`pool_${roomId}`, null);
   const broadcastShot = useBroadcast(`pool_shot_${roomId}`);
 
-  // Init game
+  // Init game - ONLY on first mount or when manually requested
   useEffect(() => {
-      if (isHost && gameState?.winner) {
-          setGameState(null);
-      } else if (isHost && !gameState) {
+      if (isHost && !gameState) {
           setGameState({
               ballsState: getInitialBalls(), // snapshot
               turn: myPlayerId,
@@ -169,7 +167,15 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               message: "Break!"
           });
       }
-  }, [isHost, gameState, setGameState, myPlayerId, oppPlayerId]);
+  }, [isHost, isMultiplayer]); // Run once on mount
+
+  const handleManualReset = () => {
+    if (!isHost && isMultiplayer) return;
+    playAudio('click', sfx);
+    setGameState(null);
+    engineRef.current.balls = getInitialBalls();
+    engineRef.current.isSimulating = false;
+  };
 
   // Load state into engine when simulation is idle
   useEffect(() => {
@@ -791,11 +797,16 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                         </div>
                     </div>
 
-                    <div className="mt-auto">
+                    <div className="mt-auto flex flex-col gap-2">
                         <div className="text-xs opacity-70 font-bold mb-1 uppercase">Game Status</div>
                         <div className="text-sm font-bold bg-[var(--bg-main)] p-2 retro-border shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
                             {gameState?.message}
                         </div>
+                        {(gameState?.winner || (isHost || !isMultiplayer)) && (
+                            <button onClick={handleManualReset} className="mt-2 w-full py-2 bg-[var(--primary)] text-white font-black uppercase text-xs retro-border hover:scale-105 transition-all">
+                                New Game
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

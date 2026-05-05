@@ -5,9 +5,7 @@
 
 @layer utilities {
   .animate-in {
-    animation-duration: 500ms;
-    animation-fill-mode: forwards;
-    animation-timing-function: ease-out;
+    animation: none !important;
   }
   .fade-in {
     animation-name: fadeIn;

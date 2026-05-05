@@ -568,7 +568,7 @@ export default function App() {
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
   return (
-    <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative animate-in fade-in zoom-in-[0.98] duration-700 ease-out ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+    <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
         <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} opacity-10 pointer-events-none`} />
         <LivingBackground weather={weather} />
         <WeatherOverlay weather={weather} />

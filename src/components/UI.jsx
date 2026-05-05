@@ -90,7 +90,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   return (
     <>
-      <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col animate-in fade-in zoom-in-95 duration-300 transform-gpu ${className}`}>
+      <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col transform-gpu ${className}`}>
         <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
           <div className={`relative z-10 flex gap-2 items-center flex-1 ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
             <div className="flex flex-col gap-[3px] w-5 flex-shrink-0">
