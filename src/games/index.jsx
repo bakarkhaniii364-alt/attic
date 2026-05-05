@@ -5,6 +5,7 @@ import { RetroButton, RetroWindow, ScoreboardCountdown, ConfirmDialog } from '..
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useArcadeSession } from '../hooks/useArcadeSession.js';
 import { playAudio } from '../utils/audio.js';
+import { supabase } from '../lib/supabase.js';
 
 // Games
 const TicTacToe = lazy(() => import('./TicTacToeGame.jsx').then(m => ({ default: m.TicTacToe })));
@@ -98,30 +99,28 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   useEffect(() => {
      if (view === 'scores') {
          setLoadingLeaderboard(true);
-         import('../lib/supabase.js').then(({ supabase }) => {
-             supabase.from('highscores').select('*').order('score', { ascending: false }).limit(100)
-               .then(({ data }) => {
-                   const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
-                   const combined = [...(data || []), ...localScores];
-                   const seen = new Set();
-                   const unique = [];
-                   for (const s of combined) {
-                      const key = `${s.user_id}_${s.game_id}_${s.mode}_${s.score}`;
-                      if (!seen.has(key)) {
-                         seen.add(key);
-                         unique.push(s);
-                      }
-                   }
-                   unique.sort((a, b) => (b.score || 0) - (a.score || 0));
-                   setLeaderboardData(unique);
-                   setLoadingLeaderboard(false);
-               }).catch(() => {
-                   const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
-                   localScores.sort((a, b) => (b.score || 0) - (a.score || 0));
-                   setLeaderboardData(localScores);
-                   setLoadingLeaderboard(false);
-               });
-         });
+         supabase.from('highscores').select('*').order('score', { ascending: false }).limit(100)
+           .then(({ data }) => {
+               const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+               const combined = [...(data || []), ...localScores];
+               const seen = new Set();
+               const unique = [];
+               for (const s of combined) {
+                  const key = `${s.user_id}_${s.game_id}_${s.mode}_${s.score}`;
+                  if (!seen.has(key)) {
+                     seen.add(key);
+                     unique.push(s);
+                  }
+               }
+               unique.sort((a, b) => (b.score || 0) - (a.score || 0));
+               setLeaderboardData(unique);
+               setLoadingLeaderboard(false);
+           }).catch(() => {
+               const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+               localScores.sort((a, b) => (b.score || 0) - (a.score || 0));
+               setLeaderboardData(localScores);
+               setLoadingLeaderboard(false);
+           });
      }
   }, [view]);
   const [selectedModeId, setSelectedModeId] = useState(null);
