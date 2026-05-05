@@ -112,65 +112,45 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
     const a = document.createElement('a'); a.href = url; a.download = `pixel_art_${Date.now()}.png`; a.click();
   };
 
+  const toolBtnClass = (t) => `p-2 rounded-md retro-border transition-all flex items-center justify-center gap-1 ${
+    tool === t 
+      ? 'bg-[var(--primary)] text-[var(--primary-text)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.2)] scale-110 z-10' 
+      : 'bg-[var(--bg-window)] text-[var(--text-main)] opacity-70 hover:opacity-100 hover:bg-[var(--accent)]'
+  }`;
+
   return (
     <RetroWindow title="pixel_art.exe" onClose={onClose} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]" confirmOnClose hasUnsavedChanges={dirty} onSaveBeforeClose={() => { handleExport(); onClose && onClose(); }} sfx={sfx} noPadding>
-      <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center flex-wrap">
+      <div className="p-2 bg-[var(--bg-window)] border-b-2 border-border flex flex-wrap gap-2 items-center select-none">
         <div className="flex gap-1 flex-wrap">
           {PALETTE.map(c => (
-            <button key={c} onClick={() => { setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{ backgroundColor: c }} />
+            <button key={c} onClick={() => { setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125 z-10' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />
           ))}
           <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex items-center justify-center bg-white" title="Custom Color">
-             <Pipette size={12} />
+             <Pipette size={12} className="text-black" />
              <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
           </button>
         </div>
         
-        <div className="h-6 w-px bg-[var(--border)] mx-1"></div>
+        <div className="h-6 w-px bg-border/20 mx-1"></div>
         
         <div className="flex gap-1">
-          <button 
-            onClick={() => { playAudio('click', sfx); setTool('pen'); }} 
-            className={`p-2 retro-border transition-all ${tool === 'pen' ? 'bg-white shadow-inner scale-110 z-10' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
-            title="Pen Tool"
-          >
+          <button onClick={() => { playAudio('click', sfx); setTool('pen'); }} className={toolBtnClass('pen')} title="Pen Tool">
             <Pencil size={18} />
           </button>
-          <button 
-            onClick={() => { playAudio('click', sfx); setTool('eraser'); }} 
-            className={`p-2 retro-border transition-all flex items-center gap-1 ${tool === 'eraser' ? 'bg-pink-100 shadow-inner scale-110 z-10 border-pink-400' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
-            title="Eraser Tool"
-          >
-            <Eraser size={18} className={tool === 'eraser' ? 'text-pink-600' : ''} />
-            {tool === 'eraser' && <span className="text-[9px] font-black uppercase text-pink-600">Eraser</span>}
+          <button onClick={() => { playAudio('click', sfx); setTool('eraser'); }} className={toolBtnClass('eraser')} title="Eraser Tool">
+            <Eraser size={18} />
+            {tool === 'eraser' && <span className="text-[9px] font-black uppercase">Eraser</span>}
           </button>
-          <button 
-            onClick={() => { playAudio('click', sfx); setTool('bucket'); }} 
-            className={`p-2 retro-border transition-all ${tool === 'bucket' ? 'bg-white shadow-inner scale-110 z-10' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
-            title="Fill Bucket"
-          >
+          <button onClick={() => { playAudio('click', sfx); setTool('bucket'); }} className={toolBtnClass('bucket')} title="Fill Bucket">
             <PaintBucket size={18} />
           </button>
         </div>
 
-        <div className="h-6 w-px bg-[var(--border)] mx-1"></div>
+        <div className="h-6 w-px bg-border/20 mx-1"></div>
 
         <div className="flex gap-1">
-          <button 
-            onClick={handleUndo} 
-            disabled={historyStep <= 0} 
-            className="p-2 retro-border bg-white disabled:opacity-30 hover:bg-[var(--accent)] transition-colors"
-            title="Undo"
-          >
-            <Undo size={18}/>
-          </button>
-          <button 
-            onClick={handleRedo} 
-            disabled={historyStep >= history.length - 1} 
-            className="p-2 retro-border bg-white disabled:opacity-30 hover:bg-[var(--accent)] transition-colors"
-            title="Redo"
-          >
-            <Redo size={18}/>
-          </button>
+          <button onClick={handleUndo} disabled={historyStep <= 0} className="p-2 retro-border bg-[var(--bg-window)] text-[var(--text-main)] disabled:opacity-20 hover:bg-[var(--accent)] transition-colors" title="Undo"><Undo size={18}/></button>
+          <button onClick={handleRedo} disabled={historyStep >= history.length - 1} className="p-2 retro-border bg-[var(--bg-window)] text-[var(--text-main)] disabled:opacity-20 hover:bg-[var(--accent)] transition-colors" title="Redo"><Redo size={18}/></button>
         </div>
 
         <RetroButton variant="white" onClick={() => { clear(); setDirty(false); }} className="px-2 py-1 text-xs ml-auto retro-border"><Trash2 size={12}/></RetroButton>

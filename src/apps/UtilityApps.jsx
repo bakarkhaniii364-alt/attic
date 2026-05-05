@@ -275,13 +275,17 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     a.click(); 
   };
 
-  const toolBtnClass = (t) => `p-2 rounded-md transition-all retro-border ${tool === t ? 'bg-white shadow-inner scale-105 border-primary' : 'opacity-70 hover:opacity-100 hover:bg-black/5'}`;
+  const toolBtnClass = (t) => `p-2 rounded-md transition-all retro-border flex items-center justify-center ${
+    tool === t 
+      ? 'bg-[var(--primary)] text-[var(--primary-text)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.2)] scale-105 z-10' 
+      : 'bg-[var(--bg-window)] text-[var(--text-main)] opacity-70 hover:opacity-100 hover:bg-[var(--accent)]'
+  }`;
 
   return (
     <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose hasUnsavedChanges={hasUnsavedChanges} onSaveBeforeClose={() => { handleSaveScrapbook(); onClose && onClose(); }} sfx={sfx} noPadding>
-      <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none no-scrollbar">
+      <div className="p-2 bg-[var(--bg-window)] border-b-2 border-border flex flex-wrap gap-2 items-center select-none">
         <div className="flex gap-1 pr-2 border-r border-border/20">
-          <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')} title="Brush"><Pencil size={18} className={tool==='pen'?'text-primary':''}/></button>
+          <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')} title="Brush"><Pencil size={18} /></button>
           <button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')} title="Fill Bucket"><PaintBucket size={18}/></button>
           <button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')} title="Eraser"><Eraser size={18}/></button>
         </div>
@@ -293,8 +297,8 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         </div>
 
         <div className="flex items-center gap-2 px-2 border-r border-border/20 min-w-[120px]">
-          <span className="text-[8px] font-black uppercase opacity-50">Size</span>
-          <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full accent-primary h-1 bg-black/10 rounded-lg appearance-none cursor-pointer" />
+          <span className="text-[8px] font-black uppercase opacity-50 text-[var(--text-main)]">Size</span>
+          <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full accent-[var(--primary)] h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer" />
         </div>
 
         <div className="flex gap-1 px-2 border-r border-border/20">
@@ -304,16 +308,16 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
 
         <div className="flex gap-1 px-2 items-center">
           {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( 
-            <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> 
+            <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125' : 'hover:scale-110'}`} style={{backgroundColor: c}} /> 
           ))}
           <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
-             <Pipette size={12} />
+             <Pipette size={12} className="text-black" />
              <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
           </button>
         </div>
 
         <div className="ml-auto flex gap-2 items-center pl-2">
-          <button onClick={handleUndo} className={`p-2 rounded-md transition-all retro-border ${snapshotHistory.current.length > 1 ? 'bg-white hover:bg-accent' : 'opacity-20 cursor-not-allowed'}`} disabled={snapshotHistory.current.length <= 1} title="Undo"><UndoIcon size={18}/></button>
+          <button onClick={handleUndo} className={`p-2 rounded-md transition-all retro-border ${snapshotHistory.current.length > 1 ? 'bg-white text-black hover:bg-accent' : 'opacity-20 cursor-not-allowed'}`} disabled={snapshotHistory.current.length <= 1} title="Undo"><UndoIcon size={18}/></button>
           <RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs retro-border"><Trash2 size={12}/> Clear</RetroButton>
         </div>
       </div>
@@ -322,6 +326,10 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         className="flex-1 bg-[#f0f0f0] relative overflow-hidden cursor-none"
         onMouseEnter={() => setShowCursor(true)}
         onMouseLeave={() => setShowCursor(false)}
+        style={{ 
+          backgroundImage: 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 0)',
+          backgroundSize: '20px 20px'
+        }}
       >
         <canvas 
           ref={canvasRef} 
@@ -335,17 +343,26 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         {/* Brush Cursor Preview */}
         {showCursor && (
           <div 
-            className="pointer-events-none fixed z-[999] rounded-full border border-black/20 mix-blend-difference"
+            className="pointer-events-none fixed z-[9999] rounded-full border-2 border-white mix-blend-difference"
             style={{ 
-              left: cursorPos.x + canvasRef.current?.getBoundingClientRect().left, 
-              top: cursorPos.y + canvasRef.current?.getBoundingClientRect().top,
+              left: cursorPos.x + (canvasRef.current?.getBoundingClientRect().left || 0), 
+              top: cursorPos.y + (canvasRef.current?.getBoundingClientRect().top || 0),
               width: tool === 'eraser' ? brushSize * 4 : brushSize, 
               height: tool === 'eraser' ? brushSize * 4 : brushSize,
               transform: 'translate(-50%, -50%)',
               backgroundColor: tool === 'eraser' ? '#ffffff' : color,
-              opacity: tool === 'fill' || tool.startsWith('stamp_') ? 0 : 0.6
+              boxShadow: '0 0 0 1px black, inset 0 0 0 1px black',
+              opacity: tool === 'fill' || tool.startsWith('stamp_') ? 0 : 1
             }}
-          />
+          >
+             {/* Tiny crosshair for small brushes */}
+             {(brushSize < 12 || tool === 'line') && (
+               <div className="absolute inset-0 flex items-center justify-center">
+                 <div className="w-full h-[1px] bg-white/40" />
+                 <div className="h-full w-[1px] bg-white/40 absolute" />
+               </div>
+             )}
+          </div>
         )}
         {(tool === 'fill' || tool.startsWith('stamp_')) && showCursor && (
             <div 
@@ -503,18 +520,21 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
 
   return (
     <RetroWindow title="shared_canvas.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
-      <div className="p-2 retro-bg-accent retro-border-b flex gap-4 items-center select-none overflow-x-auto">
+      <div className="p-2 bg-[var(--bg-window)] border-b-2 border-border flex gap-4 items-center select-none overflow-x-auto no-scrollbar">
         <div className="flex gap-1">
           {['#5c3a21', '#e94560', '#4f9ef8', '#f4d06f', '#4ade80', '#000000'].map(c => (
-            <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full retro-border ${color === c ? 'scale-125 ring-2 ring-black' : ''}`} style={{ backgroundColor: c }} />
+            <button key={c} onClick={() => setColor(c)} className={`w-6 h-6 rounded-full retro-border transition-transform ${color === c ? 'scale-125 ring-2 ring-[var(--primary)] z-10' : 'hover:scale-110'}`} style={{ backgroundColor: c }} />
           ))}
         </div>
         <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 sm:w-24 accent-[var(--primary)]" />
-        <span className="text-[10px] font-bold uppercase opacity-50 ml-auto">
+        <span className="text-[10px] font-bold uppercase opacity-50 ml-auto text-[var(--text-main)]">
           {doodleData.updater === userId ? 'You are drawing' : 'Last update by partner'}
         </span>
       </div>
-      <div className="flex-1 bg-white relative touch-none" ref={containerRef}>
+      <div className="flex-1 bg-white relative touch-none shadow-inner" ref={containerRef} style={{ 
+          backgroundImage: 'radial-gradient(rgba(0,0,0,0.05) 1px, transparent 0)',
+          backgroundSize: '30px 30px'
+        }}>
         <canvas 
           ref={canvasRef} 
           onMouseDown={handlePointerDown} 
