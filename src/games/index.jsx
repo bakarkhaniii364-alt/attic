@@ -85,14 +85,15 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const navigate = useNavigate();
   const location = useLocation();
   
-  const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(gameRoute);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [localReady, setLocalReady] = useState(false);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
-  
   const [view, setView] = useState('arcade');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+  const { arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(syncedRoomId, gameRoute, userId);
 
   useEffect(() => {
      if (view === 'scores') {
@@ -139,14 +140,36 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   }, [gameRoute, leaveSession]);
 
   useEffect(() => {
-      if (!gameRoute || gameRoute === '') {
-          setLobbyState(prev => {
-              if (!prev || !(prev.players || []).includes(userId)) return prev;
-              const p = prev.players.filter(id => id !== userId);
-              return { ...prev, players: p, gameId: p.length ? prev.gameId : null, status: p.length ? prev.status : 'idle' };
-          });
-      }
+    if (!gameRoute || gameRoute === '') {
+        setLobbyState(prev => {
+            if (!prev || !(prev.players || []).includes(userId)) return prev;
+            const p = prev.players.filter(id => id !== userId);
+            return { ...prev, players: p, gameId: p.length ? prev.gameId : null, status: p.length ? prev.status : 'idle' };
+        });
+    }
   }, [gameRoute, userId, setLobbyState]);
+
+  useEffect(() => {
+    if (gameRoute && game && !arcadeSession && currentPhase === 'lobby') {
+      joinSession();
+    }
+  }, [gameRoute, game, arcadeSession, joinSession, currentPhase]);
+
+  // Solo Bypass Handshake Listener
+  useEffect(() => {
+    const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
+    
+    if (!partnerIsOnline && localReady) {
+        console.log("[LOBBY] Solo Bypass: Partner offline, starting game...");
+        const timer = setTimeout(async () => {
+          // If we haven't already transitioned to playing, do it now
+          if (arcadeSession && arcadeSession.status !== 'playing') {
+            await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
+          }
+        }, 800);
+        return () => clearTimeout(timer);
+    }
+  }, [localReady, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
 
   const handleWin = () => { 
     try { if (sfx) { const winAudio = new Audio('/assets/win.mp3'); winAudio.volume = 0.5; winAudio.play().catch(()=>{}); } } catch(e){}
@@ -505,12 +528,14 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                         }
                     }} sfx={sfx} />
                 </div>
-            ) : isReady ? (
+            ) : (isReady || (localReady && !partnerIsOnline)) ? (
                <div className="flex flex-col items-center gap-4">
                   <p className="text-sm font-bold text-green-600 animate-bounce">
-                    {partnerIsOnline ? "Both Players Ready!" : "Solo Mode Ready!"}
+                    {partnerIsOnline ? "Both Players Ready!" : "Starting Solo..."}
                   </p>
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">Synchronizing Handshake...</p>
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">
+                    {partnerIsOnline ? "Synchronizing Handshake..." : "Bypassing Lobby..."}
+                  </p>
                </div>
             ) : (
                <div className="flex flex-col gap-3">
@@ -519,8 +544,17 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                       ? (amIReady ? `Waiting for ${partnerName}...` : "Ready up to start!") 
                       : (amIReady ? "Waiting for partner to join..." : "Ready up to start solo!")}
                  </p>
-                 {!amIReady && (
-                   <RetroButton variant="accent" onClick={() => setReady(true, partnerIsOnline)} className="px-8 py-3">I'm Ready!</RetroButton>
+                 {!amIReady && !localReady && (
+                   <RetroButton 
+                     variant="accent" 
+                     onClick={() => {
+                       setLocalReady(true);
+                       setReady(true, partnerIsOnline);
+                     }} 
+                     className="px-8 py-3"
+                   >
+                     I'm Ready!
+                   </RetroButton>
                  )}
                  {!partnerInLobby && (
                    <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} className="text-xs">
