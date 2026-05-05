@@ -88,6 +88,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [localReady, setLocalReady] = useState(false);
+  const [emergencyBypass, setEmergencyBypass] = useState(false);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   const [view, setView] = useState('arcade');
@@ -131,7 +132,9 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
-  if (gameRoute && game) {
+  if (emergencyBypass) {
+      currentPhase = 'playing_remote';
+  } else if (gameRoute && game) {
       if (localPlayConfig) {
           currentPhase = 'playing_local';
       } else if (arcadeSession) {
@@ -164,17 +167,24 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   useEffect(() => {
     const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
     
-    if (!partnerIsOnline && localReady) {
-        console.log("[LOBBY] Solo Bypass: Partner offline, starting game...");
+    if (!partnerIsOnline && localReady && !emergencyBypass) {
+        console.log("[LOBBY] Solo Bypass active...");
         const timer = setTimeout(async () => {
-          // If we haven't already transitioned to playing, do it now
-          if (arcadeSession && arcadeSession.status !== 'playing') {
-            await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
+          try {
+            if (arcadeSession && arcadeSession.status !== 'playing') {
+               await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
+            } else if (!arcadeSession) {
+               // If even the session failed to load, just bypass
+               setEmergencyBypass(true);
+            }
+          } catch (e) {
+            console.error("[LOBBY] Solo DB update failed, using emergency bypass:", e);
+            setEmergencyBypass(true);
           }
-        }, 800);
+        }, 1200);
         return () => clearTimeout(timer);
     }
-  }, [localReady, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
+  }, [localReady, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute, emergencyBypass]);
 
   const handleWin = () => { 
     try { if (sfx) { const winAudio = new Audio('/assets/win.mp3'); winAudio.volume = 0.5; winAudio.play().catch(()=>{}); } } catch(e){}

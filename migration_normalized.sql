@@ -220,12 +220,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id text, p_key text, p_subkey text, p_value jsonb)
 RETURNS void AS $$
 BEGIN
-  -- We use text for p_room_id to be safe, then cast as needed
+  -- 1. Ensure row exists (UPSERT)
+  INSERT INTO app_state (room_id, state)
+  VALUES (p_room_id::uuid, '{}'::jsonb)
+  ON CONFLICT (room_id) DO NOTHING;
+
+  -- 2. Atomic update with smart merge
   UPDATE app_state
   SET state = jsonb_set(
     COALESCE(state, '{}'::jsonb),
     ARRAY[p_key, p_subkey],
-    COALESCE(state->p_key->p_subkey, '{}'::jsonb) || p_value,
+    CASE 
+      WHEN jsonb_typeof(COALESCE(state->p_key->p_subkey, 'null'::jsonb)) = 'object' 
+           AND jsonb_typeof(p_value) = 'object'
+      THEN (COALESCE(state->p_key->p_subkey, '{}'::jsonb) || p_value)
+      ELSE p_value
+    END,
     true
   )
   WHERE room_id::text = p_room_id;
