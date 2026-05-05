@@ -88,6 +88,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [lobbyPhase, setLobbyPhase] = useState('IDLE'); // IDLE, WAITING, STARTING
+  const [isNavigatingLobby, setIsNavigatingLobby] = useState(false);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   const [view, setView] = useState('arcade');
@@ -131,19 +132,28 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
 
+  // Reset navigation when game changes
+  useEffect(() => {
+    setIsNavigatingLobby(false);
+  }, [gameRoute]);
+
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
   if (gameRoute && game) {
       if (localPlayConfig) {
           currentPhase = 'playing_local';
-      } else if (arcadeSession) {
-          // UX INTERCEPT: If partner is offline, skip the lobby roadblock and go straight to game!
+      } else if (isNavigatingLobby && arcadeSession) {
+          // Once user clicks "Proceed", handle lobby or solo intercept
           if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING' || !partnerIsOnline) {
               currentPhase = 'playing_remote';
           } else {
               currentPhase = 'lobby';
           }
+      } else if (arcadeSession && arcadeSession.status === 'playing') {
+          // If refreshing mid-game, go straight back to active board
+          currentPhase = 'playing_remote';
       } else {
+          // Default: Always show the setup page (solo vs partner)
           currentPhase = 'details';
       }
   }
@@ -221,6 +231,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       const gameConfig = { mode: mode.id, diff: selectedDiff, ...selectedOptions };
       
       try {
+        setIsNavigatingLobby(true);
         await joinSession();
         // We still use the broadcast for instant UI feedback in chat/notifications
         onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute, type: 'game_invite_modal' });
@@ -232,6 +243,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const handleJoinLobby = async () => {
       playAudio('click', sfx);
       try {
+        setIsNavigatingLobby(true);
         await joinSession();
       } catch (e) {
         console.error("Failed to join lobby:", e);
