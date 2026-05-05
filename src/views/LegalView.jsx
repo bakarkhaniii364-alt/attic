@@ -7,7 +7,7 @@ export function LegalView({ onClose, onAccept, isOverlay = false }) {
   const navigate = useNavigate();
 
   return (
-    <div className={`w-full h-[100dvh] flex items-center justify-center p-4 overflow-hidden ${isOverlay ? 'fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm' : 'bg-[#f0f0f0]'}`}>
+    <div className={`w-full h-[100dvh] flex items-center justify-center p-4 overflow-hidden ${isOverlay ? 'fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm' : 'bg-transparent'}`}>
       <RetroWindow 
         title="sanctuary_promise.pdf" 
         onClose={onClose || (() => navigate(-1))} 
