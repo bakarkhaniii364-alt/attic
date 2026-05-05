@@ -81,7 +81,7 @@ const GAME_CATALOG = {
   ]}
 };
 
-export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, syncedRoomId }) {
+export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, syncedRoomId, onSaveToScrapbook, pictionaryState, setPictionaryState }) {
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
