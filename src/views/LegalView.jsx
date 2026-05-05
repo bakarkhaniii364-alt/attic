@@ -7,11 +7,11 @@ export function LegalView({ onClose, onAccept, isOverlay = false }) {
   const navigate = useNavigate();
 
   return (
-    <div className={`w-full flex items-center justify-center p-4 ${isOverlay ? 'fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm' : 'min-h-[100dvh] bg-[#f0f0f0] pattern-dots'}`}>
+    <div className={`w-full h-[100dvh] flex items-center justify-center p-4 overflow-hidden ${isOverlay ? 'fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm' : 'bg-[#f0f0f0]'}`}>
       <RetroWindow 
         title="sanctuary_promise.pdf" 
         onClose={onClose || (() => navigate(-1))} 
-        className="w-full max-w-2xl h-[calc(100dvh-2rem)] max-h-[800px] flex flex-col shadow-2xl scale-up-15"
+        className="w-full max-w-2xl h-full max-h-[800px] flex flex-col shadow-2xl scale-up-15"
         noPadding
       >
         <div className="flex-1 overflow-y-auto bg-window p-6 sm:p-10 space-y-12">
@@ -77,17 +77,16 @@ export function LegalView({ onClose, onAccept, isOverlay = false }) {
             </footer>
         </div>
 
-        <div className="p-4 bg-border/10 border-t-2 border-border flex justify-end gap-3">
-            <RetroButton variant="white" onClick={onClose || (() => navigate(-1))}>Close</RetroButton>
-            {onAccept && (
+        {onAccept && (
+            <div className="p-4 bg-border/10 border-t-2 border-border flex justify-end gap-3">
                 <RetroButton 
                     variant="primary"
                     onClick={onAccept}
                 >
                     I Accept the Promise
                 </RetroButton>
-            )}
-        </div>
+            </div>
+        )}
       </RetroWindow>
     </div>
   );
