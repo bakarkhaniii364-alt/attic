@@ -1118,3 +1118,39 @@ button:focus, a:focus, input:focus, select:focus, textarea:focus {
   border-color: var(--border) !important;
   box-shadow: 2px 2px 0px 0px var(--border) !important;
 }
+
+/* ════ KISS BLAST ════ */
+.kiss-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.floating-heart {
+  position: absolute;
+  user-select: none;
+  animation: heart-burst 2.5s cubic-bezier(0.12, 0, 0.39, 0) forwards;
+  filter: drop-shadow(0 0 8px rgba(255, 105, 180, 0.4));
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@keyframes heart-burst {
+  0% {
+    transform: translate(0, 0) scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.2) rotate(20deg);
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0.5) rotate(var(--tr));
+    opacity: 0;
+  }
+}

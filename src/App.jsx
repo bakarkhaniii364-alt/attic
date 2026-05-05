@@ -631,9 +631,22 @@ export default function App() {
 
         {showKiss && (
           <div className="kiss-container">
-            {[...Array(30)].map((_, i) => (
-              <div key={i} className="floating-heart" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 1.5}s`, fontSize: `${1.5 + Math.random() * 2.5}rem`, opacity: 0.3 + Math.random() * 0.4 }}>{Math.random() > 0.5 ? '💖' : '💗'}</div>
-            ))}
+            {[...Array(50)].map((_, i) => {
+              const angle = Math.random() * Math.PI * 2;
+              const dist = 200 + Math.random() * 600;
+              const tx = Math.cos(angle) * dist;
+              const ty = Math.sin(angle) * dist;
+              const tr = (Math.random() - 0.5) * 500;
+              return (
+                <div key={i} className="floating-heart" style={{ 
+                  '--tx': `${tx}px`, 
+                  '--ty': `${ty}px`, 
+                  '--tr': `${tr}deg`,
+                  animationDelay: `${Math.random() * 0.5}s`, 
+                  fontSize: `${1.5 + Math.random() * 3}rem` 
+                }}>{['💖', '💗', '💓', '💕', '❤️', '💌'][Math.floor(Math.random() * 6)]}</div>
+              );
+            })}
           </div>
         )}
 
