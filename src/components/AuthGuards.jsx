@@ -4,13 +4,13 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 /**
  * ProtectedRoute - Ensures user is logged in.
- * Pairing redirects are handled at the route level in App.jsx to prevent Guard Collisions.
+ * By default, it also ensures the user has a paired room.
  */
-export function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+export function ProtectedRoute({ children, requireRoom = true }) {
+  const { user, loading, roomId, roomLoading } = useAuth();
   const location = useLocation();
 
-  if (loading) return (
+  if (loading || (user && requireRoom && roomLoading)) return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-[#f9e2cf]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
@@ -21,6 +21,10 @@ export function ProtectedRoute({ children }) {
 
   if (!user) {
     return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  if (requireRoom && !roomId) {
+    return <Navigate to="/handshake" replace />;
   }
 
   return children;
