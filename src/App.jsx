@@ -36,17 +36,11 @@ const ActivitiesHub = lazy(() => import('./games/index.jsx').then(m => ({ defaul
 import SyncWatcher from './games/SyncWatcher.jsx';
 const ResetPasswordView = lazy(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
 
-const ProtectedRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => ({ default: m.ProtectedRoute })));
-const PublicRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => ({ default: m.PublicRoute })));
+import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 
 const AppLoader = () => (
-  <div className="flex-1 w-full h-full flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
-    <div className="flex flex-col items-center gap-4">
-       <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin"></div>
-       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-main-text animate-pulse">
-          Verifying Connection...
-       </p>
-    </div>
+  <div className="flex-1 w-full h-full flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
+     <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin"></div>
   </div>
 );
 
