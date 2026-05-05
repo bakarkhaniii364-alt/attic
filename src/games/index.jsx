@@ -195,6 +195,9 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           }
         }, 800);
         return () => clearTimeout(timer);
+    }
+  }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
+
   // Auto-finalize solo sessions to 'playing' status
   useEffect(() => {
     if (currentPhase === 'playing_remote' && !partnerIsOnline && arcadeSession?.status === 'waiting') {
