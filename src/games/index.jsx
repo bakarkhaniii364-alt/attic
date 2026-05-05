@@ -87,8 +87,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const location = useLocation();
   
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [localReady, setLocalReady] = useState(false);
-  const [emergencyBypass, setEmergencyBypass] = useState(false);
+  const [lobbyPhase, setLobbyPhase] = useState('IDLE'); // IDLE, WAITING, STARTING
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   const [view, setView] = useState('arcade');
@@ -132,13 +131,11 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
-  if (emergencyBypass) {
-      currentPhase = 'playing_remote';
-  } else if (gameRoute && game) {
+  if (gameRoute && game) {
       if (localPlayConfig) {
           currentPhase = 'playing_local';
       } else if (arcadeSession) {
-          if (arcadeSession.status === 'playing') currentPhase = 'playing_remote';
+          if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING') currentPhase = 'playing_remote';
           else currentPhase = 'lobby';
       } else {
           currentPhase = 'details';
@@ -159,32 +156,41 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   useEffect(() => {
     if (gameRoute && game && !arcadeSession && currentPhase === 'lobby') {
+      console.log("🚦 [LOBBY] Bootstrapping session for", gameRoute);
       joinSession();
     }
   }, [gameRoute, game, arcadeSession, joinSession, currentPhase]);
+
+  // Sync lobbyPhase with arcadeSession status
+  useEffect(() => {
+    if (arcadeSession?.status === 'starting' && lobbyPhase !== 'STARTING') {
+      console.log("🚦 [LOBBY] DB status is 'starting'. Moving to STARTING phase.");
+      setLobbyPhase('STARTING');
+    }
+    if (arcadeSession?.status === 'playing' && lobbyPhase !== 'STARTING') {
+      setLobbyPhase('STARTING');
+    }
+  }, [arcadeSession, lobbyPhase]);
 
   // Solo Bypass Handshake Listener
   useEffect(() => {
     const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
     
-    if (!partnerIsOnline && localReady && !emergencyBypass) {
-        console.log("[LOBBY] Solo Bypass active...");
+    if (!partnerIsOnline && lobbyPhase === 'WAITING') {
+        console.log("🚦 [LOBBY] Solo Bypass: Partner offline. Bypassing database handshake...");
         const timer = setTimeout(async () => {
           try {
+            setLobbyPhase('STARTING');
             if (arcadeSession && arcadeSession.status !== 'playing') {
                await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
-            } else if (!arcadeSession) {
-               // If even the session failed to load, just bypass
-               setEmergencyBypass(true);
             }
           } catch (e) {
-            console.error("[LOBBY] Solo DB update failed, using emergency bypass:", e);
-            setEmergencyBypass(true);
+            console.error("🛑 [LOBBY] Solo bypass DB update failed, but proceeding anyway:", e);
           }
-        }, 1200);
+        }, 800);
         return () => clearTimeout(timer);
     }
-  }, [localReady, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute, emergencyBypass]);
+  }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
 
   const handleWin = () => { 
     try { if (sfx) { const winAudio = new Audio('/assets/win.mp3'); winAudio.volume = 0.5; winAudio.play().catch(()=>{}); } } catch(e){}
@@ -531,42 +537,48 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                 <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession.game_state?.mode || 'Online'}</span>
             </div>
 ...
-            {arcadeSession.status === 'starting' ? (
+            {lobbyPhase === 'STARTING' || arcadeSession.status === 'starting' ? (
                 <div className="py-4">
                     <ScoreboardCountdown count={3} onComplete={async () => {
+                        console.log("🚦 [LOBBY] Countdown complete. Finalizing status to 'playing'...");
                         if (isPlayerA) {
                             await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
                         }
                     }} sfx={sfx} />
                 </div>
-            ) : (isReady || (localReady && !partnerIsOnline)) ? (
+            ) : lobbyPhase === 'WAITING' ? (
                <div className="flex flex-col items-center gap-4">
-                  <p className="text-sm font-bold text-green-600 animate-bounce">
-                    {partnerIsOnline ? "Both Players Ready!" : "Starting Solo..."}
+                  <p className="text-sm font-bold text-green-600 animate-pulse uppercase">
+                    {partnerIsOnline ? `Waiting for ${partnerName}...` : "Initializing Solo Mode..."}
                   </p>
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">
-                    {partnerIsOnline ? "Synchronizing Handshake..." : "Bypassing Lobby..."}
-                  </p>
+                  <p className="text-[10px] uppercase tracking-widest opacity-60">Synchronizing Handshake...</p>
                </div>
             ) : (
                <div className="flex flex-col gap-3">
                  <p className="text-xs font-bold italic opacity-60">
                     {partnerInLobby 
-                      ? (amIReady ? `Waiting for ${partnerName}...` : "Ready up to start!") 
-                      : (amIReady ? "Waiting for partner to join..." : "Ready up to start solo!")}
+                      ? "Ready up to start match!" 
+                      : "Ready up to start solo practice!"}
                  </p>
-                 {!amIReady && !localReady && (
-                   <RetroButton 
-                     variant="accent" 
-                     onClick={() => {
-                       setLocalReady(true);
-                       setReady(true, partnerIsOnline);
-                     }} 
-                     className="px-8 py-3"
-                   >
-                     I'm Ready!
-                   </RetroButton>
-                 )}
+                 <RetroButton 
+                   variant="accent" 
+                   onClick={async () => {
+                     console.log("🚦 [LOBBY] 1. 'I'm Ready' clicked. isPartnerOnline:", partnerIsOnline);
+                     setLobbyPhase('WAITING');
+                     try {
+                        await setReady(true, partnerIsOnline);
+                        console.log("🚦 [LOBBY] 2. Ready signal sent to DB.");
+                     } catch (e) {
+                        console.error("🛑 [LOBBY] Handshake signal rejected by DB:", e);
+                        // Fallback: If DB rejected but we are solo, just start
+                        if (!partnerIsOnline) setLobbyPhase('STARTING');
+                     }
+                   }} 
+                   className="px-8 py-3"
+                 >
+                   I'm Ready!
+                 </RetroButton>
+                 
                  {!partnerInLobby && (
                    <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} className="text-xs">
                       Resend Invite
