@@ -633,7 +633,7 @@ export function CalendarApp({ onClose, sfx }) {
   );
 }
 
-export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId }) {
+export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, roomId }) {
   const { assets } = useAssetSync(roomId, 'scrapbook');
   const [layoutMode, setLayoutMode] = useLocalStorage('scrapbook_mode', 'grid');
   const [layout, setLayout] = useGlobalSync('scrapbook_layout', {});
@@ -641,7 +641,7 @@ export function ScrapbookApp({ onClose, images: propImages, sfx, userId, roomId 
   
   // Combine legacy JSON images with new normalized storage assets
   const normalizedImages = assets.map(a => a.url);
-  const images = [...new Set([...normalizedImages, ...propImages])];
+  const images = [...new Set([...normalizedImages, ...(propImages || [])])];
   const visibleImages = images.slice(0, page * 12);
   const containerRef = useRef(null);
 

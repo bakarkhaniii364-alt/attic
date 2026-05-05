@@ -32,6 +32,7 @@ const DailyQuestion = lazy(() => import('./components/Features.jsx').then(m => (
 const MilestoneCelebration = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.MilestoneCelebration })));
 const RelationshipResume = lazy(() => import('./components/Features.jsx').then(m => ({ default: m.RelationshipResume })));
 const ActivitiesHub = lazy(() => import('./games/index.jsx').then(m => ({ default: m.ActivitiesHub })));
+import SyncWatcher from './games/SyncWatcher.jsx';
 const ResetPasswordView = lazy(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
 
 const ProtectedRoute = lazy(() => import('./components/AuthGuards.jsx').then(m => ({ default: m.ProtectedRoute })));
@@ -689,6 +690,7 @@ export default function App() {
               <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
+               <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
               <Route path="/legal" element={<LegalView onClose={() => navigateTo('dashboard')} />} />
               <Route path="/activities/*" element={<ProtectedRoute><ActivitiesHub 
                 onClose={()=>navigateTo('dashboard')} 

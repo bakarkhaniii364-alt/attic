@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2 } from 'lucide-react';
+import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor } from 'lucide-react';
 import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -428,6 +428,28 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const { messages: chatHistory } = useChat();
   const toast = useToast();
 
+  const [dbStats, setDbStats] = useState({});
+
+  useEffect(() => {
+    if (!roomId || !userId) return;
+    const fetchStats = async () => {
+      const { data, error } = await supabase
+        .from('room_player_stats')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('user_id', userId);
+      
+      if (!error && data) {
+        const statsMap = {};
+        data.forEach(row => {
+          statsMap[row.game_name] = row;
+        });
+        setDbStats(statsMap);
+      }
+    };
+    fetchStats();
+  }, [roomId, userId]);
+
   // Derived State
   const profile = globalState?.room_profiles?.[userId] || {};
   const partnerProfile = globalState?.room_profiles?.[partnerId] || {};
@@ -753,12 +775,23 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
       </RetroWindow>
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
-        <div className="flex flex-col h-full justify-center p-2 text-sm font-bold opacity-80 gap-2 text-main-text">
-          <p>TicTacToe Wins: {getScoreForUser(scores, userId, 'tictactoe')}</p>
-          <p>Pictionary Guessed: {getScoreForUser(scores, userId, 'pictionary')}</p>
-          <p>Memory Pairs: {getScoreForUser(scores, userId, 'memory')}</p>
-          <p>Wordles Solved: {getScoreForUser(scores, userId, 'wordle')}</p>
-          <p>Sudoku Solved: {getScoreForUser(scores, userId, 'sudoku')}</p>
+        <div className="flex flex-col h-full p-2 text-sm font-bold gap-2 text-main-text">
+          <div className="flex justify-between items-center bg-window p-2 retro-border">
+            <span>TicTacToe Wins</span>
+            <span className="text-primary">{dbStats['tictactoe']?.wins || getScoreForUser(scores, userId, 'tictactoe')}</span>
+          </div>
+          <div className="flex justify-between items-center bg-window p-2 retro-border">
+            <span>Pool Wins</span>
+            <span className="text-secondary">{dbStats['pool']?.wins || getScoreForUser(scores, userId, 'pool')}</span>
+          </div>
+          <div className="flex justify-between items-center bg-window p-2 retro-border">
+            <span>Uno Wins</span>
+            <span className="text-accent">{dbStats['uno']?.wins || getScoreForUser(scores, userId, 'uno')}</span>
+          </div>
+          <div className="flex justify-between items-center bg-window p-2 retro-border">
+            <span>Pictionary Guessed</span>
+            <span className="text-primary">{dbStats['pictionary']?.wins || getScoreForUser(scores, userId, 'pictionary')}</span>
+          </div>
         </div>
       </RetroWindow>
 
@@ -766,6 +799,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-6 sm:gap-8 p-4">
           <AppIcon icon={<MessageSquare size={28} />} label="Chat"     color="#3b82f6" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
           <AppIcon icon={<Gamepad2     size={28} />} label="Arcade"   color="#a855f7" onClick={() => nav('activities')} />
+          <AppIcon icon={<Monitor      size={28} />} label="Watch"    color="#f472b6" onClick={() => nav('watch')} />
           <AppIcon icon={<Pen          size={28} />} label="Doodle"   color="#ec4899" onClick={() => nav('doodle')} />
           <AppIcon icon={<Brush        size={28} />} label="Pixels"   color="#f97316" onClick={() => nav('pixelart')} />
           <AppIcon icon={<Clock        size={28} />} label="Capsule"  color="#10b981" onClick={() => nav('capsule')} />

@@ -19,21 +19,26 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={addToast}>
       {children}
       <div className="fixed top-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none max-w-sm w-full break-words">
-        {toasts.map(t => (
-          <div key={t.id} className={`pointer-events-auto retro-border retro-shadow-dark p-3 flex items-start gap-2 font-bold text-sm animate-in slide-in-from-right duration-300 ${t.type === 'warn' ? 'bg-yellow-400 text-black' :
-            t.type === 'error' ? 'bg-red-500 text-white' :
-            t.type === 'success' ? 'bg-primary text-primary-text' :
-            'bg-window text-main-text'}`}
-            style={{
-              backgroundColor: t.type === 'success' ? 'var(--primary)' : t.type === 'accent' ? 'var(--accent)' : undefined,
-              color: t.type === 'success' ? 'var(--text-on-primary)' : t.type === 'accent' ? 'var(--text-on-accent)' : undefined
-            }}>
-            {t.type === 'success' && <Check size={16} className="shrink-0 mt-0.5" />}
-            {t.type === 'warn' && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
-            <span>{t.message}</span>
-            <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))} className="ml-auto shrink-0 opacity-70 hover:opacity-100"><X size={14} /></button>
-          </div>
-        ))}
+        {toasts.map(t => {
+          // Map toast type to semantic variables
+          let bgColor = 'var(--bg-window)';
+          let textColor = 'var(--text-main)';
+          
+          if (t.type === 'error') { bgColor = 'var(--color-danger)'; textColor = 'var(--text-on-danger)'; }
+          if (t.type === 'success') { bgColor = 'var(--color-success)'; textColor = 'var(--text-on-success)'; }
+          if (t.type === 'warn') { bgColor = 'var(--color-warning)'; textColor = 'var(--text-on-warning)'; }
+          if (t.type === 'accent') { bgColor = 'var(--accent)'; textColor = 'var(--text-on-accent)'; }
+
+          return (
+            <div key={t.id} className="pointer-events-auto retro-border retro-shadow-dark p-3 flex items-start gap-2 font-bold text-sm animate-in slide-in-from-right duration-300"
+              style={{ backgroundColor: bgColor, color: textColor }}>
+              {t.type === 'success' && <Check size={16} className="shrink-0 mt-0.5" />}
+              {t.type === 'warn' && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
+              <span>{t.message}</span>
+              <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))} className="ml-auto shrink-0 opacity-70 hover:opacity-100"><X size={14} /></button>
+            </div>
+          )
+        })}
       </div>
     </ToastContext.Provider>
   );
@@ -162,14 +167,20 @@ export function RetroInput({ label, icon: Icon, type = 'text', error, className 
 
 // ── RetroButton ──
 export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, style = {}, type = "button", ...props }) {
-  const base = "font-bold transition-all active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:pointer-events-none retro-border retro-shadow-dark lowercase flex items-center justify-center gap-2";
+  const base = "font-bold transition-all active:translate-y-[2px] active:shadow-none disabled:pointer-events-none retro-border retro-shadow-dark lowercase flex items-center justify-center gap-2";
   
   const variants = { 
     primary: { backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }, 
     secondary: { backgroundColor: 'var(--secondary)', color: 'var(--text-on-secondary)' }, 
     white: { backgroundColor: 'var(--bg-window)', color: 'var(--text-main)' }, 
     accent: { backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }, 
-    disabled: { backgroundColor: '#e5e7eb', color: '#9ca3af', opacity: 0.5, border: '1px solid #94a3b8' } 
+    // FIX: Pull directly from semantic theme variables
+    disabled: { 
+      backgroundColor: 'var(--bg-disabled)', 
+      color: 'var(--text-disabled)', 
+      border: '2px dashed var(--text-disabled)',
+      boxShadow: 'none'
+    } 
   };
   
   const currentVariant = disabled ? variants.disabled : (variants[variant] || variants.primary);

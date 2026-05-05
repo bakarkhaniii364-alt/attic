@@ -60,8 +60,8 @@ export function LegalView({ onClose, onAccept, isOverlay = false }) {
 
             <div className="max-w-2xl mx-auto space-y-12 mb-20">
               <header className="border-b-4 border-border pb-8">
-                <h1 className="text-4xl font-black uppercase tracking-tighter mb-2 text-main-text">The Sanctuary Promise</h1>
-                <p className="font-bold opacity-40 text-xs uppercase tracking-[0.3em]">A Private Digital Harbor for Two</p>
+                <h1 className="text-4xl font-black uppercase tracking-tighter mb-2 text-main-text">Terms & Conditions</h1>
+                <p className="font-bold opacity-40 text-xs uppercase tracking-[0.3em]">The Sanctuary Promise / Legal Agreement</p>
               </header>
 
               <section className="space-y-4">

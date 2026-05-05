@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader, Settings, Play, Swords, User, Monitor, Zap, Heart, Brush, X, Activity } from 'lucide-react';
 import { RetroButton, RetroWindow, ScoreboardCountdown, ConfirmDialog } from '../components/UI.jsx';
@@ -7,20 +7,20 @@ import { useArcadeSession } from '../hooks/useArcadeSession.js';
 import { playAudio } from '../utils/audio.js';
 
 // Games
-import { TicTacToe } from './TicTacToeGame.jsx';
-import { PictionaryGame } from './PictionaryGame.jsx';
-import { MemoryGame } from './MemoryGame.jsx';
-import { WordleClone } from './WordleClone.jsx';
-import { Sudoku } from './SudokuGame.jsx';
-import { ChessEngine } from './ChessEngine.jsx';
-import { CouplesQuiz } from './CouplesQuiz.jsx';
-import { Game2048 } from './Game2048.jsx';
-import { TypingRace } from './TypingRace.jsx';
-import { WouldYouRather } from './WouldYouRather.jsx';
-import { UnoGame } from './UnoGame.jsx';
-import { OthelloGame } from './OthelloGame.jsx';
-import { PoolGame } from './PoolGame.jsx';
-import { BluffGame } from './BluffGame.jsx';
+const TicTacToe = lazy(() => import('./TicTacToeGame.jsx').then(m => ({ default: m.TicTacToe })));
+const PictionaryGame = lazy(() => import('./PictionaryGame.jsx').then(m => ({ default: m.PictionaryGame })));
+const MemoryGame = lazy(() => import('./MemoryGame.jsx').then(m => ({ default: m.MemoryGame })));
+const WordleClone = lazy(() => import('./WordleClone.jsx').then(m => ({ default: m.WordleClone })));
+const Sudoku = lazy(() => import('./SudokuGame.jsx').then(m => ({ default: m.Sudoku })));
+const ChessEngine = lazy(() => import('./ChessEngine.jsx').then(m => ({ default: m.ChessEngine })));
+const CouplesQuiz = lazy(() => import('./CouplesQuiz.jsx').then(m => ({ default: m.CouplesQuiz })));
+const Game2048 = lazy(() => import('./Game2048.jsx').then(m => ({ default: m.Game2048 })));
+const TypingRace = lazy(() => import('./TypingRace.jsx').then(m => ({ default: m.TypingRace })));
+const WouldYouRather = lazy(() => import('./WouldYouRather.jsx').then(m => ({ default: m.WouldYouRather })));
+const UnoGame = lazy(() => import('./UnoGame.jsx').then(m => ({ default: m.UnoGame })));
+const OthelloGame = lazy(() => import('./OthelloGame.jsx').then(m => ({ default: m.OthelloGame })));
+const PoolGame = lazy(() => import('./PoolGame.jsx').then(m => ({ default: m.PoolGame })));
+const BluffGame = lazy(() => import('./BluffGame.jsx').then(m => ({ default: m.BluffGame })));
 
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5', modes: [
@@ -211,23 +211,31 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
         roomId: syncedRoomId || 'global'
     };
 
-    switch (gameRoute) {
-      case 'tictactoe': return <TicTacToe {...commonProps} />;
-      case 'pictionary': return <PictionaryGame {...commonProps} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} />;
-      case 'memory': return <MemoryGame {...commonProps} roomId={commonProps.roomId} />;
-      case 'wordle': return <WordleClone {...commonProps} />;
-      case 'sudoku': return <Sudoku {...commonProps} />;
-      case 'chess': return <ChessEngine {...commonProps} />;
-      case 'quiz': return <CouplesQuiz {...commonProps} />;
-      case '2048': return <Game2048 {...commonProps} />;
-      case 'typing': return <TypingRace {...commonProps} />;
-      case 'wyr': return <WouldYouRather {...commonProps} />;
-      case 'uno': return <UnoGame {...commonProps} />;
-      case 'othello': return <OthelloGame {...commonProps} />;
-      case 'pool': return <PoolGame {...commonProps} />;
-      case 'bluff': return <BluffGame {...commonProps} />;
-      default: return <div className="p-8 text-center font-bold">Game Engine Offline</div>;
-    }
+    const gameComponent = (() => {
+      switch (gameRoute) {
+        case 'tictactoe': return <TicTacToe {...commonProps} />;
+        case 'pictionary': return <PictionaryGame {...commonProps} pictionaryState={pictionaryState} setPictionaryState={setPictionaryState} />;
+        case 'memory': return <MemoryGame {...commonProps} roomId={commonProps.roomId} />;
+        case 'wordle': return <WordleClone {...commonProps} />;
+        case 'sudoku': return <Sudoku {...commonProps} />;
+        case 'chess': return <ChessEngine {...commonProps} />;
+        case 'quiz': return <CouplesQuiz {...commonProps} />;
+        case '2048': return <Game2048 {...commonProps} />;
+        case 'typing': return <TypingRace {...commonProps} />;
+        case 'wyr': return <WouldYouRather {...commonProps} />;
+        case 'uno': return <UnoGame {...commonProps} />;
+        case 'othello': return <OthelloGame {...commonProps} />;
+        case 'pool': return <PoolGame {...commonProps} />;
+        case 'bluff': return <BluffGame {...commonProps} />;
+        default: return <div className="p-8 text-center font-bold">Game Engine Offline</div>;
+      }
+    })();
+
+    return (
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white"><div className="animate-pulse font-black text-primary uppercase tracking-widest">Loading Game...</div></div>}>
+        {gameComponent}
+      </Suspense>
+    );
   };
 
   // 1. Arcade Menu Phase

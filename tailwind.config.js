@@ -20,6 +20,7 @@ export default {
         'border-text': 'var(--text-on-border)',
         'header-text': 'var(--text-on-header)',
         'main-text': 'var(--text-main)',
+        'muted-text': 'var(--text-muted)',
       }
     },
   },

@@ -31,7 +31,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  const availableThemes = ['default', 'matcha', 'midnight', 'cyberpunk', 'synthwave', 'minimal', 'monochrome', 'hawkins', 'lavender', 'coffee', 'nord'];
+  const availableThemes = ['default', 'matcha', 'sage', 'lavender', 'rose', 'minimal', 'monochrome', 'nord', 'coffee', 'velvet', 'mahogany', 'crayon', 'vaporwave', 'messenger', 'reddit', 'discord', 'spotify', 'github', 'cyberpunk', 'synthwave', 'matrix', 'hawkins', 'midnight', 'gameboy'];
 
   const handleCancel = () => {
     playAudio('click', sfxEnabled);
@@ -283,7 +283,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           <p className="font-bold text-sm mb-3 opacity-70">Theme Mode</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
             {availableThemes.map(t => {
-              const isLocked = !['default', 'matcha'].includes(t) && (scores?.totalStreak || 0) < 5;
+              const isLocked = false; // All themes unlocked as requested
               return (
                 <div 
                   key={t} 
@@ -358,12 +358,12 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           </div>
         </section>
 
-      <section className="p-4 bg-red-500/10 border-2 border-red-500/40">
-        <h2 className="font-bold text-xl text-red-500 mb-2 flex items-center gap-2"><Trash2 size={20}/> danger zone</h2>
+      <section className="p-4 border-2 border-dashed" style={{ borderColor: 'var(--color-danger)' }}>
+        <h2 className="font-bold text-xl mb-2 flex items-center gap-2" style={{ color: 'var(--color-danger)' }}><Trash2 size={20}/> danger zone</h2>
         <p className="text-sm opacity-70 mb-4"><strong>Unpair</strong> disconnects you (keeps data). <strong>Delete Room</strong> wipes EVERYTHING permanently.</p>
         <div className="flex flex-wrap gap-2">
-          <button onClick={handleUnpair} className="bg-yellow-500 text-white font-bold py-2 px-4 border-2 border-yellow-700 hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm"><Hand size={16}/> Unpair (disconnect)</button>
-          <button onClick={handleDeleteAccount} className="bg-red-600 text-white font-bold py-2 px-4 border-2 border-red-800 shadow-md hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm"><Trash2 size={16}/> Delete Room & Data</button>
+          <button onClick={handleUnpair} className="font-bold py-2 px-4 border-2 shadow-md hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm" style={{ backgroundColor: 'var(--color-warning)', color: 'var(--text-on-warning)', borderColor: 'var(--text-on-warning)' }}><Hand size={16}/> Unpair (disconnect)</button>
+          <button onClick={handleDeleteAccount} className="font-bold py-2 px-4 border-2 shadow-md hover:-translate-y-1 transition-transform flex items-center gap-2 text-xs sm:text-sm" style={{ backgroundColor: 'var(--color-danger)', color: 'var(--text-on-danger)', borderColor: 'var(--text-on-danger)' }}><Trash2 size={16}/> Delete Room & Data</button>
         </div>
       </section>
     </div>

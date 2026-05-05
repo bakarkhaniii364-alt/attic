@@ -15,54 +15,55 @@ export function LandingView() {
   const onTryAttic = () => navigate('/signin');
   const onSignIn = () => navigate('/signup');
   return (
-    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden scale-up-15">
-
-
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[10%] left-[5%] text-primary opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
-        <div className="absolute top-[60%] right-[8%] text-primary opacity-[0.06] animate-float-delayed"><Heart size={45} fill="currentColor" /></div>
-        <div className="absolute bottom-[15%] left-[45%] text-primary opacity-[0.04] animate-float"><Heart size={35} fill="currentColor" /></div>
-        <div className="absolute top-[25%] right-[15%] text-secondary opacity-[0.1] animate-float-delayed"><Mail size={56} /></div>
-        <div className="absolute bottom-[25%] left-[12%] text-secondary opacity-[0.07] animate-float"><Mail size={44} /></div>
-        <div className="absolute bottom-[35%] right-[22%] text-primary opacity-[0.12] animate-float-delayed"><Send size={48} /></div>
-        <div className="absolute top-[30%] left-[15%] text-primary opacity-[0.08] animate-float"><Send size={38} className="rotate-[-15deg]" /></div>
-        <div className="absolute bottom-[10%] right-[35%] text-accent opacity-[0.06] animate-float"><Grid3X3 size={60} /></div>
-        <div className="absolute top-[55%] left-[8%] text-secondary opacity-[0.05] animate-float"><Sparkle size={40} /></div>
-      </div>
+    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-y-auto overflow-x-hidden text-main-text selection:bg-primary selection:text-white">
 
       <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
-        <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-30 select-none">●●●</span>
-        <span className="font-bold text-[10px] tracking-widest uppercase text-[#6b4423] opacity-10 select-none">attic</span>
+        <span className="font-bold text-[10px] tracking-widest uppercase text-main-text opacity-30 select-none">●●●</span>
+        <span className="font-bold text-[10px] tracking-widest uppercase text-main-text opacity-30 select-none">attic</span>
       </nav>
 
-      <main style={{ transform: 'translateY(-6.25vh)' }} className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center overflow-hidden">
-        <div className="relative mb-4 sm:mb-6 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center">
+      {/* ORIGINAL HERO SECTION */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[10%] left-[5%] text-primary opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
+          <div className="absolute top-[60%] right-[8%] text-primary opacity-[0.06] animate-float-delayed"><Heart size={45} fill="currentColor" /></div>
+          <div className="absolute bottom-[15%] left-[45%] text-primary opacity-[0.04] animate-float"><Heart size={35} fill="currentColor" /></div>
+          <div className="absolute top-[25%] right-[15%] text-secondary opacity-[0.1] animate-float-delayed"><Mail size={56} /></div>
+          <div className="absolute bottom-[25%] left-[12%] text-secondary opacity-[0.07] animate-float"><Mail size={44} /></div>
+          <div className="absolute bottom-[35%] right-[22%] text-primary opacity-[0.12] animate-float-delayed"><Send size={48} /></div>
+          <div className="absolute top-[30%] left-[15%] text-primary opacity-[0.08] animate-float"><Send size={38} className="rotate-[-15deg]" /></div>
+          <div className="absolute bottom-[10%] right-[35%] text-accent opacity-[0.06] animate-float"><Grid3X3 size={60} /></div>
+          <div className="absolute top-[55%] left-[8%] text-secondary opacity-[0.05] animate-float"><Sparkle size={40} /></div>
+        </div>
+
+        <div className="relative mb-4 sm:mb-6 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center" style={{ transform: 'translateY(-6.25vh)' }}>
           <div className="absolute -inset-10 bg-primary/10 blur-[60px] rounded-full animate-pulse" />
           <img src="/assets/attic.svg" alt="Attic Logo" className="w-[22rem] sm:w-[30rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
         </div>
 
-        <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8">
+        <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 z-10" style={{ transform: 'translateY(-6.25vh)' }}>
           <div className="space-y-2 -mt-2">
-            <p className="text-xs sm:text-base font-mono opacity-60 max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs sm:text-base font-mono text-muted-text max-w-sm mx-auto leading-relaxed">
               A corner of the internet, <br/> <span className="text-primary font-bold">just for two</span>
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-            <RetroButton onClick={onTryAttic} className="w-56 py-3 sm:py-4 text-base sm:text-lg relative overflow-hidden group shadow-2xl">
-              <span className="relative z-10">enter attic</span>
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <RetroButton onClick={onTryAttic} className="w-56 py-3 sm:py-4 text-base sm:text-lg relative overflow-hidden group shadow-[4px_4px_0_var(--border)]">
+              <span className="relative z-10 font-bold">enter attic</span>
             </RetroButton>
-            <RetroButton variant="white" onClick={onSignIn} className="w-56 py-3 sm:py-4 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-xl">
-              start new journey
+            <RetroButton variant="white" onClick={onSignIn} className="w-56 py-3 sm:py-4 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-[4px_4px_0_var(--border)]">
+              <span className="font-bold">start new journey</span>
             </RetroButton>
           </div>
         </div>
       </main>
-
-      <footer className="absolute bottom-4 left-0 right-0 z-10 text-center">
-        <p className="text-[10px] sm:text-xs font-black tracking-[0.2em] opacity-30">
-          Built with love, for the lovers by <a href="https://www.facebook.com/bakarkhaniii/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors border-b border-current">bakarkhaniii</a>
-        </p>
+      <footer className="relative z-10 py-6 text-center">
+        <button 
+          onClick={() => navigate('/legal')}
+          className="text-[10px] font-black uppercase tracking-[0.2em] opacity-20 hover:opacity-100 transition-opacity cursor-pointer"
+        >
+          Terms & Conditions / Legal
+        </button>
       </footer>
     </div>
   );
@@ -146,6 +147,20 @@ export function AuthView({ mode }) {
     finally { setLoading(false); }
   };
 
+  const handleOAuthLogin = async (provider) => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      if (error) throw error;
+    } catch (err) {
+      setAuthError(err.message);
+      addToast(err.message, "error");
+    }
+  };
 
   return (
     <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
@@ -195,7 +210,7 @@ export function AuthView({ mode }) {
                 required
               />
 
-              <p className="text-[10px] leading-relaxed opacity-60 mt-1">
+              <p className="text-[10px] leading-relaxed text-muted-text mt-1">
                 By creating an account, you agree to the <button type="button" onClick={() => setShowLegal(true)} className="text-primary underline cursor-pointer">Sanctuary Promise</button> and acknowledge the privacy rules.
               </p>
 
@@ -234,9 +249,9 @@ export function AuthView({ mode }) {
                       onChange={e => setRememberMe(e.target.checked)}
                       className="w-3.5 h-3.5 border-2 border-border accent-primary cursor-pointer"
                     />
-                    <span className="text-[10px] font-bold opacity-50 group-hover:opacity-80 lowercase">remember me</span>
+                    <span className="text-[10px] font-bold text-muted-text group-hover:text-main-text lowercase">remember me</span>
                   </label>
-                  <a href="/password-reset" className="text-[10px] font-bold opacity-70 hover:text-primary transition-colors lowercase">forgot password?</a>
+                  <a href="/password-reset" className="text-[10px] font-bold text-muted-text hover:text-primary transition-colors lowercase">forgot password?</a>
                 </div>
               </div>
 
@@ -245,6 +260,23 @@ export function AuthView({ mode }) {
               </RetroButton>
             </>
           )}
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-border opacity-20"></div>
+            <span className="flex-shrink-0 mx-4 text-[10px] font-bold text-muted-text uppercase tracking-widest">or</span>
+            <div className="flex-grow border-t border-border opacity-20"></div>
+          </div>
+
+          <div className="flex gap-3">
+            <RetroButton type="button" onClick={() => handleOAuthLogin('google')} className="flex-1 py-3 text-xs flex items-center justify-center gap-2 bg-window hover:bg-accent text-main-text">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
+              Google
+            </RetroButton>
+            <RetroButton type="button" onClick={() => handleOAuthLogin('facebook')} className="flex-1 py-3 text-xs flex items-center justify-center gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white border-[#0c4b9e]">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/></svg>
+              Facebook
+            </RetroButton>
+          </div>
         </form>
       </RetroWindow>
 
@@ -376,12 +408,12 @@ export function HandshakeView() {
              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse">
                 <Heart size={32} className="text-primary" fill="currentColor" />
              </div>
-             <p className="font-bold opacity-60 text-sm">Send this code to your partner to pair up!</p>
+             <p className="font-bold text-muted-text text-sm">Send this code to your partner to pair up!</p>
           </div>
 
           <div className="bg-accent/20 border-2 border-border p-6 text-center space-y-3 relative overflow-hidden">
              <div className="absolute top-0 right-0 p-2 opacity-10 rotate-12"><Share2 size={48} /></div>
-             <div className="text-xs font-black uppercase tracking-widest opacity-40">Your Pairing Code</div>
+             <div className="text-xs font-black uppercase tracking-widest text-muted-text">Your Pairing Code</div>
              <div className="text-4xl font-black tracking-tighter text-primary select-all">{pairingCode}</div>
              <button onClick={() => { navigator.clipboard.writeText(pairingCode); addToast("Code copied!", "success"); }} className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current">
                 <Copy size={10} /> copy code

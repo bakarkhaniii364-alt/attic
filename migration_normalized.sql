@@ -267,14 +267,17 @@ CREATE TABLE IF NOT EXISTS arcade_sessions (
 
 ALTER TABLE arcade_sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view sessions in their room" ON arcade_sessions;
 CREATE POLICY "Users can view sessions in their room" 
     ON arcade_sessions FOR SELECT 
     USING (room_id IN (SELECT id FROM rooms WHERE (creator_id = auth.uid() OR partner_id = auth.uid())));
 
+DROP POLICY IF EXISTS "Users can update sessions in their room" ON arcade_sessions;
 CREATE POLICY "Users can update sessions in their room" 
     ON arcade_sessions FOR UPDATE 
     USING (room_id IN (SELECT id FROM rooms WHERE (creator_id = auth.uid() OR partner_id = auth.uid())));
 
+DROP POLICY IF EXISTS "Users can insert sessions in their room" ON arcade_sessions;
 CREATE POLICY "Users can insert sessions in their room" 
     ON arcade_sessions FOR INSERT 
     WITH CHECK (room_id IN (SELECT id FROM rooms WHERE (creator_id = auth.uid() OR partner_id = auth.uid())));
@@ -340,3 +343,36 @@ BEGIN
     RETURN to_jsonb(v_session);
 END;
 $$;
+
+-- ============================================================
+-- ISOLATED ROOM GAME STATS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS room_player_stats (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    game_name TEXT NOT NULL,
+    wins INTEGER DEFAULT 0,
+    high_score INTEGER DEFAULT 0,
+    UNIQUE(room_id, user_id, game_name)
+);
+
+ALTER TABLE room_player_stats ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Access own room stats" ON room_player_stats;
+CREATE POLICY "Access own room stats" ON room_player_stats FOR ALL USING (
+    room_id IN (SELECT id FROM rooms WHERE creator_id = auth.uid() OR partner_id = auth.uid())
+);
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'room_player_stats'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE room_player_stats;
+    END IF;
+END $$;
