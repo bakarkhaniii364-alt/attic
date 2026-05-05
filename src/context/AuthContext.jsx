@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   const [partnerId, setPartnerId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [roomLoading, setRoomLoading] = useState(true); // separate from auth loading
+  const [hasInitialized, setHasInitialized] = useState(false); // First boot tracking
 
   const isLoadingRef = useRef(true); // track loading without stale closure
 
@@ -39,7 +40,10 @@ export function AuthProvider({ children }) {
         console.warn('[AUTH] Room fetch failed:', err.message);
       } finally {
         isFetchingRoom = false;
-        if (mounted) setRoomLoading(false);
+        if (mounted) {
+            setRoomLoading(false);
+            setHasInitialized(true);
+        }
       }
     };
 
@@ -117,6 +121,7 @@ export function AuthProvider({ children }) {
       } else {
         setRoomId(null);
         setPartnerId(null);
+        setHasInitialized(true); // Even if logged out, we've initialized
       }
     });
 
@@ -162,6 +167,7 @@ export function AuthProvider({ children }) {
       console.error('[AUTH] Post-login room fetch failed:', err);
     } finally {
       setLoading(false);
+      setHasInitialized(true);
     }
   };
 
@@ -178,6 +184,7 @@ export function AuthProvider({ children }) {
       console.warn('[AUTH] handlePaired room fetch failed:', err);
     } finally {
       setLoading(false);
+      setHasInitialized(true);
     }
   };
 
@@ -188,6 +195,7 @@ export function AuthProvider({ children }) {
     partnerId,
     loading,
     roomLoading,
+    hasInitialized,
     logout,
     refreshRoom,
     handleAuthSuccess,

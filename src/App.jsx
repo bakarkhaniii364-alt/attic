@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera, Bell, X, Mail, Heart, Download, MessageSquare, PenTool, Gamepad2 } from 'lucide-react';
+import { BootLoader } from './components/BootLoader.jsx';
 import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog, useToast, RetroWindow, RetroButton } from './components/UI.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { playAudio } from './utils/audio.js';
@@ -349,7 +350,7 @@ export default function App() {
 
 
   
-  const { user, userId, roomId, partnerId, loading: authLoading, roomLoading } = useAuth();
+  const { user, userId, roomId, partnerId, loading: authLoading, roomLoading, hasInitialized } = useAuth();
   const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, mergeSyncState, roomProfiles, broadcast, isInitialized } = useSync();
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
@@ -568,7 +569,7 @@ export default function App() {
     }
   }, [remoteStream, isDeafened]);
 
-  if (authLoading) return <div className="w-full min-h-[100dvh] flex items-center justify-center bg-window"><AppLoader /></div>;
+  if (!hasInitialized) return <BootLoader onComplete={() => {}} sfxEnabled={sfxEnabled} />;
 
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
