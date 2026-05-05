@@ -592,6 +592,7 @@ export default function App() {
         // Force back to details if partner closed the lobby
         if (gameInvite) setGameInvite(null);
         toast(`⚠️ ${partnerName} closed the game lobby.`, 'warning');
+      }
       if (event === 'watchparty_invite' && payload.sender !== userId) {
         setWatchpartyInvite(payload);
         toast(`🍿 ${partnerName} started a watch party!`, 'actionable');
