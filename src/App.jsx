@@ -566,38 +566,47 @@ export default function App() {
   }, [chatHistory, location.pathname, partnerId, notificationsEnabled, sfxEnabled]);
 
   // Global Broadcast Listeners
+  const toast = useToast();
+
   useEffect(() => {
     const handler = ({ detail: { event, payload } }) => {
       if (event === 'interaction' && payload.type === 'kiss' && payload.from === partnerId) {
         setShowKiss(true);
+        toast(`💋 ${partnerName} sent you a kiss!`, 'success');
         playAudio('notif', sfxEnabled);
         setTimeout(() => setShowKiss(false), 4500);
       }
       if (event === 'doodle_alert' && payload.sender !== userId) {
         setFloatingDoodles(prev => [...prev, { id: Date.now(), data: payload.image, sender: payload.sender }]);
+        toast(`🎨 ${partnerName} sent you a new doodle!`, 'info');
         playAudio('notif', sfxEnabled);
       }
       if (payload.action === 'invite' && payload.sender !== userId) {
         const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 30000);
         if (isRecent) {
            setGameInvite(payload);
+           toast(`🎮 ${partnerName} invited you to play!`, 'actionable');
            playAudio('notif', sfxEnabled);
         }
       }
+      if (event === 'lobby_closed' && payload.sender !== userId) {
+        // Force back to details if partner closed the lobby
+        if (gameInvite) setGameInvite(null);
+        toast(`⚠️ ${partnerName} closed the game lobby.`, 'warning');
+      }
       if (event === 'watchparty_invite' && payload.sender !== userId) {
-        const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 60000);
-        if (isRecent) {
-          setWatchpartyInvite(payload);
-          playAudio('notif', sfxEnabled);
+        setWatchpartyInvite(payload);
+        toast(`🍿 ${partnerName} started a watch party!`, 'actionable');
+      }
+      if (event === 'chat_message' && payload.sender === partnerId) {
+        if (location.pathname !== '/chat') {
+          toast(`💬 New message from ${partnerName}`, 'info');
         }
       }
     };
-
     window.addEventListener('sync_broadcast', handler);
-    return () => { 
-        window.removeEventListener('sync_broadcast', handler);
-    };
-  }, [partnerId, sfxEnabled]);
+    return () => window.removeEventListener('sync_broadcast', handler);
+  }, [partnerId, partnerName, sfxEnabled, location.pathname, toast, gameInvite]);
 
   const remoteAudioRef = useRef(null);
   useEffect(() => {
@@ -811,6 +820,7 @@ export default function App() {
                 sfx={sfxEnabled} 
                 setConfetti={setConfetti} 
                 onShareToChat={handleShareToChat}
+                broadcast={broadcast}
                 userId={userId}
                 partnerId={partnerId}
                 scores={globalState.game_scores}

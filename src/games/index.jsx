@@ -80,9 +80,10 @@ const GAME_CATALOG = {
   ]}
 };
 
-export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, onShareToChat, profile, userId, partnerId, pictionaryState, setPictionaryState, onSaveToScrapbook, syncedRoomId, myName, partnerName, roomProfiles }) {
+export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, roomId: syncedRoomId }) {
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(gameRoute);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
@@ -337,10 +338,12 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
           return { ...prev, players: newPlayers };
       });
       await leaveSession();
+      if (broadcast) {
+        broadcast('lobby_closed', { sender: userId, gameId: gameRoute });
+      }
       setShowLeaveConfirm(false);
       navigate('/activities');
   };
-
   const handleLeaveClick = () => {
       const currentPlayers = lobbyState?.players || [];
       const partnerInLobby = currentPlayers.includes(partnerId);

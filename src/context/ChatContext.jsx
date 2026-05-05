@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
+import { useSync } from './SyncContext.jsx';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 
 const ChatContext = createContext(null);
@@ -131,6 +132,8 @@ export function ChatProvider({ children }) {
     };
   }, [roomId]);
 
+  const { broadcast } = useSync();
+
   /**
    * sendMessage — the sender is ALWAYS the current logged-in user (userId from context).
    * Signature: (content, type?, metadata?)
@@ -205,9 +208,12 @@ export function ChatProvider({ children }) {
 
       if (error) throw error;
 
+      // Broadcast for real-time notification (Radio Antenna)
+      if (broadcast) {
+        broadcast('chat_message', { sender: userId, type });
+      }
+
       // CRITICAL: Only replace the optimistic message if DB returned a valid row.
-      // If data is empty or missing an id (e.g. mock/RLS returned nothing), keep
-      // the optimistic message and just mark it 'sent' to avoid identity corruption.
       if (data && data.id) {
         const mapped = await mapMessage(data);
         setMessages(prev => {
@@ -222,7 +228,7 @@ export function ChatProvider({ children }) {
       console.error('[CHAT] Send error:', err);
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
     }
-  }, [roomId, userId]);
+  }, [roomId, userId, broadcast]);
 
   const updateMessage = useCallback(async (idOrIds, updates) => {
     if (!idOrIds) return;
