@@ -62,8 +62,10 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   const [showCursor, setShowCursor] = useState(false);
 
   const startPosRef = useRef({ x: 0, y: 0 }); 
-  const snapshotHistory = useRef([]);
+  const [history, setHistory] = useState([]);
+  const [step, setStep] = useState(-1);
   const colorInputRef = useRef(null);
+  const containerRef = useRef(null);
   
   const initCanvas = () => {
     const canvas = canvasRef.current; if (!canvas) return;
@@ -91,7 +93,9 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       img.onload = () => { 
         oCtx.drawImage(img, 0, 0, offscreen.width, offscreen.height); 
         ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
-        snapshotHistory.current = [offscreen.toDataURL()]; 
+        const snapshot = offscreen.toDataURL();
+        setHistory([snapshot]);
+        setStep(0);
       }; 
       img.src = typeof initialDoodle === 'string' ? initialDoodle : initialDoodle.img; 
       canvas.dataset.initialized = 'true'; 
@@ -105,8 +109,45 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       oCtx.fillRect(0, 0, offscreen.width, offscreen.height); 
       ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
       canvas.dataset.initialized = 'true'; 
-      snapshotHistory.current = [offscreen.toDataURL()]; 
+      const snapshot = offscreen.toDataURL();
+      setHistory([snapshot]);
+      setStep(0);
     }
+  };
+
+  const saveSnapshot = () => {
+    const offscreen = offscreenCanvasRef.current;
+    if (!offscreen) return;
+    const snapshot = offscreen.toDataURL();
+    
+    // Clear any "future" redo history
+    const newHistory = history.slice(0, step + 1);
+    newHistory.push(snapshot);
+    
+    setHistory(newHistory);
+    setStep(newHistory.length - 1);
+    localStorage.setItem('attic_doodle_backup', snapshot);
+  };
+
+  const restoreSnapshot = (index) => {
+    const snapshot = history[index];
+    if (!snapshot) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Update both canvases
+      ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+      ctx.drawImage(img, 0, 0, canvas.width/dpr, canvas.height/dpr);
+      
+      const oCtx = offscreenCanvasRef.current.getContext('2d');
+      oCtx.clearRect(0, 0, canvas.width, canvas.height);
+      oCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = snapshot;
   };
 
   useEffect(() => { 
@@ -141,7 +182,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       
       canvas.getContext('2d').drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
       setHasUnsavedChanges(true); 
-      snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
+      saveSnapshot();
       return; 
     }
     
@@ -149,7 +190,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       floodFill(offscreenCanvasRef.current, Math.floor(x * dpr), Math.floor(y * dpr), color); 
       canvas.getContext('2d').drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
       setHasUnsavedChanges(true); 
-      snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
+      saveSnapshot();
       return; 
     }
     
@@ -217,29 +258,26 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       oCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
       
       pointsRef.current = [];
-      snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
+      saveSnapshot();
     } 
   };
 
   const handleUndo = () => {
-    if (snapshotHistory.current.length <= 1) return;
-    playAudio('click', sfx);
-    snapshotHistory.current.pop();
-    const prevState = snapshotHistory.current[snapshotHistory.current.length - 1];
-    const img = new Image();
-    img.onload = () => {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
-      ctx.drawImage(img, 0, 0, canvas.width/dpr, canvas.height/dpr);
-      
-      // CRITICAL: Sync offscreen canvas!
-      const oCtx = offscreenCanvasRef.current.getContext('2d');
-      oCtx.clearRect(0, 0, canvas.width, canvas.height);
-      oCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-    img.src = prevState;
+    if (step > 0) {
+      playAudio('click', sfx);
+      const newStep = step - 1;
+      setStep(newStep);
+      restoreSnapshot(newStep);
+    }
+  };
+
+  const handleRedo = () => {
+    if (step < history.length - 1) {
+      playAudio('click', sfx);
+      const newStep = step + 1;
+      setStep(newStep);
+      restoreSnapshot(newStep);
+    }
   };
 
   const clearCanvas = () => { 
@@ -257,7 +295,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     oCtx.fillRect(0, 0, canvas.width, canvas.height);
     
     setHasUnsavedChanges(true); 
-    snapshotHistory.current=[canvas.toDataURL()]; 
+    saveSnapshot();
   };
 
   const [showSentOverlay, setShowSentOverlay] = useState(false);
@@ -341,12 +379,16 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         </div>
 
         <div className="ml-auto flex gap-2 items-center pl-2">
-          <button onClick={handleUndo} className={`p-2 rounded-md transition-all retro-border ${snapshotHistory.current.length > 1 ? 'bg-white text-black hover:bg-accent' : 'opacity-20 cursor-not-allowed'}`} disabled={snapshotHistory.current.length <= 1} title="Undo"><UndoIcon size={18}/></button>
+          <div className="flex gap-1 border-r border-border/20 pr-2">
+            <button onClick={handleUndo} className={`p-2 rounded-md transition-all retro-border ${step > 0 ? 'bg-white text-black hover:bg-accent' : 'opacity-20 cursor-not-allowed'}`} disabled={step <= 0} title="Undo"><UndoIcon size={18}/></button>
+            <button onClick={handleRedo} className={`p-2 rounded-md transition-all retro-border ${step < history.length - 1 ? 'bg-white text-black hover:bg-accent' : 'opacity-20 cursor-not-allowed'}`} disabled={step >= history.length - 1} title="Redo"><UndoIcon size={18} className="scale-x-[-1]"/></button>
+          </div>
           <RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs retro-border"><Trash2 size={12}/> Clear</RetroButton>
         </div>
       </div>
       
       <div 
+        ref={containerRef}
         className="flex-1 bg-[#f0f0f0] relative overflow-hidden cursor-none"
         onMouseEnter={() => setShowCursor(true)}
         onMouseLeave={() => setShowCursor(false)}
