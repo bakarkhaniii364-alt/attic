@@ -32,7 +32,9 @@ export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profi
     </RetroWindow>
   );
 }
-
+export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapbook, sfx, roomId, userId }) {
+  const { uploadAsset } = useAssetSync(roomId);
+  const isNormalized = !!roomId;
   const canvasRef = useRef(null);
   const offscreenCanvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false); 
