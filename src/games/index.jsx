@@ -81,7 +81,7 @@ const GAME_CATALOG = {
   ]}
 };
 
-export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, roomId: syncedRoomId }) {
+export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, syncedRoomId }) {
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,14 +129,22 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const game = GAME_CATALOG[gameRoute];
 
+  const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(syncedRoomId, gameRoute, userId);
+
+  // Determine current active phase (MUST be defined before useEffects)
+  let currentPhase = 'menu';
+  if (gameRoute && game) {
+      if (localPlayConfig) {
+          currentPhase = 'playing_local';
+      } else if (arcadeSession) {
+          if (arcadeSession.status === 'playing') currentPhase = 'playing_remote';
+          else currentPhase = 'lobby';
+      } else {
+          currentPhase = 'details';
+      }
+  }
+
   // Cleanup logic
-  useEffect(() => {
-      setLocalPlayConfig(null);
-      setSelectedModeId(null);
-      return () => {
-          if (gameRoute) leaveSession();
-      };
-  }, [gameRoute, leaveSession]);
 
   useEffect(() => {
     if (!gameRoute || gameRoute === '') {
@@ -202,18 +210,14 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       }
   };
 
-  // Determine current active phase
-  let currentPhase = 'menu';
-  if (gameRoute && game) {
-      if (localPlayConfig) {
-          currentPhase = 'playing_local';
-      } else if (arcadeSession) {
-          if (arcadeSession.status === 'playing') currentPhase = 'playing_remote';
-          else currentPhase = 'lobby';
-      } else {
-          currentPhase = 'details';
-      }
-  }
+  // Cleanup logic
+  useEffect(() => {
+      setLocalPlayConfig(null);
+      setSelectedModeId(null);
+      return () => {
+          if (gameRoute) leaveSession();
+      };
+  }, [gameRoute, leaveSession]);
 
   const renderActiveGame = () => {
     const activeConfig = currentPhase === 'playing_local' ? localPlayConfig : arcadeSession?.game_state;
