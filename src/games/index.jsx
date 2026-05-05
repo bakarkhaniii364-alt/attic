@@ -129,8 +129,6 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const game = GAME_CATALOG[gameRoute];
 
-  const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(syncedRoomId, gameRoute, userId);
-
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
   if (gameRoute && game) {
