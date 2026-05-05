@@ -7,7 +7,7 @@ import { Play, Pause, RotateCcw, RotateCw, Heart, Link as LinkIcon, MessageSquar
 import { useSync } from '../context/SyncContext.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
-export default function SyncWatcher({ onBack, sfx, userId }) {
+export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const { broadcast, roomProfiles } = useSync();
     
     // Database Synced State (So late-joiners see the right screen)
@@ -62,12 +62,11 @@ export default function SyncWatcher({ onBack, sfx, userId }) {
                     setPlaying(false);
                 }
                 if (payload.action === 'SEEK_FRACTION') {
-                    const dur = playerRef.current.duration;
-                    if (dur > 0) playerRef.current.currentTime = payload.time * dur;
+                    playerRef.current.seekTo(payload.time, 'fraction');
                     setPlayedFraction(payload.time);
                 }
                 if (payload.action === 'SEEK_SECONDS') {
-                    playerRef.current.currentTime = payload.time;
+                    playerRef.current.seekTo(payload.time, 'seconds');
                     setPlayedSeconds(payload.time);
                 }
             }
@@ -107,6 +106,21 @@ export default function SyncWatcher({ onBack, sfx, userId }) {
         isSeeking.current = false;
     };
 
+    const handleInvite = () => {
+        playAudio('click', sfx);
+        broadcast('watchparty_invite', { 
+            sender: userId, 
+            senderName: myName,
+            url: syncedUrl,
+            timestamp: Date.now() 
+        });
+        if (onShareToChat) {
+            onShareToChat(`Join me for a watch party!`, null, { type: 'watchparty_invite', url: syncedUrl });
+        }
+        setEphemeralChat(prev => [...prev, { id: Date.now(), sender: 'SYSTEM', text: 'Invite sent to partner!', isMe: true }]);
+    };
+
+    const handleUrlChange = (e) => setInputUrl(e.target.value);
     const handleLoadUrl = () => {
         if (!inputUrl) return;
         playAudio('click', sfx);
@@ -300,6 +314,9 @@ export default function SyncWatcher({ onBack, sfx, userId }) {
                         />
                         <RetroButton variant="primary" onClick={handleLoadUrl} className="px-6 text-xs font-bold flex items-center gap-2 shadow-sm">
                             {mode === 'video' ? <LinkIcon size={14} /> : <Globe size={14} />} Load
+                        </RetroButton>
+                        <RetroButton onClick={handleInvite} className="px-6 text-xs font-bold flex items-center gap-2 bg-secondary text-secondary-text shadow-sm" title="Invite partner to watch together">
+                             <Users size={14} /> Invite
                         </RetroButton>
                     </div>
                 </div>

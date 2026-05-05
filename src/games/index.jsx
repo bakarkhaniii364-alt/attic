@@ -328,7 +328,7 @@ export function ActivitiesHub({ onClose, scores, setScores, sfx, setConfetti, on
       setLobbyState(prev => {
           const newPlayers = (prev.players || []).filter(p => p !== userId);
           if (newPlayers.length === 0) {
-              return { gameId: null, status: 'waiting', players: [], config: null };
+              return { gameId: null, status: 'idle', players: [], config: null };
           }
           return { ...prev, players: newPlayers };
       });

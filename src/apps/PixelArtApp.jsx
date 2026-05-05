@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { Download, Trash2, PaintBucket, Eraser, Pipette, MousePointer2, Undo, Redo } from 'lucide-react';
+import { Download, Trash2, PaintBucket, Eraser, Pipette, MousePointer2, Undo, Redo, Pencil } from 'lucide-react';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 const PALETTE = ['#5c3a21','#e94560','#4f9ef8','#f9e2af','#b5c99a','#ffffff','#000000','#ff6b6b','#a855f7','#14b8a6','#f97316','#ec4899'];
@@ -133,7 +133,7 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
             className={`p-2 retro-border transition-all ${tool === 'pen' ? 'bg-white shadow-inner scale-110 z-10' : 'retro-bg-window opacity-70 hover:opacity-100'}`}
             title="Pen Tool"
           >
-            <PenTool size={18} />
+            <Pencil size={18} />
           </button>
           <button 
             onClick={() => { playAudio('click', sfx); setTool('eraser'); }} 

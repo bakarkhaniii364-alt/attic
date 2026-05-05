@@ -18,8 +18,8 @@ export function AuthProvider({ children }) {
     let mounted = true;
 
     let isFetchingRoom = false;
-    const fetchRoomData = async () => {
-      if (isFetchingRoom) return;
+    const fetchRoomData = async (currentUserId) => {
+      if (isFetchingRoom || !currentUserId) return;
       isFetchingRoom = true;
       setRoomLoading(true);
       try {
@@ -31,7 +31,9 @@ export function AuthProvider({ children }) {
         if (error) throw error;
         if (mounted && room) {
           setRoomId(room.id);
-          setPartnerId(room.partner_id);
+          // Correctly identify the OTHER person as the partner
+          const actualPartnerId = room.creator_id === currentUserId ? room.partner_id : room.creator_id;
+          setPartnerId(actualPartnerId);
         }
       } catch (err) {
         console.warn('[AUTH] Room fetch failed:', err.message);
@@ -83,7 +85,7 @@ export function AuthProvider({ children }) {
           isLoadingRef.current = false;
           setLoading(false);
           // Load room data in the background (parallel, non-blocking)
-          fetchRoomData(); // setRoomLoading handled inside
+          fetchRoomData(initialSession.user.id); // setRoomLoading handled inside
         } else {
           // No session → just unblock, nothing to room-fetch
           isLoadingRef.current = false;
@@ -111,7 +113,7 @@ export function AuthProvider({ children }) {
       isLoadingRef.current = false;
       setLoading(false); // Unblock first
       if (newSession?.user) {
-        fetchRoomData(); // Then load room in background
+        fetchRoomData(newSession.user.id); // Then load room in background
       } else {
         setRoomId(null);
         setPartnerId(null);
@@ -137,7 +139,8 @@ export function AuthProvider({ children }) {
       const { data: room } = await supabase.rpc('get_my_room');
       if (room) {
         setRoomId(room.id);
-        setPartnerId(room.partner_id);
+        const actualPartnerId = room.creator_id === user.id ? room.partner_id : room.creator_id;
+        setPartnerId(actualPartnerId);
         return room;
       }
     }

@@ -98,7 +98,7 @@ begin
     'id', room_row.id,
     'invite_code', room_row.invite_code,
     'creator_id', room_row.creator_id,
-    'partner_id', room_row.partner_id,
+    'partner_id', case when room_row.creator_id = auth.uid() then room_row.partner_id else room_row.creator_id end,
     'is_paired', room_row.partner_id is not null
   );
 end;

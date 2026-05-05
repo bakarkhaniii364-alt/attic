@@ -680,6 +680,16 @@ export function ChatView({ onClose, sfx }) {
                                 )}
                               </div>
                             )}
+                            {msg.type === 'watchparty_invite' && (
+                              <div className="retro-border retro-shadow-dark bg-window p-3 w-64 text-main-text mt-1">
+                                <div className="flex items-center gap-2 mb-3 border-b-2 border-border/20 pb-2">
+                                  <Monitor size={18} className="text-secondary" />
+                                  <span className="font-black text-[10px] uppercase tracking-widest">Watchparty Invite</span>
+                                </div>
+                                <p className="text-xs font-bold mb-4 opacity-80">{msg.text || `Join me for a watch party!`}</p>
+                                <button onClick={() => navigate('/watch')} className="w-full py-2 text-xs font-bold bg-secondary text-secondary-text retro-border retro-shadow-dark hover:brightness-110 transition-all">Join Now</button>
+                              </div>
+                            )}
                             {msg.type === 'call_invite' && (
                               <div className="flex flex-col gap-1 py-1">
                                 <div className="flex items-center gap-3">

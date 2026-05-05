@@ -422,7 +422,7 @@ export function CalendarReminder() {
   );
 }
 
-export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, weather, setWeather, radioState, setRadioState }) {
+export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
   const { userId, partnerId, roomId, logout } = useAuth();
   const { globalState, updateSyncState, broadcast: syncBroadcast, onlineUsers } = useSync();
   const { messages: chatHistory } = useChat();
@@ -485,6 +485,10 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     playAudio('click', sfxEnabled);
     syncBroadcast('interaction', { type: 'kiss', from: userId, timestamp: Date.now().toString() });
     mergeSyncState('couple_data', { lastKissFrom: userId, lastKissTimestamp: Date.now().toString() });
+    if (setShowKiss) {
+      setShowKiss(true);
+      setTimeout(() => setShowKiss(false), 4500);
+    }
   };
 
   const nav = (v) => setView(v);
@@ -680,6 +684,25 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
+                      {partnerProfile.activity && (
+                        <div className="flex items-center gap-2 mt-1.5 animate-in fade-in slide-in-from-left-2">
+                          <p className="text-[10px] font-bold text-primary italic lowercase">
+                            currently {partnerProfile.activity}
+                          </p>
+                          {['Playing', 'Watching', 'Browsing'].some(s => partnerProfile.activity.includes(s)) && (
+                            <button 
+                              onClick={() => {
+                                if (partnerProfile.activity.includes('SyncWatcher')) setView('watch');
+                                else if (partnerProfile.activity.includes('Games')) setView('activities');
+                                else setView('activities');
+                              }}
+                              className="text-[8px] bg-primary text-white px-1.5 py-0.5 retro-border font-black uppercase hover:scale-105 active:scale-95 transition-transform"
+                            >
+                              Join
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="ml-auto flex items-center gap-3">

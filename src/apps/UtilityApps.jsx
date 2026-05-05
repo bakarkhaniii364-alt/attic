@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Brush, Trash2, PenTool, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette, Undo as UndoIcon } from 'lucide-react';
+import { getStroke } from 'perfect-freehand';
+import { Download, Brush, Trash2, Pencil, Eraser, PaintBucket, Square, Circle, Minus, Send, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, Check, Lock, Unlock, Type, Heart, Pipette, Undo as UndoIcon, MousePointer2 } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { SecureImage } from '../components/SecureMedia.jsx';
 import { playAudio } from '../utils/audio.js';
@@ -32,84 +33,215 @@ export function DoodleViewer({ doodle, onClose, onRedoodle, onReplyToChat, profi
   );
 }
 
-export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapbook, sfx, roomId, userId }) {
-  const { uploadAsset } = useAssetSync(roomId);
-  const isNormalized = !!roomId;
-  const canvasRef = useRef(null); const [isDrawing, setIsDrawing] = useState(false); const [tool, setTool] = useState('pen'); const [color, setColor] = useState('#5c3a21'); const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const startPosRef = useRef({ x: 0, y: 0 }); const snapshotRef = useRef(null); const snapshotHistory = useRef([]);
+  const canvasRef = useRef(null);
+  const offscreenCanvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false); 
+  const [tool, setTool] = useState('pen'); 
+  const [color, setColor] = useState('#5c3a21'); 
+  const [brushSize, setBrushSize] = useState(6);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  const [points, setPoints] = useState([]);
+  const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
+  const [showCursor, setShowCursor] = useState(false);
+
+  const startPosRef = useRef({ x: 0, y: 0 }); 
+  const snapshotHistory = useRef([]);
   const colorInputRef = useRef(null);
   
   const initCanvas = () => {
     const canvas = canvasRef.current; if (!canvas) return;
     const rect = canvas.getBoundingClientRect(); if (rect.width === 0 || rect.height === 0) return;
-    const ctx = canvas.getContext('2d'); const imgData = canvas.dataset.initialized === 'true' && canvas.width > 0 && canvas.height > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
-    canvas.width = rect.width; canvas.height = rect.height;
+    
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Main Canvas
+    canvas.width = rect.width * dpr; 
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    
+    // Offscreen Canvas for performance
+    if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement('canvas');
+    }
+    const offscreen = offscreenCanvasRef.current;
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    const oCtx = offscreen.getContext('2d');
+    
     if (initialDoodle && !canvas.dataset.initialized) { 
       const img = new Image(); 
       img.onload = () => { 
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
-        snapshotHistory.current = [canvas.toDataURL()]; 
+        oCtx.drawImage(img, 0, 0, offscreen.width, offscreen.height); 
+        ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
+        snapshotHistory.current = [offscreen.toDataURL()]; 
       }; 
       img.src = typeof initialDoodle === 'string' ? initialDoodle : initialDoodle.img; 
       canvas.dataset.initialized = 'true'; 
     } 
-    else if (imgData) { ctx.putImageData(imgData, 0, 0); } 
-    else { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); canvas.dataset.initialized = 'true'; snapshotHistory.current=[canvas.toDataURL()]; }
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    else if (canvas.dataset.initialized === 'true') {
+        // Just redraw the offscreen to the new main
+        ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
+    }
+    else { 
+      oCtx.fillStyle = '#ffffff'; 
+      oCtx.fillRect(0, 0, offscreen.width, offscreen.height); 
+      ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
+      canvas.dataset.initialized = 'true'; 
+      snapshotHistory.current = [offscreen.toDataURL()]; 
+    }
   };
-  useEffect(() => { initCanvas(); window.addEventListener('resize', initCanvas); return () => window.removeEventListener('resize', initCanvas); }, [initialDoodle]);
 
-  const getCoords = (e) => { const canvas = canvasRef.current; const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; };
+  useEffect(() => { 
+    initCanvas(); 
+    const handleResize = () => initCanvas();
+    window.addEventListener('resize', handleResize); 
+    return () => window.removeEventListener('resize', handleResize); 
+  }, [initialDoodle]);
+
+  const getCoords = (e) => { 
+    const canvas = canvasRef.current; 
+    const rect = canvas.getBoundingClientRect(); 
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX; 
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY; 
+    return { x: clientX - rect.left, y: clientY - rect.top }; 
+  };
 
   const handlePointerDown = (e) => {
-    const canvas = canvasRef.current; if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+    const canvas = canvasRef.current; if (!canvas) return;
     const { x, y } = getCoords(e);
-    if (tool.startsWith('stamp_')) { const ctx = canvas.getContext('2d'); ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(tool.split('_')[1], x, y); setHasUnsavedChanges(true); snapshotHistory.current.push(canvas.toDataURL()); return; }
-    if (tool === 'fill') { floodFill(canvas, Math.floor(x), Math.floor(y), color); setHasUnsavedChanges(true); snapshotHistory.current.push(canvas.toDataURL()); return; }
-    setIsDrawing(true); setHasUnsavedChanges(true); startPosRef.current = { x, y }; const ctx = canvas.getContext('2d');
-    if (['rect', 'circle', 'line'].includes(tool)) { snapshotRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height); } else { ctx.beginPath(); ctx.moveTo(x, y); }
+    const dpr = window.devicePixelRatio || 1;
+    
+    if (tool.startsWith('stamp_')) { 
+      const oCtx = offscreenCanvasRef.current.getContext('2d');
+      oCtx.save();
+      oCtx.scale(dpr, dpr);
+      oCtx.font = '40px sans-serif'; 
+      oCtx.textAlign = 'center'; 
+      oCtx.textBaseline = 'middle'; 
+      oCtx.fillText(tool.split('_')[1], x, y); 
+      oCtx.restore();
+      
+      canvas.getContext('2d').drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
+      setHasUnsavedChanges(true); 
+      snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
+      return; 
+    }
+    
+    if (tool === 'fill') { 
+      floodFill(offscreenCanvasRef.current, Math.floor(x * dpr), Math.floor(y * dpr), color); 
+      canvas.getContext('2d').drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
+      setHasUnsavedChanges(true); 
+      snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
+      return; 
+    }
+    
+    setIsDrawing(true); 
+    setHasUnsavedChanges(true); 
+    startPosRef.current = { x, y }; 
+    
+    if (!['rect', 'circle', 'line'].includes(tool)) { 
+      setPoints([[x, y, 0.5]]);
+    }
   };
+
   const handlePointerMove = (e) => {
+    const { x, y } = getCoords(e);
+    setCursorPos({ x, y });
+    if (!showCursor) setShowCursor(true);
+
     if (!isDrawing || tool === 'fill' || tool.startsWith('stamp_')) return;
-    const { x, y } = getCoords(e); const canvas = canvasRef.current; const ctx = canvas.getContext('2d');
-    ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; ctx.lineWidth = tool === 'eraser' ? 24 : 4;
+    
+    const canvas = canvasRef.current; 
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    
+    ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+    ctx.drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
+    
+    ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
+    ctx.fillStyle = tool === 'eraser' ? '#ffffff' : color;
+    ctx.lineWidth = brushSize;
+    
     if (['rect', 'circle', 'line'].includes(tool)) {
-      if (snapshotRef.current) ctx.putImageData(snapshotRef.current, 0, 0);
       let startX = startPosRef.current.x; let startY = startPosRef.current.y; let width = x - startX; let height = y - startY;
       if (e.shiftKey) { const maxDist = Math.max(Math.abs(width), Math.abs(height)); width = width < 0 ? -maxDist : maxDist; height = height < 0 ? -maxDist : maxDist; }
-      if (e.altKey) { startX = startX - width; startY = startY - height; width = width * 2; height = height * 2; }
+      
       ctx.beginPath();
-      if (tool === 'rect') { ctx.rect(startX, startY, width, height); } else if (tool === 'circle') { const rx = Math.abs(width / 2); const ry = Math.abs(height / 2); const cx = startX + width / 2; const cy = startY + height / 2; ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI); } else if (tool === 'line') { let lx = x; let ly = y; if (e.shiftKey) { const angle = Math.atan2(y - startPosRef.current.y, x - startPosRef.current.x); const snapped = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4); const dist = Math.hypot(y - startPosRef.current.y, x - startPosRef.current.x); lx = startPosRef.current.x + dist * Math.cos(snapped); ly = startPosRef.current.y + dist * Math.sin(snapped); } if (e.altKey) { const dx = lx - startPosRef.current.x; const dy = ly - startPosRef.current.y; ctx.moveTo(startPosRef.current.x - dx, startPosRef.current.y - dy); } else { ctx.moveTo(startPosRef.current.x, startPosRef.current.y); } ctx.lineTo(lx, ly); }
+      if (tool === 'rect') { ctx.rect(startX, startY, width, height); } 
+      else if (tool === 'circle') { const rx = Math.abs(width / 2); const ry = Math.abs(height / 2); const cx = startX + width / 2; const cy = startY + height / 2; ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI); } 
+      else if (tool === 'line') { ctx.moveTo(startX, startY); ctx.lineTo(x, y); }
       ctx.stroke();
-    } else { ctx.lineTo(x, y); ctx.stroke(); }
+    } else { 
+      const newPoints = [...points, [x, y, 0.5]];
+      setPoints(newPoints);
+      
+      const stroke = getStroke(newPoints, {
+        size: tool === 'eraser' ? brushSize * 4 : brushSize,
+        thinning: 0.5,
+        smoothing: 0.5,
+        streamline: 0.5,
+      });
+      
+      const pathData = getSvgPathFromStroke(stroke);
+      const myPath = new Path2D(pathData);
+      ctx.fill(myPath);
+    }
   };
-  const handlePointerUp = () => { if(isDrawing){ setIsDrawing(false); snapshotRef.current = null; snapshotHistory.current.push(canvasRef.current.toDataURL()); } };
+
+  const handlePointerUp = () => { 
+    if(isDrawing){ 
+      setIsDrawing(false); 
+      const canvas = canvasRef.current;
+      const dpr = window.devicePixelRatio || 1;
+      const oCtx = offscreenCanvasRef.current.getContext('2d');
+      
+      // Commit the current main canvas state to the offscreen canvas
+      oCtx.clearRect(0, 0, canvas.width, canvas.height);
+      oCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+      
+      setPoints([]);
+      snapshotHistory.current.push(offscreenCanvasRef.current.toDataURL()); 
+    } 
+  };
+
   const handleUndo = () => {
     if (snapshotHistory.current.length <= 1) return;
     playAudio('click', sfx);
-    snapshotHistory.current.pop(); // Remove current state
+    snapshotHistory.current.pop();
     const prevState = snapshotHistory.current[snapshotHistory.current.length - 1];
     const img = new Image();
     img.onload = () => {
-      const ctx = canvasRef.current.getContext('2d');
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      ctx.drawImage(img, 0, 0);
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
     };
     img.src = prevState;
   };
-  const clearCanvas = () => { playAudio('click', sfx); const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); setHasUnsavedChanges(true); snapshotHistory.current=[canvas.toDataURL()]; };
+
+  const clearCanvas = () => { 
+    playAudio('click', sfx); 
+    const canvas = canvasRef.current; 
+    const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext('2d'); 
+    ctx.fillStyle = '#ffffff'; 
+    ctx.fillRect(0, 0, rect.width, rect.height); 
+    setHasUnsavedChanges(true); 
+    snapshotHistory.current=[canvas.toDataURL()]; 
+  };
+
   const [showSentOverlay, setShowSentOverlay] = useState(false);
   const handleSend = async () => {
     playAudio('send', sfx);
     const dataUrl = canvasRef.current.toDataURL('image/png');
-    
     if (isNormalized) {
-        // App.jsx handles the upload and broadcast for the chat message/interaction
         if (onSendDoodle) onSendDoodle(dataUrl);
     } else {
         if (onSendDoodle) onSendDoodle({img: dataUrl, history: snapshotHistory.current});
     }
-    
     setHasUnsavedChanges(false);
     setShowSentOverlay(true);
   };
@@ -117,7 +249,6 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
   const handleSaveScrapbook = async () => {
     playAudio('click', sfx);
     const dataUrl = canvasRef.current.toDataURL('image/png');
-    
     if (isNormalized) {
         try {
             const blob = base64ToBlob(dataUrl);
@@ -132,49 +263,110 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
         alert('Saved to Scrapbook!');
     }
   };
-  const handleDownload = () => { playAudio('click', sfx); const dataUrl = canvasRef.current.toDataURL('image/png'); const a = document.createElement('a'); a.href = dataUrl; a.download = `doodle_${Date.now()}.png`; a.click(); };
-  const toolBtnClass = (t) => `p-2 rounded-md transition-colors retro-border ${tool === t ? 'bg-white shadow-inner' : 'opacity-70 hover:bg-black/10'}`;
+
+  const handleDownload = () => { 
+    playAudio('click', sfx); 
+    const dataUrl = canvasRef.current.toDataURL('image/png'); 
+    const a = document.createElement('a'); 
+    a.href = dataUrl; 
+    a.download = `doodle_${Date.now()}.png`; 
+    a.click(); 
+  };
+
+  const toolBtnClass = (t) => `p-2 rounded-md transition-all retro-border ${tool === t ? 'bg-white shadow-inner scale-105 border-primary' : 'opacity-70 hover:opacity-100 hover:bg-black/5'}`;
 
   return (
     <RetroWindow title={initialDoodle ? "doodle_editor.exe" : "new_doodle.exe"} onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" confirmOnClose hasUnsavedChanges={hasUnsavedChanges} onSaveBeforeClose={() => { handleSaveScrapbook(); onClose && onClose(); }} sfx={sfx} noPadding>
-      <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none">
-        <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')}><PenTool size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')}><PaintBucket size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')}><Eraser size={18}/></button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button><button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button>
-        <div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
-        <button 
-          onClick={handleUndo} 
-          className={`p-2 rounded-md transition-all retro-border flex items-center gap-1 font-bold text-[10px] uppercase ${snapshotHistory.current.length > 1 ? 'bg-white shadow-md hover:bg-[var(--accent)]' : 'opacity-20 cursor-not-allowed'}`}
-          disabled={snapshotHistory.current.length <= 1}
-          title="Undo (Ctrl+Z)"
-        >
-          <UndoIcon size={18}/>
-          <span>Undo</span>
-        </button>
-        <div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div><button onClick={() => setTool('stamp_❤️')} className={toolBtnClass('stamp_❤️')}>❤️</button><button onClick={() => setTool('stamp_⭐')} className={toolBtnClass('stamp_⭐')}>⭐</button><div className="h-6 w-px bg-[var(--border)] mx-1 flex-shrink-0"></div>
-        {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> ))}
-        <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
-           <Pipette size={12} />
-           <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
-        </button>
-        <div className="ml-auto flex-shrink-0"><RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs flex items-center gap-1 retro-border"><Trash2 size={12}/> Clear</RetroButton></div>
+      <div className="p-2 retro-bg-accent retro-border-b flex gap-2 items-center overflow-x-auto select-none no-scrollbar">
+        <div className="flex gap-1 pr-2 border-r border-border/20">
+          <button onClick={() => {playAudio('click', sfx); setTool('pen')}} className={toolBtnClass('pen')} title="Brush"><Pencil size={18} className={tool==='pen'?'text-primary':''}/></button>
+          <button onClick={() => {playAudio('click', sfx); setTool('fill')}} className={toolBtnClass('fill')} title="Fill Bucket"><PaintBucket size={18}/></button>
+          <button onClick={() => {playAudio('click', sfx); setTool('eraser')}} className={toolBtnClass('eraser')} title="Eraser"><Eraser size={18}/></button>
+        </div>
+        
+        <div className="flex gap-1 px-2 border-r border-border/20">
+          <button onClick={() => {playAudio('click', sfx); setTool('rect')}} className={toolBtnClass('rect')}><Square size={18}/></button>
+          <button onClick={() => {playAudio('click', sfx); setTool('circle')}} className={toolBtnClass('circle')}><Circle size={18}/></button>
+          <button onClick={() => {playAudio('click', sfx); setTool('line')}} className={toolBtnClass('line')}><Minus size={18} className="rotate-45"/></button>
+        </div>
+
+        <div className="flex items-center gap-2 px-2 border-r border-border/20 min-w-[120px]">
+          <span className="text-[8px] font-black uppercase opacity-50">Size</span>
+          <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full accent-primary h-1 bg-black/10 rounded-lg appearance-none cursor-pointer" />
+        </div>
+
+        <div className="flex gap-1 px-2 border-r border-border/20">
+          <button onClick={() => {playAudio('click', sfx); setTool('stamp_❤️')}} className={toolBtnClass('stamp_❤️')}>❤️</button>
+          <button onClick={() => {playAudio('click', sfx); setTool('stamp_⭐')}} className={toolBtnClass('stamp_⭐')}>⭐</button>
+        </div>
+
+        <div className="flex gap-1 px-2 items-center">
+          {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( 
+            <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-6 h-6 rounded-full retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-black scale-125' : ''}`} style={{backgroundColor: c}} /> 
+          ))}
+          <button onClick={() => colorInputRef.current.click()} className="w-6 h-6 rounded-full retro-border flex-shrink-0 flex items-center justify-center bg-white" title="Custom Color">
+             <Pipette size={12} />
+             <input type="color" ref={colorInputRef} className="sr-only" onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} />
+          </button>
+        </div>
+
+        <div className="ml-auto flex gap-2 items-center pl-2">
+          <button onClick={handleUndo} className={`p-2 rounded-md transition-all retro-border ${snapshotHistory.current.length > 1 ? 'bg-white hover:bg-accent' : 'opacity-20 cursor-not-allowed'}`} disabled={snapshotHistory.current.length <= 1} title="Undo"><UndoIcon size={18}/></button>
+          <RetroButton variant="white" onClick={clearCanvas} className="px-3 py-1 text-xs retro-border"><Trash2 size={12}/> Clear</RetroButton>
+        </div>
       </div>
-      <div className="flex-1 bg-white relative touch-none">
+      
+      <div 
+        className="flex-1 bg-[#f0f0f0] relative overflow-hidden cursor-none"
+        onMouseEnter={() => setShowCursor(true)}
+        onMouseLeave={() => setShowCursor(false)}
+      >
         <canvas 
           ref={canvasRef} 
-          onMouseDown={handlePointerDown} 
-          onMouseMove={handlePointerMove} 
-          onMouseUp={handlePointerUp} 
-          onMouseLeave={handlePointerUp} 
-          onTouchStart={handlePointerDown} 
-          onTouchMove={handlePointerMove} 
-          onTouchEnd={handlePointerUp} 
-          className="absolute inset-0 w-full h-full" 
-          style={{ cursor: tool === 'fill' ? 'cell' : tool.startsWith('stamp_') ? 'grab' : 'crosshair' }}
+          onPointerDown={handlePointerDown} 
+          onPointerMove={handlePointerMove} 
+          onPointerUp={handlePointerUp} 
+          onPointerLeave={handlePointerUp} 
+          className="absolute inset-0 w-full h-full bg-white shadow-inner" 
         />
+        
+        {/* Brush Cursor Preview */}
+        {showCursor && (
+          <div 
+            className="pointer-events-none fixed z-[999] rounded-full border border-black/20 mix-blend-difference"
+            style={{ 
+              left: cursorPos.x + canvasRef.current?.getBoundingClientRect().left, 
+              top: cursorPos.y + canvasRef.current?.getBoundingClientRect().top,
+              width: tool === 'eraser' ? brushSize * 4 : brushSize, 
+              height: tool === 'eraser' ? brushSize * 4 : brushSize,
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: tool === 'eraser' ? '#ffffff' : color,
+              opacity: tool === 'fill' || tool.startsWith('stamp_') ? 0 : 0.6
+            }}
+          />
+        )}
+        {(tool === 'fill' || tool.startsWith('stamp_')) && showCursor && (
+            <div 
+                className="pointer-events-none fixed z-[999] text-xl"
+                style={{
+                    left: cursorPos.x + canvasRef.current?.getBoundingClientRect().left, 
+                    top: cursorPos.y + canvasRef.current?.getBoundingClientRect().top,
+                    transform: 'translate(-50%, -50%)',
+                }}
+            >
+                {tool === 'fill' ? '🪣' : tool.split('_')[1]}
+            </div>
+        )}
       </div>
+
       <div className="p-3 retro-bg-window retro-border-t flex flex-wrap gap-2 justify-between">
-        <div className="flex gap-2"><RetroButton variant="secondary" onClick={handleDownload} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2 retro-border"><Download size={14}/> Device</RetroButton><RetroButton variant="white" onClick={handleSaveScrapbook} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2 retro-border"><ImageIcon size={14}/> Album</RetroButton></div>
+        <div className="flex gap-2">
+          <RetroButton variant="secondary" onClick={handleDownload} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2 retro-border"><Download size={14}/> Device</RetroButton>
+          <RetroButton variant="white" onClick={handleSaveScrapbook} className="px-3 py-2 text-xs sm:text-sm flex items-center gap-2 retro-border"><ImageIcon size={14}/> Album</RetroButton>
+        </div>
         <RetroButton variant="primary" onClick={handleSend} className="px-6 py-2 text-sm sm:text-base flex items-center gap-2 retro-border">Send <Send size={16}/></RetroButton>
       </div>
+      
       {showSentOverlay && (
         <div className="fixed inset-0 z-[250] bg-black/60 flex items-center justify-center p-4">
           <RetroWindow title="doodle_sent.msg" onClose={() => { setShowSentOverlay(false); onClose && onClose(); }} className="w-full max-w-sm" confirmOnClose={false}>

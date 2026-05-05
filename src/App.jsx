@@ -391,6 +391,7 @@ export default function App() {
   const activeDoodleView = doodleQueue[0] || null;
   const closeDoodle = () => setDoodleQueue(prev => prev.slice(1));
   const [gameInvite, setGameInvite] = useState(null);
+  const [watchpartyInvite, setWatchpartyInvite] = useState(null);
   const processedInvites = useRef(new Set());
 
   const partnerProfile = globalState.room_profiles?.[partnerId] || {};
@@ -438,6 +439,35 @@ export default function App() {
       });
     }
   }, [userId, roomId, isInitialized, user]);
+
+  // Activity Tracking
+  useEffect(() => {
+    if (!userId || !roomId || !isInitialized) return;
+    
+    const routeToActivity = {
+      '/dashboard': 'At Home',
+      '/chat': 'In Chat',
+      '/doodle': 'Doodling',
+      '/watch': 'Watching SyncWatcher',
+      '/activities/tictactoe': 'Playing Tic-Tac-Toe',
+      '/activities/pictionary': 'Drawing...',
+      '/activities/chess': 'Thinking (Chess)',
+      '/activities/uno': 'Playing Uno',
+      '/activities/2048': 'Playing 2048',
+      '/activities/pool': 'Playing Pool',
+      '/activities': 'Browsing Games',
+    };
+
+    let activity = 'Exploring';
+    for (const [route, act] of Object.entries(routeToActivity)) {
+      if (location.pathname.startsWith(route)) {
+        activity = act;
+        break;
+      }
+    }
+
+    updateSyncStateAtomic('room_profiles', userId, { activity });
+  }, [location.pathname, userId, roomId, isInitialized]);
 
   const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
   const [partnerOnlineModal, setPartnerOnlineModal] = useState(false);
@@ -512,6 +542,13 @@ export default function App() {
         const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 30000);
         if (isRecent) {
            setGameInvite(payload);
+        }
+      }
+      if (event === 'watchparty_invite' && payload.sender !== userId) {
+        const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 60000);
+        if (isRecent) {
+          setWatchpartyInvite(payload);
+          playAudio('notif', sfxEnabled);
         }
       }
     };
@@ -643,6 +680,27 @@ export default function App() {
           />
         )}
 
+        {watchpartyInvite && (
+          <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <RetroWindow title="watchparty_invite.exe" onClose={() => setWatchpartyInvite(null)} className="max-w-sm w-full">
+              <div className="p-6 text-center">
+                 <div className="w-16 h-16 bg-primary text-white rounded-lg retro-border flex items-center justify-center mx-auto mb-4">
+                    <Monitor size={32} />
+                 </div>
+                 <h2 className="text-xl font-black mb-2 uppercase tracking-tighter">{watchpartyInvite.senderName} invited you!</h2>
+                 <p className="text-sm font-bold opacity-70 mb-6 lowercase">join them for a watch party on syncwatcher?</p>
+                 <div className="flex gap-3">
+                    <RetroButton variant="white" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => setWatchpartyInvite(null)}>Decline</RetroButton>
+                    <RetroButton variant="primary" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => {
+                        setWatchpartyInvite(null);
+                        navigateTo('watch');
+                    }}>Join Now</RetroButton>
+                 </div>
+              </div>
+            </RetroWindow>
+          </div>
+        )}
+
         {floatingDoodles.map((doodle) => (
            <FloatingEnvelope key={doodle.id} doodle={doodle} onClick={(d) => { playAudio('click', sfxEnabled); setDoodleQueue(prev => [...prev, { image: d.data, sender: partnerId }]); setFloatingDoodles(prev => prev.filter((item) => item.id !== d.id)); }} />
         ))}
@@ -666,7 +724,7 @@ export default function App() {
                 authLoading || (user && roomLoading && !roomId) ? <AppLoader /> :
                 !user ? <Navigate to="/" replace /> :
                 !roomId ? <Navigate to="/handshake" replace /> :
-                <Dashboard setView={navigateTo} theme={theme} setTheme={setTheme} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} weather={weather} setWeather={setWeather} radioState={radioState} setRadioState={setRadioState} />
+                <Dashboard setView={navigateTo} theme={theme} setTheme={setTheme} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} weather={weather} setWeather={setWeather} radioState={radioState} setRadioState={setRadioState} setShowKiss={setShowKiss} />
               } />
               <Route path="/signup" element={<AuthView mode="signup" />} />
               <Route path="/signin" element={<AuthView mode="signin" />} />
@@ -677,7 +735,25 @@ export default function App() {
                 roomId ? <Navigate to="/dashboard" replace /> :
                 <HandshakeView />
               } />
-              <Route path="/settings" element={<ProtectedRoute><SettingsView theme={theme} setTheme={setTheme} weather={weather} setWeather={setWeather} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} profile={roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }} setProfile={(newProf) => updateSyncState('room_profiles', { ...globalState.room_profiles, [userId]: typeof newProf === 'function' ? newProf(roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }) : newProf })} coupleData={globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' }} setCoupleData={(newData) => updateSyncState('couple_data', typeof newData === 'function' ? newData(globalState.couple_data || {}) : newData)} onClose={()=>navigateTo('dashboard')} /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsView 
+                theme={theme} setTheme={setTheme} 
+                weather={weather} setWeather={setWeather} 
+                sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
+                notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} 
+                profile={roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }} 
+                setProfile={(newProf) => {
+                  const currentProf = roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' };
+                  const updatedProf = typeof newProf === 'function' ? newProf(currentProf) : newProf;
+                  updateSyncStateAtomic('room_profiles', userId, updatedProf);
+                }}
+                coupleData={globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' }} 
+                setCoupleData={(newData) => {
+                  const currentData = globalState.couple_data || {};
+                  const updatedData = typeof newData === 'function' ? newData(currentData) : newData;
+                  mergeSyncState('couple_data', updatedData);
+                }}
+                onClose={()=>navigateTo('dashboard')} 
+              /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
@@ -690,7 +766,7 @@ export default function App() {
               <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-               <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} /></ProtectedRoute>} />
+               <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} onShareToChat={handleShareToChat} /></ProtectedRoute>} />
               <Route path="/legal" element={<LegalView onClose={() => navigateTo('dashboard')} />} />
               <Route path="/activities/*" element={<ProtectedRoute><ActivitiesHub 
                 onClose={()=>navigateTo('dashboard')} 
