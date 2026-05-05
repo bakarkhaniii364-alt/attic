@@ -57,12 +57,13 @@ export function useArcadeSession(gameId) {
     return data;
   }, [roomId, gameId, userId]);
 
-  const setReady = useCallback(async (ready) => {
+  const setReady = useCallback(async (ready, partnerOnline = true) => {
     const { data, error } = await supabase.rpc('set_arcade_ready', {
       p_room_id: roomId,
       p_game_id: gameId,
       p_user_id: userId,
-      p_ready: ready
+      p_ready: ready,
+      p_partner_online: partnerOnline
     });
     if (error) throw error;
     return data;

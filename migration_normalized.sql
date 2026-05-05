@@ -324,7 +324,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION set_arcade_ready(p_room_id UUID, p_game_id TEXT, p_user_id UUID, p_ready BOOLEAN)
+CREATE OR REPLACE FUNCTION set_arcade_ready(p_room_id UUID, p_game_id TEXT, p_user_id UUID, p_ready BOOLEAN, p_partner_online BOOLEAN DEFAULT true)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -337,8 +337,9 @@ BEGIN
         player_a_ready = CASE WHEN player_a_id = p_user_id THEN p_ready ELSE player_a_ready END,
         player_b_ready = CASE WHEN player_b_id = p_user_id THEN p_ready ELSE player_b_ready END,
         status = CASE 
-            WHEN (player_a_id = p_user_id AND p_ready AND player_b_ready) OR 
-                 (player_b_id = p_user_id AND p_ready AND player_a_ready) 
+            WHEN NOT p_partner_online AND p_ready THEN 'starting' -- Solo bypass
+            WHEN (player_a_id = p_user_id AND p_ready AND (player_b_ready OR player_b_id IS NULL)) OR 
+                 (player_b_id = p_user_id AND p_ready AND (player_a_ready OR player_a_id IS NULL)) 
             THEN 'starting' -- Transition to starting first for countdown
             ELSE status 
         END,

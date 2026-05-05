@@ -847,6 +847,7 @@ export default function App() {
                 }}
                 profile={roomProfiles[userId]}
                 roomProfiles={roomProfiles}
+                onlineUsers={onlineUsers}
                 myName={roomProfiles[userId]?.name}
                 partnerName={partnerName}
                 syncedRoomId={roomId}

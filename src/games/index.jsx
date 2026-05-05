@@ -80,7 +80,7 @@ const GAME_CATALOG = {
   ]}
 };
 
-export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, roomId: syncedRoomId }) {
+export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, roomId: syncedRoomId }) {
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -476,8 +476,14 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     const playerA = isPlayerA ? userId : arcadeSession.player_a_id;
     const playerB = isPlayerA ? arcadeSession.player_b_id : userId;
     
+    const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
     const partnerInLobby = isPlayerA ? !!arcadeSession.player_b_id : !!arcadeSession.player_a_id;
-    const isReady = arcadeSession.player_a_ready && arcadeSession.player_b_ready;
+    
+    // Solo Bypass: If partner is offline, only my ready status matters for 'isReady'
+    const isReady = partnerIsOnline 
+      ? (arcadeSession.player_a_ready && arcadeSession.player_b_ready)
+      : (isPlayerA ? arcadeSession.player_a_ready : arcadeSession.player_b_ready);
+
     const amIReady = isPlayerA ? arcadeSession.player_a_ready : arcadeSession.player_b_ready;
 
     return (
@@ -501,16 +507,20 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                 </div>
             ) : isReady ? (
                <div className="flex flex-col items-center gap-4">
-                  <p className="text-sm font-bold text-green-600 animate-bounce">Both Players Ready!</p>
+                  <p className="text-sm font-bold text-green-600 animate-bounce">
+                    {partnerIsOnline ? "Both Players Ready!" : "Solo Mode Ready!"}
+                  </p>
                   <p className="text-[10px] uppercase tracking-widest opacity-60">Synchronizing Handshake...</p>
                </div>
             ) : (
                <div className="flex flex-col gap-3">
                  <p className="text-xs font-bold italic opacity-60">
-                    {partnerInLobby ? (amIReady ? "Waiting for partner..." : "Ready up to start!") : "Waiting for partner to join..."}
+                    {partnerInLobby 
+                      ? (amIReady ? `Waiting for ${partnerName}...` : "Ready up to start!") 
+                      : (amIReady ? "Waiting for partner to join..." : "Ready up to start solo!")}
                  </p>
-                 {!amIReady && partnerInLobby && (
-                   <RetroButton variant="accent" onClick={() => setReady(true)} className="px-8 py-3">I'm Ready!</RetroButton>
+                 {!amIReady && (
+                   <RetroButton variant="accent" onClick={() => setReady(true, partnerIsOnline)} className="px-8 py-3">I'm Ready!</RetroButton>
                  )}
                  {!partnerInLobby && (
                    <RetroButton onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} className="text-xs">
