@@ -726,7 +726,6 @@ export default function App() {
             <Routes key={location.pathname}>
               <Route path="/" element={<PublicRoute><LandingView /></PublicRoute>} />
               <Route path="/dashboard" element={
-                authLoading || (user && roomLoading && !roomId) ? <AppLoader /> :
                 !user ? <Navigate to="/" replace /> :
                 !roomId ? <Navigate to="/handshake" replace /> :
                 <Dashboard setView={navigateTo} theme={theme} setTheme={setTheme} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} weather={weather} setWeather={setWeather} radioState={radioState} setRadioState={setRadioState} setShowKiss={setShowKiss} />
@@ -735,7 +734,6 @@ export default function App() {
               <Route path="/signin" element={<AuthView mode="signin" />} />
               <Route path="/password-reset" element={<ResetPasswordView sfx={sfxEnabled} />} />
               <Route path="/handshake" element={
-                authLoading || (user && roomLoading && !roomId) ? <AppLoader /> :
                 !user ? <Navigate to="/" replace /> :
                 roomId ? <Navigate to="/dashboard" replace /> :
                 <HandshakeView />
