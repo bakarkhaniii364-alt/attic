@@ -598,6 +598,31 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     }
     setUnviewedDoodle(null);
   };
+  
+  const handleResetRoom = async () => {
+    if (!window.confirm("This will wipe all active game lobbies and reset your room state. Continue?")) return;
+    try {
+      playAudio('click', sfxEnabled);
+      
+      // 1. Nuke all arcade sessions for this room
+      await supabase
+        .from('arcade_sessions')
+        .delete()
+        .eq('room_id', roomId);
+      
+      // 2. Clear activity for both users
+      await updateSyncStateAtomic('room_profiles', userId, { activity: 'Exploring' });
+      
+      // 3. Signal partner to flush
+      syncBroadcast('force_reset', { sender: userId });
+      
+      toast('Room state fully flushed and reset.', 'success');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (e) {
+      console.error("[RESET] Failed:", e);
+      toast('Reset failed. Try manual refresh.', 'error');
+    }
+  };
 
   const handleFeed = () => {
     if (petCooldown) return;
@@ -684,7 +709,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
-                      {partnerProfile.activity && (
+                      {isPartnerOnline && partnerProfile.activity && (
                         <div className="flex items-center gap-2 mt-1.5 animate-in fade-in slide-in-from-left-2">
                           <p className="text-[10px] font-bold text-primary italic lowercase">
                             currently {partnerProfile.activity}
@@ -759,6 +784,13 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               </div>
               <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
                 <SettingsIcon size={11} /> Control Panel
+              </button>
+              <button 
+                onClick={handleResetRoom} 
+                className="bg-orange-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-orange-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5"
+                title="Wipe ghost activity and reset game states"
+              >
+                <Zap size={11} /> Reset Room
               </button>
               <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-red-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider">
                 Log Out
