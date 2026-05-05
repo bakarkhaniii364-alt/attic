@@ -31,7 +31,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  const availableThemes = ['default', 'matcha', 'sage', 'lavender', 'rose', 'minimal', 'monochrome', 'nord', 'coffee', 'velvet', 'mahogany', 'crayon', 'vaporwave', 'messenger', 'reddit', 'discord', 'spotify', 'github', 'cyberpunk', 'synthwave', 'matrix', 'hawkins', 'midnight', 'gameboy'];
+  const availableThemes = ['default', 'matcha', 'sage', 'lavender', 'rose', 'minimal', 'monochrome', 'nord', 'coffee', 'velvet', 'starlight', 'crayon', 'vaporwave', 'messenger', 'reddit', 'discord', 'spotify', 'github', 'cyberpunk', 'synthwave', 'matrix', 'hawkins', 'midnight', 'gameboy'];
 
   const handleCancel = () => {
     playAudio('click', sfxEnabled);

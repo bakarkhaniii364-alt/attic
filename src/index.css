@@ -373,32 +373,32 @@
   --text-disabled: #7678ed;
 }
 
-[data-theme="mahogany"] {
-  --bg-main: #3c1518;
-  --bg-pattern: #69140e;
-  --bg-window: #4d1c1f;
-  --bg-header: #fffb46;
-  --border: #f35b04;
-  --text-on-border: #ffffff;
-  --text-on-header: #3c1518;
-  --primary: #85ff9e;
-  --primary-hover: #70e68a;
-  --secondary: #69140e;
-  --accent: #fffb46;
-  --text-main: #ffffff;
-  --text-on-primary: #3c1518;
+[data-theme="starlight"] {
+  --bg-main: #003049;
+  --bg-pattern: #624cab;
+  --bg-window: #001f2f;
+  --bg-header: #003049;
+  --border: #a0ced9;
+  --text-on-border: #003049;
+  --text-on-header: #a0ced9;
+  --primary: #fffb46;
+  --primary-hover: #e6e23f;
+  --secondary: #624cab;
+  --accent: #f35b04;
+  --text-main: #a0ced9;
+  --text-on-primary: #003049;
   --text-on-secondary: #ffffff;
-  --text-on-accent: #3c1518;
-  --text-muted: #85ff9e;
+  --text-on-accent: #ffffff;
+  --text-muted: #624cab;
 
-  --color-success: #85ff9e; 
-  --text-on-success: #3c1518;
-  --color-warning: #fffb46;
-  --text-on-warning: #3c1518;
+  --color-success: #fffb46;
+  --text-on-success: #003049;
+  --color-warning: #f35b04;
+  --text-on-warning: #ffffff;
   --color-danger: #f35b04;
   --text-on-danger: #ffffff;
-  --bg-disabled: #4d1c1f;
-  --text-disabled: #69140e;
+  --bg-disabled: #001f2f;
+  --text-disabled: #624cab;
 }
 
 [data-theme="discord"] {
