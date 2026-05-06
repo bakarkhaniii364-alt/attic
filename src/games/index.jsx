@@ -143,10 +143,9 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       if (localPlayConfig) {
           currentPhase = 'playing_local';
         } else if (isNavigatingLobby) {
-          // INTERCEPT: If we ARE navigating but session isn't here yet, show loading
-          if (!arcadeSession) {
-              currentPhase = 'loading_lobby';
-          } else if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING') {
+          // If navigating, always show the lobby (Phase 3)
+          // We handle the null session inside Phase 3 gracefully.
+          if (arcadeSession?.status === 'playing' || lobbyPhase === 'STARTING') {
               currentPhase = 'playing_remote';
           } else {
               currentPhase = 'lobby';
@@ -534,19 +533,19 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   // 3. Lobby Waiting Phase
   if (currentPhase === 'lobby') {
-    const isPlayerA = arcadeSession.player_a_id === userId;
-    const playerA = isPlayerA ? userId : arcadeSession.player_a_id;
-    const playerB = isPlayerA ? arcadeSession.player_b_id : userId;
+    const isPlayerA = arcadeSession?.player_a_id === userId;
+    const playerA = isPlayerA ? userId : arcadeSession?.player_a_id;
+    const playerB = isPlayerA ? arcadeSession?.player_b_id : userId;
     
     const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
-    const partnerInLobby = isPlayerA ? !!arcadeSession.player_b_id : !!arcadeSession.player_a_id;
+    const partnerInLobby = isPlayerA ? !!arcadeSession?.player_b_id : !!arcadeSession?.player_a_id;
     
     // Solo Bypass: If partner is offline, only my ready status matters for 'isReady'
     const isReady = partnerIsOnline 
-      ? (arcadeSession.player_a_ready && arcadeSession.player_b_ready)
-      : (isPlayerA ? arcadeSession.player_a_ready : arcadeSession.player_b_ready);
+      ? (arcadeSession?.player_a_ready && arcadeSession?.player_b_ready)
+      : (isPlayerA ? arcadeSession?.player_a_ready : arcadeSession?.player_b_ready);
 
-    const amIReady = isPlayerA ? arcadeSession.player_a_ready : arcadeSession.player_b_ready;
+    const amIReady = isPlayerA ? arcadeSession?.player_a_ready : arcadeSession?.player_b_ready;
 
     return (
       <>
@@ -556,7 +555,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
             
             <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
                 <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game?.title || gameRoute}</span>
-                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession.game_state?.mode || 'Online'}</span>
+                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession?.game_state?.mode || 'Online'}</span>
             </div>
             <div className="flex justify-center gap-8 mb-10 w-full max-w-md">
                 {/* Player 1 Slot (Always You) */}
@@ -566,8 +565,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                     </div>
                     <span className="text-[10px] font-black uppercase opacity-40">Player 1</span>
                     <span className="text-sm font-black truncate">{myName || 'You'}</span>
-                    <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white')}`}>
-                        {isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING')}
+                    <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${!arcadeSession ? 'bg-gray-400 opacity-50' : (isPlayerA ? (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'))}`}>
+                        {!arcadeSession ? 'SYNCING...' : (isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING'))}
                     </div>
                 </div>
 
@@ -583,19 +582,21 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                     </div>
                     <span className="text-[10px] font-black uppercase opacity-40">Player 2</span>
                     <span className={`text-sm font-black truncate ${!partnerInLobby ? 'opacity-30' : ''}`}>
-                        {partnerInLobby ? (partnerName || 'Partner') : 'WAITING...'}
+                        {partnerInLobby ? (partnerName || 'Partner') : (arcadeSession ? 'WAITING...' : 'SYNCING...')}
                     </span>
                     {partnerInLobby ? (
                         <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white')}`}>
                             {isPlayerA ? (arcadeSession.player_b_ready ? 'READY' : 'WAITING') : (arcadeSession.player_a_ready ? 'READY' : 'WAITING')}
                         </div>
                     ) : (
-                        <div className="mt-2 px-2 py-0.5 text-[8px] font-black uppercase opacity-30 border-2 border-dashed border-black/10">EMPTY</div>
+                        <div className="mt-2 px-2 py-0.5 text-[8px] font-black uppercase opacity-30 border-2 border-dashed border-black/10">
+                            {!arcadeSession ? 'SYNCING...' : 'EMPTY'}
+                        </div>
                     )}
                 </div>
             </div>
 
-            {lobbyPhase === 'STARTING' || arcadeSession.status === 'starting' ? (
+            {arcadeSession && (lobbyPhase === 'STARTING' || arcadeSession.status === 'starting') ? (
                 <div className="py-4">
                     <ScoreboardCountdown count={3} onComplete={async () => {
                         console.log("🚦 [LOBBY] Countdown complete. Finalizing status to 'playing'...");
@@ -660,24 +661,6 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 4. Active Game Phase
   if (currentPhase === 'playing_local' || currentPhase === 'playing_remote') {
       return renderActiveGame();
-  }
-
-  // 5. Loading Lobby Phase
-  if (currentPhase === 'loading_lobby') {
-      return (
-        <RetroWindow title="lobby_sync.sys" onClose={() => setIsNavigatingLobby(false)} className="w-full max-w-sm">
-          <div className="flex flex-col items-center justify-center p-12 text-center">
-            <div className="relative mb-6">
-              <Loader className="animate-spin text-primary" size={48} />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Zap size={20} className="text-primary animate-pulse" />
-              </div>
-            </div>
-            <h2 className="text-xl font-black uppercase tracking-widest mb-2">Syncing Lobby</h2>
-            <p className="text-xs font-bold opacity-60 uppercase tracking-tighter">Establishing secure arcade session...</p>
-          </div>
-        </RetroWindow>
-      );
   }
 
   return null;

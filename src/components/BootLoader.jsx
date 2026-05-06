@@ -24,10 +24,10 @@ export function BootLoader({ onComplete, sfxEnabled }) {
         // Wait a bit at the end before completing
         setTimeout(() => {
           if (onComplete) onComplete();
-        }, 800);
+        }, 300);
         return prev;
       });
-    }, 450);
+    }, 150);
     return () => clearInterval(interval);
   }, []);
 
