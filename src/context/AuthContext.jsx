@@ -65,6 +65,7 @@ export function AuthProvider({ children }) {
         isLoadingRef.current = false;
         setRoomLoading(false); // Fix: unblock roomLoading for tests
         setLoading(false);
+        setHasInitialized(true);
         return;
       }
 
@@ -74,6 +75,7 @@ export function AuthProvider({ children }) {
           console.warn('[AUTH] getSession timed out, unblocking app.');
           isLoadingRef.current = false;
           setLoading(false);
+          setHasInitialized(true);
         }
       }, 6000);
 
@@ -95,6 +97,7 @@ export function AuthProvider({ children }) {
           isLoadingRef.current = false;
           setLoading(false);
           setRoomLoading(false);
+          setHasInitialized(true);
         }
       } catch (err) {
         console.error('[AUTH] Init failed:', err);
@@ -103,6 +106,7 @@ export function AuthProvider({ children }) {
           isLoadingRef.current = false;
           setLoading(false);
           setRoomLoading(false);
+          setHasInitialized(true);
         }
       }
     };

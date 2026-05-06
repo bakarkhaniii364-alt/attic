@@ -78,6 +78,9 @@ export default function App() {
   
   const { user, userId, roomId, partnerId, loading: authLoading, roomLoading, hasInitialized } = useAuth();
   const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, mergeSyncState, roomProfiles, broadcast, isInitialized } = useSync();
+  const coupleData = globalState?.couple_data || {};
+  const partnerProfile = roomProfiles?.[partnerId] || {};
+  const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
     calling, isRinging, incomingCall, callDuration, 
@@ -88,9 +91,13 @@ export default function App() {
   const [theme, setTheme] = useLocalStorage('app_theme', 'matcha');
   const [weather, setWeather] = useState('clear'); 
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
+  const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('notifications_enabled', true);
   const [triggerShake] = useState(false); 
   const [confetti, setConfetti] = useState(false);
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
+  const [bootFinished, setBootFinished] = useState(false);
+  
+  const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
   
   const { uploadAsset } = useAssetSync(roomId);
   
@@ -136,12 +143,8 @@ export default function App() {
     }
   };
   
-  const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
   const toast = useToast();
 
-  const partnerProfile = globalState.room_profiles?.[partnerId] || {};
-  const coupleData = globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' };
-  const partnerName = coupleData.nicknames?.[partnerId] || partnerProfile.name || 'Partner';
   const isPartnerOnline = partnerId && onlineUsers[partnerId]?.status === 'active';
   const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
@@ -196,7 +199,7 @@ export default function App() {
     }
   }, [remoteStream, isDeafened]);
 
-  if (!hasInitialized) return <BootLoader onComplete={() => {}} sfxEnabled={sfxEnabled} />;
+  if (!hasInitialized || !bootFinished) return <BootLoader onComplete={() => setBootFinished(true)} sfxEnabled={sfxEnabled} />;
 
   const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
@@ -392,6 +395,10 @@ export default function App() {
                   mergeSyncState('couple_data', updatedData);
                 }}
                 onClose={()=>navigateTo('dashboard')} 
+                streaks={streaks}
+                scores={globalState.game_scores}
+                userId={userId}
+                partnerId={partnerId}
               /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
