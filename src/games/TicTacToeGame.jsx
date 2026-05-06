@@ -168,7 +168,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   };
 
   const winData = calculateWinner(board); 
-  const isRoundDraw = !winData && board.every(sq => sq !== null);
+  const isDraw = !winData && board.every(sq => sq !== null);
 
   useEffect(() => {
     if (winData && !processedWinRef.current) {
@@ -202,7 +202,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
           }
       }, 1500);
       
-    } else if (isRoundDraw && !processedWinRef.current) { 
+    } else if (isDraw && !processedWinRef.current) { 
         processedWinRef.current = true;
         setTimeout(() => {
              setLocalStats(p => ({...p, draws: p.draws+1}));
@@ -214,21 +214,21 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
                status: 'playing'
              });
         }, 1500); 
-    } else if (!winData && !isRoundDraw) {
+    } else if (!winData && !isDraw) {
         processedWinRef.current = false;
     }
-  }, [winData, isRoundDraw]);
+  }, [winData, isDraw]);
 
   // AI Logic
   useEffect(() => {
-    if (config.mode === 'vs_ai' && !xIsNext && !winData && !isRoundDraw && gameState.status === 'playing') { 
+    if (config.mode === 'vs_ai' && !xIsNext && !winData && !isDraw && gameState.status === 'playing') { 
         const timer = setTimeout(() => { 
             const aiMove = makeAIMove([...board]); 
             if (aiMove !== null) handleMove(aiMove, true); 
         }, 600); 
         return () => clearTimeout(timer); 
     }
-  }, [xIsNext, board, winData, isRoundDraw, config, gameState.status]);
+  }, [xIsNext, board, winData, isDraw, config, gameState.status]);
 
   const handleClick = (i) => { 
     handleMove(i, false);

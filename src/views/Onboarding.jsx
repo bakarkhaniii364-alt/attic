@@ -352,7 +352,7 @@ export function AuthView({ mode }) {
    HANDSHAKE VIEW — Pairing Couples with Glass Depth
    ═══════════════════════════════════════════════════════ */
 export function HandshakeView() {
-  const { user, roomId, logout, handlePaired } = useAuth();
+  const { user, roomId, logout, handlePaired, handleAuthSuccess } = useAuth();
   const navigate = useNavigate();
   const onPaired = handlePaired;
   const onLogout = () => { logout(); navigate('/'); };
