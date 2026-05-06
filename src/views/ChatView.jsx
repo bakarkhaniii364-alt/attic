@@ -13,6 +13,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useSync } from '../context/SyncContext.jsx';
 import { useChat } from '../context/ChatContext.jsx';
 import { useCall } from '../context/CallContext.jsx';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder.js';
+import { useTypingIndicator } from '../hooks/useTypingIndicator.js';
 
 const RetroIcon = ({ icon: Icon, ...props }) => <Icon {...props} />;
 
@@ -196,20 +198,18 @@ export function ChatView({ onClose, sfx }) {
 
   const [showDetails, setShowDetails] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('media');
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [isTypingLocal, setIsTypingLocal] = useState(false);
-  const [voicePreview, setVoicePreview] = useState(null);
-  const [voicePreviewUrl, setVoicePreviewUrl] = useState(null);
-  const [voiceBase64, setVoiceBase64] = useState(null);
+  
+  const {
+    isRecording, recordingTime, voicePreview, voicePreviewUrl, voiceBase64,
+    mediaRecorderRef, audioChunksRef, voiceExtensionRef,
+    startRecording, stopRecording, discardVoiceNote, recordingStartTimeRef
+  } = useVoiceRecorder();
+
+  const { isTypingLocal, isPartnerTyping, handleTyping, stopTyping } = useTypingIndicator(userId, partnerId);
+
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
 
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const recordingTimerRef = useRef(null);
-  const recordingStartTimeRef = useRef(0);
-  const voiceExtensionRef = useRef('webm');
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
@@ -222,37 +222,19 @@ export function ChatView({ onClose, sfx }) {
   const fileInputRef = useRef(null);
   const readMsgIdsRef = useRef(new Set());
   
-
   const textareaRef = useRef(null);
 
   // TYPING INDICATOR LOGIC
-  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
-  const sendTyping = useBroadcast('typing', (payload) => {
-    if (payload.userId === partnerId) {
-      setIsPartnerTyping(payload.isTyping);
-    }
-  });
 
-  const typingTimeoutRef = useRef(null);
   const handleInputChange = (e) => {
     setInput(e.target.value);
     
-    // Auto-resize logic: Reset height, then set to scrollHeight capped at ~5 lines (120px)
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
     
-    if (!isTypingLocal) {
-      setIsTypingLocal(true);
-      sendTyping({ userId, isTyping: true });
-    }
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTypingLocal(false);
-      sendTyping({ userId, isTyping: false });
-    }, 1500);
+    handleTyping();
   };
 
   const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
@@ -391,42 +373,9 @@ export function ChatView({ onClose, sfx }) {
     }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    sendTyping({ userId, isTyping: false });
+    stopTyping();
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
-      mediaRecorder.onstop = () => {
-        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('webm') ? 'webm' : 'ogg';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const durationSecs = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-        const reader = new FileReader(); reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          setVoiceBase64(reader.result);
-          if (durationSecs >= 1) { 
-            setVoicePreview(durationSecs); 
-            setVoicePreviewUrl(audioUrl);
-            // Store extension for confirmVoiceNote
-            voiceExtensionRef.current = extension;
-          }
-        };
-        stream.getTracks().forEach(track => track.stop());
-      };
-      mediaRecorder.start();
-      setIsRecording(true);
-      recordingStartTimeRef.current = Date.now();
-      setRecordingTime(0);
-      recordingTimerRef.current = setInterval(() => { setRecordingTime(prev => prev + 1); }, 1000);
-    } catch (err) { alert("Microphone access denied."); }
-  };
-  const stopRecording = () => { if (!isRecording || !mediaRecorderRef.current) return; setIsRecording(false); clearInterval(recordingTimerRef.current); mediaRecorderRef.current.stop(); };
 
   // Solution: Dual-Mode Recording (Tap-to-Toggle and Hold-to-Record)
   const handleMicDown = (e) => {
@@ -448,7 +397,6 @@ export function ChatView({ onClose, sfx }) {
       }
     }
   };
-  const discardVoiceNote = () => { setVoicePreview(null); setVoicePreviewUrl(null); setVoiceBase64(null); };
   const confirmVoiceNote = async () => {
     if (!voiceBase64 || !voicePreview) return; 
     playAudio('send', sfx);

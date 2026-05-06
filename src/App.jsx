@@ -2,7 +2,14 @@ import React, { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallbac
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera, Bell, X, Mail, Heart, Download, MessageSquare, PenTool, Gamepad2 } from 'lucide-react';
 import { BootLoader } from './components/BootLoader.jsx';
-import { WeatherOverlay, Confetti, ToastProvider, ConfirmDialog, useToast, RetroWindow, RetroButton } from './components/UI.jsx';
+import { ToastProvider, ConfirmDialog, useToast, RetroWindow, RetroButton } from './components/UI.jsx';
+import { LivingBackground } from './components/Visuals/LivingBackground.jsx';
+import { WeatherOverlay } from './components/Visuals/WeatherOverlay.jsx';
+import { Confetti } from './components/Visuals/Confetti.jsx';
+import { PremiumCallHub } from './components/Call/PremiumCallHub.jsx';
+import { GameInviteModal } from './components/Modals/GameInviteModal.jsx';
+import { DoodleReceiverModal } from './components/Modals/DoodleReceiverModal.jsx';
+import { FloatingEnvelope } from './components/Modals/FloatingEnvelope.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { playAudio } from './utils/audio.js';
 import { INITIAL_CHAT } from './constants/data.js';
@@ -12,6 +19,7 @@ import { useSync } from './context/SyncContext.jsx';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { useCall } from './context/CallContext.jsx';
 import { useChat } from './context/ChatContext.jsx';
+import { useAppLogic } from './hooks/useAppLogic.js';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { LegalView } from './views/LegalView.jsx';
@@ -39,12 +47,12 @@ const lazyWithRetry = (componentImport) =>
 
 const ChatView = lazyWithRetry(() => import('./views/ChatView.jsx').then(m => ({ default: m.ChatView })));
 const SettingsView = lazyWithRetry(() => import('./views/SettingsView.jsx').then(m => ({ default: m.SettingsView })));
-const DoodleApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.DoodleApp })));
-const PersistentDoodleApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.PersistentDoodleApp })));
-const TimeCapsuleApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.TimeCapsuleApp })));
-const ListsApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ListsApp })));
-const CalendarApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.CalendarApp })));
-const ScrapbookApp = lazyWithRetry(() => import('./apps/UtilityApps.jsx').then(m => ({ default: m.ScrapbookApp })));
+const DoodleApp = lazyWithRetry(() => import('./apps/DoodleApp.jsx').then(m => ({ default: m.DoodleApp })));
+const PersistentDoodleApp = lazyWithRetry(() => import('./apps/PersistentDoodleApp.jsx').then(m => ({ default: m.PersistentDoodleApp })));
+const TimeCapsuleApp = lazyWithRetry(() => import('./apps/TimeCapsuleApp.jsx').then(m => ({ default: m.TimeCapsuleApp })));
+const ListsApp = lazyWithRetry(() => import('./apps/ListsApp.jsx').then(m => ({ default: m.ListsApp })));
+const CalendarApp = lazyWithRetry(() => import('./apps/CalendarApp.jsx').then(m => ({ default: m.CalendarApp })));
+const ScrapbookApp = lazyWithRetry(() => import('./apps/ScrapbookApp.jsx').then(m => ({ default: m.ScrapbookApp })));
 const PixelArtApp = lazyWithRetry(() => import('./apps/PixelArtApp.jsx').then(m => ({ default: m.PixelArtApp })));
 const SharedNotes = lazyWithRetry(() => import('./apps/SharedNotes.jsx').then(m => ({ default: m.SharedNotes })));
 const DreamJournal = lazyWithRetry(() => import('./apps/DreamJournal.jsx').then(m => ({ default: m.DreamJournal })));
@@ -59,302 +67,8 @@ import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 
 const AppLoader = () => null;
 
-function PremiumCallHub({ calling, callDuration, isMuted, isDeafened, isCameraOff, onMicToggle, onDeafenToggle, onCameraToggle, onEndCall, partnerName, partnerPfp, sfx, remoteStream, localStream, isRinging, type }) {
-  const remoteVideoRef = useRef(null);
-  const localVideoRef = useRef(null);
 
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current && !isRinging) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream, isRinging]);
 
-  useEffect(() => {
-    if (localStream && localVideoRef.current && !isCameraOff) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream, isCameraOff]);
-
-  const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isMinimized, setIsMinimized] = useState(false);
-
-  const handleStart = (clientX, clientY) => {
-    setIsDragging(true);
-    setDragOffset({ x: clientX - position.x, y: clientY - position.y });
-  };
-  const rafRef = useRef();
-  const handleMove = useCallback((clientX, clientY) => {
-    if (!isDragging) return;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      setPosition({ x: clientX - dragOffset.x, y: clientY - dragOffset.y });
-    });
-  }, [isDragging, dragOffset]);
-
-  const handleEnd = useCallback(() => setIsDragging(false), []);
-
-  useEffect(() => {
-    const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
-    const onTouchMove = (e) => {
-      if (e.touches[0]) handleMove(e.touches[0].clientX, e.touches[0].clientY);
-    };
-    if (isDragging) {
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', handleEnd);
-      window.addEventListener('touchmove', onTouchMove, { passive: true });
-      window.addEventListener('touchend', handleEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', handleEnd);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', handleEnd);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [isDragging, handleMove, handleEnd]);
-
-  const mins = Math.floor(callDuration / 60);
-  const secs = callDuration % 60;
-
-  return (
-    <div
-      className={`fixed z-[var(--z-callhub)] bg-window retro-border-thick ${isDragging ? '' : 'transition-all duration-300 ease-in-out'} ${isMinimized ? 'w-64 h-14 overflow-hidden' : 'w-[90vw] sm:w-[420px] retro-shadow-dark'} animate-in zoom-in-95 fade-in select-none`}
-      style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-      onMouseDown={(e) => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
-      onTouchStart={(e) => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
-    >
-      <div className={`px-3 py-2 flex justify-between items-center font-bold text-[11px] sm:text-sm select-none border-b-2 border-border ${isMinimized ? 'bg-primary text-primary-text' : 'bg-border text-window-text'}`} style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
-        <span className="flex items-center gap-2 truncate">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-          {type === 'video' ? <Video size={16} className="text-pink-300"/> : <Phone size={16} className="text-cyan-300"/>}
-          <span className="opacity-90 uppercase tracking-widest">{type === 'video' ? 'VIDEO CALL' : 'AUDIO CALL'}</span>
-          <span className="opacity-50">|</span>
-          <span className="truncate">{partnerName}</span>
-          {!isMinimized && <span className="opacity-70 ml-2">{isRinging ? '...' : `${mins}:${secs.toString().padStart(2, '0')}`}</span>}
-        </span>
-        <div className="flex gap-2">
-          <button onClick={() => { playAudio('click', sfx); setIsMinimized(!isMinimized); }} className="p-1 retro-border bg-window/10 hover:bg-window/20 transition-all">
-            {isMinimized ? <Maximize2 size={12}/> : <Minimize2 size={12}/>}
-          </button>
-          <button onClick={onEndCall} className="p-1 retro-border bg-red-500 text-white hover:bg-red-600 transition-colors"><PhoneOff size={12}/></button>
-        </div>
-      </div>
-
-      {!isMinimized && (
-        <div className="flex flex-col bg-window">
-          <div className={`w-full aspect-video bg-black relative overflow-hidden flex items-center justify-center border-b-2 border-border`}>
-            {isRinging ? (
-              <div className="flex flex-col items-center gap-4 animate-in fade-in">
-                <div className="w-20 h-20 retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden bg-border relative">
-                   {type === 'video' ? <Video size={36} className="text-white absolute z-0"/> : <Phone size={36} className="text-white absolute z-0"/>}
-                   {partnerPfp && partnerPfp.length > 5 && (
-                     <img src={partnerPfp} alt="partner" className="w-full h-full object-cover relative z-10 bg-window" onError={(e) => { e.target.style.display = 'none'; }} />
-                   )}
-                </div>
-                <div className="text-white font-black text-[11px] uppercase tracking-[0.2em] animate-bounce">Ringing {partnerName}...</div>
-              </div>
-            ) : (
-              <>
-                {type === 'video' ? (
-                  <div className="w-full h-full bg-black relative">
-                    {remoteStream ? (
-                      <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover animate-in fade-in duration-500" />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                        <VideoOff size={32} className="text-white/40" />
-                        <span className="text-[10px] font-bold text-white/40 uppercase">Waiting for partner's camera...</span>
-                      </div>
-                    )}
-                    {!isCameraOff && localStream && (
-                      <div className="absolute bottom-3 right-3 w-28 aspect-video bg-border retro-border overflow-hidden shadow-lg z-20">
-                        <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 group animate-in fade-in">
-                    <div className="w-20 h-20 retro-bg-accent retro-border flex items-center justify-center transition-transform group-hover:scale-105 duration-500">
-                       {type === 'video' ? <VideoOff size={36} className="text-white/80" /> : <Phone size={36} className="text-white/80" />}
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <p className="text-[11px] font-black text-white/50 uppercase tracking-[0.3em]">{partnerName}</p>
-                        <p className="text-[10px] font-bold text-white/30 uppercase mt-1 italic tracking-wider">Voice Only</p>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            {!isRinging && <div className="absolute top-2.5 right-2.5 bg-black/70 px-2.5 py-1 retro-border text-[10px] text-white font-black tracking-widest uppercase backdrop-blur-md border-white/20 select-none">LIVE • HIGH RES</div>}
-            
-            <div className="absolute bottom-2.5 left-2.5 flex gap-2">
-                 {isMuted && <div className="bg-red-500/90 backdrop-blur-sm p-2 rounded-full retro-border text-white shadow-lg animate-in zoom-in-50"><MicOff size={12}/></div>}
-                 {isDeafened && <div className="bg-red-500/90 backdrop-blur-sm p-2 rounded-full retro-border text-white shadow-lg animate-in zoom-in-50"><VolumeX size={12}/></div>}
-            </div>
-          </div>
-
-          <div className="p-3.5 grid grid-cols-4 gap-2.5 bg-window border-t-2 border-border">
-            <button onClick={onMicToggle} className={`flex flex-col items-center justify-center p-2.5 retro-border transition-all shadow-md ${isMuted ? 'bg-red-500 text-white' : 'retro-bg-accent hover:-translate-y-0.5 hover:shadow-lg'}`}>
-              {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
-              <span className="text-[9px] font-black mt-1 uppercase tracking-tighter">{isMuted ? 'Unmute' : 'Mute'}</span>
-            </button>
-            <button onClick={onDeafenToggle} className={`flex flex-col items-center justify-center p-2.5 retro-border transition-all shadow-md ${isDeafened ? 'bg-red-500 text-white' : 'retro-bg-secondary hover:-translate-y-0.5 hover:shadow-lg'}`}>
-              {isDeafened ? <VolumeX size={18}/> : <Volume2 size={18}/>}
-              <span className="text-[9px] font-black mt-1 uppercase tracking-tighter">{isDeafened ? 'Hear' : 'Deafen'}</span>
-            </button>
-            <button onClick={onCameraToggle} className={`flex flex-col items-center justify-center p-2.5 retro-border transition-all shadow-md ${isCameraOff ? 'bg-red-500 text-white' : 'retro-bg-primary hover:-translate-y-0.5 hover:shadow-lg'}`}>
-              {isCameraOff ? <VideoOff size={18}/> : <Camera size={18}/>}
-              <span className="text-[9px] font-black mt-1 uppercase tracking-tighter">Cam</span>
-            </button>
-            <button onClick={onEndCall} className="flex flex-col items-center justify-center p-2.5 retro-border bg-red-600 text-white hover:bg-red-700 transition-all hover:scale-105 shadow-md">
-              <PhoneOff size={18} className="rotate-[135deg]"/>
-              <span className="text-[9px] font-black mt-1 uppercase tracking-tighter">End</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LivingBackground({ weather }) {
-  const [elements, setElements] = useState([]);
-  const generateLightningPath = () => {
-    let path = `M 100 0`;
-    let currentX = 100;
-    for (let y = 20; y <= 300; y += 30) {
-      currentX += (Math.random() - 0.5) * 80;
-      path += ` L ${currentX} ${y}`;
-    }
-    return path;
-  };
-  useEffect(() => {
-    setElements([]);
-    const timer = setTimeout(() => {
-      const newElements = [];
-      const count = weather === 'rain' ? 30 : weather === 'storm' ? 45 : weather === 'snow' ? 20 : weather === 'clouds' ? 4 : weather === 'clear' ? 15 : 0;
-      for (let i = 0; i < count; i++) {
-        if (weather === 'rain') newElements.push({ id: i, type: 'rain', left: Math.random() * 100, delay: Math.random() * 2, duration: 0.5 + Math.random() * 0.5 });
-        else if (weather === 'storm') newElements.push({ id: i, type: 'storm', left: Math.random() * 120, delay: Math.random() * 1.5, duration: 0.3 + Math.random() * 0.3 });
-        else if (weather === 'snow') newElements.push({ id: i, type: 'snow', left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 3, size: 2 + Math.random() * 4 });
-        else if (weather === 'clouds') newElements.push({ id: i, type: 'cloud', top: Math.random() * 100, delay: Math.random() * 20, duration: 30 + Math.random() * 20, size: 200 + Math.random() * 300 });
-        else if (weather === 'clear') newElements.push({ id: i, type: 'star', left: Math.random() * 100, top: Math.random() * 100, delay: Math.random() * 5, duration: 2 + Math.random() * 3, size: 2 + Math.random() * 3 });
-      }
-      if (weather === 'thunder' || weather === 'storm') {
-         newElements.push({ id: 'bolt1', type: 'lightning', left: 10 + Math.random() * 80, delay: 0, duration: 4 + Math.random() * 3, path: generateLightningPath() });
-         newElements.push({ id: 'bolt2', type: 'lightning', left: 10 + Math.random() * 80, delay: 2, duration: 5 + Math.random() * 2, path: generateLightningPath() });
-      }
-      setElements(newElements);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [weather]);
-  return (
-    <div className="weather-layer">
-      {elements.map(e => {
-        if (e.type === 'rain') return <div key={e.id} className="rain-drop" style={{ left: `${e.left}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s` }} />
-        if (e.type === 'storm') return <div key={e.id} className="storm-drop" style={{ left: `${e.left}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s` }} />
-        if (e.type === 'snow') return <div key={e.id} className="snow-flake" style={{ left: `${e.left}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size }} />
-        if (e.type === 'cloud') return <div key={e.id} className="cloud-vessel rounded-full" style={{ top: `${e.top}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size / 2 }} />
-        if (e.type === 'star') return <div key={e.id} className="star-particle" style={{ left: `${e.left}%`, top: `${e.top}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s`, width: e.size, height: e.size }} />
-        if (e.type === 'lightning') return <svg key={e.id} className="svg-lightning" viewBox="0 0 200 300" style={{ left: `${e.left}%`, width: '200px', height: '300px', animationDelay: `${e.delay}s`, animationDuration: `${e.duration}s` }}><path d={e.path} /></svg>
-        return null;
-      })}
-    </div>
-  );
-}
-
-function FloatingEnvelope({ doodle, onClick }) {
-  return (
-    <div className="envelope-wrapper drop-shadow-xl" style={{ top: `${doodle.y}vh`, left: `${doodle.x}vw` }} onClick={() => onClick(doodle)}>
-      <div className="relative">
-        <Mail size={64} className="text-white fill-[var(--primary)]" />
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white animate-pulse">NEW!</span>
-      </div>
-    </div>
-  );
-}
-
-function GameInviteModal({ invite, partnerName, onAccept, onDecline, sfx }) {
-  const titles = {
-    tictactoe: 'Tic-Tac-Toe',
-    'tic-tac-toe': 'Tic-Tac-Toe',
-    pictionary: 'Pictionary',
-    memory: 'Memory Match',
-    wordle: 'Retro Word',
-    sudoku: 'Sudoku',
-    chess: 'Chess',
-    quiz: 'Couples Quiz',
-    '2048': '2048',
-    typing: 'Typing Race',
-    wyr: 'Would You Rather',
-    uno: 'Retro Uno',
-    retrouno: 'Retro Uno',
-    othello: 'Othello',
-    pool: '8-Ball Pool',
-    '8-ballpool': '8-Ball Pool',
-    '8ballpool': '8-Ball Pool',
-    bluff: 'Cheat (Bluff)'
-  };
-  const gameId = invite?.metadata?.gameId || invite?.gameId || '';
-  let title = titles[gameId?.toLowerCase().replace(/[^a-z0-9]/g, '')] || gameId || 'Game';
-  if (title === 'Game' && invite?.text?.toLowerCase().includes('tic-tac-toe')) title = 'Tic-Tac-Toe';
-  if (title === 'Game' && invite?.text?.toLowerCase().includes('chess')) title = 'Chess';
-  if (title === 'Game' && invite?.text?.toLowerCase().includes('uno')) title = 'Retro Uno';
-  if (title === 'Game' && invite?.text?.toLowerCase().includes('pool')) title = '8-Ball Pool';
-  if (title === 'Game' && invite?.text?.toLowerCase().includes('typing')) title = 'Typing Race';
-
-  console.log('[GameInviteModal] invite:', invite);
-  console.log('[GameInviteModal] rendered text:', `They are waiting in the lobby for ${title} (${invite?.metadata?.mode || invite?.mode || 'remote'}).`);
-
-  return (
-    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <RetroWindow title="incoming_invite.exe" onClose={onDecline} className="max-w-md w-full border-4 border-dashed border-[var(--primary)] shadow-[0_0_50px_var(--primary)] animate-pulse" data-testid="game-invite-modal">
-        <div className="flex flex-col items-center p-6 text-center">
-          <Gamepad2 size={64} className="text-[var(--primary)] mb-4 animate-bounce" />
-          <h2 className="text-2xl font-black uppercase mb-2">{partnerName} invited you!</h2>
-          <h3 className="font-bold opacity-80 mb-8">They are waiting in the lobby for {title} ({invite?.metadata?.mode || invite?.mode || 'remote'}).</h3>
-          <div className="flex gap-4 w-full">
-            <RetroButton variant="white" onClick={() => { playAudio('click', sfx); onDecline(); }} className="flex-1 py-4 text-black border-dashed">Decline</RetroButton>
-            <RetroButton variant="primary" onClick={() => { playAudio('click', sfx); onAccept(); }} className="flex-1 py-4 text-white font-black" data-testid="accept-game-btn">Accept & Join</RetroButton>
-          </div>
-        </div>
-      </RetroWindow>
-    </div>
-  );
-}
-
-function DoodleReceiverModal({ doodleData, partnerName, onClose, onScrapbook, onRedoodle, onReply }) {
-  const [hearted, setHearted] = useState(false);
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = doodleData;
-    link.download = `doodle_from_partner_${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  const handleHeart = () => {
-    if (hearted) return;
-    setHearted(true);
-    onScrapbook(doodleData);
-  };
-  return (
-    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <RetroWindow title={`doodle_from_${(partnerName || 'partner').toLowerCase()}.exe`} onClose={onClose} className="max-w-md w-full">
-        <div className="flex flex-col items-center p-4 bg-white retro-border shadow-inner">
-          <img src={doodleData} alt="Received Doodle" className="w-full aspect-square object-contain bg-gray-50 border-2 border-dashed border-gray-300 mb-6" style={{ imageRendering: 'pixelated' }} />
-          <div className="grid grid-cols-2 gap-3 w-full">
-            <RetroButton onClick={handleHeart} className={`flex items-center justify-center gap-2 py-3 ${hearted ? 'bg-pink-100 border-pink-400 text-pink-600' : 'bg-white'}`}><Heart size={18} className={hearted ? "fill-pink-500 text-pink-500 animate-bounce" : ""} />{hearted ? 'Saved!' : 'Heart'}</RetroButton>
-            <RetroButton onClick={() => onRedoodle(doodleData)} variant="primary" className="flex items-center justify-center gap-2 py-3"><PenTool size={18} /> Redoodle</RetroButton>
-            <RetroButton onClick={() => onReply(doodleData)} className="flex items-center justify-center gap-2 py-3 bg-blue-50 border-blue-300"><MessageSquare size={18} /> Reply</RetroButton>
-            <RetroButton onClick={handleDownload} className="flex items-center justify-center gap-2 py-3 bg-gray-100"><Download size={18} /> Save Device</RetroButton>
-          </div>
-        </div>
-      </RetroWindow>
-    </div>
-  );
-}
 
 export default function App() {
   const navigate = useNavigate();
@@ -377,7 +91,6 @@ export default function App() {
   const [triggerShake] = useState(false); 
   const [confetti, setConfetti] = useState(false);
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
-  const [showKiss, setShowKiss] = useState(false);
   
   const { uploadAsset } = useAssetSync(roomId);
   
@@ -423,13 +136,8 @@ export default function App() {
     }
   };
   
-  const [floatingDoodles, setFloatingDoodles] = useState([]);
-  const [doodleQueue, setDoodleQueue] = useState([]);
-  const activeDoodleView = doodleQueue[0] || null;
-  const closeDoodle = () => setDoodleQueue(prev => prev.slice(1));
-  const [gameInvite, setGameInvite] = useState(null);
-  const [watchpartyInvite, setWatchpartyInvite] = useState(null);
-  const processedInvites = useRef(new Set());
+  const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
+  const toast = useToast();
 
   const partnerProfile = globalState.room_profiles?.[partnerId] || {};
   const coupleData = globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' };
@@ -461,155 +169,23 @@ export default function App() {
     return () => window.removeEventListener('resize', debouncedResize);
   }, []);
 
-  useEffect(() => {
-    if (!userId || !roomId || !isInitialized) return;
-    const currentProfile = roomProfiles?.[userId] || {};
-    const metaName = user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner';
-    const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
+  const {
+    floatingDoodles, setFloatingDoodles,
+    doodleQueue, setDoodleQueue, closeDoodle,
+    gameInvite, setGameInvite,
+    watchpartyInvite, setWatchpartyInvite,
+    showKiss, setShowKiss,
+    partnerOnlineModal,
+    textNotifications, setTextNotifications
+  } = useAppLogic({
+    user, userId, roomId, partnerId, partnerName,
+    isInitialized, sfxEnabled, toast, broadcast,
+    updateSyncStateAtomic, navigate, location,
+    chatHistory, onlineUsers, notificationsEnabled,
+    lobbyState: globalState?.arcade_lobby
+  });
 
-    // Check if the current shared state is either empty or literally set to "You"
-    const needsFix = !currentProfile.name || currentProfile.name === 'You' || !currentProfile.emoji;
-    if (needsFix) {
-      updateSyncStateAtomic('room_profiles', userId, {
-          name: finalName,
-          emoji: currentProfile.emoji || '👤'
-      });
-    }
-  }, [userId, roomId, isInitialized, user]);
-
-  // Activity Tracking
-  useEffect(() => {
-    if (!userId || !roomId || !isInitialized) return;
-    
-    const routeToActivity = {
-      '/dashboard': 'At Home',
-      '/chat': 'In Chat',
-      '/doodle': 'Doodling',
-      '/watch': 'Watching SyncWatcher',
-      '/activities/tictactoe': 'Playing Tic-Tac-Toe',
-      '/activities/pictionary': 'Drawing...',
-      '/activities/chess': 'Thinking (Chess)',
-      '/activities/uno': 'Playing Uno',
-      '/activities/2048': 'Playing 2048',
-      '/activities/pool': 'Playing Pool',
-      '/activities': 'Browsing Games',
-    };
-
-    let activity = 'Exploring';
-    for (const [route, act] of Object.entries(routeToActivity)) {
-      if (location.pathname.startsWith(route)) {
-        activity = act;
-        break;
-      }
-    }
-
-    updateSyncStateAtomic('room_profiles', userId, { activity });
-  }, [location.pathname, userId, roomId, isInitialized]);
-
-  const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('attic_notifications', true);
-  const [partnerOnlineModal, setPartnerOnlineModal] = useState(false);
-  const [textNotifications, setTextNotifications] = useState([]);
-  const prevPartnerOnline = useRef(false);
-  const prevChatLength = useRef(0);
-
-  useEffect(() => {
-    if (isPartnerOnline && prevPartnerOnline.current === false && notificationsEnabled) {
-      setPartnerOnlineModal(true);
-      playAudio('notif', sfxEnabled);
-      setTimeout(() => setPartnerOnlineModal(false), 4000);
-    }
-    prevPartnerOnline.current = isPartnerOnline;
-  }, [isPartnerOnline, notificationsEnabled, sfxEnabled]);
-
-  useEffect(() => {
-    if (!Array.isArray(chatHistory) || !partnerId) return;
-    const pendingInvites = chatHistory.filter(m => 
-      m.type === 'game_invite' && 
-      m.sender === partnerId && 
-      (m.metadata?.status === 'pending')
-    );
-    const latestInvite = pendingInvites[pendingInvites.length - 1];
-    if (latestInvite && !processedInvites.current.has(latestInvite.id) && gameInvite?.id !== latestInvite.id) {
-      setGameInvite(latestInvite);
-      playAudio('notif', sfxEnabled);
-    }
-  }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id]);
-
-  const lobbyState = globalState?.arcade_lobby;
-
-  useEffect(() => {
-    if (lobbyState?.gameId && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status === 'waiting') {
-      if (!(lobbyState?.players || []).includes(userId) && gameInvite?.id !== lobbyState.gameId) {
-        setGameInvite({
-          id: lobbyState.gameId,
-          gameId: lobbyState.gameId,
-          mode: lobbyState.config?.mode || '1v1_remote',
-          metadata: { gameId: lobbyState.gameId }
-        });
-      }
-    }
-  }, [lobbyState, partnerId, userId, gameInvite?.id]);
-
-  useEffect(() => {
-    if (!Array.isArray(chatHistory)) return;
-    const newMsgs = chatHistory.slice(prevChatLength.current);
-    newMsgs.forEach(msg => {
-      if (prevChatLength.current > 0 && msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
-        playAudio('notif', sfxEnabled);
-        const id = Date.now() + Math.random();
-        setTextNotifications(prev => [...prev, { ...msg, notifId: id }]);
-        setTimeout(() => setTextNotifications(prev => prev.filter(n => n.notifId !== id)), 5000);
-      }
-    });
-    prevChatLength.current = chatHistory.length;
-  }, [chatHistory, location.pathname, partnerId, notificationsEnabled, sfxEnabled]);
-
-  // Global Broadcast Listeners
-  const toast = useToast();
-
-  useEffect(() => {
-    const handler = ({ detail: { event, payload } }) => {
-      if (event === 'interaction' && payload.type === 'kiss' && payload.from === partnerId) {
-        setShowKiss(true);
-        toast(`💋 ${partnerName} sent you a kiss!`, 'success');
-        playAudio('notif', sfxEnabled);
-        setTimeout(() => setShowKiss(false), 4500);
-      }
-      if (event === 'doodle_alert' && payload.sender !== userId) {
-        setFloatingDoodles(prev => [...prev, { id: Date.now(), data: payload.image, sender: payload.sender }]);
-        toast(`🎨 ${partnerName} sent you a new doodle!`, 'info');
-        playAudio('notif', sfxEnabled);
-      }
-      if (payload.action === 'invite' && payload.sender !== userId) {
-        const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 30000);
-        if (isRecent) {
-           setGameInvite(payload);
-           toast(`🎮 ${partnerName} invited you to play!`, 'actionable');
-           playAudio('notif', sfxEnabled);
-        }
-      }
-      if (event === 'lobby_closed' && payload.sender !== userId) {
-        // Force back to details if partner closed the lobby
-        if (gameInvite) setGameInvite(null);
-        toast(`⚠️ ${partnerName} closed the game lobby.`, 'warning');
-      }
-      if (event === 'watchparty_invite' && payload.sender !== userId) {
-        setWatchpartyInvite(payload);
-        toast(`🍿 ${partnerName} started a watch party!`, 'actionable');
-      }
-      if (event === 'force_reset' && payload.sender !== userId) {
-        toast(`🔄 ${partnerName} reset the room state. Synchronizing...`, 'warning');
-        setTimeout(() => window.location.reload(), 1500);
-      }
-      if (event === 'chat_message' && payload.sender === partnerId) {
-        if (location.pathname !== '/chat') {
-          toast(`💬 New message from ${partnerName}`, 'info');
-        }
-      }
-    };
-    window.addEventListener('sync_broadcast', handler);
-    return () => window.removeEventListener('sync_broadcast', handler);
-  }, [partnerId, partnerName, sfxEnabled, location.pathname, toast, gameInvite]);
+  const activeDoodleView = doodleQueue[0] || null;
 
   const remoteAudioRef = useRef(null);
   useEffect(() => {

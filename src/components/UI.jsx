@@ -44,30 +44,10 @@ export function ToastProvider({ children }) {
   );
 }
 
-// ── Weather Overlay ──
-export function WeatherOverlay({ weather }) {
-  if (weather === 'clear') return null;
-  const particles = Array.from({ length: 30 });
-  return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {particles.map((_, i) => (
-        <div key={i} className="absolute" style={{ left: `${Math.random() * 100}%`, top: weather === 'spores' ? '100vh' : `-100px`, animation: `${weather} ${Math.random() * 2 + (weather === 'rain' ? 1 : 3)}s linear infinite`, animationDelay: `${Math.random() * 2}s` }}>
-          {weather === 'rain' ? <div className="w-[2px] h-10 bg-blue-400 opacity-50 rounded-full" /> : weather === 'spores' ? <div className="w-1.5 h-1.5 bg-red-500 rounded-full opacity-60" style={{ filter: 'blur(1px)' }} /> : <Snowflake size={16} className="text-white opacity-80" />}
-        </div>
-      ))}
-    </div>
-  )
-}
+export { WeatherOverlay } from './Visuals/WeatherOverlay.jsx';
+export { Confetti } from './Visuals/Confetti.jsx';
 
-export function Confetti({ active }) {
-  if (!active) return null;
-  const pieces = Array.from({ length: 60 }); const colors = ['var(--primary)', 'var(--secondary)', 'var(--accent)'];
-  return (
-    <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
-      {pieces.map((_, i) => (<div key={i} className="absolute w-3 h-3 animate-float" style={{ left: `${Math.random() * 100}%`, top: '-20px', backgroundColor: colors[Math.floor(Math.random() * colors.length)], animation: `rain ${Math.random() * 2 + 2}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`, animationDelay: `${Math.random() * 0.5}s`, transform: `rotate(${Math.random() * 360}deg)` }} />))}
-    </div>
-  )
-}
+
 
 // ── RetroWindow ──
 export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, hasUnsavedChanges = false, onSaveBeforeClose, sfx }) {
