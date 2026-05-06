@@ -223,9 +223,9 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   useEffect(() => {
     if (config.mode === 'vs_ai' && !xIsNext && !winData && !isDraw && gameState.status === 'playing') { 
         const timer = setTimeout(() => { 
-            const aiMove = makeAIMove([...board]); 
+            const aiMove = makeAIMove([...board], size, p2, p1); 
             if (aiMove !== null) handleMove(aiMove, true); 
-        }, 600); 
+        }, 400); 
         return () => clearTimeout(timer); 
     }
   }, [xIsNext, board, winData, isDraw, config, gameState.status]);
@@ -313,4 +313,63 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
       </div>
     </RetroWindow>
   );
+}
+
+function makeAIMove(board, size, aiPlayer, humanPlayer) {
+    const emptyCells = board.map((c, i) => c === null ? i : null).filter(c => c !== null);
+    if (emptyCells.length === 0) return null;
+
+    // 1. Can AI win in next move?
+    for (let move of emptyCells) {
+        const tempBoard = [...board];
+        tempBoard[move] = aiPlayer;
+        if (checkWin(tempBoard, size, aiPlayer)) return move;
+    }
+
+    // 2. Can Human win in next move? (Block them)
+    for (let move of emptyCells) {
+        const tempBoard = [...board];
+        tempBoard[move] = humanPlayer;
+        if (checkWin(tempBoard, size, humanPlayer)) return move;
+    }
+
+    // 3. Strategic moves (Center, then corners, then random)
+    const center = Math.floor((size * size) / 2);
+    if (board[center] === null) return center;
+
+    const corners = [0, size - 1, size * (size - 1), size * size - 1];
+    const availableCorners = corners.filter(i => board[i] === null);
+    if (availableCorners.length > 0) return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+
+    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+}
+
+function checkWin(squares, size, player) {
+    const minReq = size === 3 ? 3 : 4;
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            if (squares[r * size + c] !== player) continue;
+            if (c + minReq <= size) {
+                let match = true;
+                for(let k=0; k<minReq; k++) { if(squares[r * size + c + k] !== player) match = false; }
+                if (match) return true;
+            }
+            if (r + minReq <= size) {
+                let match = true;
+                for(let k=0; k<minReq; k++) { if(squares[(r + k) * size + c] !== player) match = false; }
+                if (match) return true;
+            }
+            if (r + minReq <= size && c + minReq <= size) {
+                let match = true;
+                for(let k=0; k<minReq; k++) { if(squares[(r + k) * size + c + k] !== player) match = false; }
+                if (match) return true;
+            }
+            if (r + minReq <= size && c - minReq + 1 >= 0) {
+                let match = true;
+                for(let k=0; k<minReq; k++) { if(squares[(r + k) * size + c - k] !== player) match = false; }
+                if (match) return true;
+            }
+        }
+    }
+    return false;
 }

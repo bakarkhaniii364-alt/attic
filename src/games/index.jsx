@@ -142,9 +142,11 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   if (gameRoute && game) {
       if (localPlayConfig) {
           currentPhase = 'playing_local';
-      } else if (isNavigatingLobby && arcadeSession) {
-          // INTERCEPT: Only go to game if it's ALREADY started. Otherwise, stay in lobby.
-          if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING') {
+        } else if (isNavigatingLobby) {
+          // INTERCEPT: If we ARE navigating but session isn't here yet, show loading
+          if (!arcadeSession) {
+              currentPhase = 'loading_lobby';
+          } else if (arcadeSession.status === 'playing' || lobbyPhase === 'STARTING') {
               currentPhase = 'playing_remote';
           } else {
               currentPhase = 'lobby';
@@ -220,15 +222,17 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const handleCreateLobby = async (mode) => {
       playAudio('click', sfx);
-      const gameConfig = { mode: mode.id, diff: selectedDiff, ...selectedOptions };
-      
+      setIsNavigatingLobby(true);
       try {
-        setIsNavigatingLobby(true);
-        await joinSession();
-        // We still use the broadcast for instant UI feedback in chat/notifications
+        const sessionData = await joinSession();
+        // Force sync local arcadeSession if it's still null to prevent phase lag
+        if (sessionData && !arcadeSession) {
+            console.log("🚦 [LOBBY] Session created, moving to lobby phase.");
+        }
         onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute, type: 'game_invite_modal' });
       } catch (e) {
         console.error("Failed to create lobby:", e);
+        setIsNavigatingLobby(false);
       }
   };
 
@@ -656,6 +660,24 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 4. Active Game Phase
   if (currentPhase === 'playing_local' || currentPhase === 'playing_remote') {
       return renderActiveGame();
+  }
+
+  // 5. Loading Lobby Phase
+  if (currentPhase === 'loading_lobby') {
+      return (
+        <RetroWindow title="lobby_sync.sys" onClose={() => setIsNavigatingLobby(false)} className="w-full max-w-sm">
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="relative mb-6">
+              <Loader className="animate-spin text-primary" size={48} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Zap size={20} className="text-primary animate-pulse" />
+              </div>
+            </div>
+            <h2 className="text-xl font-black uppercase tracking-widest mb-2">Syncing Lobby</h2>
+            <p className="text-xs font-bold opacity-60 uppercase tracking-tighter">Establishing secure arcade session...</p>
+          </div>
+        </RetroWindow>
+      );
   }
 
   return null;
