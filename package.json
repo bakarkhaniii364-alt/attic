@@ -17,6 +17,7 @@
     "@tiptap/starter-kit": "^2.26.2",
     "chess.js": "^1.4.0",
     "emoji-picker-react": "^4.18.0",
+    "howler": "^2.2.4",
     "html2canvas": "^1.4.1",
     "localforage": "^1.10.0",
     "lucide-react": "^0.300.0",

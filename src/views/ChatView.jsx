@@ -308,7 +308,8 @@ export function ChatView({ onClose, sfx }) {
   const handleStartCall = (type) => {
     playAudio('click', sfx);
     startCall(type);
-    syncSendMessage(`${type === 'video' ? 'Video' : 'Voice'} Call`, 'call_invite', { status: 'accepted', callType: type });
+    // Log as 'ringing' — CallContext will write the final 'ended' or 'missed' entry
+    syncSendMessage(`${type === 'video' ? 'Video' : 'Voice'} Call`, 'call_invite', { status: 'ringing', callType: type });
   };
 
   const jumpToMessage = (id) => {
@@ -639,16 +640,32 @@ export function ChatView({ onClose, sfx }) {
                               </div>
                             )}
                             {msg.type === 'call_invite' && (
-                              <div className="flex flex-col gap-1 py-1">
+                              <div className="flex flex-col gap-1 py-1 min-w-[160px]">
                                 <div className="flex items-center gap-3">
-                                  <div className={`p-2 retro-border retro-shadow-dark ${msg.status === 'missed' ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600'}`}>
-                                    {msg.callType === 'video' ? <Video size={16} /> : <Phone size={16} />}
+                                  <div className={`p-2 retro-border retro-shadow-dark flex-shrink-0 ${
+                                    msg.status === 'missed' ? 'bg-red-500 text-white' :
+                                    msg.status === 'ended' ? 'bg-gray-100 text-gray-600' :
+                                    msg.status === 'ringing' ? 'bg-yellow-100 text-yellow-600' :
+                                    'bg-gray-100 text-gray-500'
+                                  }`}>
+                                    {msg.status === 'missed'
+                                      ? <PhoneOff size={16} />
+                                      : msg.callType === 'video' ? <Video size={16} /> : <Phone size={16} />
+                                    }
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-[11px] font-black uppercase tracking-widest leading-none mb-1">
-                                      {msg.status === 'missed' ? 'Missed' : msg.status === 'ended' ? 'Call Ended' : msg.status === 'rejected' ? 'Declined' : 'Call'}
+                                    <span className={`text-[11px] font-black uppercase tracking-widest leading-none mb-1 ${
+                                      msg.status === 'missed' ? 'text-red-500' : ''
+                                    }`}>
+                                      {msg.status === 'missed' ? '📵 Missed Call' :
+                                       msg.status === 'ended' ? 'Call Ended' :
+                                       msg.status === 'rejected' ? 'Declined' :
+                                       msg.status === 'ringing' ? 'Calling...' : 'Call'}
                                     </span>
-                                    <span className="text-[9px] opacity-60 font-bold">{msg.time}</span>
+                                    {msg.metadata?.duration && (
+                                      <span className="text-[9px] opacity-60 font-bold">⏱ {msg.metadata.duration}</span>
+                                    )}
+                                    <span className="text-[9px] opacity-40 font-bold">{msg.time}</span>
                                   </div>
                                 </div>
                               </div>

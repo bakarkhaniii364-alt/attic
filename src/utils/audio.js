@@ -1,46 +1,302 @@
-export function playAudio(type, enabled) {
-  if (!enabled) return;
+/**
+ * audio.js — Unified SFX engine using Howler.js + Web Audio API synthesizers.
+ *
+ * Strategy:
+ *  - UI / notification SFX → synthesized via Web Audio API (zero file deps, instant)
+ *  - Pool & game SFX → also synthesized (avoids asset loading latency)
+ *  - Howler.js is exported for any future file-based SFX sprites
+ *
+ * All functions respect the `enabled` flag (sfxEnabled from localStorage).
+ */
+
+import { Howl, Howler } from 'howler';
+
+// ── Global Howler Volume ────────────────────────────────────────────────────
+export function setSfxVolume(enabled) {
+  Howler.volume(enabled ? 1 : 0);
+}
+
+// ── Synthesized SFX (Web Audio API) ────────────────────────────────────────
+// Shared AudioContext (one per app lifetime)
+let _ctx = null;
+function getCtx() {
+  if (!_ctx || _ctx.state === 'closed') {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    _ctx = new AC();
+  }
+  if (_ctx.state === 'suspended') _ctx.resume();
+  return _ctx;
+}
+
+function synth(fn) {
   try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext; if (!AudioCtx) return;
-    const ctx = new AudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination); const now = ctx.currentTime;
-    if (type === 'click') { osc.type = 'square'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.05); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1); osc.start(now); osc.stop(now + 0.1); } 
-    else if (type === 'chalk') { osc.type = 'triangle'; osc.frequency.setValueAtTime(150 + Math.random()*50, now); osc.frequency.linearRampToValueAtTime(100, now + 0.1); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.1); osc.start(now); osc.stop(now + 0.1); }
-    else if (type === 'wood_thud') { osc.type = 'sine'; osc.frequency.setValueAtTime(80, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
-    else if (type === 'electronic_slide') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.exponentialRampToValueAtTime(600, now + 0.1); gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15); osc.start(now); osc.stop(now + 0.15); }
-    else if (type === 'send') { osc.type = 'sine'; osc.frequency.setValueAtTime(500, now); osc.frequency.setValueAtTime(800, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); } 
-    else if (type === 'receive') { osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(1200, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
-    else if (type === 'win') { osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.setValueAtTime(600, now+0.1); osc.frequency.setValueAtTime(800, now+0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.001, now+0.5); osc.start(now); osc.stop(now+0.5); }
-    else if (type === 'notif') { osc.type = 'sine'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05); osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
-    
-    // Haptic Feedback
-    if (navigator.vibrate) {
-      if (type === 'click' || type === 'chalk') navigator.vibrate(10);
-      else if (type === 'send' || type === 'receive') navigator.vibrate(20);
-      else if (type === 'notif') navigator.vibrate([30, 50, 30]);
-      else if (type === 'win') navigator.vibrate([100, 50, 100]);
-    }
+    const ctx = getCtx();
+    if (!ctx) return;
+    fn(ctx, ctx.currentTime);
   } catch (e) {}
 }
 
+// ── Main SFX Dispatcher ─────────────────────────────────────────────────────
+export function playAudio(type, enabled) {
+  if (!enabled) return;
+
+  // Haptics
+  if (navigator.vibrate) {
+    if (type === 'click' || type === 'chalk') navigator.vibrate(10);
+    else if (type === 'send' || type === 'receive') navigator.vibrate(20);
+    else if (type === 'notif') navigator.vibrate([30, 50, 30]);
+    else if (type === 'win') navigator.vibrate([100, 50, 100]);
+    else if (type === 'pool_hit') navigator.vibrate(15);
+    else if (type === 'pool_sink') navigator.vibrate([40, 20, 40]);
+  }
+
+  synth((ctx, now) => {
+    switch (type) {
+
+      // ── UI ──────────────────────────────────────────────────────────────
+      case 'click': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+        g.gain.setValueAtTime(0.08, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+        break;
+      }
+
+      case 'notif': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
+        osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+        g.gain.setValueAtTime(0.1, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.start(now); osc.stop(now + 0.22);
+        break;
+      }
+
+      case 'send': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, now);
+        osc.frequency.setValueAtTime(800, now + 0.08);
+        g.gain.setValueAtTime(0.1, now);
+        g.gain.linearRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now); osc.stop(now + 0.2);
+        break;
+      }
+
+      case 'receive': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.setValueAtTime(1200, now + 0.08);
+        g.gain.setValueAtTime(0.1, now);
+        g.gain.linearRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now); osc.stop(now + 0.2);
+        break;
+      }
+
+      case 'win': {
+        // Triumphant ascending triad
+        [400, 500, 600, 800].forEach((freq, i) => {
+          const osc = ctx.createOscillator(); const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = now + i * 0.1;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.2, t + 0.05);
+          g.gain.linearRampToValueAtTime(0, t + 0.3);
+          osc.start(t); osc.stop(t + 0.35);
+        });
+        break;
+      }
+
+      case 'success': {
+        [600, 800].forEach((freq, i) => {
+          const osc = ctx.createOscillator(); const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.value = freq;
+          const t = now + i * 0.12;
+          g.gain.setValueAtTime(0.15, t); g.gain.linearRampToValueAtTime(0.001, t + 0.25);
+          osc.start(t); osc.stop(t + 0.25);
+        });
+        break;
+      }
+
+      // ── Drawing / Chalk SFX ─────────────────────────────────────────────
+      case 'chalk': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150 + Math.random() * 50, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.1);
+        g.gain.setValueAtTime(0.05, now); g.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+        break;
+      }
+
+      case 'wood_thud': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+        g.gain.setValueAtTime(0.2, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now); osc.stop(now + 0.2);
+        break;
+      }
+
+      case 'electronic_slide': {
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+        g.gain.setValueAtTime(0.05, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+        break;
+      }
+
+      // ── Pool Game SFX ───────────────────────────────────────────────────
+      case 'pool_break': {
+        // Multiple overlapping cracks = break shot impact
+        for (let i = 0; i < 6; i++) {
+          const osc = ctx.createOscillator(); const g = ctx.createGain();
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * Math.exp(-j / (ctx.sampleRate * 0.04));
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          const filt = ctx.createBiquadFilter();
+          filt.type = 'bandpass';
+          filt.frequency.value = 800 + Math.random() * 800;
+          filt.Q.value = 1;
+          src.connect(filt); filt.connect(ctx.destination);
+          const t = now + i * 0.015;
+          src.start(t); src.stop(t + 0.15);
+        }
+        break;
+      }
+
+      case 'pool_hit':
+      case 'hit': {
+        // Sharp ivory click of billiard ball collision
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.012));
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'highpass';
+        filt.frequency.value = 1200;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.6, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+        src.start(now); src.stop(now + 0.08);
+        break;
+      }
+
+      case 'pool_cushion': {
+        // Softer thud when ball hits cushion/rail
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+        g.gain.setValueAtTime(0.25, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+
+        // Add noise transient
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+        }
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.3, now);
+        src.connect(g2); g2.connect(ctx.destination);
+        src.start(now); src.stop(now + 0.05);
+        break;
+      }
+
+      case 'pool_sink':
+      case 'sink': {
+        // Satisfying "glunk" as ball drops into pocket
+        const osc = ctx.createOscillator(); const g = ctx.createGain();
+        osc.connect(g); g.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.3);
+        g.gain.setValueAtTime(0.35, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.start(now); osc.stop(now + 0.35);
+
+        // Secondary resonance thud
+        const osc2 = ctx.createOscillator(); const g2 = ctx.createGain();
+        osc2.connect(g2); g2.connect(ctx.destination);
+        osc2.type = 'triangle'; osc2.frequency.value = 100;
+        g2.gain.setValueAtTime(0.15, now + 0.05);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc2.start(now + 0.05); osc2.stop(now + 0.25);
+        break;
+      }
+
+      default: break;
+    }
+  });
+}
+
+// ── Lo-Fi Background (unchanged) ────────────────────────────────────────────
 let lofiCtx = null;
 let lofiTimerId = null;
 export function toggleLoFi(play) {
   if (play) {
-    if(!lofiCtx) lofiCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if(lofiCtx.state === 'suspended') lofiCtx.resume();
+    if (!lofiCtx) lofiCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (lofiCtx.state === 'suspended') lofiCtx.resume();
     const playNote = () => {
-      if(!lofiCtx) return;
+      if (!lofiCtx) return;
       const osc = lofiCtx.createOscillator(); const gain = lofiCtx.createGain();
       osc.connect(gain); gain.connect(lofiCtx.destination);
-      const notes = [261.63, 293.66, 329.63, 392.00, 440.00]; 
-      osc.frequency.value = notes[Math.floor(Math.random() * notes.length)] / 2; osc.type = 'sine';
-      gain.gain.setValueAtTime(0, lofiCtx.currentTime); gain.gain.linearRampToValueAtTime(0.05, lofiCtx.currentTime + 1); gain.gain.linearRampToValueAtTime(0, lofiCtx.currentTime + 3);
+      const notes = [261.63, 293.66, 329.63, 392.00, 440.00];
+      osc.frequency.value = notes[Math.floor(Math.random() * notes.length)] / 2;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, lofiCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.05, lofiCtx.currentTime + 1);
+      gain.gain.linearRampToValueAtTime(0, lofiCtx.currentTime + 3);
       osc.start(lofiCtx.currentTime); osc.stop(lofiCtx.currentTime + 3);
       lofiTimerId = setTimeout(playNote, Math.random() * 2000 + 1000);
-    }; playNote();
+    };
+    playNote();
   } else {
     if (lofiTimerId) { clearTimeout(lofiTimerId); lofiTimerId = null; }
-    if(lofiCtx) { lofiCtx.close(); lofiCtx = null; }
+    if (lofiCtx) { lofiCtx.close(); lofiCtx = null; }
   }
+}
+
+/**
+ * createHowlSprite — helper for creating a Howler sprite instance.
+ * Use this for any future file-based SFX bundles.
+ *
+ * @example
+ * const gameSfx = createHowlSprite('/sounds/game.webm', {
+ *   cardFlip: [0, 200],
+ *   win: [300, 1500],
+ * });
+ * gameSfx.play('cardFlip');
+ */
+export function createHowlSprite(src, sprite) {
+  return new Howl({ src: Array.isArray(src) ? src : [src], sprite });
 }

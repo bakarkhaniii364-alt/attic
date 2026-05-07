@@ -102,7 +102,7 @@ const drawBall = (ctx, x, y, radius, color, id) => {
     }
 };
 
-const solveCollision = (b1, b2, onCueHit) => {
+const solveCollision = (b1, b2, onCueHit, onBallHit) => {
   const dx = b2.x - b1.x;
   const dy = b2.y - b1.y;
   const dist = Math.hypot(dx, dy);
@@ -134,6 +134,10 @@ const solveCollision = (b1, b2, onCueHit) => {
   
   b1.vx -= ix; b1.vy -= iy;
   b2.vx += ix; b2.vy += iy;
+
+  // Trigger SFX on meaningful collision (speed threshold avoids spam)
+  const speed = Math.abs(velAlongNormal);
+  if (speed > 1.5 && onBallHit) onBallHit(speed);
 };
 
 export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook }) {
@@ -159,7 +163,9 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           cue.vy = vy;
           engineRef.current.isSimulating = true;
           firstBallHitRef.current = null;
-          playAudio('hit', sfx);
+          // Use break shot SFX for high-power shots, regular hit for others
+          const shotSpeed = Math.hypot(vx, vy);
+          playAudio(shotSpeed > 18 ? 'pool_break' : 'pool_hit', sfx);
           startPhysicsLoop();
       }
   }, [sfx]);
@@ -228,17 +234,15 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               for (const p of POCKETS) {
                   const distToPocket = Math.hypot(b.x - p.x, b.y - p.y);
                   if (distToPocket < POCKET_R) {
-                      // Slight pull towards center for smoother feel
                       if (distToPocket > 5) {
                           const pull = 0.5;
                           b.vx += (p.x - b.x) / distToPocket * pull;
                           b.vy += (p.y - b.y) / distToPocket * pull;
                       }
-
-                      if (distToPocket < 15) { // Final sink threshold
+                      if (distToPocket < 15) {
                         b.active = false;
                         b.vx = 0; b.vy = 0;
-                        playAudio('sink', sfx);
+                        playAudio('pool_sink', sfx);
                         pocketed = true;
                         break;
                       }
@@ -247,13 +251,13 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
               if (pocketed) continue;
 
-              // Walls
+              // Walls — play cushion SFX on hard bounces
               const nearPocket = POCKETS.some(p => Math.hypot(b.x - p.x, b.y - p.y) < POCKET_R * 1.5);
               if (!nearPocket) {
-                  if (b.x < BALL_R) { b.x = BALL_R; b.vx *= -0.8; }
-                  if (b.x > PLAY_WIDTH - BALL_R) { b.x = PLAY_WIDTH - BALL_R; b.vx *= -0.8; }
-                  if (b.y < BALL_R) { b.y = BALL_R; b.vy *= -0.8; }
-                  if (b.y > PLAY_HEIGHT - BALL_R) { b.y = PLAY_HEIGHT - BALL_R; b.vy *= -0.8; }
+                  if (b.x < BALL_R) { b.x = BALL_R; if (Math.abs(b.vx) > 2) playAudio('pool_cushion', sfx); b.vx *= -0.8; }
+                  else if (b.x > PLAY_WIDTH - BALL_R) { b.x = PLAY_WIDTH - BALL_R; if (Math.abs(b.vx) > 2) playAudio('pool_cushion', sfx); b.vx *= -0.8; }
+                  if (b.y < BALL_R) { b.y = BALL_R; if (Math.abs(b.vy) > 2) playAudio('pool_cushion', sfx); b.vy *= -0.8; }
+                  else if (b.y > PLAY_HEIGHT - BALL_R) { b.y = PLAY_HEIGHT - BALL_R; if (Math.abs(b.vy) > 2) playAudio('pool_cushion', sfx); b.vy *= -0.8; }
               }
           }
 
@@ -263,11 +267,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                   if (!balls[i].active) continue;
                   for (let j = i + 1; j < balls.length; j++) {
                       if (!balls[j].active) continue;
-                      solveCollision(balls[i], balls[j], (other) => {
-                          if (firstBallHitRef.current === null) {
-                              firstBallHitRef.current = other.id;
-                          }
-                      });
+                      solveCollision(
+                        balls[i], balls[j],
+                        (other) => { if (firstBallHitRef.current === null) firstBallHitRef.current = other.id; },
+                        (speed) => { if (step === 0) playAudio('pool_hit', sfx); } // only fire on first sub-step
+                      );
                   }
               }
           }
