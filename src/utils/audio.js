@@ -13,7 +13,7 @@ import { Howl, Howler } from 'howler';
 
 // ── Global Howler Volume ────────────────────────────────────────────────────
 export function setSfxVolume(enabled) {
-  Howler.volume(enabled ? 1 : 0);
+  try { Howler.volume(enabled ? 1 : 0); } catch (_) {}
 }
 
 // ── Synthesized SFX (Web Audio API) ────────────────────────────────────────

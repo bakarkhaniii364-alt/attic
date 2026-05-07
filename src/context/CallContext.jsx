@@ -375,8 +375,11 @@ export function CallProvider({ children }) {
       .on('broadcast', { event: 'call_signal' }, ({ payload }) => handleSignal(payload))
       .on('presence',  { event: 'sync' }, () => {
         const state = channel.presenceState();
-        const partnerPresence = Object.values(state).flat().find(p => p.userId !== userId);
-        setPartnerInCall(partnerPresence?.status === 'in_call');
+        // Guard: presence entries can be null on disconnect
+        const partnerPresence = Object.values(state).flat()
+          .filter(Boolean)
+          .find(p => p && p.userId !== userId);
+        setPartnerInCall(!!(partnerPresence?.status === 'in_call'));
       })
       .subscribe(async (status) => {
         console.log('[Call] Channel', channelId, ':', status);
