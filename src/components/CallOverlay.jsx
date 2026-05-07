@@ -47,7 +47,12 @@ export function CallOverlay({
   return (
     <>
       {/* Hidden audio element for remote stream */}
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        className="opacity-0 pointer-events-none fixed bottom-0 left-0 w-1 h-1"
+      />
 
       {/* Incoming call modal */}
       {incomingCall && isRinging && (

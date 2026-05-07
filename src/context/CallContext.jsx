@@ -28,11 +28,12 @@ const ICE_SERVERS = [
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun3.l.google.com:19302' },
   { urls: 'stun:stun4.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:stun.voiparound.com' },
+  { urls: 'stun:stun.voipbuster.com' },
+  { urls: 'stun:stun.voipstunt.com' },
+  { urls: 'stun:stun.voxgratia.org' },
   { urls: 'turn:openrelay.metered.ca:80',                 username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443',                username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp',  username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:80?transport=tcp',   username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 
 // ── Ringing tone (Web Audio) ─────────────────────────────────────────────────
@@ -85,6 +86,8 @@ export function CallProvider({ children }) {
   const ringRetryRef       = useRef(null);
   const ringTimeoutRef     = useRef(null);
   const ringStopRef        = useRef(null);
+  const callStatusRef      = useRef('idle');
+  const callDurationRef    = useRef(0);
   const pendingCandidates  = useRef([]);   // ICE queue before remote desc is set
   const isCallerRef        = useRef(false);
   const callTypeRef        = useRef(null);
@@ -94,12 +97,18 @@ export function CallProvider({ children }) {
 
   useEffect(() => { callingRef.current  = calling;  }, [calling]);
   useEffect(() => { isRingingRef.current = isRinging; }, [isRinging]);
+  useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
+  useEffect(() => { callDurationRef.current = callDuration; }, [callDuration]);
 
   // ── Timer: starts exactly when ICE connects ───────────────────────────────
   useEffect(() => {
     if (callStatus === 'connected') {
       setCallDuration(0);
-      callTimerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+      callTimerRef.current = setInterval(() => setCallDuration(d => {
+        const next = d + 1;
+        callDurationRef.current = next;
+        return next;
+      }), 1000);
     } else {
       if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
     }
@@ -177,8 +186,17 @@ export function CallProvider({ children }) {
 
     // Receive remote tracks
     pc.ontrack = (e) => {
-      console.log('[Call] ontrack — remote stream received');
-      setRemoteStream(e.streams[0] || new MediaStream([e.track]));
+      console.log('[Call] ontrack — remote track received:', e.track.kind);
+      setRemoteStream(prev => {
+        if (prev) {
+          // If the stream already exists, add the track if it's not there
+          if (!prev.getTracks().find(t => t.id === e.track.id)) {
+            prev.addTrack(e.track);
+          }
+          return new MediaStream(prev.getTracks()); // trigger re-render
+        }
+        return e.streams[0] || new MediaStream([e.track]);
+      });
     };
 
     // Trickle ICE
@@ -186,6 +204,10 @@ export function CallProvider({ children }) {
       if (e.candidate) {
         sendSignal({ action: 'ice', candidate: e.candidate.toJSON() });
       }
+    };
+    
+    pc.onicegatheringstatechange = () => {
+      console.log('[Call] ICE Gathering:', pc.iceGatheringState);
     };
 
     // ICE state machine
@@ -368,8 +390,8 @@ export function CallProvider({ children }) {
       }
 
       case 'ended': {
-        const wasConnected = callStatus === 'connected';
-        const dur = callTimerRef.current ? callDuration : 0;
+        const wasConnected = callStatusRef.current === 'connected';
+        const dur = callDurationRef.current;
         if (wasConnected && callTypeRef.current) {
           recordCallEnd(callTypeRef.current, dur);
         }
@@ -379,7 +401,7 @@ export function CallProvider({ children }) {
 
       default: break;
     }
-  }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, callStatus, callDuration, recordCallEnd]);
+  }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd]);
 
   // ── Supabase signaling channel ────────────────────────────────────────────
   useEffect(() => {
@@ -452,7 +474,6 @@ export function CallProvider({ children }) {
   const startCall = useCallback(async (type) => {
     if (!partnerId || !userId) return;
     if (callingRef.current) return; // already in a call
-    if (partnerInCall) { alert('Partner is already on another call.'); return; }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
