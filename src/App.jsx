@@ -6,10 +6,10 @@ import { ToastProvider, ConfirmDialog, useToast, RetroWindow, RetroButton } from
 import { LivingBackground } from './components/Visuals/LivingBackground.jsx';
 import { WeatherOverlay } from './components/Visuals/WeatherOverlay.jsx';
 import { Confetti } from './components/Visuals/Confetti.jsx';
-import { PremiumCallHub } from './components/Call/PremiumCallHub.jsx';
-import { GameInviteModal } from './components/Modals/GameInviteModal.jsx';
 import { DoodleReceiverModal } from './components/Modals/DoodleReceiverModal.jsx';
 import { FloatingEnvelope } from './components/Modals/FloatingEnvelope.jsx';
+import { OverlayManager } from './components/OverlayManager.jsx';
+import { CallOverlay } from './components/CallOverlay.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { playAudio } from './utils/audio.js';
 import { INITIAL_CHAT } from './constants/data.js';
@@ -83,9 +83,10 @@ export default function App() {
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
-    calling, isRinging, incomingCall, callDuration, 
-    remoteStream, localStream, isMuted, isDeafened, isCameraOff,
-    acceptCall, endCall, toggleMic, toggleCamera, toggleDeafen, isOnline
+    calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
+    remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
+    acceptCall, declineCall, endCall, toggleMic, toggleCamera, toggleDeafen,
+    startScreenShare, stopScreenShare,
   } = useCall();
 
   const [theme, setTheme] = useLocalStorage('app_theme', 'matcha');
@@ -145,14 +146,31 @@ export default function App() {
   
   const toast = useToast();
 
+  const handleSaveToScrapbook = useCallback(async (dataUrl) => {
+    if (!roomId || !userId) return;
+    try {
+      toast('Saving to Scrapbook...', 'info');
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `scrapbook_${Date.now()}.png`, { type: 'image/png' });
+      
+      const asset = await uploadAsset(file, 'scrapbook', userId, { source: 'arcade' });
+      if (asset) {
+        toast('Saved to Scrapbook! ✨', 'success');
+        playAudio('success', sfxEnabled);
+      }
+    } catch (e) {
+      console.error("[APP] Scrapbook save failed:", e);
+      toast('Failed to save to scrapbook.', 'error');
+    }
+  }, [roomId, userId, uploadAsset, toast, sfxEnabled]);
+
   const isPartnerOnline = partnerId && onlineUsers[partnerId]?.status === 'active';
   const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
   useEffect(() => {
-    const onboardingPaths = ['/signin', '/signup', '/handshake', '/password-reset'];
-    const isOnboarding = onboardingPaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/';
-    document.documentElement.setAttribute('data-theme', isOnboarding ? 'default' : theme); 
-  }, [theme, location.pathname]);
+    document.documentElement.setAttribute('data-theme', theme); 
+  }, [theme]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -204,162 +222,48 @@ export default function App() {
   return (
     <>
       {!bootFinished && <BootLoader onComplete={() => setBootFinished(true)} sfxEnabled={sfxEnabled} />}
-      {hasInitialized && (
-        <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''}`}>
+      
+      <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
         <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} opacity-10 pointer-events-none`} />
         <LivingBackground weather={weather} />
         <WeatherOverlay weather={weather} />
         <Confetti active={confetti} />
-        {user && roomId && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
 
-        {showKiss && (
-          <div className="kiss-container">
-            {[...Array(50)].map((_, i) => {
-              const angle = Math.random() * Math.PI * 2;
-              const dist = 200 + Math.random() * 600;
-              const tx = Math.cos(angle) * dist;
-              const ty = Math.sin(angle) * dist;
-              const tr = (Math.random() - 0.5) * 500;
-              return (
-                <div key={i} className="floating-heart" style={{ 
-                  '--tx': `${tx}px`, 
-                  '--ty': `${ty}px`, 
-                  '--tr': `${tr}deg`,
-                  animationDelay: `${Math.random() * 0.5}s`, 
-                  fontSize: `${1.5 + Math.random() * 3}rem` 
-                }}>{['💖', '💗', '💓', '💕', '❤️', '💌'][Math.floor(Math.random() * 6)]}</div>
-              );
-            })}
-          </div>
-        )}
+        {hasInitialized && (
+          <>
+            {user && roomId && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
 
-        {incomingCall && isRinging && (
-          <div className="fixed inset-0 z-[var(--z-modal)] bg-black/10 flex items-center justify-center p-4 animate-in fade-in duration-500">
-            <div className="bg-window/95 text-main-text retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-primary">
-              <div className="w-24 h-24 rounded-lg bg-secondary text-secondary-text retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)] relative overflow-hidden">
-                  {incomingCall.type === 'video' ? <Video size={48} className="text-white absolute z-0"/> : <Phone size={48} className="text-white absolute z-0"/>}
-                  {partnerProfile.pfp && <img src={partnerProfile.pfp} alt="partner" className="w-full h-full object-cover relative z-10 bg-window" onError={(e) => { e.target.style.display = 'none'; }} />}
+            <OverlayManager 
+              showKiss={showKiss} floatingDoodles={floatingDoodles} doodleQueue={doodleQueue} 
+              setDoodleQueue={setDoodleQueue} setFloatingDoodles={setFloatingDoodles} 
+              activeDoodleView={activeDoodleView} closeDoodle={closeDoodle} 
+              gameInvite={gameInvite} setGameInvite={setGameInvite} 
+              watchpartyInvite={watchpartyInvite} setWatchpartyInvite={setWatchpartyInvite} 
+              textNotifications={textNotifications} setTextNotifications={setTextNotifications} 
+              partnerName={partnerName} partnerId={partnerId} roomProfiles={roomProfiles} 
+              sfxEnabled={sfxEnabled} navigate={navigateTo} toast={toast} 
+              lobbyState={globalState?.arcade_lobby} userId={userId} roomId={roomId} 
+              updateSyncState={updateSyncState} 
+            />
+
+            <CallOverlay 
+              incomingCall={incomingCall} isRinging={isRinging} partnerProfile={partnerProfile} 
+              partnerName={partnerName} endCall={endCall} acceptCall={acceptCall} declineCall={declineCall}
+              calling={calling} callDuration={callDuration} callStatus={callStatus} callQuality={callQuality}
+              isMuted={isMuted} isDeafened={isDeafened} isCameraOff={isCameraOff} isScreenSharing={isScreenSharing}
+              toggleMic={toggleMic} toggleDeafen={toggleDeafen} toggleCamera={toggleCamera}
+              startScreenShare={startScreenShare} stopScreenShare={stopScreenShare}
+              sfxEnabled={sfxEnabled} remoteStream={remoteStream} localStream={localStream} 
+            />
+
+            {partnerOnlineModal && (
+              <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[var(--z-toast)] animate-in slide-in-from-top-10 fade-in duration-500 pointer-events-none">
+                <div className="bg-primary text-primary-text px-6 py-3 retro-border retro-shadow-dark flex items-center gap-3 rounded-full">
+                  <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_#4ade80]"></div>
+                  <span className="font-black uppercase tracking-widest text-xs">{partnerName} is Online!</span>
+                </div>
               </div>
-              <h2 className="text-2xl font-black mb-1">{incomingCall.fromName}</h2>
-              <p className="text-[10px] font-black text-primary mb-8 uppercase tracking-[0.2em] animate-pulse">Incoming {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call</p>
-              <div className="flex gap-6 justify-center">
-                <button onClick={endCall} className="p-5 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-all hover:scale-110 shadow-lg group"><PhoneOff size={28} className="rotate-[135deg]"/></button>
-                <button 
-                  onClick={() => {
-                    // Critical: Trigger audio play on user gesture to bypass autoplay blocks
-                    if (remoteAudioRef.current) {
-                      remoteAudioRef.current.play().catch(e => console.warn("[Call] Autoplay block bypass failed:", e));
-                    }
-                    acceptCall();
-                  }} 
-                  className="p-5 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"
-                >
-                  <Phone size={28}/>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {calling && (
-          <PremiumCallHub calling={calling} callDuration={callDuration} isMuted={isMuted} isDeafened={isDeafened} isCameraOff={isCameraOff} onMicToggle={toggleMic} onDeafenToggle={toggleDeafen} onCameraToggle={toggleCamera} onEndCall={endCall} partnerName={partnerName} partnerPfp={partnerProfile.pfp} sfx={sfxEnabled} remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling} />
-        )}
-        
-        <audio ref={remoteAudioRef} autoPlay style={{display: 'none'}} />
-
-        {partnerOnlineModal && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[var(--z-toast)] animate-in slide-in-from-top-10 fade-in duration-500 pointer-events-none">
-            <div className="bg-primary text-primary-text px-6 py-3 retro-border retro-shadow-dark flex items-center gap-3 rounded-full">
-              <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_#4ade80]"></div>
-              <span className="font-black uppercase tracking-widest text-xs">{partnerName} is Online!</span>
-            </div>
-          </div>
-        )}
-
-        <div className="fixed top-24 right-4 z-[var(--z-notification)] flex flex-col gap-2 pointer-events-none">
-          {textNotifications.map(notif => (
-            <div key={notif.notifId} className="bg-window text-main-text retro-border retro-shadow-dark p-3 w-64 animate-in slide-in-from-right-10 fade-in duration-300 pointer-events-auto cursor-pointer" onClick={() => navigate('/chat')}>
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-black text-[10px] uppercase text-primary flex items-center gap-1"><Bell size={10} /> Message from {partnerName}</span>
-                <button onClick={(e) => { e.stopPropagation(); setTextNotifications(p => p.filter(n => n.notifId !== notif.notifId)) }} className="opacity-50 hover:opacity-100"><X size={12}/></button>
-              </div>
-              <p className="text-xs truncate font-bold opacity-90">{notif.type === 'text' ? notif.text : `Sent a ${notif.type}`}</p>
-            </div>
-          ))}
-        </div>
-
-        {gameInvite && (
-          <GameInviteModal 
-            invite={gameInvite} partnerName={partnerName}
-            onAccept={async () => {
-              setGameInvite(null);
-              const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-              
-              // 1. Attempt atomic join via RPC (safest)
-              try {
-                const { error } = await supabase.rpc('join_arcade_lobby', { 
-                  p_room_id: roomId, 
-                  p_user_id: userId 
-                });
-                if (error) throw error;
-                console.log("[Lobby] Atomic join successful via RPC");
-              } catch (err) {
-                // 2. Fallback to client-side merge if RPC is not yet deployed
-                console.warn("[Lobby] RPC join failed, falling back to client merge:", err);
-                let currentLobby = lobbyState;
-                if (currentLobby?.gameId === gId) {
-                  const currentPlayers = Array.from(new Set([...(currentLobby.players || []), userId]));
-                  const updatedLobby = {
-                    ...currentLobby,
-                    players: currentPlayers,
-                    status: currentPlayers.length >= 2 ? 'ready' : 'waiting'
-                  };
-                  updateSyncState('arcade_lobby', updatedLobby);
-                }
-              }
-              
-              navigate(`/activities/${gId}`);
-            }}
-            onDecline={() => setGameInvite(null)}
-            sfx={sfxEnabled}
-          />
-        )}
-
-        {watchpartyInvite && (
-          <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <RetroWindow title="watchparty_invite.exe" onClose={() => setWatchpartyInvite(null)} className="max-w-sm w-full">
-              <div className="p-6 text-center">
-                 <div className="w-16 h-16 bg-primary text-white rounded-lg retro-border flex items-center justify-center mx-auto mb-4">
-                    <Monitor size={32} />
-                 </div>
-                 <h2 className="text-xl font-black mb-2 uppercase tracking-tighter">{watchpartyInvite.senderName} invited you!</h2>
-                 <p className="text-sm font-bold opacity-70 mb-6 lowercase">join them for a watch party on syncwatcher?</p>
-                 <div className="flex gap-3">
-                    <RetroButton variant="white" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => setWatchpartyInvite(null)}>Decline</RetroButton>
-                    <RetroButton variant="primary" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => {
-                        setWatchpartyInvite(null);
-                        navigateTo('watch');
-                    }}>Join Now</RetroButton>
-                 </div>
-              </div>
-            </RetroWindow>
-          </div>
-        )}
-
-        {floatingDoodles.map((doodle) => (
-           <FloatingEnvelope key={doodle.id} doodle={doodle} onClick={(d) => { playAudio('click', sfxEnabled); setDoodleQueue(prev => [...prev, { image: d.data, sender: partnerId }]); setFloatingDoodles(prev => prev.filter((item) => item.id !== d.id)); }} />
-        ))}
-
-        {activeDoodleView && (
-          <DoodleReceiverModal 
-            doodleData={activeDoodleView.image}
-            partnerName={roomProfiles[activeDoodleView.sender]?.name || 'Partner'}
-            onClose={closeDoodle}
-            onScrapbook={async () => { toast('Saved to Scrapbook!', 'success'); }}
-            onRedoodle={() => { closeDoodle(); navigateTo('doodle'); }}
-            onReply={() => { closeDoodle(); navigateTo('chat'); }}
-          />
-        )}
+            )}
 
         <div className="app-glitch-wrapper flex-1 w-full flex flex-col items-center" data-hawkins={theme === 'hawkins'}>
           <Suspense fallback={<AppLoader />}>
@@ -403,16 +307,16 @@ export default function App() {
               /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
-              <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/capsule" element={<ProtectedRoute><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/lists" element={<ProtectedRoute><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/calendar" element={<ProtectedRoute><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/scrapbook" element={<ProtectedRoute><ScrapbookApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/pixelart" element={<ProtectedRoute><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/notes" element={<ProtectedRoute><SharedNotes onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
-              <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
+              <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/capsule" element={<ProtectedRoute><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/lists" element={<ProtectedRoute><ListsApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/calendar" element={<ProtectedRoute><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/scrapbook" element={<ProtectedRoute><ScrapbookApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/pixelart" element={<ProtectedRoute><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/notes" element={<ProtectedRoute><SharedNotes onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
                <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} onShareToChat={handleShareToChat} /></ProtectedRoute>} />
               <Route path="/legal" element={<LegalView onClose={() => navigateTo('dashboard')} />} />
               <Route path="/activities/*" element={<ProtectedRoute><ActivitiesHub 
@@ -437,14 +341,15 @@ export default function App() {
                 syncedRoomId={roomId}
                 pictionaryState={globalState.pictionary_state}
                 setPictionaryState={(val) => updateSyncState('pictionary_state', typeof val === 'function' ? val(globalState.pictionary_state || {}) : val)}
-                onSaveToScrapbook={(img) => {}}
+                onSaveToScrapbook={handleSaveToScrapbook}
               /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </div>
-    </div>
-    )}
+        </>
+        )}
+      </div>
     </>
   );
 }

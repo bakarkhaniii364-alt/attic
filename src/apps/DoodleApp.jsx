@@ -279,7 +279,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     setShowSentOverlay(true);
   };
 
-  const handleSaveScrapbook = async () => {
+   const handleSaveScrapbook = async () => {
     playAudio('click', sfx);
     const dataUrl = canvasRef.current.toDataURL('image/png');
     if (isNormalized) {
@@ -287,12 +287,14 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
             const blob = base64ToBlob(dataUrl);
             const file = new File([blob], `scrapbook_${Date.now()}.png`, { type: 'image/png' });
             await uploadAsset(file, 'scrapbook', userId);
+            setHasUnsavedChanges(false);
             alert('Saved to Scrapbook!');
         } catch (e) {
             alert("Failed to save: " + e.message);
         }
     } else {
         if (onSaveToScrapbook) onSaveToScrapbook(dataUrl);
+        setHasUnsavedChanges(false);
         alert('Saved to Scrapbook!');
     }
   };

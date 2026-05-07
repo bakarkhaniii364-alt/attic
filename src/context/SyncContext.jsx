@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
-import { isTestMode, sendTestBroadcast, onTestBroadcast, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
+import { isTestMode, getTestUser, sendTestBroadcast, onTestBroadcast, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 
 const SyncContext = createContext(null);
 
@@ -13,6 +13,7 @@ export function SyncProvider({ children }) {
   const [onlineUsers, setOnlineUsers] = useState({});
   const channelsRef = useRef({});
   const pendingUpdateRef = useRef(null);
+  const latestStateRef = useRef({});
   const isSubscribedRef = useRef(false); // true only after WebSocket SUBSCRIBED
 
   // Initialize Room Sync
@@ -71,6 +72,7 @@ export function SyncProvider({ children }) {
         }
 
         if (mounted) {
+          latestStateRef.current = initialState;
           setGlobalState(initialState);
           setIsInitialized(true);
         }
@@ -107,7 +109,8 @@ export function SyncProvider({ children }) {
           filter: `room_id=eq.${roomId}` 
         }, (payload) => {
           if (payload.new && payload.new.state) {
-            setGlobalState(prev => ({ ...prev, ...payload.new.state }));
+            latestStateRef.current = payload.new.state;
+            setGlobalState(payload.new.state);
           }
         })
         .on('presence', { event: 'sync' }, () => {
@@ -129,7 +132,7 @@ export function SyncProvider({ children }) {
               });
             };
             trackPresence();
-            const interval = setInterval(trackPresence, 5000);
+            const interval = setInterval(trackPresence, 15000);
             channelsRef.current[channelId + '_presence'] = interval;
           } else {
             isSubscribedRef.current = false;
@@ -169,6 +172,7 @@ export function SyncProvider({ children }) {
 
     setGlobalState(prev => {
       const newState = { ...prev, [key]: value };
+      latestStateRef.current = newState;
       
       // Instant Broadcast
       const channelId = `room_sync_${roomId}`;
@@ -184,13 +188,17 @@ export function SyncProvider({ children }) {
       // Debounced DB Push
       if (pendingUpdateRef.current) clearTimeout(pendingUpdateRef.current);
       pendingUpdateRef.current = setTimeout(async () => {
-        const { error } = await supabase.from('app_state').update({ state: newState }).eq('room_id', roomId);
+        // ALWAYS use the latest ref state to avoid race conditions
+        const finalState = latestStateRef.current;
+        const { error } = await supabase.from('app_state').update({ state: finalState }).eq('room_id', roomId);
         if (error) console.error("[SYNC] DB Push Error:", error);
+        
+        // Cache full state locally once during the sync window
+        localforage.setItem('attic_global_state', finalState).catch(() => {});
       }, 1000);
 
-      // Cache locally
+      // Cache small key locally immediately
       localforage.setItem(`sync_${key}`, value).catch(() => {});
-      localforage.setItem('attic_global_state', newState).catch(() => {});
 
       return newState;
     });
@@ -210,6 +218,7 @@ export function SyncProvider({ children }) {
       const newSubkeyData = typeof value === 'object' ? { ...currentSubkeyData, ...value } : value;
       const newKeyData = { ...currentKeyData, [subkey]: newSubkeyData };
       const newState = { ...prev, [key]: newKeyData };
+      latestStateRef.current = newState;
 
       // 2. Broadcast the sub-update immediately
       const channelId = `room_sync_${roomId}`;
@@ -245,6 +254,7 @@ export function SyncProvider({ children }) {
       const currentData = prev[key] || {};
       const newData = { ...currentData, ...value };
       const newState = { ...prev, [key]: newData };
+      latestStateRef.current = newState;
 
       // Broadcast
       const channelId = `room_sync_${roomId}`;

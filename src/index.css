@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
 
 @import './styles/themes.css';
 @import './styles/animations.css';
@@ -8,6 +7,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --z-boot: 9999;
+  --z-modal: 1000;
+  --z-overlay: 800;
+  --z-notification: 600;
+  --z-toast: 500;
+  --z-stray: 100;
+}
 
 @layer utilities {
   .animate-in {

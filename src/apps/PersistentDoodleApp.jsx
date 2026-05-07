@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RetroWindow } from '../components/UI.jsx';
+import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useCall } from '../context/CallContext.jsx';
+import { Brush } from 'lucide-react';
+import { playAudio } from '../utils/audio.js';
 
-export function PersistentDoodleApp({ onClose, sfx, userId }) {
+export function PersistentDoodleApp({ onClose, sfx, userId, onSaveToScrapbook }) {
   const [doodleData, setDoodleData] = useGlobalSync('persistent_doodle', { img: null, lastUpdate: 0, updater: null });
   const { sendData } = useCall();
   const canvasRef = useRef(null);
@@ -12,6 +14,13 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
   const [brushSize, setBrushSize] = useState(4);
   const containerRef = useRef(null);
   const lastPosRef = useRef({ x: 0, y: 0 });
+
+  const handleSaveToAlbum = () => {
+    playAudio('click', sfx);
+    const dataUrl = canvasRef.current.toDataURL('image/png');
+    if (onSaveToScrapbook) onSaveToScrapbook(dataUrl);
+    const a = document.createElement('a'); a.href = dataUrl; a.download = `shared_canvas_${Date.now()}.png`; a.click();
+  };
 
   // P2P Stroke synchronization
   useBroadcast('doodle_p2p_stroke', (payload) => {
@@ -126,7 +135,10 @@ export function PersistentDoodleApp({ onClose, sfx, userId }) {
           ))}
         </div>
         <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 sm:w-24 accent-[var(--primary)]" />
-        <span className="text-[10px] font-bold uppercase opacity-50 ml-auto text-[var(--text-main)]">
+        
+        <RetroButton variant="white" onClick={handleSaveToAlbum} className="px-3 py-1 text-[10px] retro-border ml-auto flex items-center gap-1 shrink-0"><Brush size={12}/> Save to Album</RetroButton>
+
+        <span className="text-[10px] font-bold uppercase opacity-50 text-[var(--text-main)] shrink-0">
           {doodleData.updater === userId ? 'You are drawing' : 'Last update by partner'}
         </span>
       </div>

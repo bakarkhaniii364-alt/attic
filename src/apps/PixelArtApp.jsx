@@ -100,7 +100,7 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
     pushToHistory(newGrid);
   };
 
-  const handleExport = () => {
+   const handleExport = () => {
     playAudio('click', sfx);
     const canvas = document.createElement('canvas');
     const px = 16;
@@ -110,6 +110,7 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
     const url = canvas.toDataURL('image/png');
     if (onSaveToScrapbook) onSaveToScrapbook(url);
     const a = document.createElement('a'); a.href = url; a.download = `pixel_art_${Date.now()}.png`; a.click();
+    setDirty(false);
   };
 
   const toolBtnClass = (t) => `p-2 rounded-md retro-border transition-all flex items-center justify-center gap-1 ${

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Gamepad2, ArrowLeft, Users, Loader, Settings, Play, Swords, User, Monitor, Zap, Heart, Brush, X, Activity } from 'lucide-react';
 import { RetroButton, RetroWindow, ScoreboardCountdown, ConfirmDialog } from '../components/UI.jsx';
@@ -6,76 +6,77 @@ import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useArcadeSession } from '../hooks/useArcadeSession.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
+import { useActiveLobbies } from '../hooks/useActiveLobbies.js';
 
 // Games
-const TicTacToe = lazy(() => import('./TicTacToeGame.jsx').then(m => ({ default: m.TicTacToe })));
-const PictionaryGame = lazy(() => import('./PictionaryGame.jsx').then(m => ({ default: m.PictionaryGame })));
-const MemoryGame = lazy(() => import('./MemoryGame.jsx').then(m => ({ default: m.MemoryGame })));
-const WordleClone = lazy(() => import('./WordleClone.jsx').then(m => ({ default: m.WordleClone })));
-const Sudoku = lazy(() => import('./SudokuGame.jsx').then(m => ({ default: m.Sudoku })));
-const ChessEngine = lazy(() => import('./ChessEngine.jsx').then(m => ({ default: m.ChessEngine })));
-const CouplesQuiz = lazy(() => import('./CouplesQuiz.jsx').then(m => ({ default: m.CouplesQuiz })));
-const Game2048 = lazy(() => import('./Game2048.jsx').then(m => ({ default: m.Game2048 })));
-const TypingRace = lazy(() => import('./TypingRace.jsx').then(m => ({ default: m.TypingRace })));
-const WouldYouRather = lazy(() => import('./WouldYouRather.jsx').then(m => ({ default: m.WouldYouRather })));
-const UnoGame = lazy(() => import('./UnoGame.jsx').then(m => ({ default: m.UnoGame })));
-const OthelloGame = lazy(() => import('./OthelloGame.jsx').then(m => ({ default: m.OthelloGame })));
-const PoolGame = lazy(() => import('./PoolGame.jsx').then(m => ({ default: m.PoolGame })));
-const BluffGame = lazy(() => import('./BluffGame.jsx').then(m => ({ default: m.BluffGame })));
+import { TicTacToe } from './TicTacToeGame.jsx';
+import { PictionaryGame } from './PictionaryGame.jsx';
+import { MemoryGame } from './MemoryGame.jsx';
+import { WordleClone } from './WordleClone.jsx';
+import { Sudoku } from './SudokuGame.jsx';
+import { ChessEngine } from './ChessEngine.jsx';
+import { CouplesQuiz } from './CouplesQuiz.jsx';
+import { Game2048 } from './Game2048.jsx';
+import { TypingRace } from './TypingRace.jsx';
+import { WouldYouRather } from './WouldYouRather.jsx';
+import { UnoGame } from './UnoGame.jsx';
+import { OthelloGame } from './OthelloGame.jsx';
+import { PoolGame } from './PoolGame.jsx';
+import { BluffGame } from './BluffGame.jsx';
 
 const GAME_CATALOG = {
-  pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: '#fca5a5', modes: [
+  pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: 'var(--game-peach)', modes: [
     { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'One draws, the other guesses in real-time.', diffs: ['easy', 'hard'], options: [{key: 'genre', label: 'Word Genre', choices: ['General', 'Animals', 'Movies', 'Food']}, {key: 'rounds', label: 'Rounds', choices: [1, 2, 3, 5]}] }
   ]},
-  tictactoe: { title: 'Tic-Tac-Toe', desc: 'Classic 3x3 match.', color: '#ef4444', modes: [
-    { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], options: [{key: 'matchType', label: 'Best Of', choices: [1, 3, 5]}], desc: 'Play locally against the computer.' },
-    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', options: [{key: 'matchType', label: 'Best Of', choices: [1, 3, 5]}], desc: 'Challenge your partner remotely.' }
+  tictactoe: { title: 'Tic-Tac-Toe', desc: 'Classic grid match.', color: 'var(--game-red)', modes: [
+    { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], options: [{key: 'size', label: 'Grid Size', choices: [3, 4, 5]}, {key: 'matchType', label: 'Best Of', choices: [1, 3, 5]}], desc: 'Play locally against the computer.' },
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', options: [{key: 'size', label: 'Grid Size', choices: [3, 4, 5]}, {key: 'matchType', label: 'Best Of', choices: [1, 3, 5]}], desc: 'Challenge your partner remotely.' }
   ]},
-  memory: { title: 'Memory Match', desc: 'Flip cards and find pairs.', color: '#3b82f6', modes: [
+  memory: { title: 'Memory Match', desc: 'Flip cards and find pairs.', color: 'var(--game-blue)', modes: [
     { id: 'solo', label: 'Solo Practice', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Find all pairs as fast as you can.' },
     { id: 'coop_remote', label: 'Co-op (Online)', type: 'remote', diffs: ['easy', 'medium', 'hard'], desc: 'Work together to clear the board.' },
     { id: 'competitive', label: 'Versus (Online)', type: 'remote', diffs: ['easy', 'medium', 'hard'], desc: 'Compete to find the most pairs.' }
   ]},
-  wordle: { title: 'Retro Word', desc: 'Guess the hidden word.', color: '#fbbf24', modes: [
+  wordle: { title: 'Retro Word', desc: 'Guess the hidden word.', color: 'var(--game-yellow)', modes: [
     { id: 'solo', label: 'Solo', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Guess the daily word alone.' },
     { id: 'coop_remote', label: 'Co-op (Online)', type: 'remote', diffs: ['easy', 'medium', 'hard'], desc: 'Solve the same word together.' },
     { id: 'competitive', label: 'Mastermind (Online)', type: 'remote', diffs: ['easy', 'medium', 'hard'], desc: 'Set a secret word for your partner to guess.' }
   ]},
-  sudoku: { title: 'Sudoku', desc: 'Logic puzzles.', color: '#fca5a5', modes: [
+  sudoku: { title: 'Sudoku', desc: 'Logic puzzles.', color: 'var(--game-peach)', modes: [
     { id: 'solo', label: 'Solo', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Classic Sudoku experience.' },
     { id: 'parallel_remote', label: 'Parallel Play (Online)', type: 'remote', diffs: ['easy', 'medium', 'hard'], desc: 'Race your partner on the same puzzle.' }
   ]},
-  chess: { title: 'Chess', desc: 'Standard or Sandbox.', color: '#bfdbfe', modes: [
+  chess: { title: 'Chess', desc: 'Standard or Sandbox.', color: 'var(--game-sky)', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', desc: 'Play against the chess engine.' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Online 1v1 match.' }
   ]},
-  quiz: { title: 'Couples Quiz', desc: 'How well do you know them?', color: '#fde68a', modes: [
+  quiz: { title: 'Couples Quiz', desc: 'How well do you know them?', color: 'var(--game-yellow)', modes: [
     { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'Answer questions about each other.' }
   ]},
-  '2048': { title: '2048', desc: 'Merge tiles. Reach 2048!', color: '#a855f7', modes: [
+  '2048': { title: '2048', desc: 'Merge tiles. Reach 2048!', color: 'var(--game-purple)', modes: [
     { id: 'solo', label: 'Solo', type: 'local', desc: 'Standard 2048 game.' },
     { id: 'parallel_remote', label: 'Parallel Play (Online)', type: 'remote', desc: 'Hang out in a lobby while you both play.' }
   ]},
-  typing: { title: 'Typing Race', desc: 'Type fast. Beat your WPM.', color: '#14b8a6', modes: [
+  typing: { title: 'Typing Race', desc: 'Type fast. Beat your WPM.', color: 'var(--game-teal)', modes: [
     { id: 'solo', label: 'Practice', type: 'local', desc: 'Test your typing speed alone.' },
     { id: '1v1_remote', label: 'Race Partner (Online)', type: 'remote', desc: 'First to finish the passage wins.' }
   ]},
-  wyr: { title: 'Would You Rather', desc: 'See if you match!', color: '#ec4899', modes: [
+  wyr: { title: 'Would You Rather', desc: 'See if you match!', color: 'var(--game-pink)', modes: [
     { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'Answer dilemmas and compare choices.' }
   ]},
-  uno: { title: 'Retro Uno', desc: 'Classic card game for 2.', color: '#ef4444', modes: [
+  uno: { title: 'Retro Uno', desc: 'Classic card game for 2.', color: 'var(--game-red)', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', desc: 'Practice against the computer.' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Challenge your partner to Uno.' }
   ]},
-  othello: { title: 'Othello', desc: 'Classic Reversi.', color: '#16a34a', modes: [
+  othello: { title: 'Othello', desc: 'Classic Reversi.', color: 'var(--game-green)', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Outflank the computer.' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Online 1v1 match.' }
   ]},
-  pool: { title: '8-Ball Pool', desc: 'Billiards physics.', color: '#8b5cf6', modes: [
+  pool: { title: '8-Ball Pool', desc: 'Billiards physics.', color: 'var(--game-purple)', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'medium', 'hard'], desc: 'Play against the computer.' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Real-time online pool.' }
   ]},
-  bluff: { title: 'Cheat (Bluff)', desc: 'Lie to win.', color: '#1e3a8a', modes: [
+  bluff: { title: 'Cheat (Bluff)', desc: 'Lie to win.', color: 'var(--game-indigo)', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'hard'], desc: 'Can you outsmart the computer?' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Call your partner\'s bluffs!' }
   ]}
@@ -89,7 +90,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [lobbyPhase, setLobbyPhase] = useState('IDLE'); // IDLE, WAITING, STARTING
   const [isNavigatingLobby, setIsNavigatingLobby] = useState(false);
-  const [lobbyState, setLobbyState] = useGlobalSync('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
+  const { lobbies: activeLobbies } = useActiveLobbies(syncedRoomId);
   const [localPlayConfig, setLocalPlayConfig] = useState(null);
   const [view, setView] = useState('arcade');
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -161,15 +162,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   // Cleanup logic
 
-  useEffect(() => {
-    if (!gameRoute || gameRoute === '') {
-        setLobbyState(prev => {
-            if (!prev || !(prev.players || []).includes(userId)) return prev;
-            const p = prev.players.filter(id => id !== userId);
-            return { ...prev, players: p, gameId: p.length ? prev.gameId : null, status: p.length ? prev.status : 'idle' };
-        });
-    }
-  }, [gameRoute, userId, setLobbyState]);
+
 
   useEffect(() => {
     if (gameRoute && game && !arcadeSession && currentPhase === 'lobby') {
@@ -296,11 +289,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       }
     })();
 
-    return (
-      <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-[var(--bg-window)]"><div className="animate-pulse font-black text-primary uppercase tracking-widest">Loading Game...</div></div>}>
-        {gameComponent}
-      </Suspense>
-    );
+    return gameComponent;
   };
 
   // 1. Arcade Menu Phase
@@ -353,19 +342,26 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           </div>
         ) : (
            <div className="flex-1 overflow-hidden flex flex-col bg-[var(--bg-main)]">
-            {lobbyState?.gameId && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status !== 'playing' && (
-              <div className="bg-[var(--secondary)] text-[var(--text-on-secondary)] p-4 border-b-2 retro-border flex items-center justify-between gap-4 animate-pulse shrink-0">
-                  <div className="flex items-center gap-3">
-                      <Users className="shrink-0" />
-                      <div>
-                          <h2 className="text-sm font-black uppercase mb-0.5">{partnerName} is Waiting!</h2>
-                          <p className="font-bold text-[10px] opacity-90">They are in a lobby for {GAME_CATALOG[lobbyState?.gameId]?.title || lobbyState?.gameId}.</p>
+            {activeLobbies?.length > 0 && activeLobbies.some(l => l.player_a_id === partnerId || l.player_b_id === partnerId) && (
+              (() => {
+                const partnerLobby = activeLobbies.find(l => l.player_a_id === partnerId || l.player_b_id === partnerId);
+                if (partnerLobby?.game_id === gameRoute) return null; // Don't show if already in that game's setup/lobby
+                
+                return (
+                  <div className="bg-[var(--secondary)] text-[var(--text-on-secondary)] p-4 border-b-2 retro-border flex items-center justify-between gap-4 animate-pulse shrink-0">
+                      <div className="flex items-center gap-3">
+                          <Users className="shrink-0" />
+                          <div>
+                              <h2 className="text-sm font-black uppercase mb-0.5">{partnerName} is Waiting!</h2>
+                              <p className="font-bold text-[10px] opacity-90">They are in a lobby for {GAME_CATALOG[partnerLobby?.game_id]?.title || partnerLobby?.game_id}.</p>
+                          </div>
                       </div>
+                      <RetroButton variant="white" className="text-black px-4 py-1.5 text-xs whitespace-nowrap" onClick={() => {
+                        navigate(`/activities/${partnerLobby?.game_id}`);
+                      }}>View Lobby</RetroButton>
                   </div>
-                  <RetroButton variant="white" className="text-black px-4 py-1.5 text-xs whitespace-nowrap" onClick={() => {
-                    navigate(`/activities/${lobbyState?.gameId}`);
-                  }}>View Lobby</RetroButton>
-              </div>
+                );
+              })()
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full">
             {Object.entries(GAME_CATALOG).map(([id, g]) => (
@@ -391,13 +387,6 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   
   const leaveLobby = async () => {
       playAudio('click', sfx);
-      setLobbyState(prev => {
-          const newPlayers = (prev.players || []).filter(p => p !== userId);
-          if (newPlayers.length === 0) {
-              return { gameId: null, status: 'idle', players: [], config: null };
-          }
-          return { ...prev, players: newPlayers };
-      });
       await leaveSession();
       if (broadcast) {
         broadcast('lobby_closed', { sender: userId, gameId: gameRoute });
@@ -406,8 +395,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       navigate('/activities');
   };
   const handleLeaveClick = () => {
-      const currentPlayers = lobbyState?.players || [];
-      const partnerInLobby = currentPlayers.includes(partnerId);
+      const partnerInLobby = !!arcadeSession?.player_a_id && !!arcadeSession?.player_b_id;
       if (!partnerInLobby) {
           setShowLeaveConfirm(true);
       } else {
@@ -418,7 +406,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 2. Game Details / Mode Selector Phase
 
   if (currentPhase === 'details') {
-      const partnerWaitingHere = lobbyState?.gameId === gameRoute && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status !== 'playing';
+      const partnerWaitingHere = activeLobbies?.some(l => l.game_id === gameRoute && (l.player_a_id === partnerId || l.player_b_id === partnerId));
 
       const hasSolo = game.modes.find(m => m.id === 'solo' || m.id === '1v1_local' || m.id === 'practice');
       const hasAI = game.modes.find(m => m.id === 'vs_ai');

@@ -12,7 +12,9 @@ export const isTestMode = () => {
 export const getTestUser = () => {
     if (typeof window === 'undefined') return 'userA';
     const params = new URLSearchParams(window.location.search);
-    return params.get('user') || localStorage.getItem('attic_test_user') || 'userA';
+    const urlUser = params.get('user');
+    if (urlUser) return urlUser;
+    return localStorage.getItem('attic_test_user') || 'userA';
 };
 
 // Global WebSocket and BroadcastChannel for cross-context communication in test mode
@@ -26,6 +28,7 @@ if (isTestMode()) {
     testSocket.onmessage = (e) => {
         try {
             const data = JSON.parse(e.data);
+            console.log('[TEST_SOCKET] Message received:', data);
             socketListeners.forEach(l => l(data));
         } catch (err) {
             console.error('[TEST_SOCKET] Parse error:', err);

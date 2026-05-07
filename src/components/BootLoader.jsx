@@ -13,7 +13,7 @@ export function BootLoader({ onComplete, sfxEnabled }) {
   ];
 
   useEffect(() => {
-    // Cycle through the messages
+    // 6 messages. 15ms interval * 6 = 90ms. 10ms delay = 100ms total.
     const interval = setInterval(() => {
       setStep((prev) => {
         if (prev < messages.length - 1) {
@@ -21,7 +21,6 @@ export function BootLoader({ onComplete, sfxEnabled }) {
           return prev + 1;
         }
         clearInterval(interval);
-        // Wait a bit at the end before completing
         setTimeout(() => {
           if (onComplete) onComplete();
         }, 10);

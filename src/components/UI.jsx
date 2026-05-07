@@ -18,7 +18,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div className="fixed top-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none max-w-sm w-full break-words">
+      <div className="fixed top-4 right-4 z-[var(--z-toast)] flex flex-col gap-2 pointer-events-none max-w-sm w-full break-words">
         {toasts.map(t => {
           // Map toast type to semantic variables
           let bgColor = 'var(--bg-window)';
@@ -97,7 +97,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           title={confirmType === 'unsaved' ? 'Unsaved Changes' : 'Close'}
           message={confirmType === 'unsaved' ? 'You have unsaved changes. Save before closing?' : 'Close this window? Progress may be lost.'}
           showSave={confirmType === 'unsaved'}
-          showCancel={true}
+          showCancel={false}
           onSave={() => {
             playAudio('click', sfx);
             if (onSaveBeforeClose) onSaveBeforeClose();
@@ -180,9 +180,9 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
 }
 
 // ── Confirm Dialog ──
-export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = true }) {
+export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = false }) {
   return (
-    <div className="fixed inset-0 z-[200] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
         <p className="font-bold text-sm mb-6">{message}</p>
         <div className="flex gap-2">
@@ -305,7 +305,7 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
   };
 
   return (
-    <div className="fixed inset-0 z-[150] bg-black/70 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] bg-black/70 flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col animate-in zoom-in-95 duration-200">
         <RetroWindow
           title={`result_${gameName.toLowerCase().replace(/ /g, '_')}.exe`}
@@ -393,7 +393,7 @@ export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
   }, [current, onComplete, sfx]);
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none animate-in fade-in">
+    <div className="fixed inset-0 z-[var(--z-boot)] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none animate-in fade-in">
       <div className="relative w-80 h-80 bg-window retro-border-thick retro-shadow-dark flex flex-col items-center justify-between p-6 overflow-hidden animate-in zoom-in duration-300 select-none" style={{ backgroundColor: 'var(--bg-window)' }}>
         <div className="font-black text-xs sm:text-sm uppercase tracking-[0.3em] text-center text-main-text select-none animate-pulse opacity-70">
           🎮 Game will start in

@@ -255,7 +255,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
                       }
                     }}
                     style={cellStyle}
-                    className={`relative flex items-center justify-center text-sm sm:text-xl md:text-2xl cursor-pointer ${borders} ${extraClass} ${cell.fixed ? 'text-[var(--border)]' : 'text-[var(--primary)]'} ${isNumMatch ? 'font-black !text-[var(--secondary)]' : (cell.fixed ? 'font-bold' : 'font-medium')} transition-colors`}
+                    className={`relative flex items-center justify-center cursor-pointer ${borders} ${extraClass} ${cell.fixed ? 'text-[var(--border)]' : 'text-[var(--primary)]'} ${isNumMatch ? 'font-black !text-[var(--secondary)] scale-110 text-lg sm:text-2xl md:text-3xl z-10' : (cell.fixed ? 'font-bold text-sm sm:text-xl md:text-2xl' : 'font-medium text-sm sm:text-xl md:text-2xl')} transition-all duration-200`}
                   >
                     {cell.val || ''}
                     {!cell.val && cell.notes.length > 0 && (
@@ -290,9 +290,20 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
 
           {/* Number Pad */}
           <div className="grid grid-cols-5 gap-1 sm:gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-              <RetroButton key={num} variant={counts[num] === 9 ? 'disabled' : 'white'} className="py-3 sm:py-4 text-xl sm:text-2xl font-bold" onClick={() => handleInput(num)} disabled={counts[num] === 9}>{num}</RetroButton>
-            ))}
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
+              const isNumSelected = num === selectedNum;
+              return (
+                <RetroButton 
+                  key={num} 
+                  variant={counts[num] === 9 ? 'disabled' : (isNumSelected ? 'accent' : 'white')} 
+                  className={`py-3 sm:py-4 text-xl sm:text-2xl font-bold ${isNumSelected ? 'scale-110 ring-2 ring-[var(--secondary)]' : ''}`} 
+                  onClick={() => handleInput(num)} 
+                  disabled={counts[num] === 9}
+                >
+                  {num}
+                </RetroButton>
+              );
+            })}
             <RetroButton variant="accent" className="py-3 sm:py-4 text-xs sm:text-sm font-bold flex flex-col items-center justify-center leading-tight" onClick={useHint}><Lightbulb size={16} /> Hint</RetroButton>
           </div>
 

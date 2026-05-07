@@ -104,11 +104,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                     <span className="bg-yellow-400 text-black text-[10px] px-2 py-0.5 retro-border animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-black uppercase tracking-tighter">Master</span>
                   )}
                 </h1>
-                {profile.vibe_status && (
-                  <p className="text-[10px] font-bold text-primary italic mt-0.5 animate-in fade-in slide-in-from-left-1 select-none">
-                    "{profile.vibe_status}"
-                  </p>
-                )}
+
                 <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 retro-border border-dashed min-h-[50px]">
                   <div className="flex items-center gap-3">
                     <div className="relative">
@@ -130,11 +126,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
-                      {partnerProfile.vibe_status && (
-                        <p className="text-[10px] font-bold opacity-60 italic mt-1 leading-tight line-clamp-1">
-                          "{partnerProfile.vibe_status}"
-                        </p>
-                      )}
+
                       {isPartnerOnline && partnerProfile.activity && (
                         <div className="flex items-center gap-2 mt-1.5 animate-in fade-in slide-in-from-left-2">
                           <p className="text-[10px] font-bold text-primary italic lowercase">
@@ -195,33 +187,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             {/* Right: controls */}
             <div className="flex flex-col items-end gap-2">
               <div className="flex gap-2 items-center">
-                <div className="flex gap-1 bg-border/20 p-1 retro-border">
-                  {['😊', '😴', '🏢', '🎮', '🍕', '😭', '❤️'].map(mood => (
-                    <button 
-                      key={mood} 
-                      onClick={() => {
-                        playAudio('click', sfxEnabled);
-                        updateSyncStateAtomic('room_profiles', userId, { mood });
-                      }}
-                      className={`w-6 h-6 flex items-center justify-center text-xs hover:bg-window transition-colors ${profile.mood === mood ? 'bg-window retro-shadow-dark' : ''}`}
-                      title={`Set mood to ${mood}`}
-                    >
-                      {mood}
-                    </button>
-                  ))}
-                </div>
-                <div className="h-6 w-px bg-border opacity-20"></div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase opacity-40">Vibe:</span>
-                  <input 
-                    type="text" 
-                    placeholder="what's the vibe?"
-                    maxLength={30}
-                    value={profile.vibe_status || ''}
-                    onChange={(e) => updateSyncStateAtomic('room_profiles', userId, { vibe_status: e.target.value })}
-                    className="bg-black/5 retro-border border-dashed px-2 py-1 text-[10px] font-bold w-32 focus:outline-none focus:bg-white transition-colors"
-                  />
-                </div>
+
                 <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
                   <SettingsIcon size={11} /> Control Panel
                 </button>

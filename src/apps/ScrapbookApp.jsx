@@ -8,7 +8,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
 
 export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, roomId }) {
-  const { assets } = useAssetSync(roomId, 'scrapbook');
+   const { assets } = useAssetSync(roomId); // Fetch all assets for the room
   const [layoutMode, setLayoutMode] = useLocalStorage('scrapbook_mode', 'grid');
   const [layout, setLayout] = useGlobalSync('scrapbook_layout', {});
   const [page, setPage] = useState(1);

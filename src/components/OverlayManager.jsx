@@ -1,0 +1,99 @@
+import React from 'react';
+import { Bell, X, Monitor } from 'lucide-react';
+import { RetroWindow, RetroButton } from './UI.jsx';
+import { GameInviteModal } from './Modals/GameInviteModal.jsx';
+import { DoodleReceiverModal } from './Modals/DoodleReceiverModal.jsx';
+import { FloatingEnvelope } from './Modals/FloatingEnvelope.jsx';
+
+export function OverlayManager({ 
+  showKiss, floatingDoodles, doodleQueue, setDoodleQueue, setFloatingDoodles, 
+  activeDoodleView, closeDoodle, gameInvite, setGameInvite, watchpartyInvite, 
+  setWatchpartyInvite, textNotifications, setTextNotifications, partnerName, 
+  partnerId, roomProfiles, sfxEnabled, navigate, toast, lobbyState, userId, roomId, updateSyncState 
+}) {
+  return (
+    <>
+      {showKiss && (
+        <div className="kiss-container">
+          {[...Array(50)].map((_, i) => {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 200 + Math.random() * 600;
+            const tx = Math.cos(angle) * dist;
+            const ty = Math.sin(angle) * dist;
+            const tr = (Math.random() - 0.5) * 500;
+            return (
+              <div key={i} className="floating-heart" style={{ 
+                '--tx': `${tx}px`, 
+                '--ty': `${ty}px`, 
+                '--tr': `${tr}deg`,
+                animationDelay: `${Math.random() * 0.5}s`, 
+                fontSize: `${1.5 + Math.random() * 3}rem` 
+              }}>{['💖', '💗', '💓', '💕', '❤️', '💌'][Math.floor(Math.random() * 6)]}</div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="fixed top-24 right-4 z-[var(--z-notification)] flex flex-col gap-2 pointer-events-none">
+        {textNotifications.map(notif => (
+          <div key={notif.notifId} className="bg-window text-main-text retro-border retro-shadow-dark p-3 w-64 animate-in slide-in-from-right-10 fade-in duration-300 pointer-events-auto cursor-pointer" onClick={() => navigate('/chat')}>
+            <div className="flex justify-between items-start mb-1">
+              <span className="font-black text-[10px] uppercase text-primary flex items-center gap-1"><Bell size={10} /> Message from {partnerName}</span>
+              <button onClick={(e) => { e.stopPropagation(); setTextNotifications(p => p.filter(n => n.notifId !== notif.notifId)) }} className="opacity-50 hover:opacity-100"><X size={12}/></button>
+            </div>
+            <p className="text-xs truncate font-bold opacity-90">{notif.type === 'text' ? notif.text : `Sent a ${notif.type}`}</p>
+          </div>
+        ))}
+      </div>
+
+      {gameInvite && (
+        <GameInviteModal 
+          invite={gameInvite} partnerName={partnerName}
+          onAccept={async () => {
+            setGameInvite(null);
+            const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
+            navigate(`/activities/${gId}`);
+          }}
+          onDecline={() => setGameInvite(null)}
+          sfx={sfxEnabled}
+        />
+      )}
+
+      {watchpartyInvite && (
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <RetroWindow title="watchparty_invite.exe" onClose={() => setWatchpartyInvite(null)} className="max-w-sm w-full">
+            <div className="p-6 text-center">
+               <div className="w-16 h-16 bg-primary text-white rounded-lg retro-border flex items-center justify-center mx-auto mb-4">
+                  <Monitor size={32} />
+               </div>
+               <h2 className="text-xl font-black mb-2 uppercase tracking-tighter">{watchpartyInvite.senderName} invited you!</h2>
+               <p className="text-sm font-bold opacity-70 mb-6 lowercase">join them for a watch party on syncwatcher?</p>
+               <div className="flex gap-3">
+                  <RetroButton variant="white" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => setWatchpartyInvite(null)}>Decline</RetroButton>
+                  <RetroButton variant="primary" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => {
+                      setWatchpartyInvite(null);
+                      navigate('/watch');
+                  }}>Join Now</RetroButton>
+               </div>
+            </div>
+          </RetroWindow>
+        </div>
+      )}
+
+      {floatingDoodles.map((doodle) => (
+         <FloatingEnvelope key={doodle.id} doodle={doodle} onClick={(d) => { setDoodleQueue(prev => [...prev, { image: d.data, sender: partnerId }]); setFloatingDoodles(prev => prev.filter((item) => item.id !== d.id)); }} />
+      ))}
+
+      {activeDoodleView && (
+        <DoodleReceiverModal 
+          doodleData={activeDoodleView.image}
+          partnerName={roomProfiles[activeDoodleView.sender]?.name || 'Partner'}
+          onClose={closeDoodle}
+          onScrapbook={async () => { toast('Saved to Scrapbook!', 'success'); }}
+          onRedoodle={() => { closeDoodle(); navigate('/doodle'); }}
+          onReply={() => { closeDoodle(); navigate('/chat'); }}
+        />
+      )}
+    </>
+  );
+}

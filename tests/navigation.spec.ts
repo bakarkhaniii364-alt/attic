@@ -6,7 +6,7 @@ test('Dashboard to Chat navigation and unmounting', async ({ page }) => {
   await loginAsTestUser(page, 'test@example.com');
   
   // 2. Open Chat
-  await page.getByText('chat', { exact: true }).click();
+  await page.getByRole('button', { name: /chat/i }).click();
   await expect(page.getByText('chat_room.exe')).toBeVisible();
   
   // 3. Close Chat using the aria-label
@@ -19,30 +19,32 @@ test('Dashboard to Chat navigation and unmounting', async ({ page }) => {
 test('Activities Hub to Pictionary and back', async ({ page }) => {
   await loginAsTestUser(page, 'test@example.com');
   
-  // Open Games
-  await page.getByText('games', { exact: true }).click();
+  // Open Games (Arcade)
+  await page.getByRole('button', { name: /arcade/i }).click();
   await expect(page.getByText('activities_hub.exe')).toBeVisible();
   
-  // Select Pictionary
-  await page.getByText('Pictionary', { exact: true }).click();
+  // Select Memory Match (which has Solo mode)
+  await page.getByText('Memory Match', { exact: true }).click();
   
   // Handle Setup Window
-  await expect(page.getByText('pictionary_setup.exe')).toBeVisible();
-  await page.getByRole('button', { name: /Solo Play/i }).click();
+  await expect(page.getByText('memory_setup.exe')).toBeVisible();
+  await page.getByRole('button', { name: /Solo/i }).first().click();
+  await page.getByRole('button', { name: /Start Game/i }).click();
   
   // Verify Game Window (using flexible locator)
-  await expect(page.locator('.glass-window').filter({ hasText: /pictionary/i }).first()).toBeVisible();
+  await expect(page.locator('.glass-window').filter({ hasText: /memory/i }).first()).toBeVisible();
   
-  // Close Pictionary
-  await page.getByLabel('Close').first().click();
+  // Close Memory Match
+  await page.locator('.glass-window').filter({ hasText: /memory/i }).getByLabel('Close').click();
   
   // Handle Confirmation Dialog
-  await page.getByRole('button', { name: /Confirm/i }).click();
+  await expect(page.getByText(/Progress may be lost/i)).toBeVisible({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Confirm' }).click();
   
   // Wait for React state to propagate and unmount
   await page.waitForTimeout(500);
   
   // Verify back in Hub (wait for unmount of specific window)
-  await expect(page.locator('.glass-window').filter({ hasText: /^pictionary\.exe$/i })).toHaveCount(0, { timeout: 5000 });
-  await expect(page.getByText('activities_hub.exe')).toBeVisible();
+  await expect(page.locator('.glass-window').filter({ hasText: /^memory\.exe$/i })).toHaveCount(0, { timeout: 5000 });
+  await expect(page.getByText('memory_setup.exe')).toBeVisible();
 });

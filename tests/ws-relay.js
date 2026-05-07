@@ -17,7 +17,7 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     try {
       const message = JSON.parse(data);
-      console.log(`[RELAY] Broadcasting: ${message.type || 'unknown'}`);
+      console.log(`[RELAY] Broadcasting: ${message.type || 'unknown'} (Event: ${message.event || 'none'}) to ${wss.clients.size} clients`);
       
       if (message.type === 'state_update') {
         stateCache[`${message.roomId}_${message.key}`] = message;

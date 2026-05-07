@@ -29,9 +29,10 @@ export function ProtectedRoute({ children, requireRoom = true }) {
 }
 
 export function PublicRoute({ children }) {
-  const { user, roomId, loading } = useAuth();
+  const { user, roomId, loading, roomLoading } = useAuth();
   
-  if (loading) return null;
+  // Wait for both auth AND room data to settle before making routing decisions
+  if (loading || (user && roomLoading)) return null;
 
   if (user && roomId) {
     return <Navigate to="/dashboard" replace />;

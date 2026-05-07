@@ -747,10 +747,23 @@ export function ChatView({ onClose, sfx }) {
             </div>
             <div className="flex flex-col bg-accent text-accent-text border-t-2 border-border relative">
               {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 z-[100] retro-shadow-dark animate-in slide-in-from-bottom-2">
-                  <Suspense fallback={<div className="p-4 bg-window retro-border">Loading Picker...</div>}>
-                    <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
-                  </Suspense>
+                <div className="absolute bottom-full left-0 z-[var(--z-overlay)] mb-2 animate-in slide-in-from-bottom-2">
+                  <div className="retro-border retro-shadow-dark overflow-hidden">
+                    <div className="bg-primary text-white px-2 py-1 flex justify-between items-center border-b-2 retro-border">
+                      <span className="text-[10px] font-black uppercase tracking-widest">Select Emoji</span>
+                      <button onClick={() => setShowEmojiPicker(false)}><X size={12} /></button>
+                    </div>
+                    <Suspense fallback={<div className="p-8 bg-window text-main-text font-bold">Loading...</div>}>
+                      <EmojiPicker 
+                        onEmojiClick={onEmojiClick} 
+                        theme="auto" 
+                        skinTonesDisabled 
+                        searchDisabled={window.innerWidth < 640}
+                        width={window.innerWidth < 640 ? 280 : 350}
+                        height={350}
+                      />
+                    </Suspense>
+                  </div>
                 </div>
               )}
               {pendingImages.length > 0 && (

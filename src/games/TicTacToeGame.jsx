@@ -223,7 +223,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   useEffect(() => {
     if (config.mode === 'vs_ai' && !xIsNext && !winData && !isDraw && gameState.status === 'playing') { 
         const timer = setTimeout(() => { 
-            const aiMove = makeAIMove([...board], size, p2, p1); 
+            const aiMove = makeAIMove([...board], size, p2, p1, config.diff || 'medium'); 
             if (aiMove !== null) handleMove(aiMove, true); 
         }, 400); 
         return () => clearTimeout(timer); 
@@ -315,9 +315,15 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   );
 }
 
-function makeAIMove(board, size, aiPlayer, humanPlayer) {
+function makeAIMove(board, size, aiPlayer, humanPlayer, difficulty) {
     const emptyCells = board.map((c, i) => c === null ? i : null).filter(c => c !== null);
     if (emptyCells.length === 0) return null;
+
+    // Difficulty-based randomness
+    const randomChance = difficulty === 'easy' ? 0.6 : difficulty === 'medium' ? 0.3 : 0.05;
+    if (Math.random() < randomChance) {
+        return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    }
 
     // 1. Can AI win in next move?
     for (let move of emptyCells) {

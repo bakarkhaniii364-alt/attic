@@ -152,8 +152,24 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       hoverMouse: null
   });
 
+  const executeShot = useCallback((vx, vy) => {
+      const cue = engineRef.current.balls.find(b => b.id === 0);
+      if (cue) {
+          cue.vx = vx;
+          cue.vy = vy;
+          engineRef.current.isSimulating = true;
+          firstBallHitRef.current = null;
+          playAudio('hit', sfx);
+          startPhysicsLoop();
+      }
+  }, [sfx]);
+
   const [gameState, setGameState] = useGlobalSync(`pool_${roomId}`, null);
-  const broadcastShot = useBroadcast(`pool_shot_${roomId}`);
+  const broadcastShot = useBroadcast(`pool_shot_${roomId}`, (payload) => {
+      if (payload.sender !== userId) {
+         executeShot(payload.vx, payload.vy);
+      }
+  });
 
   // Init game - ONLY on first mount or when manually requested
   useEffect(() => {
@@ -185,29 +201,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       }
   }, [gameState]);
 
-  // Remote shot handler
-  useEffect(() => {
-      const unsub = broadcastShot(payload => {
-          if (payload.sender !== userId) {
-             executeShot(payload.vx, payload.vy);
-          }
-      });
-      return () => unsub && unsub();
-  }, [broadcastShot, userId]);
-
-  const executeShot = (vx, vy) => {
-      const cue = engineRef.current.balls.find(b => b.id === 0);
-      if (cue) {
-          cue.vx = vx;
-          cue.vy = vy;
-          engineRef.current.isSimulating = true;
-          firstBallHitRef.current = null;
-          playAudio('hit', sfx);
-          startPhysicsLoop();
-      }
-  };
-
-  const startPhysicsLoop = () => {
+   function startPhysicsLoop() {
       const loop = () => {
           let moving = false;
           const engine = engineRef.current;
@@ -288,7 +282,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       requestAnimationFrame(loop);
   };
 
-  const processTurnEnd = () => {
+   function processTurnEnd() {
       // Evaluate rules
       const oldState = gameState;
       const balls = engineRef.current.balls;

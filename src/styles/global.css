@@ -65,6 +65,8 @@ img {
 .preserve-3d { transform-style: preserve-3d; }
 .rotate-x-90 { transform: rotateX(90deg); }
 .rotate-x-0 { transform: rotateX(0deg); }
+.rotate-y-180 { transform: rotateY(180deg); }
+.backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 
 /* Custom cursor */
 canvas, input, textarea { cursor: none !important; }

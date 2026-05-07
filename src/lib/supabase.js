@@ -53,16 +53,15 @@ const createMockProxy = (target) => {
                             subscribe: () => chain(lastInsert),
                             track: () => chain(lastInsert),
                             unsubscribe: () => {},
+                            send: () => Promise.resolve({ error: null }),
                             single: () => { isSingle = true; return chain(lastInsert); },
                             // Echo back the inserted data so sender_id/content survive
-                            then: (resolve) => {
-                                if (isSingle && lastInsert) {
-                                    const echo = { id: `mock-${Date.now()}`, created_at: new Date().toISOString(), ...lastInsert };
-                                    return resolve({ data: echo, error: null });
-                                }
-                                return resolve({ data: isSingle ? null : (prop === 'rpc' ? null : []), error: null });
-                            },
-                            catch: (reject) => reject(new Error('Mock Fail')),
+                            then(resolve, reject) {
+                                const result = isSingle && lastInsert 
+                                    ? { id: `mock-${Date.now()}`, created_at: new Date().toISOString(), ...lastInsert }
+                                    : (isSingle ? null : (prop === 'rpc' ? null : []));
+                                return Promise.resolve({ data: result, error: null }).then(resolve, reject);
+                            }
                         });
                         return chain(null);
                     };

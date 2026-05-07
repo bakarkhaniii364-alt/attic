@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, Loader, Check, Copy, Share2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { RetroButton, RetroWindow, RetroInput, useToast } from '../components/UI.jsx';
@@ -15,15 +16,15 @@ export function LandingView() {
   const onTryAttic = () => navigate('/signin');
   const onSignIn = () => navigate('/signup');
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-y-auto overflow-x-hidden text-main-text selection:bg-primary selection:text-white">
+    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden text-main-text selection:bg-primary selection:text-white">
 
-      <nav className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-10 sm:py-6">
+      <nav className="relative z-10 flex items-center justify-between px-5 py-3 sm:px-10 sm:py-4 shrink-0">
         <span className="font-bold text-[10px] tracking-widest uppercase text-main-text opacity-30 select-none">●●●</span>
         <span className="font-bold text-[10px] tracking-widest uppercase text-main-text opacity-30 select-none">attic</span>
       </nav>
 
-      {/* ORIGINAL HERO SECTION */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center">
+      {/* HERO SECTION — fills remaining height */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center min-h-0">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-[10%] left-[5%] text-primary opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
           <div className="absolute top-[60%] right-[8%] text-primary opacity-[0.06] animate-float-delayed"><Heart size={45} fill="currentColor" /></div>
@@ -36,28 +37,27 @@ export function LandingView() {
           <div className="absolute top-[55%] left-[8%] text-secondary opacity-[0.05] animate-float"><Sparkle size={40} /></div>
         </div>
 
-        <div className="relative mb-4 sm:mb-6 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center" style={{ transform: 'translateY(-6.25vh)' }}>
+        <div className="relative mb-3 sm:mb-5 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center">
           <div className="absolute -inset-10 bg-primary/10 blur-[60px] rounded-full animate-pulse" />
-          <img src="/assets/attic.svg" alt="Attic Logo" className="w-[22rem] sm:w-[30rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
+          <img src="/assets/attic.svg" alt="Attic Logo" className="w-[16rem] sm:w-[24rem] md:w-[28rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
         </div>
 
-        <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 z-10" style={{ transform: 'translateY(-6.25vh)' }}>
-          <div className="space-y-2 -mt-2">
-            <p className="text-xs sm:text-base font-mono text-muted-text max-w-sm mx-auto leading-relaxed">
-              A corner of the internet, <br/> <span className="text-primary font-bold">just for two</span>
-            </p>
-          </div>
+        <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6 z-10">
+          <p className="text-xs sm:text-base font-mono text-muted-text max-w-sm mx-auto leading-relaxed">
+            A corner of the internet, <br/> <span className="text-primary font-bold">just for two</span>
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-            <RetroButton onClick={onTryAttic} className="w-56 py-3 sm:py-4 text-base sm:text-lg relative overflow-hidden group shadow-[4px_4px_0_var(--border)]">
+            <RetroButton onClick={onTryAttic} className="w-52 py-3 text-base sm:text-lg relative overflow-hidden group shadow-[4px_4px_0_var(--border)]">
               <span className="relative z-10 font-bold">enter attic</span>
             </RetroButton>
-            <RetroButton variant="white" onClick={onSignIn} className="w-56 py-3 sm:py-4 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-[4px_4px_0_var(--border)]">
+            <RetroButton variant="white" onClick={onSignIn} className="w-52 py-3 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-[4px_4px_0_var(--border)]">
               <span className="font-bold">start new journey</span>
             </RetroButton>
           </div>
         </div>
       </main>
-      <footer className="relative z-10 py-6 text-center">
+
+      <footer className="relative z-10 py-3 text-center shrink-0">
         <button 
           onClick={() => navigate('/legal')}
           className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
@@ -74,8 +74,7 @@ export function LandingView() {
    ═══════════════════════════════════════════════════════ */
 export function AuthView({ mode }) {
   const navigate = useNavigate();
-  const onBack = () => navigate('/');
-  const { handleAuthSuccess } = useAuth();
+  const { user, roomId, roomLoading, handleAuthSuccess } = useAuth();
   const [email, setEmail] = useState(() => localStorage.getItem('attic_remembered_email') || '');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -88,6 +87,13 @@ export function AuthView({ mode }) {
   const [linkSent, setLinkSent] = useState(false);
   const { toast: addToast } = useToast();
 
+  const onBack = () => navigate('/');
+
+  // Paired users should never land on auth pages — send them straight home
+  if (user && roomId) return <Navigate to="/dashboard" replace />;
+  // A paired user whose room is still loading — don't flash the form
+  if (user && roomLoading) return null;
+
   const triggerShake = () => {
     setShake(true);
     setTimeout(() => setShake(false), 500);
@@ -96,7 +102,8 @@ export function AuthView({ mode }) {
 
   const startAuthFlow = (e) => {
     e.preventDefault();
-    if (!termsAgreed) {
+    // Terms agreement is only required for new accounts
+    if (mode === 'signup' && !termsAgreed) {
         setShowLegal(true);
         return;
     }
