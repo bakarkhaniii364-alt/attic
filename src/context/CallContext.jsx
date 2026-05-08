@@ -24,20 +24,18 @@ const CallContext = createContext(null);
 // ── ICE servers ──────────────────────────────────────────────────────────────
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
   {
-    urls: [
-      `${import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'}?transport=udp`,
-      `${import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'}?transport=tcp`
-    ],
+    urls: 'turn:relay.metered.ca:80?transport=udp',
     username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
   },
   {
-    urls: [
-      `${import.meta.env.VITE_TURN_URL_SSL || 'turn:relay.metered.ca:443'}?transport=tcp`
-    ],
+    urls: 'turn:relay.metered.ca:80?transport=tcp',
+    username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
+    credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
+  },
+  {
+    urls: 'turn:relay.metered.ca:443?transport=tcp',
     username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
   }
@@ -715,7 +713,10 @@ export function CallProvider({ children }) {
 
   const testTurnConfig = useCallback(async () => {
     // Get the first TURN server config for logging
-    const turnServer = ICE_SERVERS.find(s => s.urls.includes('turn:'));
+    const turnServer = ICE_SERVERS.find(s => {
+      const u = Array.isArray(s.urls) ? s.urls[0] : s.urls;
+      return u?.includes('turn:');
+    });
     console.log('[Debug] Starting TURN connectivity test...');
     console.log('[Debug] Using Username:', turnServer?.username || 'NONE');
     console.log('[Debug] Using URL:', turnServer?.urls || 'NONE');
