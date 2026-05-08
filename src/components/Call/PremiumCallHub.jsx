@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Video, Phone, PhoneOff, MicOff, Mic, Volume2, VolumeX,
+import { PhoneOff, MicOff, Mic, Volume2, VolumeX,
          Maximize2, Minimize2, VideoOff, Camera, Monitor, MonitorOff,
-         Wifi, WifiOff, ExternalLink } from 'lucide-react';
+         Phone, Video, WifiOff } from 'lucide-react';
 import { playAudio } from '../../utils/audio.js';
 
-// Quality indicator dots
 function QualityBadge({ quality }) {
   const colors = { good: 'bg-green-400', fair: 'bg-yellow-400', poor: 'bg-red-400' };
-  const labels = { good: 'HD', fair: 'SD', poor: 'LOW' };
+  const labels  = { good: 'HD',          fair: 'SD',            poor: 'LOW'         };
   return (
     <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white ${
       quality === 'good' ? 'bg-green-500/70' : quality === 'fair' ? 'bg-yellow-500/70' : 'bg-red-500/70'
@@ -27,133 +26,111 @@ export function PremiumCallHub({
 }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef  = useRef(null);
-  
-  // Window State
-  const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 500 : 20, y: 60 });
-  const [size, setSize] = useState({ width: 480, height: 340 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [resizing, setResizing] = useState(null); 
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isMinimized, setIsMinimized] = useState(false);
-  
-  const rafRef = useRef();
 
-  // Bind remote video stream
+  const [pos,  setPos]  = useState(() => ({ x: Math.max(20, window.innerWidth - 520), y: 60 }));
+  const [size, setSize] = useState({ w: 480, h: 340 });
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  // Use refs for drag/resize so RAF never captures stale state
+  const drag   = useRef(null); // { startX, startY, startPosX, startPosY }
+  const resize = useRef(null); // { dir, startX, startY, startW, startH, startPosX, startPosY }
+
+  // ── Stream binding ──────────────────────────────────────────────────────
   useEffect(() => {
-    const video = remoteVideoRef.current;
-    if (remoteStream && video) {
-      video.srcObject = remoteStream;
-      video.play().catch(() => {});
-    }
+    const v = remoteVideoRef.current;
+    if (v && remoteStream) { v.srcObject = remoteStream; v.play().catch(() => {}); }
   }, [remoteStream, isMinimized]);
 
-  // Bind local video stream
   useEffect(() => {
-    const video = localVideoRef.current;
-    if (localStream && video && (!isCameraOff || isScreenSharing)) {
-      video.srcObject = localStream;
-      video.play().catch(() => {});
+    const v = localVideoRef.current;
+    if (v && localStream && (!isCameraOff || isScreenSharing)) {
+      v.srcObject = localStream; v.play().catch(() => {});
     }
   }, [localStream, isCameraOff, isScreenSharing, isMinimized]);
 
-  // Performance Optimized Interaction Handler
-  const handlePointerMove = useCallback((e) => {
-    if (!isDragging && !resizing) return;
-    
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    
-    rafRef.current = requestAnimationFrame(() => {
-      const cx = e.clientX || (e.touches && e.touches[0].clientX);
-      const cy = e.clientY || (e.touches && e.touches[0].clientY);
-      
-      if (isDragging) {
-        setPosition({ x: cx - dragOffset.x, y: cy - dragOffset.y });
-      } else if (resizing) {
-        let nW = size.width;
-        let nH = size.height;
-        let nX = position.x;
-        let nY = position.y;
+  // ── Pointer Events (drag + resize) ──────────────────────────────────────
+  const onPointerMove = useCallback((e) => {
+    const cx = e.clientX, cy = e.clientY;
 
-        if (resizing.includes('e')) nW = cx - position.x;
-        if (resizing.includes('s')) nH = cy - position.y;
-        if (resizing.includes('w')) {
-          nW = size.width + (position.x - cx);
-          nX = cx;
-        }
-        if (resizing.includes('n')) {
-          nH = size.height + (position.y - cy);
-          nY = cy;
-        }
+    if (drag.current) {
+      const { startX, startY, startPosX, startPosY } = drag.current;
+      setPos({ x: startPosX + (cx - startX), y: startPosY + (cy - startY) });
+      return;
+    }
 
-        // Constraints
-        if (nW > 280) { setSize(s => ({ ...s, width: nW })); setPosition(p => ({ ...p, x: nX })); }
-        if (nH > 200) { setSize(s => ({ ...s, height: nH })); setPosition(p => ({ ...p, y: nY })); }
-      }
-    });
-  }, [isDragging, resizing, dragOffset, position, size]);
+    if (resize.current) {
+      const { dir, startX, startY, startW, startH, startPosX, startPosY } = resize.current;
+      let nW = startW, nH = startH, nX = startPosX, nY = startPosY;
+      const dx = cx - startX, dy = cy - startY;
 
-  const handlePointerUp = useCallback(() => {
-    setIsDragging(false);
-    setResizing(null);
+      if (dir.includes('e')) nW = startW + dx;
+      if (dir.includes('s')) nH = startH + dy;
+      if (dir.includes('w')) { nW = startW - dx; nX = startPosX + dx; }
+      if (dir.includes('n')) { nH = startH - dy; nY = startPosY + dy; }
+
+      setSize({ w: Math.max(300, nW), h: Math.max(220, nH) });
+      if (dir.includes('w') && nW > 300) setPos(p => ({ ...p, x: nX }));
+      if (dir.includes('n') && nH > 220) setPos(p => ({ ...p, y: nY }));
+    }
+  }, []);
+
+  const onPointerUp = useCallback(() => {
+    drag.current   = null;
+    resize.current = null;
   }, []);
 
   useEffect(() => {
-    if (isDragging || resizing) {
-      window.addEventListener('mousemove', handlePointerMove);
-      window.addEventListener('mouseup', handlePointerUp);
-      window.addEventListener('touchmove', handlePointerMove, { passive: false });
-      window.addEventListener('touchend', handlePointerUp);
-    }
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup',   onPointerUp);
     return () => {
-      window.removeEventListener('mousemove', handlePointerMove);
-      window.removeEventListener('mouseup', handlePointerUp);
-      window.removeEventListener('touchmove', handlePointerMove);
-      window.removeEventListener('touchend', handlePointerUp);
+      window.removeEventListener('mousemove', onPointerMove);
+      window.removeEventListener('mouseup',   onPointerUp);
     };
-  }, [isDragging, resizing, handlePointerMove, handlePointerUp]);
+  }, [onPointerMove, onPointerUp]);
 
-  const handleStartDrag = (e) => {
-    if (e.target.closest('button') || resizing) return;
-    const cx = e.clientX || (e.touches && e.touches[0].clientX);
-    const cy = e.clientY || (e.touches && e.touches[0].clientY);
-    setIsDragging(true);
-    setDragOffset({ x: cx - position.x, y: cy - position.y });
+  const startDrag = (e) => {
+    if (e.target.closest('button') || resize.current) return;
+    drag.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
   };
 
-  const handleStartResize = (dir, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setResizing(dir);
+  const startResize = (dir, e) => {
+    e.preventDefault(); e.stopPropagation();
+    resize.current = { dir, startX: e.clientX, startY: e.clientY, startW: size.w, startH: size.h, startPosX: pos.x, startPosY: pos.y };
   };
 
   const mins = Math.floor(callDuration / 60);
   const secs = callDuration % 60;
+  const timer = `${mins}:${String(secs).padStart(2, '0')}`;
   const isReconnecting = callStatus === 'reconnecting';
 
+  // ── MINIMIZED DOCK ──────────────────────────────────────────────────────
   if (isMinimized) {
     return (
-      <div className="fixed bottom-6 left-6 z-[950] w-72 bg-window retro-border-thick shadow-[4px_4px_0px_0px_var(--border)] animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden">
+      <div className="fixed bottom-6 left-6 z-[950] w-72 bg-window retro-border-thick retro-shadow-dark overflow-hidden"
+           style={{ boxShadow: '4px 4px 0 var(--border)' }}>
         <div className="p-3 flex items-center gap-3">
           <div className="w-12 h-12 retro-border overflow-hidden bg-black flex-shrink-0">
-             {type === 'video' && remoteStream ? (
-               <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-             ) : (
-               <img src={partnerPfp || '/assets/avatar_placeholder.png'} className="w-full h-full object-cover" alt="" />
-             )}
+            {type === 'video' && remoteStream
+              ? <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              : <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt="" />
+            }
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black uppercase text-primary tracking-widest truncate">{partnerName}</p>
-            <p className="text-[9px] font-bold opacity-60 uppercase">{isRinging ? 'Ringing...' : `${mins}:${secs.toString().padStart(2, '0')}`}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary truncate">{partnerName}</p>
+            <p className="text-[9px] font-bold opacity-50 uppercase">{isRinging ? 'Ringing...' : timer}</p>
           </div>
-          <div className="flex gap-1">
-            <button onClick={() => onMicToggle()} className={`p-1.5 retro-border transition-colors ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`}>
-              {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
+          <div className="flex gap-1.5">
+            <button onClick={onMicToggle}
+                    className={`p-1.5 retro-border ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'} transition-colors`}>
+              {isMuted ? <MicOff size={14}/> : <Mic size={14}/>}
             </button>
-            <button onClick={() => setIsMinimized(false)} className="p-1.5 retro-border bg-primary text-white hover:opacity-90 transition-opacity">
-              <Maximize2 size={14} />
+            <button onClick={() => setIsMinimized(false)}
+                    className="p-1.5 retro-border bg-primary text-white hover:opacity-80 transition-opacity" style={{ color: 'var(--text-on-primary)' }}>
+              <Maximize2 size={14}/>
             </button>
-            <button onClick={onEndCall} className="p-1.5 retro-border bg-red-600 text-white hover:bg-red-700 transition-colors">
-              <PhoneOff size={14} className="rotate-[135deg]" />
+            <button onClick={onEndCall}
+                    className="p-1.5 retro-border bg-red-600 text-white hover:bg-red-700 transition-colors">
+              <PhoneOff size={14} className="rotate-[135deg]"/>
             </button>
           </div>
         </div>
@@ -161,122 +138,142 @@ export function PremiumCallHub({
     );
   }
 
+  // ── FULL WINDOW ─────────────────────────────────────────────────────────
   return (
     <div
-      className={`fixed z-[900] bg-window retro-border-thick flex flex-col animate-in zoom-in-95 fade-in ${isDragging ? '' : 'transition-transform duration-75'}`}
+      className="fixed z-[900] flex flex-col bg-window retro-border-thick"
       style={{
-        width: `${size.width}px`,
-        height: `${size.height}px`,
-        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
-        boxShadow: '4px 4px 0px 0px var(--border)',
+        left: `${pos.x}px`,
+        top:  `${pos.y}px`,
+        width:  `${size.w}px`,
+        height: `${size.h}px`,
+        boxShadow: '4px 4px 0 var(--border)',
       }}
     >
-      {/* Invisible Resize Handles (Thick for easier grabbing) */}
-      <div className="absolute -top-1 -left-1 w-[calc(100%+8px)] h-2 cursor-ns-resize z-50" onMouseDown={(e) => handleStartResize('n', e)} />
-      <div className="absolute -bottom-1 -left-1 w-[calc(100%+8px)] h-2 cursor-ns-resize z-50" onMouseDown={(e) => handleStartResize('s', e)} />
-      <div className="absolute -top-1 -left-1 h-[calc(100%+8px)] w-2 cursor-ew-resize z-50" onMouseDown={(e) => handleStartResize('w', e)} />
-      <div className="absolute -top-1 -right-1 h-[calc(100%+8px)] w-2 cursor-ew-resize z-50" onMouseDown={(e) => handleStartResize('e', e)} />
-      <div className="absolute -top-1 -left-1 w-4 h-4 cursor-nwse-resize z-50" onMouseDown={(e) => handleStartResize('nw', e)} />
-      <div className="absolute -top-1 -right-1 w-4 h-4 cursor-nesw-resize z-50" onMouseDown={(e) => handleStartResize('ne', e)} />
-      <div className="absolute -bottom-1 -left-1 w-4 h-4 cursor-nesw-resize z-50" onMouseDown={(e) => handleStartResize('sw', e)} />
-      <div className="absolute -bottom-1 -right-1 w-4 h-4 cursor-nwse-resize z-50" onMouseDown={(e) => handleStartResize('se', e)} />
+      {/* ── Resize Handles ── */}
+      {/* Edges */}
+      <div className="absolute top-0 left-2 right-2 h-1.5 cursor-n-resize z-50"   onMouseDown={e => startResize('n', e)} />
+      <div className="absolute bottom-0 left-2 right-2 h-1.5 cursor-s-resize z-50" onMouseDown={e => startResize('s', e)} />
+      <div className="absolute left-0 top-2 bottom-2 w-1.5 cursor-w-resize z-50"   onMouseDown={e => startResize('w', e)} />
+      <div className="absolute right-0 top-2 bottom-2 w-1.5 cursor-e-resize z-50"  onMouseDown={e => startResize('e', e)} />
+      {/* Corners */}
+      <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-50"  onMouseDown={e => startResize('nw', e)} />
+      <div className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-50" onMouseDown={e => startResize('ne', e)} />
+      <div className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-50" onMouseDown={e => startResize('sw', e)} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-50" onMouseDown={e => startResize('se', e)} />
 
-      {/* Header */}
-      <div 
-        className="px-3 py-2 flex justify-between items-center border-b-2 border-border cursor-grab active:cursor-grabbing shrink-0"
-        onMouseDown={handleStartDrag}
-        onTouchStart={handleStartDrag}
+      {/* ── Title Bar ── */}
+      <div
+        className="shrink-0 px-3 py-2 flex items-center justify-between border-b-2 border-border cursor-grab active:cursor-grabbing select-none"
         style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}
+        onMouseDown={startDrag}
       >
-        <div className="flex items-center gap-2 truncate">
-          <div className={`w-2 h-2 rounded-full ${isReconnecting ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
-          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest truncate">{partnerName}</span>
-          <span className="opacity-50 text-xs">|</span>
-          <span className="text-[10px] sm:text-xs font-bold opacity-80">{mins}:${secs.toString().padStart(2, '0')}</span>
+        <div className="flex items-center gap-2 min-w-0 truncate">
+          <div className={`w-2 h-2 shrink-0 rounded-full ${isReconnecting ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
+          {type === 'video' ? <Video size={14} className="shrink-0 text-pink-300"/> : <Phone size={14} className="shrink-0 text-cyan-300"/>}
+          <span className="text-[11px] font-black uppercase tracking-widest truncate">{partnerName}</span>
+          <span className="opacity-40 text-xs shrink-0">|</span>
+          <span className="text-[11px] font-bold opacity-70 shrink-0">{isRinging ? '···' : isReconnecting ? 'Reconnecting' : timer}</span>
         </div>
-        <div className="flex gap-1.5 items-center">
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {!isRinging && <QualityBadge quality={callQuality} />}
-          <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1 hover:bg-white/10 transition-colors">
-            <Minimize2 size={14} />
-          </button>
-          <button onClick={onEndCall} className="p-1 bg-red-500/80 hover:bg-red-500 transition-colors retro-border-thin">
-            <PhoneOff size={14} className="text-white" />
-          </button>
+          <button
+            onClick={() => { playAudio('click', sfx); setIsMinimized(true); }}
+            className="p-1.5 retro-border bg-window hover:bg-border transition-colors"
+            title="Minimize"
+          ><Minimize2 size={13}/></button>
+          <button
+            onClick={onEndCall}
+            className="p-1.5 retro-border bg-red-600 text-white hover:bg-red-700 transition-colors"
+            title="End Call"
+          ><PhoneOff size={13}/></button>
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 min-h-0 bg-black relative flex items-center justify-center group overflow-hidden">
+      {/* ── Video / Content Area ── */}
+      <div className="relative flex-1 min-h-0 bg-black overflow-hidden group flex items-center justify-center">
+
+        {/* Reconnecting overlay */}
+        {isReconnecting && (
+          <div className="absolute inset-0 z-40 bg-black/80 flex flex-col items-center justify-center gap-3">
+            <WifiOff size={36} className="text-yellow-400 animate-bounce"/>
+            <p className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Reconnecting…</p>
+          </div>
+        )}
+
+        {/* Ringing state */}
         {isRinging ? (
-          <div className="flex flex-col items-center gap-6 animate-pulse">
-            <div className="w-24 h-24 retro-border overflow-hidden bg-border relative">
-              <img src={partnerPfp || '/assets/avatar_placeholder.png'} className="w-full h-full object-cover" alt="" />
-              <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                <Phone size={32} className="text-white" />
+          <div className="flex flex-col items-center gap-5">
+            <div className="w-24 h-24 retro-border overflow-hidden relative bg-black animate-pulse">
+              <img src={partnerPfp} className="w-full h-full object-cover opacity-60" onError={e => e.target.style.display='none'} alt=""/>
+              <div className="absolute inset-0 flex items-center justify-center">
+                {type === 'video' ? <Video size={36} className="text-white/80"/> : <Phone size={36} className="text-white/80"/>}
               </div>
             </div>
-            <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Dialing {partnerName}...</p>
+            <p className="text-[10px] font-black text-white uppercase tracking-[0.25em]">Ringing {partnerName}…</p>
           </div>
         ) : (
           <>
-            {/* Main Video (Remote) */}
-            {remoteStream ? (
-              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-            ) : (
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-20 h-20 retro-border overflow-hidden">
-                  <img src={partnerPfp || '/assets/avatar_placeholder.png'} className="w-full h-full object-cover opacity-50" alt="" />
+            {/* Remote stream or avatar placeholder */}
+            {remoteStream
+              ? <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover"/>
+              : (
+                <div className="flex flex-col items-center gap-4 z-10">
+                  <div className="w-20 h-20 retro-border overflow-hidden bg-border">
+                    <img src={partnerPfp} className="w-full h-full object-cover opacity-50" onError={e => e.target.style.display='none'} alt=""/>
+                  </div>
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                    {type === 'video' ? 'Waiting for video…' : 'Voice Connected'}
+                  </p>
                 </div>
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                  {type === 'video' ? 'Waiting for video...' : 'Voice Connected'}
-                </p>
-              </div>
-            )}
+              )
+            }
 
-            {/* Local Preview (PIP) - Discord Style */}
+            {/* PIP – local camera / screen share */}
             {(!isCameraOff || isScreenSharing) && localStream && (
-              <div className="absolute bottom-4 right-4 w-32 sm:w-44 aspect-video bg-black retro-border-thick shadow-2xl overflow-hidden z-20 group-hover:scale-105 transition-transform duration-300">
-                <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                <div className="absolute top-2 left-2 bg-black/60 px-1.5 py-0.5 text-[8px] text-white font-black uppercase tracking-tighter retro-border-thin">
-                  {isScreenSharing ? 'Your Screen' : 'You'}
+              <div className="absolute bottom-14 right-3 w-36 aspect-video bg-black retro-border overflow-hidden z-20 shadow-lg group-hover:scale-105 transition-transform duration-200">
+                <video ref={localVideoRef} autoPlay playsInline muted
+                       className={`w-full h-full object-cover ${isScreenSharing ? '' : 'scale-x-[-1]'}`}/>
+                <div className="absolute top-1 left-1 bg-black/70 px-1.5 py-0.5 text-[8px] text-white font-black uppercase tracking-tight">
+                  {isScreenSharing ? 'Screen' : 'You'}
                 </div>
               </div>
             )}
 
-            {/* Status Overlays */}
-            <div className="absolute bottom-4 left-4 flex gap-2 z-30">
-              {isMuted && <div className="p-2 bg-red-600/90 text-white rounded-full retro-border shadow-lg"><MicOff size={14} /></div>}
-              {isDeafened && <div className="p-2 bg-red-600/90 text-white rounded-full retro-border shadow-lg"><VolumeX size={14} /></div>}
-              {isCameraOff && type === 'video' && <div className="p-2 bg-red-600/90 text-white rounded-full retro-border shadow-lg"><VideoOff size={14} /></div>}
+            {/* Mute / deafen badges */}
+            <div className="absolute top-2 left-2 flex gap-1.5 z-30">
+              {isMuted    && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><MicOff  size={12}/></div>}
+              {isDeafened && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VolumeX size={12}/></div>}
+              {isCameraOff && type === 'video' && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VideoOff size={12}/></div>}
             </div>
 
-            {isReconnecting && (
-              <div className="absolute inset-0 bg-black/80 z-40 flex flex-col items-center justify-center gap-2">
-                <WifiOff size={40} className="text-yellow-400 animate-bounce" />
-                <p className="text-white text-[10px] font-black uppercase tracking-[0.2em]">Connection Weak...</p>
+            {/* Live badge */}
+            {!isRinging && !isReconnecting && (
+              <div className="absolute top-2 right-2 bg-black/70 px-2 py-0.5 retro-border text-[9px] text-white font-black tracking-widest uppercase z-30">
+                LIVE
               </div>
             )}
           </>
         )}
 
-        {/* Hover Controls (Discord-like) */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-window/80 backdrop-blur-md p-2.5 retro-border-thick opacity-0 group-hover:opacity-100 transition-all duration-300 z-50">
-          <button onClick={onMicToggle} className={`p-2 retro-border transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Toggle Mic">
-            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+        {/* ── Discord-style hover controls ── */}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-window/90 backdrop-blur-sm px-3 py-2 retro-border opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+          <button onClick={onMicToggle}    className={`p-2 retro-border transition-all hover:scale-110 ${isMuted    ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute">
+            {isMuted    ? <MicOff   size={17}/> : <Mic    size={17}/>}
           </button>
-          <button onClick={onDeafenToggle} className={`p-2 retro-border transition-all ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen">
-            {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          <button onClick={onDeafenToggle} className={`p-2 retro-border transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen">
+            {isDeafened ? <VolumeX  size={17}/> : <Volume2 size={17}/>}
           </button>
-          <button onClick={onCameraToggle} className={`p-2 retro-border transition-all ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Toggle Camera">
-            {isCameraOff ? <VideoOff size={18} /> : <Camera size={18} />}
+          <button onClick={onCameraToggle} className={`p-2 retro-border transition-all hover:scale-110 ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Camera">
+            {isCameraOff ? <VideoOff size={17}/> : <Camera  size={17}/>}
           </button>
-          <button onClick={() => isScreenSharing ? onStopScreenShare() : onScreenShare()} 
-                  className={`p-2 retro-border transition-all ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Share Screen">
-            {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+          <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
+                  className={`p-2 retro-border transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Screen Share">
+            {isScreenSharing ? <MonitorOff size={17}/> : <Monitor size={17}/>}
           </button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <button onClick={onEndCall} className="p-2 bg-red-600 text-white retro-border hover:bg-red-700 hover:scale-105 transition-all" title="End Call">
-            <PhoneOff size={18} className="rotate-[135deg]" />
+          <div className="w-px h-5 bg-border mx-0.5"/>
+          <button onClick={onEndCall} className="p-2 retro-border bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call">
+            <PhoneOff size={17} className="rotate-[135deg]"/>
           </button>
         </div>
       </div>
