@@ -31,15 +31,15 @@ const ICE_SERVERS = [
       `${import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'}?transport=udp`,
       `${import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'}?transport=tcp`
     ],
-    username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
-    credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
+    username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
+    credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
   },
   {
     urls: [
       `${import.meta.env.VITE_TURN_URL_SSL || 'turn:relay.metered.ca:443'}?transport=tcp`
     ],
-    username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
-    credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
+    username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
+    credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
   }
 ];
 
