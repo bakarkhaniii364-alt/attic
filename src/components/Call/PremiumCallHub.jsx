@@ -35,8 +35,13 @@ export function PremiumCallHub({
 
   // Bind remote video stream
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    const video = remoteVideoRef.current;
+    if (remoteStream && video) {
+      console.log('[WebRTC] Assigning remote stream to video element');
+      video.srcObject = remoteStream;
+      video.play().catch(err => {
+        console.warn('[WebRTC] Remote video play blocked or failed:', err);
+      });
     }
   }, [remoteStream]);
 

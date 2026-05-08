@@ -26,15 +26,22 @@ const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
-  { urls: 'stun:stun.voiparound.com' },
-  { urls: 'stun:stun.voipbuster.com' },
-  { urls: 'stun:stun.voipstunt.com' },
-  { urls: 'stun:stun.voxgratia.org' },
-  { urls: 'turn:openrelay.metered.ca:80',                 username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443',                username: 'openrelayproject', credential: 'openrelayproject' },
+  {
+    urls: import.meta.env.VITE_TURN_URL || 'turn:openrelay.metered.ca:80',
+    username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
+    credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
+  },
+  {
+    urls: import.meta.env.VITE_TURN_URL_SSL || 'turn:openrelay.metered.ca:443',
+    username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
+    credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
+  }
 ];
+
+console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => ({ 
+  url: s.urls, 
+  hasAuth: !!s.username 
+})));
 
 // ── Ringing tone (Web Audio) ─────────────────────────────────────────────────
 function createRingTone() {
@@ -181,6 +188,7 @@ export function CallProvider({ children }) {
 
     // Send our tracks to remote
     if (localStreamRef.current) {
+      console.log('[WebRTC] Adding local tracks to PC:', localStreamRef.current.getTracks().map(t => t.kind));
       localStreamRef.current.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
     }
 
@@ -228,6 +236,7 @@ export function CallProvider({ children }) {
           }
         }, 2000);
       } else if (s === 'failed') {
+        console.error('[WebRTC] ICE Connection Failed. Check TURN credentials.');
         setCallStatus('reconnecting');
         // Full ICE restart via renegotiation
         if (isCallerRef.current) {
