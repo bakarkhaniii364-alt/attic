@@ -709,7 +709,12 @@ export function CallProvider({ children }) {
   }, []);
 
   const testTurnConfig = useCallback(async () => {
+    // Get the first TURN server config for logging
+    const turnServer = ICE_SERVERS.find(s => s.urls.includes('turn:'));
     console.log('[Debug] Starting TURN connectivity test...');
+    console.log('[Debug] Using Username:', turnServer?.username || 'NONE');
+    console.log('[Debug] Using URL:', turnServer?.urls || 'NONE');
+    
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const results = [];
     pc.onicecandidate = (e) => {
