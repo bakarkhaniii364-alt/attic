@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, ShieldCheck } from 'lucide-react';
+import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, ShieldCheck, RefreshCw, AlertCircle } from 'lucide-react';
+import { useCall } from '../context/CallContext.jsx';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';
@@ -12,6 +13,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const toast = useToast();
   
   const safeProfile = profile || { name: 'You', emoji: '👤' };
+  const { testTurnConfig, endCall, callStatus } = useCall();
   
   // Cache the initial state so we can revert if "Cancel" is clicked
   const [initialState] = useState({
@@ -146,6 +148,26 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         window.location.href = '/';
       } catch (err) { console.error(err); toast('Deletion failed', 'error'); }
     }
+  };
+
+  const handleTestTurn = async () => {
+    toast('Testing TURN servers...', 'info');
+    await testTurnConfig();
+    const handler = (e) => {
+      const { hasRelay } = e.detail;
+      if (hasRelay) {
+        toast('TURN relay is working!', 'success');
+      } else {
+        toast('TURN relay failed. Check credentials.', 'error');
+      }
+      window.removeEventListener('turn_test_result', handler);
+    };
+    window.addEventListener('turn_test_result', handler);
+  };
+
+  const handleFullReset = () => {
+    endCall();
+    toast('Call engine reset.', 'info');
   };
 
   const contentArea = (
@@ -342,6 +364,31 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                    ))}
                 </div>
              </div>
+          </div>
+        </section>
+
+        <section className="p-4 bg-window border-2 border-border border-dashed">
+          <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Zap size={20} className="text-accent"/> WebRTC Debugger</h2>
+          <div className="space-y-4">
+            <div>
+              <p className="font-bold text-sm mb-1">ICE Connectivity Test</p>
+              <p className="text-[10px] opacity-50 mb-3">Verifies if your TURN relay (Metered.ca) is active and accessible.</p>
+              <RetroButton onClick={handleTestTurn} className="text-[10px] px-4 py-2 flex items-center gap-2">
+                <RefreshCw size={12}/> Run Connection Test
+              </RetroButton>
+            </div>
+            
+            <div className="pt-4 border-t border-border border-dashed">
+              <p className="font-bold text-sm mb-1">Emergency Signal Reset</p>
+              <p className="text-[10px] opacity-50 mb-3">Forces a hard hangup and clears all WebRTC state. Use if a call is stuck.</p>
+              <RetroButton onClick={handleFullReset} variant="secondary" className="text-[10px] px-4 py-2 flex items-center gap-2">
+                <AlertCircle size={12}/> Reset Call Engine
+              </RetroButton>
+            </div>
+
+            <div className="pt-2 font-mono text-[9px] opacity-40 uppercase tracking-widest">
+              Live Status: {callStatus}
+            </div>
           </div>
         </section>
 

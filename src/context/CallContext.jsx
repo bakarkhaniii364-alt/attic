@@ -44,6 +44,15 @@ console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => ({
   hasPass: !!s.credential 
 })));
 
+// Warn if TURN credentials look missing or are using the public fallback
+(() => {
+  const u = import.meta.env.VITE_TURN_USERNAME;
+  const p = import.meta.env.VITE_TURN_PASSWORD;
+  if (!u || !p || u === 'openrelayproject' || p === 'openrelayproject') {
+    console.warn('[WebRTC] TURN credentials appear missing or default. Verify Metered.ca credentials and Vercel `VITE_TURN_USERNAME`/`VITE_TURN_PASSWORD` env vars.');
+  }
+})();
+
 // ── Ringing tone (Web Audio) ─────────────────────────────────────────────────
 function createRingTone() {
   try {
@@ -125,13 +134,26 @@ export function CallProvider({ children }) {
 
   // ── cleanupCall ───────────────────────────────────────────────────────────
   const cleanupCall = useCallback(() => {
+    console.log('[Call] Cleaning up all call state and stopping tracks...');
     [callTimerRef, qualityTimerRef, ringRetryRef, ringTimeoutRef].forEach(r => {
       if (r.current) { clearInterval(r.current); clearTimeout(r.current); r.current = null; }
     });
     if (ringStopRef.current)  { ringStopRef.current(); ringStopRef.current = null; }
     if (screenTrackRef.current) { try { screenTrackRef.current.stop(); } catch(_){} screenTrackRef.current = null; }
-    if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
-    if (pcRef.current) { try { pcRef.current.close(); } catch(_){} pcRef.current = null; }
+    
+    // Exhaustive track stopping
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => {
+        console.log(`[Call] Stopping local track: ${t.kind}`);
+        t.stop();
+      });
+      localStreamRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.getSenders().forEach(s => { if (s.track) s.track.stop(); });
+      try { pcRef.current.close(); } catch(_){}
+      pcRef.current = null;
+    }
     pendingCandidates.current = [];
     makingOfferRef.current = false;
     isCallerRef.current = false;
@@ -368,8 +390,10 @@ export function CallProvider({ children }) {
         setCallStatus('connecting');
         callTypeRef.current = payload.callType || 'audio';
         try {
-          // Get media if not already acquired
+          // Get media if not already acquired (stop any stale tracks first)
           if (!localStreamRef.current) {
+            // Defensive: stop any lingering local tracks before re-acquiring camera/mic
+            try { if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
             const stream = await navigator.mediaDevices.getUserMedia({
               audio: true,
               video: payload.callType === 'video',
@@ -505,6 +529,11 @@ export function CallProvider({ children }) {
     if (callingRef.current) return; // already in a call
 
     try {
+      // Defensive: stop any lingering local tracks before re-acquiring camera/mic
+      if (localStreamRef.current) {
+        try { localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
+        localStreamRef.current = null; setLocalStream(null);
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
       localStreamRef.current = stream;
       callTypeRef.current = type;
@@ -549,6 +578,11 @@ export function CallProvider({ children }) {
     callTypeRef.current = incoming.type;
 
     try {
+      // Defensive: stop any lingering local tracks before re-acquiring camera/mic
+      if (localStreamRef.current) {
+        try { localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
+        localStreamRef.current = null; setLocalStream(null);
+      }
       // Get media early so it's ready when offer arrives
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: incoming.type === 'video' });
       localStreamRef.current = stream;
@@ -674,6 +708,28 @@ export function CallProvider({ children }) {
     } catch (_) {}
   }, []);
 
+  const testTurnConfig = useCallback(async () => {
+    console.log('[Debug] Starting TURN connectivity test...');
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const results = [];
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        const type = e.candidate.candidate.split(' ')[7];
+        results.push(type);
+        console.log(`[Debug] Found candidate: ${type}`);
+      } else {
+        const hasRelay = results.includes('relay');
+        console.log(`[Debug] Test Complete. Relay found: ${hasRelay}`);
+        window.dispatchEvent(new CustomEvent('turn_test_result', { detail: { hasRelay, types: results } }));
+        pc.close();
+      }
+    };
+    pc.createDataChannel('test');
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    return true;
+  }, []);
+
   const value = {
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
     remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
@@ -681,7 +737,7 @@ export function CallProvider({ children }) {
     startCall, acceptCall, declineCall, endCall,
     toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,
-    restartIce, changeDevice,
+    restartIce, changeDevice, testTurnConfig,
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
