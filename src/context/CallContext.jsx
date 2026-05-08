@@ -723,6 +723,11 @@ export function CallProvider({ children }) {
     
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const results = [];
+    
+    pc.onicecandidateerror = (e) => {
+      console.error(`[Debug] ICE Error ${e.errorCode}: ${e.errorText} on ${e.url}`);
+    };
+
     pc.onicecandidate = (e) => {
       if (e.candidate) {
         const type = e.candidate.candidate.split(' ')[7];
