@@ -154,11 +154,12 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     toast('Testing TURN servers...', 'info');
     await testTurnConfig();
     const handler = (e) => {
-      const { hasRelay } = e.detail;
+      const { hasRelay, errorCode, errorText } = e.detail;
       if (hasRelay) {
         toast('TURN relay is working!', 'success');
       } else {
-        toast('TURN relay failed. Check credentials.', 'error');
+        const errorMsg = errorCode ? `TURN failed: ${errorCode} ${errorText || ''}` : 'TURN relay failed. Check credentials.';
+        toast(errorMsg, 'error');
       }
       window.removeEventListener('turn_test_result', handler);
     };

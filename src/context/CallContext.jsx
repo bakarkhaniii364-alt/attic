@@ -714,14 +714,15 @@ export function CallProvider({ children }) {
       return u?.includes('turn:');
     });
     console.log('[Debug] Starting TURN connectivity test...');
-    console.log('[Debug] Using Username:', turnServer?.username || 'NONE');
-    console.log('[Debug] Using URL:', turnServer?.urls || 'NONE');
     
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     const results = [];
+    const errors = [];
     
     pc.onicecandidateerror = (e) => {
-      console.error(`[Debug] ICE Error ${e.errorCode}: ${e.errorText} on ${e.url}`);
+      const err = `Error ${e.errorCode}: ${e.errorText}`;
+      console.error(`[Debug] ICE Error on ${e.url}: ${err}`);
+      errors.push({ code: e.errorCode, text: e.errorText, url: e.url });
     };
 
     pc.onicecandidate = (e) => {
@@ -732,7 +733,16 @@ export function CallProvider({ children }) {
       } else {
         const hasRelay = results.includes('relay');
         console.log(`[Debug] Test Complete. Relay found: ${hasRelay}`);
-        window.dispatchEvent(new CustomEvent('turn_test_result', { detail: { hasRelay, types: results } }));
+        
+        // Dispatch result with extra error info for the UI
+        window.dispatchEvent(new CustomEvent('turn_test_result', { 
+          detail: { 
+            hasRelay, 
+            types: results,
+            errorCode: errors.length > 0 ? errors[0].code : null,
+            errorText: errors.length > 0 ? errors[0].text : null
+          } 
+        }));
         pc.close();
       }
     };
