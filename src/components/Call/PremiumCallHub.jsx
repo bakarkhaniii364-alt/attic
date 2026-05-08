@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Video, Phone, PhoneOff, MicOff, Mic, Volume2, VolumeX,
          Maximize2, Minimize2, VideoOff, Camera, Monitor, MonitorOff,
-         Wifi, WifiOff } from 'lucide-react';
+         Wifi, WifiOff, ExternalLink } from 'lucide-react';
 import { playAudio } from '../../utils/audio.js';
 
-// Quality indicator dots (like WhatsApp's signal bars)
+// Quality indicator dots
 function QualityBadge({ quality }) {
   const colors = { good: 'bg-green-400', fair: 'bg-yellow-400', poor: 'bg-red-400' };
   const labels = { good: 'HD', fair: 'SD', poor: 'LOW' };
@@ -27,204 +27,259 @@ export function PremiumCallHub({
 }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef  = useRef(null);
-  const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 420 : 10, y: 40 });
+  
+  // Window State
+  const [position, setPosition] = useState({ x: window.innerWidth > 640 ? window.innerWidth - 500 : 20, y: 60 });
+  const [size, setSize] = useState({ width: 480, height: 340 });
   const [isDragging, setIsDragging] = useState(false);
+  const [resizing, setResizing] = useState(null); 
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
+  
   const rafRef = useRef();
 
   // Bind remote video stream
   useEffect(() => {
     const video = remoteVideoRef.current;
     if (remoteStream && video) {
-      console.log('[WebRTC] Assigning remote stream to video element');
       video.srcObject = remoteStream;
-      video.play().catch(err => {
-        console.warn('[WebRTC] Remote video play blocked or failed:', err);
-      });
+      video.play().catch(() => {});
     }
-  }, [remoteStream]);
+  }, [remoteStream, isMinimized]);
 
   // Bind local video stream
   useEffect(() => {
-    if (localStream && localVideoRef.current && !isCameraOff) {
-      localVideoRef.current.srcObject = localStream;
+    const video = localVideoRef.current;
+    if (localStream && video && (!isCameraOff || isScreenSharing)) {
+      video.srcObject = localStream;
+      video.play().catch(() => {});
     }
-  }, [localStream, isCameraOff]);
+  }, [localStream, isCameraOff, isScreenSharing, isMinimized]);
 
-  // Dragging
-  const handleStart = (cx, cy) => { setIsDragging(true); setDragOffset({ x: cx - position.x, y: cy - position.y }); };
-  const handleMove  = useCallback((cx, cy) => {
-    if (!isDragging) return;
+  // Performance Optimized Interaction Handler
+  const handlePointerMove = useCallback((e) => {
+    if (!isDragging && !resizing) return;
+    
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => setPosition({ x: cx - dragOffset.x, y: cy - dragOffset.y }));
-  }, [isDragging, dragOffset]);
-  const handleEnd = useCallback(() => setIsDragging(false), []);
+    
+    rafRef.current = requestAnimationFrame(() => {
+      const cx = e.clientX || (e.touches && e.touches[0].clientX);
+      const cy = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      if (isDragging) {
+        setPosition({ x: cx - dragOffset.x, y: cy - dragOffset.y });
+      } else if (resizing) {
+        let nW = size.width;
+        let nH = size.height;
+        let nX = position.x;
+        let nY = position.y;
+
+        if (resizing.includes('e')) nW = cx - position.x;
+        if (resizing.includes('s')) nH = cy - position.y;
+        if (resizing.includes('w')) {
+          nW = size.width + (position.x - cx);
+          nX = cx;
+        }
+        if (resizing.includes('n')) {
+          nH = size.height + (position.y - cy);
+          nY = cy;
+        }
+
+        // Constraints
+        if (nW > 280) { setSize(s => ({ ...s, width: nW })); setPosition(p => ({ ...p, x: nX })); }
+        if (nH > 200) { setSize(s => ({ ...s, height: nH })); setPosition(p => ({ ...p, y: nY })); }
+      }
+    });
+  }, [isDragging, resizing, dragOffset, position, size]);
+
+  const handlePointerUp = useCallback(() => {
+    setIsDragging(false);
+    setResizing(null);
+  }, []);
 
   useEffect(() => {
-    if (!isDragging) return;
-    const mm = e => handleMove(e.clientX, e.clientY);
-    const tm = e => e.touches[0] && handleMove(e.touches[0].clientX, e.touches[0].clientY);
-    window.addEventListener('mousemove', mm); window.addEventListener('mouseup', handleEnd);
-    window.addEventListener('touchmove', tm, { passive: true }); window.addEventListener('touchend', handleEnd);
+    if (isDragging || resizing) {
+      window.addEventListener('mousemove', handlePointerMove);
+      window.addEventListener('mouseup', handlePointerUp);
+      window.addEventListener('touchmove', handlePointerMove, { passive: false });
+      window.addEventListener('touchend', handlePointerUp);
+    }
     return () => {
-      window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', handleEnd);
-      window.removeEventListener('touchmove', tm); window.removeEventListener('touchend', handleEnd);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchmove', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
     };
-  }, [isDragging, handleMove, handleEnd]);
+  }, [isDragging, resizing, handlePointerMove, handlePointerUp]);
+
+  const handleStartDrag = (e) => {
+    if (e.target.closest('button') || resizing) return;
+    const cx = e.clientX || (e.touches && e.touches[0].clientX);
+    const cy = e.clientY || (e.touches && e.touches[0].clientY);
+    setIsDragging(true);
+    setDragOffset({ x: cx - position.x, y: cy - position.y });
+  };
+
+  const handleStartResize = (dir, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing(dir);
+  };
 
   const mins = Math.floor(callDuration / 60);
   const secs = callDuration % 60;
   const isReconnecting = callStatus === 'reconnecting';
 
-  const handleScreenToggle = () => {
-    playAudio('click', sfx);
-    if (isScreenSharing) onStopScreenShare?.(); else onScreenShare?.();
-  };
+  if (isMinimized) {
+    return (
+      <div className="fixed bottom-6 left-6 z-[950] w-72 bg-window retro-border-thick shadow-[4px_4px_0px_0px_var(--border)] animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden">
+        <div className="p-3 flex items-center gap-3">
+          <div className="w-12 h-12 retro-border overflow-hidden bg-black flex-shrink-0">
+             {type === 'video' && remoteStream ? (
+               <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+             ) : (
+               <img src={partnerPfp || '/assets/avatar_placeholder.png'} className="w-full h-full object-cover" alt="" />
+             )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black uppercase text-primary tracking-widest truncate">{partnerName}</p>
+            <p className="text-[9px] font-bold opacity-60 uppercase">{isRinging ? 'Ringing...' : `${mins}:${secs.toString().padStart(2, '0')}`}</p>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => onMicToggle()} className={`p-1.5 retro-border transition-colors ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`}>
+              {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
+            </button>
+            <button onClick={() => setIsMinimized(false)} className="p-1.5 retro-border bg-primary text-white hover:opacity-90 transition-opacity">
+              <Maximize2 size={14} />
+            </button>
+            <button onClick={onEndCall} className="p-1.5 retro-border bg-red-600 text-white hover:bg-red-700 transition-colors">
+              <PhoneOff size={14} className="rotate-[135deg]" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`fixed z-[900] bg-window retro-border-thick ${isDragging ? '' : 'transition-all duration-300'} ${
-        isMinimized ? 'w-64 h-14 overflow-hidden' : 'w-[90vw] sm:w-[420px] retro-shadow-dark'
-      } animate-in zoom-in-95 fade-in select-none`}
-      style={{ left: `${position.x}px`, top: `${position.y}px`, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
-      onMouseDown={e => { if (!e.target.closest('button')) handleStart(e.clientX, e.clientY); }}
-      onTouchStart={e => { if (!e.target.closest('button')) handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
+      className={`fixed z-[900] bg-window retro-border-thick flex flex-col animate-in zoom-in-95 fade-in ${isDragging ? '' : 'transition-transform duration-75'}`}
+      style={{
+        width: `${size.width}px`,
+        height: `${size.height}px`,
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        boxShadow: '4px 4px 0px 0px var(--border)',
+      }}
     >
-      {/* Title bar */}
-      <div className="px-3 py-2 flex justify-between items-center font-bold text-[11px] sm:text-sm border-b-2 border-border select-none"
-           style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
-        <span className="flex items-center gap-2 truncate">
-          {isReconnecting
-            ? <WifiOff size={14} className="text-yellow-400 animate-pulse" />
-            : <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          }
-          {type === 'video' ? <Video size={16} className="text-pink-300" /> : <Phone size={16} className="text-cyan-300" />}
-          <span className="opacity-90 uppercase tracking-widest">{type === 'video' ? 'VIDEO' : 'AUDIO'} CALL</span>
-          <span className="opacity-50">|</span>
-          <span className="truncate">{partnerName}</span>
-          {!isMinimized && (
-            <span className="opacity-70 ml-1">
-              {isRinging ? '...' : isReconnecting ? 'Reconnecting' : `${mins}:${secs.toString().padStart(2, '0')}`}
-            </span>
-          )}
-        </span>
-        <div className="flex gap-2 items-center">
-          {!isMinimized && !isRinging && <QualityBadge quality={callQuality} />}
-          <button onClick={() => { playAudio('click', sfx); setIsMinimized(!isMinimized); }}
-                  className="p-1 retro-border bg-window/10 hover:bg-window/20 transition-all">
-            {isMinimized ? <Maximize2 size={12} /> : <Minimize2 size={12} />}
+      {/* Invisible Resize Handles (Thick for easier grabbing) */}
+      <div className="absolute -top-1 -left-1 w-[calc(100%+8px)] h-2 cursor-ns-resize z-50" onMouseDown={(e) => handleStartResize('n', e)} />
+      <div className="absolute -bottom-1 -left-1 w-[calc(100%+8px)] h-2 cursor-ns-resize z-50" onMouseDown={(e) => handleStartResize('s', e)} />
+      <div className="absolute -top-1 -left-1 h-[calc(100%+8px)] w-2 cursor-ew-resize z-50" onMouseDown={(e) => handleStartResize('w', e)} />
+      <div className="absolute -top-1 -right-1 h-[calc(100%+8px)] w-2 cursor-ew-resize z-50" onMouseDown={(e) => handleStartResize('e', e)} />
+      <div className="absolute -top-1 -left-1 w-4 h-4 cursor-nwse-resize z-50" onMouseDown={(e) => handleStartResize('nw', e)} />
+      <div className="absolute -top-1 -right-1 w-4 h-4 cursor-nesw-resize z-50" onMouseDown={(e) => handleStartResize('ne', e)} />
+      <div className="absolute -bottom-1 -left-1 w-4 h-4 cursor-nesw-resize z-50" onMouseDown={(e) => handleStartResize('sw', e)} />
+      <div className="absolute -bottom-1 -right-1 w-4 h-4 cursor-nwse-resize z-50" onMouseDown={(e) => handleStartResize('se', e)} />
+
+      {/* Header */}
+      <div 
+        className="px-3 py-2 flex justify-between items-center border-b-2 border-border cursor-grab active:cursor-grabbing shrink-0"
+        onMouseDown={handleStartDrag}
+        onTouchStart={handleStartDrag}
+        style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}
+      >
+        <div className="flex items-center gap-2 truncate">
+          <div className={`w-2 h-2 rounded-full ${isReconnecting ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest truncate">{partnerName}</span>
+          <span className="opacity-50 text-xs">|</span>
+          <span className="text-[10px] sm:text-xs font-bold opacity-80">{mins}:${secs.toString().padStart(2, '0')}</span>
+        </div>
+        <div className="flex gap-1.5 items-center">
+          {!isRinging && <QualityBadge quality={callQuality} />}
+          <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1 hover:bg-white/10 transition-colors">
+            <Minimize2 size={14} />
           </button>
-          <button onClick={onEndCall} className="p-1 retro-border bg-red-500 text-white hover:bg-red-600 transition-colors">
-            <PhoneOff size={12} />
+          <button onClick={onEndCall} className="p-1 bg-red-500/80 hover:bg-red-500 transition-colors retro-border-thin">
+            <PhoneOff size={14} className="text-white" />
           </button>
         </div>
       </div>
 
-      {!isMinimized && (
-        <div className="flex flex-col bg-window">
-          {/* Video/Avatar area */}
-          <div className="w-full aspect-video bg-black relative overflow-hidden flex items-center justify-center border-b-2 border-border">
-
-            {/* Reconnecting overlay */}
-            {isReconnecting && (
-              <div className="absolute inset-0 z-30 bg-black/70 flex flex-col items-center justify-center gap-3">
-                <Wifi size={32} className="text-yellow-400 animate-pulse" />
-                <p className="text-white text-[11px] font-black uppercase tracking-widest animate-pulse">Reconnecting...</p>
+      {/* Content Area */}
+      <div className="flex-1 min-h-0 bg-black relative flex items-center justify-center group overflow-hidden">
+        {isRinging ? (
+          <div className="flex flex-col items-center gap-6 animate-pulse">
+            <div className="w-24 h-24 retro-border overflow-hidden bg-border relative">
+              <img src={partnerPfp || '/assets/avatar_placeholder.png'} className="w-full h-full object-cover" alt="" />
+              <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                <Phone size={32} className="text-white" />
               </div>
-            )}
-
-            {isRinging ? (
-              <div className="flex flex-col items-center gap-4 animate-in fade-in">
-                <div className="w-20 h-20 retro-border flex items-center justify-center animate-pulse shadow-[0_0_40px_var(--secondary)] overflow-hidden bg-border relative">
-                  {type === 'video' ? <Video size={36} className="text-white absolute z-0" /> : <Phone size={36} className="text-white absolute z-0" />}
-                  {partnerPfp && <img src={partnerPfp} alt="partner" className="w-full h-full object-cover relative z-10" onError={e => { e.target.style.display = 'none'; }} />}
-                </div>
-                <div className="text-white font-black text-[11px] uppercase tracking-[0.2em] animate-bounce">Ringing {partnerName}...</div>
-              </div>
-            ) : type === 'video' ? (
-              <div className="w-full h-full bg-black relative">
-                {remoteStream
-                  ? <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover animate-in fade-in duration-500" />
-                  : <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                      <VideoOff size={32} className="text-white/40" />
-                      <span className="text-[10px] font-bold text-white/40 uppercase">Waiting for video...</span>
-                    </div>
-                }
-                {!isCameraOff && !isScreenSharing && localStream && (
-                  <div className="absolute bottom-3 right-3 w-28 aspect-video bg-border retro-border overflow-hidden shadow-lg z-20">
-                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                  </div>
-                )}
-                {isScreenSharing && (
-                  <div className="absolute top-2 left-2 z-20 bg-primary/90 text-white px-2 py-1 text-[9px] font-black uppercase tracking-widest retro-border flex items-center gap-1">
-                    <Monitor size={10} /> Screen Sharing
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 group animate-in fade-in">
-                <div className="w-20 h-20 retro-bg-accent retro-border flex items-center justify-center overflow-hidden relative">
-                  {partnerPfp
-                    ? <img src={partnerPfp} alt="partner" className="w-full h-full object-cover" onError={e => { e.target.style.display='none'; }} />
-                    : <Phone size={36} className="text-white/80" />
-                  }
-                </div>
-                <div className="flex flex-col items-center">
-                  <p className="text-[11px] font-black text-white/50 uppercase tracking-[0.3em]">{partnerName}</p>
-                  <p className="text-[10px] font-bold text-white/30 uppercase mt-1 italic tracking-wider">Voice Only</p>
-                </div>
-              </div>
-            )}
-
-            {/* Status badges */}
-            {!isRinging && (
-              <div className="absolute top-2.5 right-2.5 bg-black/70 px-2.5 py-1 retro-border text-[10px] text-white font-black tracking-widest uppercase backdrop-blur-md border-white/20">
-                {isReconnecting ? '⚠ RECONNECTING' : 'LIVE'}
-              </div>
-            )}
-            <div className="absolute bottom-2.5 left-2.5 flex gap-2">
-              {isMuted    && <div className="bg-red-500/90 backdrop-blur-sm p-2 rounded-full retro-border text-white shadow-lg"><MicOff   size={12} /></div>}
-              {isDeafened && <div className="bg-red-500/90 backdrop-blur-sm p-2 rounded-full retro-border text-white shadow-lg"><VolumeX  size={12} /></div>}
             </div>
+            <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Dialing {partnerName}...</p>
           </div>
+        ) : (
+          <>
+            {/* Main Video (Remote) */}
+            {remoteStream ? (
+              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-20 h-20 retro-border overflow-hidden">
+                  <img src={partnerPfp || '/assets/avatar_placeholder.png'} className="w-full h-full object-cover opacity-50" alt="" />
+                </div>
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                  {type === 'video' ? 'Waiting for video...' : 'Voice Connected'}
+                </p>
+              </div>
+            )}
 
-          {/* Controls — 5 buttons */}
-          <div className="p-3.5 grid grid-cols-5 gap-2 bg-window border-t-2 border-border">
-            <button onClick={() => { playAudio('click', sfx); onMicToggle(); }}
-                    className={`flex flex-col items-center justify-center p-2 retro-border transition-all ${isMuted ? 'bg-red-500 text-white' : 'retro-bg-accent hover:-translate-y-0.5'}`}>
-              {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
-              <span className="text-[8px] font-black mt-1 uppercase">{isMuted ? 'Unmute' : 'Mute'}</span>
-            </button>
+            {/* Local Preview (PIP) - Discord Style */}
+            {(!isCameraOff || isScreenSharing) && localStream && (
+              <div className="absolute bottom-4 right-4 w-32 sm:w-44 aspect-video bg-black retro-border-thick shadow-2xl overflow-hidden z-20 group-hover:scale-105 transition-transform duration-300">
+                <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+                <div className="absolute top-2 left-2 bg-black/60 px-1.5 py-0.5 text-[8px] text-white font-black uppercase tracking-tighter retro-border-thin">
+                  {isScreenSharing ? 'Your Screen' : 'You'}
+                </div>
+              </div>
+            )}
 
-            <button onClick={() => { playAudio('click', sfx); onDeafenToggle(); }}
-                    className={`flex flex-col items-center justify-center p-2 retro-border transition-all ${isDeafened ? 'bg-red-500 text-white' : 'retro-bg-secondary hover:-translate-y-0.5'}`}>
-              {isDeafened ? <VolumeX size={16} /> : <Volume2 size={16} />}
-              <span className="text-[8px] font-black mt-1 uppercase">{isDeafened ? 'Hear' : 'Deafen'}</span>
-            </button>
+            {/* Status Overlays */}
+            <div className="absolute bottom-4 left-4 flex gap-2 z-30">
+              {isMuted && <div className="p-2 bg-red-600/90 text-white rounded-full retro-border shadow-lg"><MicOff size={14} /></div>}
+              {isDeafened && <div className="p-2 bg-red-600/90 text-white rounded-full retro-border shadow-lg"><VolumeX size={14} /></div>}
+              {isCameraOff && type === 'video' && <div className="p-2 bg-red-600/90 text-white rounded-full retro-border shadow-lg"><VideoOff size={14} /></div>}
+            </div>
 
-            <button onClick={() => { playAudio('click', sfx); onCameraToggle(); }}
-                    className={`flex flex-col items-center justify-center p-2 retro-border transition-all ${isCameraOff ? 'bg-red-500 text-white' : 'retro-bg-primary hover:-translate-y-0.5'}`}>
-              {isCameraOff ? <VideoOff size={16} /> : <Camera size={16} />}
-              <span className="text-[8px] font-black mt-1 uppercase">Cam</span>
-            </button>
+            {isReconnecting && (
+              <div className="absolute inset-0 bg-black/80 z-40 flex flex-col items-center justify-center gap-2">
+                <WifiOff size={40} className="text-yellow-400 animate-bounce" />
+                <p className="text-white text-[10px] font-black uppercase tracking-[0.2em]">Connection Weak...</p>
+              </div>
+            )}
+          </>
+        )}
 
-            <button onClick={handleScreenToggle}
-                    className={`flex flex-col items-center justify-center p-2 retro-border transition-all ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:-translate-y-0.5'}`}
-                    title={isScreenSharing ? 'Stop sharing' : 'Share screen'}>
-              {isScreenSharing ? <MonitorOff size={16} /> : <Monitor size={16} />}
-              <span className="text-[8px] font-black mt-1 uppercase">Screen</span>
-            </button>
-
-            <button onClick={() => { playAudio('click', sfx); onEndCall(); }}
-                    className="flex flex-col items-center justify-center p-2 retro-border bg-red-600 text-white hover:bg-red-700 transition-all hover:scale-105">
-              <PhoneOff size={16} className="rotate-[135deg]" />
-              <span className="text-[8px] font-black mt-1 uppercase">End</span>
-            </button>
-          </div>
+        {/* Hover Controls (Discord-like) */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-window/80 backdrop-blur-md p-2.5 retro-border-thick opacity-0 group-hover:opacity-100 transition-all duration-300 z-50">
+          <button onClick={onMicToggle} className={`p-2 retro-border transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Toggle Mic">
+            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+          <button onClick={onDeafenToggle} className={`p-2 retro-border transition-all ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen">
+            {isDeafened ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+          <button onClick={onCameraToggle} className={`p-2 retro-border transition-all ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Toggle Camera">
+            {isCameraOff ? <VideoOff size={18} /> : <Camera size={18} />}
+          </button>
+          <button onClick={() => isScreenSharing ? onStopScreenShare() : onScreenShare()} 
+                  className={`p-2 retro-border transition-all ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Share Screen">
+            {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+          </button>
+          <div className="w-px h-6 bg-border mx-1" />
+          <button onClick={onEndCall} className="p-2 bg-red-600 text-white retro-border hover:bg-red-700 hover:scale-105 transition-all" title="End Call">
+            <PhoneOff size={18} className="rotate-[135deg]" />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
