@@ -27,6 +27,7 @@ const ICE_SERVERS = [
   { urls: 'stun:stun.metered.ca:80' },
   {
     urls: [
+      `turns:relay.metered.ca:443?transport=tcp`,
       `turn:relay.metered.ca:3478?transport=udp`,
       `turn:relay.metered.ca:3478?transport=tcp`,
       `turn:relay.metered.ca:443?transport=tcp`,
