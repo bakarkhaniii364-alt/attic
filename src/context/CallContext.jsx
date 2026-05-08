@@ -24,18 +24,23 @@ const CallContext = createContext(null);
 // ── ICE servers ──────────────────────────────────────────────────────────────
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.metered.ca:80' },
   {
-    urls: 'turn:relay.metered.ca:80?transport=udp',
-    username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
-    credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
+    urls: [
+      `turn:openrelay.metered.ca:80?transport=udp`,
+      `turn:openrelay.metered.ca:80?transport=tcp`,
+      `turn:openrelay.metered.ca:443?transport=tcp`
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
   },
   {
-    urls: 'turn:relay.metered.ca:80?transport=tcp',
-    username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
-    credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
-  },
-  {
-    urls: 'turn:relay.metered.ca:443?transport=tcp',
+    urls: [
+      `${import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'}?transport=udp`,
+      `${import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'}?transport=tcp`,
+      `${import.meta.env.VITE_TURN_URL_SSL || 'turn:relay.metered.ca:443'}?transport=tcp`
+    ],
     username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
   }
