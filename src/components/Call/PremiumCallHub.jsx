@@ -41,12 +41,13 @@ export function PremiumCallHub({
     if (v && remoteStream) { v.srcObject = remoteStream; v.play().catch(() => {}); }
   }, [remoteStream, isMinimized]);
 
-  useEffect(() => {
-    const v = localVideoRef.current;
-    if (v && localStream && (!isCameraOff || isScreenSharing)) {
-      v.srcObject = localStream; v.play().catch(() => {});
+  // Callback ref: assigns stream the moment the <video> element mounts
+  const localVideoCallbackRef = useCallback((node) => {
+    if (node && localStream) {
+      node.srcObject = localStream;
+      node.play().catch(() => {});
     }
-  }, [localStream, isCameraOff, isScreenSharing, isMinimized]);
+  }, [localStream]);
 
   // ── Pointer Events (drag + resize) ──────────────────────────────────────
   const onPointerMove = useCallback((e) => {
@@ -232,7 +233,7 @@ export function PremiumCallHub({
             {/* PIP – local camera / screen share */}
             {(!isCameraOff || isScreenSharing) && localStream && (
               <div className="absolute bottom-14 right-3 w-36 aspect-video bg-black retro-border overflow-hidden z-20 shadow-lg group-hover:scale-105 transition-transform duration-200">
-                <video ref={localVideoRef} autoPlay playsInline muted
+                <video ref={localVideoCallbackRef} autoPlay playsInline muted
                        className={`w-full h-full object-cover ${isScreenSharing ? '' : 'scale-x-[-1]'}`}/>
                 <div className="absolute top-1 left-1 bg-black/70 px-1.5 py-0.5 text-[8px] text-white font-black uppercase tracking-tight">
                   {isScreenSharing ? 'Screen' : 'You'}
