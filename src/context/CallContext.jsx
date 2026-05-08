@@ -23,14 +23,16 @@ const CallContext = createContext(null);
 
 // ── ICE servers ──────────────────────────────────────────────────────────────
 const ICE_SERVERS = [
-  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
   {
-    urls: [import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'],
+    urls: import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80',
     username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
   },
   {
-    urls: [import.meta.env.VITE_TURN_URL_SSL || 'turn:relay.metered.ca:443'],
+    urls: import.meta.env.VITE_TURN_URL_SSL || 'turn:relay.metered.ca:443',
     username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
   }
@@ -602,9 +604,15 @@ export function CallProvider({ children }) {
         const vs = await navigator.mediaDevices.getUserMedia({ video: true });
         const vt = vs.getVideoTracks()[0];
         if (vt && localStreamRef.current && pcRef.current) {
+          // Stop old video tracks first
+          localStreamRef.current.getVideoTracks().forEach(t => {
+            localStreamRef.current.removeTrack(t);
+            t.stop();
+          });
           localStreamRef.current.addTrack(vt);
           const sender = pcRef.current.getSenders().find(s => s.track?.kind === 'video');
-          if (sender) sender.replaceTrack(vt); else pcRef.current.addTrack(vt, localStreamRef.current);
+          if (sender) await sender.replaceTrack(vt); else pcRef.current.addTrack(vt, localStreamRef.current);
+          setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
         }
       } catch (e) { console.error('[Call] camera toggle failed:', e); setIsCameraOff(true); }
     } else {
@@ -621,6 +629,12 @@ export function CallProvider({ children }) {
   const changeDevice = useCallback(async (kind, deviceId) => {
     if (!localStreamRef.current || !pcRef.current) return;
     try {
+      // Stop relevant old tracks first to avoid NotReadableError
+      const oldTracks = kind === 'audioinput'
+        ? localStreamRef.current.getAudioTracks()
+        : localStreamRef.current.getVideoTracks();
+      oldTracks.forEach(t => { localStreamRef.current.removeTrack(t); t.stop(); });
+
       const constraints = kind === 'audioinput'
         ? { audio: { deviceId: { exact: deviceId } } }
         : { video: { deviceId: { exact: deviceId } } };
@@ -629,11 +643,6 @@ export function CallProvider({ children }) {
       const sender = pcRef.current.getSenders().find(s => s.track?.kind === (kind === 'audioinput' ? 'audio' : 'video'));
       if (sender && newTrack) {
         await sender.replaceTrack(newTrack);
-        // Replace old track in local stream
-        const oldTracks = kind === 'audioinput'
-          ? localStreamRef.current.getAudioTracks()
-          : localStreamRef.current.getVideoTracks();
-        oldTracks.forEach(t => { localStreamRef.current.removeTrack(t); t.stop(); });
         localStreamRef.current.addTrack(newTrack);
         setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
       }

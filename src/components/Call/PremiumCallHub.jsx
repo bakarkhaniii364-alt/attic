@@ -377,39 +377,45 @@ export function PremiumCallHub({
         )}
 
         {/* Hover Controls (Discord-style) */}
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-window/90 backdrop-blur-sm px-3 py-2 retro-border opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 relative">
-          <button onClick={onMicToggle} className={`p-2 retro-border transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute (Shift+M)">
-            {isMuted ? <MicOff size={17}/> : <Mic size={17}/>}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-window/95 backdrop-blur-md px-4 py-2.5 retro-border-thick opacity-0 group-hover:opacity-100 transition-all duration-300 z-50 shadow-[4px_4px_0px_rgba(0,0,0,0.2)]">
+          <button onClick={onMicToggle} className={`p-2.5 retro-border transition-all hover:scale-110 active:scale-95 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute (Shift+M)">
+            {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
           </button>
-          <button onClick={onDeafenToggle} className={`p-2 retro-border transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen (Shift+D)">
-            {isDeafened ? <VolumeX size={17}/> : <Volume2 size={17}/>}
+          <button onClick={onDeafenToggle} className={`p-2.5 retro-border transition-all hover:scale-110 active:scale-95 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen (Shift+D)">
+            {isDeafened ? <VolumeX size={18}/> : <Volume2 size={18}/>}
           </button>
-          <button onClick={handleCameraToggle} className={`p-2 retro-border transition-all hover:scale-110 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Camera (Shift+V)">
+          <button onClick={handleCameraToggle} className={`p-2.5 retro-border transition-all hover:scale-110 active:scale-95 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Camera (Shift+V)">
             {isCameraChanging
-              ? <Loader size={17} className="animate-spin"/>
-              : isCameraOff ? <VideoOff size={17}/> : <Camera size={17}/>
+              ? <Loader size={18} className="animate-spin"/>
+              : isCameraOff ? <VideoOff size={18}/> : <Camera size={18}/>
             }
           </button>
           <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
-                  className={`p-2 retro-border transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Screen Share (Shift+S)">
-            {isScreenSharing ? <MonitorOff size={17}/> : <Monitor size={17}/>}
+                  className={`p-2.5 retro-border transition-all hover:scale-110 active:scale-95 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Screen Share (Shift+S)">
+            {isScreenSharing ? <MonitorOff size={18}/> : <Monitor size={18}/>}
           </button>
+          
+          <div className="w-px h-6 bg-border mx-1 opacity-20"/>
+          
           {/* Device Selector */}
           <div className="relative">
             <button onClick={() => setShowDevices(p => !p)}
-                    className={`p-2 retro-border transition-all hover:scale-110 ${showDevices ? 'bg-accent text-accent-text' : 'bg-window hover:bg-border'}`} title="Device Settings">
-              <Settings size={17}/>
+                    className={`p-2.5 retro-border transition-all hover:scale-110 active:scale-95 ${showDevices ? 'bg-accent text-accent-text' : 'bg-window hover:bg-border'}`} title="Device Settings">
+              <Settings size={18}/>
             </button>
             {showDevices && (
               <DeviceSelector onChangeDevice={onChangeDevice} onClose={() => setShowDevices(false)} />
             )}
           </div>
-          <div className="w-px h-5 bg-border mx-0.5"/>
-          <button onClick={onEndCall} className="p-2 retro-border bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call (Shift+E)">
-            <PhoneOff size={17} className="rotate-[135deg]"/>
+
+          <div className="w-px h-6 bg-border mx-1 opacity-20"/>
+
+          <button onClick={onEndCall} className="p-2.5 retro-border bg-red-600 text-white hover:bg-red-700 hover:scale-110 active:scale-95 transition-all" title="End Call (Shift+E)">
+            <PhoneOff size={18} className="rotate-[135deg]"/>
           </button>
         </div>
       </div>
     </div>
   );
 }
+
