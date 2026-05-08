@@ -16,9 +16,13 @@ export function CallOverlay({
     const audio = remoteAudioRef.current;
     if (!audio) return;
     if (remoteStream) {
+      console.log('[CallOverlay] Binding remote stream. Tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.enabled}`));
       audio.srcObject = remoteStream;
-      audio.play().catch(e => console.warn('[CallOverlay] Autoplay blocked:', e));
+      audio.play()
+        .then(() => console.log('[CallOverlay] Remote audio playing'))
+        .catch(e => console.warn('[CallOverlay] Autoplay blocked or play failed:', e));
     } else {
+      console.log('[CallOverlay] Clearing remote stream');
       audio.srcObject = null;
     }
   }, [remoteStream]);

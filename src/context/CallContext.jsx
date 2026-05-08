@@ -23,24 +23,23 @@ const CallContext = createContext(null);
 
 // ── ICE servers ──────────────────────────────────────────────────────────────
 const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
   {
-    urls: import.meta.env.VITE_TURN_URL || 'turn:openrelay.metered.ca:80',
+    urls: [import.meta.env.VITE_TURN_URL || 'turn:relay.metered.ca:80'],
     username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
   },
   {
-    urls: import.meta.env.VITE_TURN_URL_SSL || 'turn:openrelay.metered.ca:443',
+    urls: [import.meta.env.VITE_TURN_URL_SSL || 'turn:relay.metered.ca:443'],
     username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'openrelayproject'
   }
 ];
 
 console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => ({ 
-  url: s.urls, 
-  hasAuth: !!s.username 
+  urls: s.urls, 
+  user: s.username ? `${s.username.slice(0,4)}...` : 'none',
+  hasPass: !!s.credential 
 })));
 
 // ── Ringing tone (Web Audio) ─────────────────────────────────────────────────
@@ -144,10 +143,11 @@ export function CallProvider({ children }) {
   // ── sendSignal (with queue for pre-subscription signals) ──────────────────
   const sendSignal = useCallback((payload) => {
     const msg = { type: 'broadcast', event: 'call_signal', payload: { ...payload, from: userId } };
-    console.log('[Call] →', payload.action);
+    console.log(`[Call] Signaling OUT: ${payload.action}`, payload);
     if (channelReadyRef.current && callChannelRef.current) {
       callChannelRef.current.send(msg);
     } else {
+      console.warn(`[Call] Channel not ready, queuing signal: ${payload.action}`);
       signalQueueRef.current.push(msg);
     }
     if (isTestMode()) sendTestBroadcast('call_signal', payload);
@@ -210,52 +210,70 @@ export function CallProvider({ children }) {
     // Trickle ICE
     pc.onicecandidate = (e) => {
       if (e.candidate) {
+        const type = e.candidate.candidate.split(' ')[7]; // Simple way to get candidate type
+        console.log(`[Call] Local ICE Candidate (${type}):`, e.candidate.candidate);
         sendSignal({ action: 'ice', candidate: e.candidate.toJSON() });
+      } else {
+        console.log('[Call] ICE Gathering Complete');
       }
     };
     
     pc.onicegatheringstatechange = () => {
-      console.log('[Call] ICE Gathering:', pc.iceGatheringState);
+      console.log('[Call] ICE Gathering State:', pc.iceGatheringState);
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('[Call] Peer Connection State:', pc.connectionState);
     };
 
     // ICE state machine
     pc.oniceconnectionstatechange = () => {
       const s = pc.iceConnectionState;
-      console.log('[Call] ICE:', s);
+      console.log('[Call] ICE Connection State:', s);
       if (s === 'connected' || s === 'completed') {
         setCallStatus('connected');
         setCalling(callTypeRef.current);
         setIsRinging(false);
+        console.log('[Call] WebRTC Connected Successfully');
         startQualityMonitor(pc);
       } else if (s === 'disconnected') {
+        console.warn('[Call] ICE Disconnected - partner might have network issues');
         setCallStatus('reconnecting');
-        // ICE restart
         setTimeout(() => {
           if (pcRef.current?.iceConnectionState === 'disconnected') {
-            try { pcRef.current.restartIce(); } catch(_){}
+            console.log('[Call] Attempting ICE Restart...');
+            try { pcRef.current.restartIce(); } catch(e){ console.error('[Call] Restart ICE failed:', e); }
           }
         }, 2000);
       } else if (s === 'failed') {
-        console.error('[WebRTC] ICE Connection Failed. Check TURN credentials.');
+        console.error('[Call] ICE Connection Failed. Possible TURN issue or symmetric NAT.');
         setCallStatus('reconnecting');
-        // Full ICE restart via renegotiation
         if (isCallerRef.current) {
-          try { pcRef.current?.restartIce(); } catch(_){}
+          console.log('[Call] Caller triggering ICE restart due to failure');
+          try { pcRef.current?.restartIce(); } catch(e){ console.error('[Call] Restart ICE failed:', e); }
         }
       } else if (s === 'closed') {
         cleanupCall();
       }
     };
 
+    pc.onsignalingstatechange = () => {
+      console.log('[Call] Signaling State:', pc.signalingState);
+    };
+
     // Negotiation needed (for re-negotiation e.g. screen share)
     pc.onnegotiationneeded = async () => {
+      console.log('[Call] onnegotiationneeded firing. isCaller:', isCallerRef.current, 'signalingState:', pc.signalingState);
       if (!isCallerRef.current || makingOfferRef.current) return;
       try {
         makingOfferRef.current = true;
         const offer = await pc.createOffer();
-        if (pc.signalingState !== 'stable') return;
+        if (pc.signalingState !== 'stable') {
+          console.warn('[Call] Signaling state not stable during negotiation, ignoring offer creation');
+          return;
+        }
         await pc.setLocalDescription(offer);
-        sendSignal({ action: 'offer', sdp: pc.localDescription });
+        sendSignal({ action: 'offer', sdp: pc.localDescription, callType: callTypeRef.current });
       } catch (e) {
         console.error('[Call] onnegotiationneeded error:', e);
       } finally {
@@ -296,7 +314,7 @@ export function CallProvider({ children }) {
   // ── handleSignal ──────────────────────────────────────────────────────────
   const handleSignal = useCallback(async (payload) => {
     if (!payload || payload.from === userId) return; // ignore own signals
-    console.log('[Call] ←', payload.action);
+    console.log(`[Call] Signaling IN: ${payload.action}`, payload);
 
     switch (payload.action) {
 
