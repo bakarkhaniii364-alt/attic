@@ -10,7 +10,9 @@ import { DoodleReceiverModal } from './components/Modals/DoodleReceiverModal.jsx
 import { FloatingEnvelope } from './components/Modals/FloatingEnvelope.jsx';
 import { OverlayManager } from './components/OverlayManager.jsx';
 import { CallOverlay } from './components/CallOverlay.jsx';
+import { KeyboardShortcuts } from './components/KeyboardShortcuts.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
+import { useTypingIndicator } from './hooks/useTypingIndicator.js';
 import { playAudio } from './utils/audio.js';
 import { INITIAL_CHAT } from './constants/data.js';
 import { StrayTray } from './components/LofiPlayer.jsx';
@@ -87,7 +89,11 @@ export default function App() {
     remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
     acceptCall, declineCall, endCall, toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,
+    restartIce, changeDevice,
   } = useCall();
+
+  // Typing indicator for the call HUD
+  const { isPartnerTyping } = useTypingIndicator(userId, partnerId);
 
   const [theme, setTheme] = useLocalStorage('app_theme', 'matcha');
   const [weather, setWeather] = useState('clear'); 
@@ -253,7 +259,20 @@ export default function App() {
               isMuted={isMuted} isDeafened={isDeafened} isCameraOff={isCameraOff} isScreenSharing={isScreenSharing}
               toggleMic={toggleMic} toggleDeafen={toggleDeafen} toggleCamera={toggleCamera}
               startScreenShare={startScreenShare} stopScreenShare={stopScreenShare}
+              restartIce={restartIce} changeDevice={changeDevice}
+              isPartnerTyping={isPartnerTyping}
               sfxEnabled={sfxEnabled} remoteStream={remoteStream} localStream={localStream} 
+            />
+
+            <KeyboardShortcuts
+              isCalling={!!calling}
+              onMuteToggle={toggleMic}
+              onCameraToggle={toggleCamera}
+              onEndCall={endCall}
+              onDeafenToggle={toggleDeafen}
+              onScreenShare={startScreenShare}
+              onGoChat={() => navigateTo('chat')}
+              onGoArcade={() => navigateTo('activities')}
             />
 
             {partnerOnlineModal && (

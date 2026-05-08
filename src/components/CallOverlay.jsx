@@ -6,6 +6,7 @@ export function CallOverlay({
   incomingCall, isRinging, partnerProfile, partnerName, endCall, acceptCall, declineCall,
   calling, callDuration, callStatus, callQuality, isMuted, isDeafened, isCameraOff, isScreenSharing,
   toggleMic, toggleDeafen, toggleCamera, startScreenShare, stopScreenShare,
+  restartIce, changeDevice, isPartnerTyping,
   sfxEnabled, remoteStream, localStream,
 }) {
   // Hidden <audio> element to play remote audio stream (bypasses autoplay policy)
@@ -102,11 +103,13 @@ export function CallOverlay({
 
       {/* Active call UI */}
       {calling && (
-        <PremiumCallHub
+      <PremiumCallHub
           calling={calling} callDuration={callDuration} callStatus={callStatus} callQuality={callQuality}
           isMuted={isMuted} isDeafened={isDeafened} isCameraOff={isCameraOff} isScreenSharing={isScreenSharing}
           onMicToggle={toggleMic} onDeafenToggle={toggleDeafen} onCameraToggle={toggleCamera} onEndCall={endCall}
           onScreenShare={startScreenShare} onStopScreenShare={stopScreenShare}
+          onRestartIce={restartIce} onChangeDevice={changeDevice}
+          isPartnerTyping={isPartnerTyping}
           partnerName={partnerName} partnerPfp={partnerProfile?.pfp} sfx={sfxEnabled}
           remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling}
         />

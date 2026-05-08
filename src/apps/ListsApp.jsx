@@ -57,7 +57,24 @@ export function ListsApp({ onClose, sfx, userId, roomProfiles = {} }) {
       <div className="flex-1 overflow-y-auto p-4 bg-[var(--bg-main)]">
         <div className="space-y-3">
           {currentItems.length === 0 && (
-            <div className="text-center py-10 opacity-30 font-bold uppercase tracking-widest text-xs">List is empty</div>
+            <div className="flex flex-col items-center justify-center py-14 gap-4 select-none">
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="8" width="44" height="52" rx="4" fill="var(--primary)" fillOpacity="0.1" stroke="var(--border)" strokeWidth="2"/>
+                <line x1="18" y1="22" x2="46" y2="22" stroke="var(--border)" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 3"/>
+                <line x1="18" y1="32" x2="40" y2="32" stroke="var(--border)" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 3"/>
+                <line x1="18" y1="42" x2="34" y2="42" stroke="var(--border)" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 3"/>
+                <circle cx="46" cy="46" r="12" fill="var(--primary)"/>
+                <path d="M46 41 V51 M41 46 H51" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+              <div className="text-center">
+                <p className="font-black text-xs uppercase tracking-widest opacity-50">
+                  {activeTab === 'watchlist' ? 'Nothing to watch yet' : activeTab === 'bucketlist' ? 'Bucket list is empty' : 'Grocery list is empty'}
+                </p>
+                <p className="text-[10px] font-bold opacity-30 mt-1">
+                  {activeTab === 'watchlist' ? 'Add shows & movies to watch together 🎬' : activeTab === 'bucketlist' ? 'Dream big together ✨' : 'Plan your next grocery run 🛒'}
+                </p>
+              </div>
+            </div>
           )}
           {currentItems.map(item => ( 
             <div key={item.id} className="flex items-center gap-3 p-3 bg-white retro-border shadow-[2px_2px_0px_0px_var(--border)] group animate-in slide-in-from-left-2 duration-300">

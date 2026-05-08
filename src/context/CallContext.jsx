@@ -594,6 +594,34 @@ export function CallProvider({ children }) {
     }
   }, [isCameraOff]);
 
+  // ── ICE restart (caller-side only) ────────────────────────────────────────
+  const restartIce = useCallback(() => {
+    try { pcRef.current?.restartIce(); } catch (e) { console.warn('[Call] restartIce failed:', e); }
+  }, []);
+
+  // ── Change input device mid-call ────────────────────────────────────────────
+  const changeDevice = useCallback(async (kind, deviceId) => {
+    if (!localStreamRef.current || !pcRef.current) return;
+    try {
+      const constraints = kind === 'audioinput'
+        ? { audio: { deviceId: { exact: deviceId } } }
+        : { video: { deviceId: { exact: deviceId } } };
+      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const newTrack = kind === 'audioinput' ? newStream.getAudioTracks()[0] : newStream.getVideoTracks()[0];
+      const sender = pcRef.current.getSenders().find(s => s.track?.kind === (kind === 'audioinput' ? 'audio' : 'video'));
+      if (sender && newTrack) {
+        await sender.replaceTrack(newTrack);
+        // Replace old track in local stream
+        const oldTracks = kind === 'audioinput'
+          ? localStreamRef.current.getAudioTracks()
+          : localStreamRef.current.getVideoTracks();
+        oldTracks.forEach(t => { localStreamRef.current.removeTrack(t); t.stop(); });
+        localStreamRef.current.addTrack(newTrack);
+        setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      }
+    } catch (e) { console.error('[Call] changeDevice failed:', e); }
+  }, []);
+
   const startScreenShare = useCallback(async () => {
     try {
       const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
@@ -626,6 +654,7 @@ export function CallProvider({ children }) {
     startCall, acceptCall, declineCall, endCall,
     toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,
+    restartIce, changeDevice,
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;

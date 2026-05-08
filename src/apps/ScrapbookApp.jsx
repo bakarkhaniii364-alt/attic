@@ -60,6 +60,23 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
       <div className="flex-1 overflow-auto bg-[#f0f0f0] relative p-4" ref={containerRef}>
         {layoutMode === 'grid' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {images.length === 0 && (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 gap-5 select-none">
+                <div className="relative">
+                  <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="8" y="16" width="64" height="50" rx="4" fill="var(--primary)" fillOpacity="0.15" stroke="var(--primary)" strokeWidth="2.5" strokeDasharray="6 3"/>
+                    <circle cx="30" cy="35" r="6" fill="var(--accent)" fillOpacity="0.7"/>
+                    <path d="M12 56 L28 42 L38 52 L52 38 L68 56 Z" fill="var(--primary)" fillOpacity="0.3"/>
+                    <rect x="32" y="56" width="16" height="16" rx="8" fill="var(--primary)"/>
+                    <path d="M40 61 V67 M37 64 H43" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-sm uppercase tracking-widest opacity-60">No memories yet</p>
+                  <p className="text-[10px] font-bold opacity-40 mt-1">Share images in chat to fill your album ❤️</p>
+                </div>
+              </div>
+            )}
             {visibleImages.map((url, i) => (
               <div key={i} className="group relative aspect-square retro-border bg-white p-1 retro-shadow-dark hover:-translate-y-1 transition-transform">
                 <SecureImage url={url} alt="memory" loading="lazy" className="w-full h-full object-cover" />

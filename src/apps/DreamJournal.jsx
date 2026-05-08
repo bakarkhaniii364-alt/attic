@@ -39,7 +39,26 @@ export function DreamJournal({ onClose, sfx, userId, roomProfiles = {} }) {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-4">
-          {entries.length === 0 && <p className="text-center opacity-50 mt-10 font-bold">No dreams yet. Start journaling!</p>}
+          {entries.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-5 select-none">
+              <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="36" cy="36" r="28" fill="var(--secondary)" fillOpacity="0.15"/>
+                <path d="M44 28 C44 38 36 44 28 44 C28 50 36 56 44 52 C52 48 56 38 52 30 C50 27 47 26 44 28Z" fill="var(--secondary)" fillOpacity="0.8"/>
+                <circle cx="22" cy="18" r="2" fill="var(--accent)"/>
+                <circle cx="52" cy="22" r="1.5" fill="var(--accent)" fillOpacity="0.7"/>
+                <circle cx="14" cy="36" r="1" fill="var(--accent)" fillOpacity="0.5"/>
+                <circle cx="58" cy="50" r="1.5" fill="var(--accent)" fillOpacity="0.6"/>
+              </svg>
+              <div className="text-center">
+                <p className="font-black text-sm uppercase tracking-widest opacity-60">No dreams recorded</p>
+                <p className="text-[10px] font-bold opacity-40 mt-1 mb-4">Your subconscious is waiting to be explored 🌙</p>
+                <button onClick={() => setTab('write')}
+                        className="px-4 py-2 retro-border bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
+                  Write Your First Dream
+                </button>
+              </div>
+            </div>
+          )}
           {entries.map(e => (
             <div key={e.id} className="retro-border retro-bg-window p-4 mb-3 retro-shadow-dark">
               <div className="flex justify-between items-center mb-2">
