@@ -229,21 +229,42 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
         <div className="flex flex-col h-full p-2 text-sm font-bold gap-2 text-main-text">
+          {/* Current Streak */}
           <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span>TicTacToe Wins</span>
-            <span className="text-primary">{dbStats['tictactoe']?.wins || getScoreForUser(scores, userId, 'tictactoe')}</span>
+            <span className="flex items-center gap-2"><Flame size={14} className="text-orange-500" /> Current Streak</span>
+            <span className="text-primary">{streaks.count || 0} Days</span>
           </div>
+          
+          {/* Best Streak */}
           <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span>Pool Wins</span>
-            <span className="text-secondary">{dbStats['pool']?.wins || getScoreForUser(scores, userId, 'pool')}</span>
+            <span className="flex items-center gap-2">🏆 Best Streak</span>
+            <span className="text-secondary">{streaks.best || streaks.count || 0} Days</span>
           </div>
+
+          {/* Usage longevity */}
           <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span>Uno Wins</span>
-            <span className="text-accent">{dbStats['uno']?.wins || getScoreForUser(scores, userId, 'uno')}</span>
+            <span className="flex items-center gap-2">🏠 Attic Usage</span>
+            <span className="text-accent">
+              {(() => {
+                const start = profile.created_at ? new Date(profile.created_at) : new Date();
+                const days = Math.max(1, Math.ceil((new Date() - start) / (1000 * 60 * 60 * 24)));
+                return `${days} Day${days !== 1 ? 's' : ''}`;
+              })()}
+            </span>
           </div>
+
+          {/* Highscore Winner */}
           <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span>Pictionary Guessed</span>
-            <span className="text-primary">{dbStats['pictionary']?.wins || getScoreForUser(scores, userId, 'pictionary')}</span>
+            <span className="flex items-center gap-2">👑 Highscore King</span>
+            <span className="text-primary truncate max-w-[100px]">
+              {(() => {
+                const myTotal = Object.values(scores).reduce((acc, g) => acc + (g[userId] || 0), 0);
+                const partnerTotal = Object.values(scores).reduce((acc, g) => acc + (g[partnerId] || 0), 0);
+                if (myTotal === 0 && partnerTotal === 0) return 'No games yet';
+                if (myTotal === partnerTotal) return 'Tie!';
+                return myTotal > partnerTotal ? 'You' : partnerName;
+              })()}
+            </span>
           </div>
         </div>
       </RetroWindow>
