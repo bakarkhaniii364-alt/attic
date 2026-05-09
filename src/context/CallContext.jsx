@@ -524,8 +524,15 @@ export function CallProvider({ children }) {
       channelReadyRef.current = false;
       try { channel.unsubscribe(); } catch (_) {}
       callChannelRef.current = null;
+      if (window.__testTurn) delete window.__testTurn;
     };
   }, [roomId, userId, handleSignal, flushQueue]);
+
+  // Expose test function globally for easier debugging in Dhaka
+  useEffect(() => {
+    window.__testTurn = testTurnConfig;
+    return () => { delete window.__testTurn; };
+  }, [testTurnConfig]);
 
   // Update presence when call active
   useEffect(() => {
