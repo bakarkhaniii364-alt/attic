@@ -23,26 +23,62 @@ const CallContext = createContext(null);
 
 // ── ICE servers ──────────────────────────────────────────────────────────────
 const ICE_SERVERS = [
+  // Google STUN (usually always works)
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun.metered.ca:80' },
+  
+  // Cloudflare TURN (Highest Priority if Token is provided)
+  ...(import.meta.env.VITE_CF_TURN_TOKEN ? [{
+    urls: "turn:turn.cloudflare.com:3478?transport=udp",
+    username: import.meta.env.VITE_CF_TURN_TOKEN,
+    credential: import.meta.env.VITE_CF_TURN_TOKEN
+  }] : []),
+
+  // Metered.ca (Dynamic from ENV)
   {
     urls: [
-      `turns:relay.metered.ca:443?transport=tcp`,
-      `turn:relay.metered.ca:3478?transport=udp`,
+      import.meta.env.VITE_TURN_URL_SSL || `turns:relay.metered.ca:443?transport=tcp`,
+      import.meta.env.VITE_TURN_URL || `turn:relay.metered.ca:3478?transport=udp`,
       `turn:relay.metered.ca:3478?transport=tcp`,
       `turn:relay.metered.ca:443?transport=tcp`,
       `turn:relay.metered.ca:80?transport=tcp`
     ],
     username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
     credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
+  },
+
+  // Xirsys TURN (if configured)
+  ...(import.meta.env.VITE_XIRSYS_URL ? [{
+    urls: import.meta.env.VITE_XIRSYS_URL,
+    username: import.meta.env.VITE_XIRSYS_USERNAME,
+    credential: import.meta.env.VITE_XIRSYS_PASSWORD
+  }] : []),
+
+  // Public Community Fallbacks (Unauthenticated or well-known public credentials)
+  {
+    urls: "turn:numb.viagenie.ca",
+    username: "webrtc@live.com",
+    credential: "muazkh"
+  },
+  {
+    urls: "turn:turn.anyfirewall.com:443?transport=tcp",
+    username: "webrtc",
+    credential: "webrtc"
+  },
+  {
+    urls: "turn:turn.freeswitch.org",
+    username: "freeswitch",
+    credential: "freeswitch"  
   }
 ];
 
-console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => ({ 
-  urls: s.urls, 
-  user: s.username ? `${s.username.slice(0,4)}...` : 'none',
-  hasPass: !!s.credential 
-})));
+console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => {
+  const urlSample = Array.isArray(s.urls) ? s.urls[0] : s.urls;
+  return {
+    host: urlSample?.split(':')[1] || 'unknown',
+    user: s.username ? `${String(s.username).slice(0,4)}...` : 'none',
+    hasPass: !!s.credential 
+  };
+}));
 
 // Warn if TURN credentials look missing or are using the public fallback
 (() => {
