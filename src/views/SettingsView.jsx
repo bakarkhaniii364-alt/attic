@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, 
@@ -21,6 +21,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     noiseSuppression, setNoiseSuppression,
     echoCancellation, setEchoCancellation
   } = useCall();
+
+  // Remember initial state for Cancel logic
+  const initialTheme = useRef(theme);
+  const initialSfx = useRef(sfxEnabled);
+  const initialNotifs = useRef(notificationsEnabled);
+  const initialWeather = useRef(weather);
+  const initialNS = useRef(noiseSuppression);
+  const initialEC = useRef(echoCancellation);
 
   // Local Buffers for Save/Cancel logic
   const [localTheme, setLocalTheme] = useState(theme);
@@ -65,6 +73,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   const handleSave = () => {
+    // Only apply non-immediate things here if needed
+    // But since we want "Preview", some things are immediate
     setTheme(localTheme);
     setProfile(localProfile);
     setCoupleData(localCoupleData);
@@ -76,6 +86,13 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     
     playAudio('success', localSfxEnabled);
     toast('Settings Saved!', 'success');
+    onClose();
+  };
+
+  const handleCancel = () => {
+    // Revert immediate previews
+    setTheme(initialTheme.current);
+    setWeather(initialWeather.current);
     onClose();
   };
 
@@ -227,33 +244,33 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={12}/> Atmosphere</h4>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {['clear', 'rain', 'snow', 'thunder', 'storm', 'spores'].map(w => (
-                  <button key={w} onClick={() => { setLocalWeather(w); playAudio('click', localSfxEnabled); }} className={`py-1.5 retro-border font-bold text-[9px] uppercase ${localWeather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
+                  <button key={w} onClick={() => { setLocalWeather(w); setWeather(w); playAudio('click', localSfxEnabled); }} className={`py-1.5 retro-border font-bold text-[9px] uppercase ${localWeather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
                 ))}
               </div>
            </div>
 
            <div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={12}/> Visual Themes</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={12}/> Theme Mode</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {availableThemes.map(t => (
                   <div 
                     key={t} 
-                    onClick={() => { setLocalTheme(t); playAudio('click', localSfxEnabled); }} 
+                    onClick={() => { setLocalTheme(t); setTheme(t); playAudio('click', localSfxEnabled); }} 
                     data-theme={t}
-                    className={`retro-border p-3 cursor-pointer transition-none relative group ${localTheme === t ? 'ring-2 ring-primary' : 'hover:brightness-95'}`}
+                    className={`retro-border p-3 cursor-pointer transition-none relative group h-24 flex flex-col justify-between ${localTheme === t ? 'ring-2 ring-primary border-primary' : 'hover:brightness-95'}`}
                     style={{ backgroundColor: 'var(--color-main)' }}
                   >
-                     <div className="flex justify-between items-center mb-3">
-                        <span className="text-[9px] font-black uppercase tracking-tighter text-main-text">{t}</span>
+                     <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase tracking-tighter text-main-text drop-shadow-sm">{t}</span>
                         {localTheme === t && <Check size={12} className="text-primary" />}
                      </div>
                      
-                     <div className="border border-dashed border-border/40 p-2 opacity-80 pointer-events-none">
-                        <div className="flex gap-1 h-3 mb-1">
-                           <div className="flex-[2] bg-primary border border-black/10"></div>
-                           <div className="flex-1 bg-secondary border border-black/10"></div>
+                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5">
+                        <div className="flex gap-1.5 h-full">
+                           <div className="flex-[2] bg-primary border border-black/10 rounded-sm"></div>
+                           <div className="flex-1 bg-secondary border border-black/10 rounded-sm"></div>
                         </div>
-                        <div className="h-3 w-3/4 bg-accent border border-black/10"></div>
+                        <div className="h-2 w-3/4 bg-accent border border-black/10 rounded-sm"></div>
                      </div>
                   </div>
                 ))}
@@ -369,7 +386,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
   return (
     <>
-      <RetroWindow title="control_panel.exe" onClose={onClose} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col relative overflow-hidden transition-none">
+      <RetroWindow title="control_panel.exe" onClose={handleCancel} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col relative overflow-hidden transition-none">
         {/* Navigation Bar */}
         <div className="shrink-0 bg-border/5 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-3 items-center">
            <div className="flex items-center gap-1 shrink-0">
@@ -415,7 +432,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
            <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
            <div className="flex gap-2">
-              <RetroButton onClick={onClose} variant="secondary" className="px-5 py-1 text-[10px]">CANCEL</RetroButton>
+              <RetroButton onClick={handleCancel} variant="secondary" className="px-5 py-1 text-[10px]">CANCEL</RetroButton>
               <RetroButton onClick={handleSave} variant="primary" className="px-6 py-1 text-[10px]">SAVE & APPLY</RetroButton>
            </div>
         </div>
