@@ -137,34 +137,6 @@ function DeviceSelector({ onChangeDevice, onClose }) {
     </div>
   );
 }
-
-            {videoDevices.length > 0 && (
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center gap-1">
-                  <Camera size={9} /> Camera
-                </p>
-                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto custom-scrollbar pr-1">
-                  {videoDevices.map(d => (
-                    <button key={d.deviceId}
-                      onClick={() => handleChange('videoinput', d.deviceId)}
-                      className={`text-left text-[9px] font-bold px-2 py-1.5 retro-border transition-colors ${selected.videoinput === d.deviceId ? 'bg-primary text-white' : 'bg-window hover:bg-border/20'}`}>
-                      {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {devices.length === 0 && (
-              <p className="text-[10px] font-bold opacity-40 text-center py-2">No devices found</p>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PremiumCallHub({
   calling, callDuration, callStatus, callQuality = 'good',
