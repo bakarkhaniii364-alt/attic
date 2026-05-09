@@ -66,6 +66,7 @@ export function CallProvider({ children }) {
   const [echoCancellation, setEchoCancellation] = useState(() => localStorage.getItem('call_echo_cancellation') !== 'false');
   const [callStatus,    setCallStatus]    = useState('idle');
   const [callQuality,   setCallQuality]   = useState('good');
+  const [partnerInCall, setPartnerInCall] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('call_noise_suppression', noiseSuppression);

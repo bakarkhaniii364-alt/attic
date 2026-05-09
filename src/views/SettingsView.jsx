@@ -16,12 +16,21 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const navigate = useNavigate();
   const toast = useToast();
   
-  const safeProfile = profile || { name: 'You', emoji: '👤' };
   const { 
     testTurnConfig, endCall, callStatus,
     noiseSuppression, setNoiseSuppression,
     echoCancellation, setEchoCancellation
   } = useCall();
+
+  // Local Buffers for Save/Cancel logic
+  const [localTheme, setLocalTheme] = useState(theme);
+  const [localProfile, setLocalProfile] = useState(profile || { name: 'You', emoji: '👤' });
+  const [localCoupleData, setLocalCoupleData] = useState(coupleData);
+  const [localSfxEnabled, setLocalSfxEnabled] = useState(sfxEnabled);
+  const [localNotificationsEnabled, setLocalNotificationsEnabled] = useState(notificationsEnabled);
+  const [localWeather, setLocalWeather] = useState(weather);
+  const [localNoiseSuppression, setLocalNoiseSuppression] = useState(noiseSuppression);
+  const [localEchoCancellation, setLocalEchoCancellation] = useState(echoCancellation);
   
   // View management
   const [currentView, setCurrentView] = useState('home'); 
@@ -36,14 +45,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
     setCurrentView(view);
-    playAudio('notif', sfxEnabled);
+    playAudio('notif', localSfxEnabled);
   };
 
   const goBack = () => {
     if (historyIndex > 0) {
       setHistoryIndex(historyIndex - 1);
       setCurrentView(history[historyIndex - 1]);
-      playAudio('click', sfxEnabled);
+      playAudio('click', localSfxEnabled);
     }
   };
 
@@ -51,8 +60,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     if (historyIndex < history.length - 1) {
       setHistoryIndex(historyIndex + 1);
       setCurrentView(history[historyIndex + 1]);
-      playAudio('click', sfxEnabled);
+      playAudio('click', localSfxEnabled);
     }
+  };
+
+  const handleSave = () => {
+    setTheme(localTheme);
+    setProfile(localProfile);
+    setCoupleData(localCoupleData);
+    setSfxEnabled(localSfxEnabled);
+    setNotificationsEnabled(localNotificationsEnabled);
+    setWeather(localWeather);
+    setNoiseSuppression(localNoiseSuppression);
+    setEchoCancellation(localEchoCancellation);
+    
+    playAudio('success', localSfxEnabled);
+    toast('Settings Saved!', 'success');
+    onClose();
   };
 
   const availableThemes = ['default', 'matcha', 'val-sage', 'lavender', 'rose', 'minimal', 'monochrome', 'nord', 'coffee', 'velvet', 'starlight', 'crayon', 'vaporwave', 'messenger', 'reddit', 'discord', 'spotify', 'github', 'cyberpunk', 'synthwave', 'matrix', 'val-killjoy', 'midnight', 'gameboy', 'superman-2025', 'spiderman', 'batman', 'neon-tokyo'];
@@ -77,7 +101,6 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const [showNewPw, setShowNewPw] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const handlePfpUpload = (e) => { 
     const file = e.target.files[0]; 
@@ -86,9 +109,9 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       reader.onloadend = async () => { 
         try {
           const compressed = await compressImage(reader.result, 150, 150, 0.6);
-          setProfile({...profile, pfp: compressed}); 
-          playAudio('click', sfxEnabled); 
-          toast('Profile photo updated!', 'success'); 
+          setLocalProfile({...localProfile, pfp: compressed}); 
+          playAudio('click', localSfxEnabled); 
+          toast('Photo buffered. Click SAVE to apply.', 'info'); 
         } catch (err) {
           toast('Failed to update photo.', 'error');
         }
@@ -103,8 +126,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setPasswordSuccess(true);
-      toast('Password updated!', 'success');
+      toast('Password updated immediately!', 'success');
       setTimeout(() => setShowChangePassword(false), 2000);
     } catch (err) { setPasswordError(err.message); }
     finally { setPasswordLoading(false); }
@@ -152,15 +174,15 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         <div className="p-6 space-y-6">
            <div className="flex flex-col sm:flex-row gap-6 items-start">
              <div className="relative group mx-auto sm:mx-0 shrink-0">
-                {safeProfile?.pfp ? <img src={safeProfile?.pfp} alt="Avatar" className="w-20 h-20 rounded-full border-4 border-black object-cover" /> : <div className="w-20 h-20 rounded-full border-4 border-black bg-primary flex items-center justify-center text-4xl">{safeProfile?.emoji}</div>}
+                {localProfile?.pfp ? <img src={localProfile?.pfp} alt="Avatar" className="w-20 h-20 rounded-full border-4 border-black object-cover" /> : <div className="w-20 h-20 rounded-full border-4 border-black bg-primary flex items-center justify-center text-4xl">{localProfile?.emoji}</div>}
                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm transition-opacity"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
              </div>
              <div className="flex-1 w-full space-y-3">
-               <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={safeProfile.name || ''} onChange={(e) => setProfile({...safeProfile, name: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs" /></div>
+               <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={localProfile.name || ''} onChange={(e) => setLocalProfile({...localProfile, name: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs" /></div>
                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none text-xs" /></div>
+                  <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Name</label><input type="text" value={localCoupleData.petName || ''} onChange={(e) => setLocalCoupleData({...localCoupleData, petName: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none text-xs" /></div>
                   <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Variant</label>
-                    <select value={coupleData.petSkin || '/assets/cat_1_9'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs">
+                    <select value={localCoupleData.petSkin || '/assets/cat_1_9'} onChange={(e) => setLocalCoupleData({...localCoupleData, petSkin: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs">
                       <option value="/assets/cat_1">Cat 1</option><option value="/assets/cat_1_6">Cat 2</option><option value="/assets/cat_1_9">Cat 3</option>
                     </select>
                   </div>
@@ -205,7 +227,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={12}/> Atmosphere</h4>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {['clear', 'rain', 'snow', 'thunder', 'storm', 'spores'].map(w => (
-                  <button key={w} onClick={() => { setWeather(w); playAudio('click', sfxEnabled); }} className={`py-1.5 retro-border font-bold text-[9px] uppercase ${weather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
+                  <button key={w} onClick={() => { setLocalWeather(w); playAudio('click', localSfxEnabled); }} className={`py-1.5 retro-border font-bold text-[9px] uppercase ${localWeather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
                 ))}
               </div>
            </div>
@@ -216,14 +238,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                 {availableThemes.map(t => (
                   <div 
                     key={t} 
-                    onClick={() => { setTheme(t); playAudio('click', sfxEnabled); }} 
+                    onClick={() => { setLocalTheme(t); playAudio('click', localSfxEnabled); }} 
                     data-theme={t}
-                    className={`retro-border p-3 cursor-pointer transition-none relative group ${theme === t ? 'ring-2 ring-primary' : 'hover:brightness-95'}`}
+                    className={`retro-border p-3 cursor-pointer transition-none relative group ${localTheme === t ? 'ring-2 ring-primary' : 'hover:brightness-95'}`}
                     style={{ backgroundColor: 'var(--color-main)' }}
                   >
                      <div className="flex justify-between items-center mb-3">
                         <span className="text-[9px] font-black uppercase tracking-tighter text-main-text">{t}</span>
-                        {theme === t && <Check size={12} className="text-primary" />}
+                        {localTheme === t && <Check size={12} className="text-primary" />}
                      </div>
                      
                      <div className="border border-dashed border-border/40 p-2 opacity-80 pointer-events-none">
@@ -243,7 +265,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Dashboard Pattern</h4>
                  <div className="flex gap-2">
                     {['grid', 'dots', 'lines', 'none'].map(p => (
-                      <button key={p} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, bgPattern: p } })} className={`px-3 py-1.5 retro-border text-[9px] font-black uppercase ${coupleData.settings?.bgPattern === p ? 'bg-primary text-white' : 'bg-window'}`}>{p}</button>
+                      <button key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, bgPattern: p } })} className={`px-3 py-1.5 retro-border text-[9px] font-black uppercase ${localCoupleData.settings?.bgPattern === p ? 'bg-primary text-white' : 'bg-window'}`}>{p}</button>
                     ))}
                  </div>
               </div>
@@ -251,7 +273,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Chat Wallpaper</h4>
                  <div className="flex gap-2">
                     {['none', 'pixel-garden', 'pixel-stars', 'pixel-clouds'].map(p => (
-                      <button key={p} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, chatWallpaper: p } })} className={`w-8 h-8 retro-border ${coupleData.settings?.chatWallpaper === p ? 'ring-2 ring-primary' : 'opacity-60'}`} style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
+                      <button key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, chatWallpaper: p } })} className={`w-8 h-8 retro-border ${localCoupleData.settings?.chatWallpaper === p ? 'ring-2 ring-primary' : 'opacity-60'}`} style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
                     ))}
                  </div>
               </div>
@@ -264,8 +286,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       return (
         <div className="p-6 space-y-6">
            <div className="max-w-md space-y-4">
-              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={coupleData.nicknames?.[partnerId] || ''} onChange={(e) => setCoupleData({ ...coupleData, nicknames: { ...coupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-2 retro-border bg-window focus:outline-none text-xs font-bold" /></div>
-              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={coupleData?.anniversary || ''} onChange={(e) => setCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer text-xs font-bold" /></div>
+              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={localCoupleData.nicknames?.[partnerId] || ''} onChange={(e) => setLocalCoupleData({ ...localCoupleData, nicknames: { ...localCoupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-2 retro-border bg-window focus:outline-none text-xs font-bold" /></div>
+              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={localCoupleData?.anniversary || ''} onChange={(e) => setLocalCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer text-xs font-bold" /></div>
            </div>
         </div>
       );
@@ -279,21 +301,21 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2"><Volume2 size={12}/> Audio & Alerts</h4>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Sound Effects</span>
-                    <button onClick={() => setSfxEnabled(!sfxEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${sfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${sfxEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalSfxEnabled(!localSfxEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localSfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localSfxEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                  </div>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Push Notifications</span>
-                    <button onClick={() => setNotificationsEnabled(!notificationsEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${notificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalNotificationsEnabled(!localNotificationsEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localNotificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localNotificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                  </div>
                  
                  <h4 className="text-[10px] font-black uppercase tracking-widest mt-6 mb-2 flex items-center gap-2"><Monitor size={12}/> WebRTC Advanced</h4>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Noise Suppression</span>
-                    <button onClick={() => setNoiseSuppression(!noiseSuppression)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${noiseSuppression ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalNoiseSuppression(!localNoiseSuppression)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localNoiseSuppression ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localNoiseSuppression ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                  </div>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Echo Cancellation</span>
-                    <button onClick={() => setEchoCancellation(!echoCancellation)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${echoCancellation ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${echoCancellation ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalEchoCancellation(!localEchoCancellation)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localEchoCancellation ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localEchoCancellation ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                  </div>
               </div>
               <div className="space-y-4">
@@ -324,7 +346,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  <RetroButton onClick={async () => {
                     const ok = window.confirm("Disconnect from partner?");
                     if (ok) {
-                      await supabase.rpc('leave_room', { room_uuid: coupleData.room_id });
+                      await supabase.rpc('leave_room', { room_uuid: localCoupleData.room_id });
                       navigate('/handshake'); window.location.reload();
                     }
                  }} variant="secondary" className="flex-1 bg-window text-orange-600 border-orange-200 text-[10px] py-2">UNPAIR ACCOUNT</RetroButton>
@@ -393,8 +415,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
            <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
            <div className="flex gap-2">
-              <RetroButton onClick={onClose} variant="secondary" className="px-5 py-1 text-[10px]">CLOSE</RetroButton>
-              <RetroButton onClick={() => { playAudio('click', sfxEnabled); toast('Settings Saved!', 'success'); onClose(); }} variant="primary" className="px-6 py-1 text-[10px]">SAVE & EXIT</RetroButton>
+              <RetroButton onClick={onClose} variant="secondary" className="px-5 py-1 text-[10px]">CANCEL</RetroButton>
+              <RetroButton onClick={handleSave} variant="primary" className="px-6 py-1 text-[10px]">SAVE & APPLY</RetroButton>
            </div>
         </div>
       </RetroWindow>
@@ -405,7 +427,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
           message="Are you sure you want to log out of the Attic?"
           onConfirm={() => { onLogout && onLogout(); }}
           onCancel={() => setShowLogoutConfirm(false)}
-          sfx={sfxEnabled}
+          sfx={localSfxEnabled}
         />
       )}
     </>
