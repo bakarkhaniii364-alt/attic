@@ -266,6 +266,12 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               })()}
             </span>
           </div>
+
+          {/* Site Version and Theme */}
+          <div className="mt-auto pt-2 border-t border-dashed border-border flex justify-between items-center opacity-40 text-[9px] uppercase tracking-widest font-black">
+            <span>v1.2.0-stable</span>
+            <span>Theme: {theme}</span>
+          </div>
         </div>
       </RetroWindow>
 

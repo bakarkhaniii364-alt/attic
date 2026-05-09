@@ -121,5 +121,3 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
     </RetroWindow>
   );
 }
-  );
-}
