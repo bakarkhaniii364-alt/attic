@@ -57,19 +57,31 @@ function RetroVisualizer({ audioRef, isPlaying, height = 40, width = 120, segmen
                 analyzer.getByteFrequencyData(dataArray);
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                const barWidth = canvas.width / bufferLength;
+                
+                // Blocky style
+                const gap = 2;
+                const barWidth = (canvas.width / bufferLength);
+                const segHeight = canvas.height / segments;
                 
                 for (let i = 0; i < bufferLength; i++) {
-                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    const barHeightPercent = dataArray[i] / 255;
+                    const activeSegments = Math.ceil(barHeightPercent * segments);
                     
-                    // Mockup style colors: yellow for low, red for high frequencies
-                    if (i > bufferLength * 0.7) ctx.fillStyle = '#ff5555';
-                    else ctx.fillStyle = '#ffcc33';
-                    
-                    const segHeight = canvas.height / segments;
                     for (let j = 0; j < segments; j++) {
-                        if (barHeight > j * segHeight) {
-                            ctx.fillRect(i * barWidth + 1, canvas.height - (j + 1) * segHeight + 1, barWidth - 2, segHeight - 1);
+                        const x = i * barWidth + gap/2;
+                        const y = canvas.height - (j + 1) * segHeight + gap/2;
+                        const w = barWidth - gap;
+                        const h = segHeight - gap;
+
+                        if (j < activeSegments) {
+                            // Colors from mockup vibe: 
+                            // Using primary/secondary if possible, otherwise hardish colors that fit retro
+                            if (j > segments * 0.7) ctx.fillStyle = '#ff5555'; // Peak
+                            else ctx.fillStyle = '#ffcc33'; // Low
+                            ctx.fillRect(x, y, w, h);
+                        } else {
+                            ctx.fillStyle = 'rgba(0,0,0,0.2)'; // Ghost segments
+                            ctx.fillRect(x, y, w, h);
                         }
                     }
                 }
@@ -197,63 +209,93 @@ export function DashboardRadio({ radioState, setRadioState }) {
   const setVolume = (v) => setRadioState({ ...radioState, volume: Math.max(0, Math.min(1, v)) });
 
   return (
-      <div className="flex flex-col h-full bg-window p-6 relative overflow-hidden min-h-[16rem]">
+      <div className="flex flex-col h-full bg-window p-6 relative overflow-hidden min-h-[18rem] select-none">
         <audio ref={audioRef} src={CHANNELS[radioState.channelIdx].url} crossOrigin="anonymous" loop hidden />
         
-        <div className={`absolute inset-0 transition-opacity duration-1000 ${radioState.isPlaying ? 'opacity-10' : 'opacity-0'}`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-primary to-secondary animate-pulse"></div>
-        </div>
-
-        <div className="flex-1 flex gap-6 z-10">
-          {/* Left Side: Disc */}
-          <div className="flex flex-col items-center justify-center">
-             <div className={`relative w-24 h-24 rounded-full bg-yellow-400 border-4 border-black/20 flex items-center justify-center shadow-lg ${radioState.isPlaying ? 'animate-spin-slow' : ''}`} style={{animationDuration: '8s'}}>
-                <div className="absolute inset-2 rounded-full border-2 border-black/10"></div>
-                <div className="absolute inset-6 rounded-full border-2 border-black/10"></div>
-                <div className="w-6 h-6 bg-window border-4 border-black/20 rounded-full z-10"></div>
+        {/* Main Interface Row */}
+        <div className="flex-1 flex items-center justify-between gap-4 z-10">
+          
+          {/* Left: Spinning Disc */}
+          <div className="flex flex-col items-center justify-center shrink-0">
+             <div className={`relative w-28 h-28 rounded-full bg-[#fcd34d] border-[3px] border-black/80 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)] ${radioState.isPlaying ? 'animate-spin-slow' : ''}`} style={{animationDuration: '8s'}}>
+                {/* Vinyl Grooves */}
+                <div className="absolute inset-2 rounded-full border-[1.5px] border-black/10"></div>
+                <div className="absolute inset-5 rounded-full border-[1.5px] border-black/10"></div>
+                <div className="absolute inset-8 rounded-full border-[1.5px] border-black/10"></div>
+                {/* Center Hole */}
+                <div className="w-8 h-8 bg-window border-[3px] border-black/80 rounded-full z-10 flex items-center justify-center">
+                   <div className="w-2 h-2 bg-black/20 rounded-full"></div>
+                </div>
              </div>
           </div>
 
-          {/* Center Side: Name + Visualizer */}
-          <div className="flex-1 flex flex-col justify-center pt-2">
-             <div className="font-black text-2xl lowercase tracking-tight mb-3 px-1">{CHANNELS[radioState.channelIdx].name}</div>
-             <div className="h-16 w-full bg-black/90 retro-border p-2 overflow-hidden shadow-inner">
-                <RetroVisualizer audioRef={audioRef} isPlaying={radioState.isPlaying} height={40} width={160} segments={8} />
+          {/* Center: Title + Visualizer */}
+          <div className="flex-1 flex flex-col items-start px-2">
+             <div className="font-black text-3xl lowercase tracking-tight mb-2 text-main-text opacity-90">{CHANNELS[radioState.channelIdx].name}</div>
+             <div className="w-full h-20 bg-[#1a1a1a] border-[3px] border-black p-2 overflow-hidden shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
+                <RetroVisualizer audioRef={audioRef} isPlaying={radioState.isPlaying} height={60} width={160} segments={8} />
              </div>
           </div>
 
-          {/* Right Side: Volume Frame */}
-          <div className="w-12 flex flex-col items-center bg-[#e0e0e0] retro-border p-1 shadow-sm">
-             <button onClick={() => setVolume(radioState.volume + 0.1)} className="w-full aspect-square flex items-center justify-center bg-window retro-border text-main-text hover:bg-black/5 active:bg-black/10 mb-2">
-                <Plus size={14} />
+          {/* Right: Volume Slider Frame */}
+          <div className="w-14 h-44 flex flex-col items-center bg-[#e5e7eb] border-[3px] border-black p-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]">
+             <button 
+                onClick={() => setVolume(radioState.volume + 0.1)} 
+                className="w-full aspect-square flex items-center justify-center bg-window border-2 border-black text-main-text hover:bg-black/5 active:translate-y-[1px] mb-1 text-lg font-black"
+             >
+                +
              </button>
-             <div className="flex-1 w-full flex justify-center py-2 relative">
-                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 bg-black/20 rounded-full"></div>
+             
+             <div className="flex-1 w-full flex justify-center py-2 relative group">
+                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1.5 bg-black/20 border-x border-black/10"></div>
                 <input 
                   type="range" 
                   min="0" max="1" step="0.05" 
                   value={radioState.volume} 
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="h-full w-2 accent-primary cursor-pointer relative z-10"
+                  className="h-full w-4 accent-primary cursor-pointer relative z-10 opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ appearance: 'slider-vertical', WebkitAppearance: 'slider-vertical' }}
                 />
+                {/* Custom Slider Handle Look */}
+                <div 
+                    className="absolute left-1/2 -translate-x-1/2 w-6 h-3 bg-[#6b7280] border-2 border-black pointer-events-none z-0"
+                    style={{ bottom: `${radioState.volume * 85 + 5}%` }}
+                ></div>
              </div>
-             <button onClick={() => setVolume(radioState.volume - 0.1)} className="w-full aspect-square flex items-center justify-center bg-window retro-border text-main-text hover:bg-black/5 active:bg-black/10 mt-2">
-                <Minus size={14} />
+             
+             <button 
+                onClick={() => setVolume(radioState.volume - 0.1)} 
+                className="w-full aspect-square flex items-center justify-center bg-window border-2 border-black text-main-text hover:bg-black/5 active:translate-y-[1px] mt-1 text-lg font-black"
+             >
+                -
              </button>
           </div>
         </div>
 
-        {/* Bottom Controls */}
-        <div className="mt-6 flex items-center justify-center gap-6 z-10 pr-12">
-            <button onClick={prevCh} className="w-14 h-14 bg-window hover:bg-black/5 retro-border flex items-center justify-center active:scale-95 transition-all shadow-md">
-                <SkipBack size={24} fill="currentColor"/>
+        {/* Bottom Controls Row */}
+        <div className="mt-8 flex items-center justify-center gap-8 z-10 pr-14">
+            <button 
+                onClick={prevCh} 
+                className="w-16 h-16 bg-white border-[3px] border-black flex items-center justify-center active:translate-y-[2px] active:shadow-none transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 group"
+            >
+                <SkipBack size={28} fill="currentColor" className="text-black group-active:scale-95"/>
             </button>
-            <button onClick={togglePlay} className="w-16 h-16 bg-window hover:bg-black/5 retro-border flex items-center justify-center active:scale-95 transition-all shadow-md">
-                {radioState.isPlaying ? <Pause size={32} fill="currentColor"/> : <Play size={32} fill="currentColor" className="ml-1"/>}
+            
+            <button 
+                onClick={togglePlay} 
+                className="w-20 h-20 bg-white border-[3px] border-black flex items-center justify-center active:translate-y-[2px] active:shadow-none transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 group"
+            >
+                {radioState.isPlaying ? 
+                    <Pause size={40} fill="currentColor" className="text-black group-active:scale-95"/> : 
+                    <Play size={40} fill="currentColor" className="ml-1 text-black group-active:scale-95"/>
+                }
             </button>
-            <button onClick={nextCh} className="w-14 h-14 bg-window hover:bg-black/5 retro-border flex items-center justify-center active:scale-95 transition-all shadow-md">
-                <SkipForward size={24} fill="currentColor"/>
+            
+            <button 
+                onClick={nextCh} 
+                className="w-16 h-16 bg-white border-[3px] border-black flex items-center justify-center active:translate-y-[2px] active:shadow-none transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 group"
+            >
+                <SkipForward size={28} fill="currentColor" className="text-black group-active:scale-95"/>
             </button>
         </div>
       </div>
