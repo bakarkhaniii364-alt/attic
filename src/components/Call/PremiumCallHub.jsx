@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PhoneOff, MicOff, Mic, Volume2, VolumeX,
          Maximize2, Minimize2, VideoOff, Camera, Monitor, MonitorOff,
          Phone, Video, WifiOff, Settings, Loader, MessageSquare,
-         RefreshCw, ChevronDown } from 'lucide-react';
+         RefreshCw, ChevronDown, Smile, Hand, Zap, ExternalLink } from 'lucide-react';
 import { playAudio } from '../../utils/audio.js';
+import { useVoiceActivity } from '../../hooks/useVoiceActivity.js';
 
 // ── Quality Badge ─────────────────────────────────────────────────────────────
 function QualityBadge({ quality }) {
@@ -24,6 +25,11 @@ function DeviceSelector({ onChangeDevice, onClose }) {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState({ audioinput: '', videoinput: '' });
+  const [testStream, setTestStream] = useState(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [outputVol, setOutputVol] = useState(() => Number(localStorage.getItem('call_output_volume') || 1));
+
+  const { volume: testVolume } = useVoiceActivity(testStream);
 
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices()
@@ -34,6 +40,12 @@ function DeviceSelector({ onChangeDevice, onClose }) {
       .catch(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (testStream) testStream.getTracks().forEach(t => t.stop());
+    };
+  }, [testStream]);
+
   const audioDevices = devices.filter(d => d.kind === 'audioinput');
   const videoDevices = devices.filter(d => d.kind === 'videoinput');
 
@@ -42,8 +54,28 @@ function DeviceSelector({ onChangeDevice, onClose }) {
     onChangeDevice?.(kind, deviceId);
   };
 
+  const handleVolChange = (v) => {
+    setOutputVol(v);
+    localStorage.setItem('call_output_volume', v);
+    window.dispatchEvent(new CustomEvent('call_volume_change', { detail: { volume: v } }));
+  };
+
+  const toggleMicTest = async () => {
+    if (isTesting) {
+      if (testStream) testStream.getTracks().forEach(t => t.stop());
+      setTestStream(null);
+      setIsTesting(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setTestStream(stream);
+        setIsTesting(true);
+      } catch (e) { console.error('Mic test failed:', e); }
+    }
+  };
+
   return (
-    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-window retro-border-thick z-[60] shadow-[4px_4px_0px_var(--border)] animate-in fade-in zoom-in-95 duration-150">
+    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-window retro-border-thick z-[60] shadow-[6px_6px_0px_var(--border)] animate-in fade-in zoom-in-95 duration-150">
       <div className="px-3 py-2 border-b-2 border-border flex items-center justify-between"
            style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
         <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
@@ -51,43 +83,78 @@ function DeviceSelector({ onChangeDevice, onClose }) {
         </span>
         <button onClick={onClose} className="p-0.5 hover:bg-white/10 transition-colors text-xs font-black">✕</button>
       </div>
-      <div className="p-3 flex flex-col gap-3">
+      <div className="p-3 flex flex-col gap-4">
         {loading ? (
           <p className="text-[10px] font-bold opacity-50 text-center py-2">Scanning devices...</p>
         ) : (
           <>
-            {audioDevices.length > 0 && (
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center gap-1">
-                  <Mic size={9} /> Microphone
-                </p>
-                <div className="flex flex-col gap-1">
-                  {audioDevices.map(d => (
-                    <button key={d.deviceId}
-                      onClick={() => handleChange('audioinput', d.deviceId)}
-                      className={`text-left text-[10px] font-bold px-2 py-1.5 retro-border transition-colors ${selected.audioinput === d.deviceId ? 'bg-primary text-white' : 'bg-window hover:bg-border/20'}`}>
-                      {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
-                    </button>
-                  ))}
-                </div>
+            {/* Mic Test Section */}
+            <div className="p-2 retro-border bg-border/5">
+              <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-2">Mic Check</p>
+              <div className="h-2 w-full bg-border/20 rounded-full overflow-hidden mb-3">
+                <div className="h-full bg-green-400 transition-all duration-75" 
+                     style={{ width: `${Math.min(100, testVolume * 300)}%` }} />
               </div>
-            )}
+              <button onClick={toggleMicTest}
+                      className={`w-full py-1.5 text-[9px] font-black uppercase tracking-widest retro-border transition-all ${isTesting ? 'bg-red-500 text-white' : 'bg-primary text-white hover:brightness-110'}`}>
+                {isTesting ? 'Stop Mic Test' : 'Test Your Mic'}
+              </button>
+            </div>
+
+            {/* Output Volume */}
+            <div>
+               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Volume2 size={9} /> Output Volume</span>
+                  <span>{Math.round(outputVol * 100)}%</span>
+               </p>
+               <input type="range" min="0" max="1" step="0.01" value={outputVol} onChange={e => handleVolChange(Number(e.target.value))}
+                      className="w-full accent-primary h-1 bg-border/20 rounded-full appearance-none cursor-pointer" />
+            </div>
+
             {videoDevices.length > 0 && (
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center gap-1">
                   <Camera size={9} /> Camera
                 </p>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto custom-scrollbar pr-1">
                   {videoDevices.map(d => (
                     <button key={d.deviceId}
                       onClick={() => handleChange('videoinput', d.deviceId)}
-                      className={`text-left text-[10px] font-bold px-2 py-1.5 retro-border transition-colors ${selected.videoinput === d.deviceId ? 'bg-primary text-white' : 'bg-window hover:bg-border/20'}`}>
+                      className={`text-left text-[9px] font-bold px-2 py-1.5 retro-border transition-colors ${selected.videoinput === d.deviceId ? 'bg-primary text-white' : 'bg-window hover:bg-border/20'}`}>
                       {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
                     </button>
                   ))}
                 </div>
               </div>
             )}
+            
+            {devices.length === 0 && (
+              <p className="text-[10px] font-bold opacity-40 text-center py-2">No devices found</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+            {videoDevices.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center gap-1">
+                  <Camera size={9} /> Camera
+                </p>
+                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto custom-scrollbar pr-1">
+                  {videoDevices.map(d => (
+                    <button key={d.deviceId}
+                      onClick={() => handleChange('videoinput', d.deviceId)}
+                      className={`text-left text-[9px] font-bold px-2 py-1.5 retro-border transition-colors ${selected.videoinput === d.deviceId ? 'bg-primary text-white' : 'bg-window hover:bg-border/20'}`}>
+                      {d.label || `Camera ${d.deviceId.slice(0, 8)}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {devices.length === 0 && (
               <p className="text-[10px] font-bold opacity-40 text-center py-2">No devices found</p>
             )}
@@ -106,7 +173,8 @@ export function PremiumCallHub({
   onScreenShare, onStopScreenShare,
   onRestartIce, onChangeDevice,
   partnerName, partnerPfp, sfx, remoteStream, localStream, isRinging, type,
-  isPartnerTyping, isPartnerCameraOff
+  isPartnerTyping, isPartnerCameraOff,
+  onReaction, onRaiseHand
 }) {
   const remoteVideoRef = useRef(null);
 
@@ -120,6 +188,57 @@ export function PremiumCallHub({
   const [isMinimized, setIsMinimized] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [isCameraChanging, setIsCameraChanging] = useState(false);
+  const [isHandRaised, setIsHandRaised] = useState(false);
+  const [partnerHandRaised, setPartnerHandRaised] = useState(false);
+  const [reactions, setReactions] = useState([]);
+
+  // Voice Activity Detection
+  const { isSpeaking: mySpeaking, volume: myVolume } = useVoiceActivity(localStream);
+  const { isSpeaking: partnerSpeaking, volume: partnerVolume } = useVoiceActivity(remoteStream);
+
+  // Listen for signals via custom events from CallContext
+  useEffect(() => {
+    const handleReaction = (e) => {
+      const id = Math.random();
+      setReactions(prev => [...prev, { id, emoji: e.detail.emoji, x: 20 + Math.random() * 60 }]);
+      setTimeout(() => setReactions(prev => prev.filter(r => r.id !== id)), 3000);
+      playAudio('pop', sfx);
+    };
+    const handleHand = (e) => {
+      setPartnerHandRaised(e.detail.raised);
+      if (e.detail.raised) playAudio('ding', sfx);
+    };
+
+    window.addEventListener('call_reaction', handleReaction);
+    window.addEventListener('call_raise_hand', handleHand);
+    return () => {
+      window.removeEventListener('call_reaction', handleReaction);
+      window.removeEventListener('call_raise_hand', handleHand);
+    };
+  }, [sfx]);
+
+  const handleSendReaction = (emoji) => {
+    onReaction?.(emoji);
+    const id = Math.random();
+    setReactions(prev => [...prev, { id, emoji, x: 20 + Math.random() * 60 }]);
+    setTimeout(() => setReactions(prev => prev.filter(r => r.id !== id)), 3000);
+  };
+
+  const handleToggleHand = () => {
+    const next = !isHandRaised;
+    setIsHandRaised(next);
+    onRaiseHand?.(next);
+  };
+
+  const handlePiP = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (remoteVideoRef.current) {
+        await remoteVideoRef.current.requestPictureInPicture();
+      }
+    } catch (e) { console.error('PiP failed:', e); }
+  };
 
   // ICE Reconnect Countdown
   const [iceCountdown, setIceCountdown] = useState(null);
@@ -224,8 +343,10 @@ export function PremiumCallHub({
         <div className="p-3 flex items-center gap-3">
           <div className="w-12 h-12 retro-border overflow-hidden bg-black flex-shrink-0">
             {type === 'video' && remoteStream && !isPartnerCameraOff
-              ? <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              : <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt="" />
+              ? <video ref={remoteVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${partnerSpeaking ? 'ring-2 ring-green-500' : ''}`} />
+              : <div className={`w-full h-full relative ${partnerSpeaking ? 'ring-2 ring-green-500' : ''}`}>
+                  <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt="" />
+                </div>
             }
           </div>
           <div className="flex-1 min-w-0">
@@ -296,6 +417,11 @@ export function PremiumCallHub({
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {!isRinging && <QualityBadge quality={callQuality} />}
+          {document.pictureInPictureEnabled && remoteStream && !isPartnerCameraOff && (
+            <button onClick={handlePiP} className="p-1.5 hover:bg-white/10 transition-colors" title="Picture in Picture">
+              <ExternalLink size={13}/>
+            </button>
+          )}
           <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 hover:bg-white/10 transition-colors" title="Minimize">
             <Minimize2 size={13}/>
           </button>
@@ -345,17 +471,26 @@ export function PremiumCallHub({
           <>
             {/* Remote video or avatar fallback */}
             {remoteStream && !isPartnerCameraOff
-              ? <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover"/>
+              ? <video ref={remoteVideoRef} autoPlay playsInline 
+                       className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${partnerSpeaking ? 'brightness-[1.15] contrast-[1.05]' : ''}`}/>
               : (
-                <div className="flex flex-col items-center gap-4 z-10 animate-in fade-in duration-500">
-                  <div className="w-24 h-24 sm:w-32 sm:h-32 retro-border overflow-hidden bg-border/20 backdrop-blur-sm relative">
+                <div className="flex flex-col items-center gap-6 z-10 animate-in fade-in duration-500">
+                  <div className={`relative w-28 h-28 sm:w-36 sm:h-36 retro-border overflow-hidden bg-border/20 backdrop-blur-sm transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_40px_rgba(34,197,94,0.4)] border-green-400' : ''}`}>
                     <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
                     <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
+                    
+                    {/* Speaking Glow Ring */}
+                    {partnerSpeaking && (
+                      <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
+                    )}
                   </div>
                   <div className="flex flex-col items-center">
-                    <p className="text-[12px] font-black text-white uppercase tracking-[0.3em] mb-1">{partnerName}</p>
-                    <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
-                       {type === 'video' ? <><VideoOff size={10}/> Camera Off</> : <><Volume2 size={10}/> Voice Only</>}
+                    <p className="text-[14px] font-black text-white uppercase tracking-[0.4em] mb-2 flex items-center gap-3">
+                      {partnerName}
+                      {partnerSpeaking && <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e] animate-pulse" />}
+                    </p>
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                       {type === 'video' ? <><VideoOff size={11}/> Camera Off</> : <><Volume2 size={11}/> Voice Connected</>}
                     </p>
                   </div>
                 </div>
@@ -364,18 +499,19 @@ export function PremiumCallHub({
 
             {/* PIP – local camera or PFP fallback */}
             {localStream && (
-              <div className="absolute bottom-16 right-4 w-32 sm:w-40 aspect-video bg-black/80 retro-border overflow-hidden z-20 shadow-xl group-hover:scale-105 transition-all duration-300">
+              <div className={`absolute bottom-16 right-4 w-32 sm:w-44 aspect-video bg-black/90 retro-border overflow-hidden z-20 shadow-2xl group-hover:scale-[1.02] transition-all duration-300 ${mySpeaking ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : ''}`}>
                 {!isCameraOff || isScreenSharing ? (
                    <video ref={localVideoCallbackRef} autoPlay playsInline muted
-                          className={`w-full h-full object-cover ${isScreenSharing ? '' : 'scale-x-[-1]'}`}/>
+                          className={`w-full h-full object-cover transition-all duration-300 ${isScreenSharing ? '' : 'scale-x-[-1]'} ${mySpeaking ? 'brightness-[1.1]' : ''}`}/>
                 ) : (
-                   <div className="w-full h-full flex items-center justify-center bg-window/10 relative overflow-hidden">
-                      <img src={myPfp} className="w-12 h-12 retro-border object-cover opacity-50" onError={e => e.target.style.display='none'} alt=""/>
-                      <div className="absolute bottom-1 right-1 bg-black/50 px-1 text-[7px] text-white font-black uppercase tracking-tighter">Cam Off</div>
+                   <div className="w-full h-full flex items-center justify-center bg-window/20 relative overflow-hidden">
+                      <img src={myPfp} className="w-14 h-14 retro-border object-cover opacity-60" onError={e => e.target.style.display='none'} alt=""/>
+                      <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 text-[8px] text-white font-black uppercase tracking-widest border border-white/10">Muted</div>
                    </div>
                 )}
-                <div className="absolute top-1 left-1 bg-black/70 px-1.5 py-0.5 text-[8px] text-white font-black uppercase tracking-tight z-10">
+                <div className="absolute top-2 left-2 bg-black/80 px-2 py-1 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-2 border border-white/10 backdrop-blur-md">
                   {isScreenSharing ? 'Screen' : 'You'}
+                  {mySpeaking && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse" />}
                 </div>
               </div>
             )}
@@ -385,6 +521,22 @@ export function PremiumCallHub({
               {isMuted    && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><MicOff  size={12}/></div>}
               {isDeafened && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VolumeX size={12}/></div>}
               {isCameraOff && type === 'video' && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VideoOff size={12}/></div>}
+              {partnerHandRaised && (
+                <div className="px-2 py-1 bg-yellow-400 text-black rounded retro-border text-[9px] font-black animate-bounce flex items-center gap-1 shadow-lg">
+                  <Hand size={10} fill="currentColor" /> {partnerName.split(' ')[0]} raised hand!
+                </div>
+              )}
+            </div>
+
+            {/* Reaction Layer */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden z-40">
+              {reactions.map(r => (
+                <div key={r.id} 
+                     className="absolute bottom-0 text-3xl animate-reaction-rise transition-opacity"
+                     style={{ left: `${r.x}%` }}>
+                  {r.emoji}
+                </div>
+              ))}
             </div>
 
             {/* Live badge */}
@@ -418,6 +570,28 @@ export function PremiumCallHub({
           
           <div className="w-px h-8 bg-border mx-1 opacity-20"/>
           
+          {/* Reactions */}
+          <div className="relative group/react">
+            <button className="p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 bg-window hover:bg-border">
+              <Smile size={20}/>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/react:flex items-center gap-1.5 bg-window retro-border-thick p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2">
+              {['❤️', '🔥', '😂', '😮', '😢', '👍'].map(emoji => (
+                <button key={emoji} onClick={() => handleSendReaction(emoji)}
+                        className="p-1.5 hover:bg-border rounded transition-all hover:scale-125 text-xl">
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={handleToggleHand}
+                  className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isHandRaised ? 'bg-yellow-400 text-black' : 'bg-window hover:bg-border'}`} title="Raise Hand">
+            <Hand size={20} fill={isHandRaised ? "currentColor" : "none"} />
+          </button>
+          
+          <div className="w-px h-8 bg-border mx-1 opacity-20"/>
+
           {/* Device Selector */}
           <div className="relative">
             <button onClick={() => setShowDevices(p => !p)}
@@ -434,24 +608,6 @@ export function PremiumCallHub({
           <button onClick={onEndCall} 
                   className="p-3 retro-border-thick shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call (Shift+E)">
             <PhoneOff size={22} className="rotate-[135deg]"/>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-"Device Settings">
-              <Settings size={18}/>
-            </button>
-            {showDevices && (
-              <DeviceSelector onChangeDevice={onChangeDevice} onClose={() => setShowDevices(false)} />
-            )}
-          </div>
-
-          <div className="w-px h-6 bg-border mx-1 opacity-20"/>
-
-          <button onClick={onEndCall} className="p-2.5 retro-border bg-red-600 text-white hover:bg-red-700 hover:scale-110 active:scale-95 transition-all" title="End Call (Shift+E)">
-            <PhoneOff size={18} className="rotate-[135deg]"/>
           </button>
         </div>
       </div>

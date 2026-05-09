@@ -87,6 +87,7 @@ export default function App() {
     acceptCall, declineCall, endCall, toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,
     restartIce, changeDevice, isPartnerCameraOff,
+    sendReaction, toggleRaiseHand,
   } = useCall();
 
   // Typing indicator for the call HUD
@@ -258,7 +259,8 @@ export default function App() {
               startScreenShare={startScreenShare} stopScreenShare={stopScreenShare}
               restartIce={restartIce} changeDevice={changeDevice}
               isPartnerTyping={isPartnerTyping} isPartnerCameraOff={isPartnerCameraOff}
-              sfxEnabled={sfxEnabled} remoteStream={remoteStream} localStream={localStream} 
+              sfxEnabled={sfxEnabled} remoteStream={remoteStream} localStream={localStream}
+              onReaction={sendReaction} onRaiseHand={toggleRaiseHand}
             />
 
             <KeyboardShortcuts

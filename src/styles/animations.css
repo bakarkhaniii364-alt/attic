@@ -73,3 +73,13 @@
   10% { opacity: 1; transform: translate(0, 0) scale(1.2) rotate(20deg); }
   100% { transform: translate(var(--tx), var(--ty)) scale(0.5) rotate(var(--tr)); opacity: 0; }
 }
+
+@keyframes reaction-rise {
+  0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; transform: translateY(-10%) scale(1.5) rotate(-10deg); }
+  100% { transform: translateY(-1000%) scale(1) rotate(15deg); opacity: 0; }
+}
+
+.animate-reaction-rise {
+  animation: reaction-rise 3s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+}

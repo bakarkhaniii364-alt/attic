@@ -437,6 +437,16 @@ const createPC = useCallback(async (type) => {
         break;
       }
 
+      case 'reaction': {
+        window.dispatchEvent(new CustomEvent('call_reaction', { detail: { emoji: payload.emoji } }));
+        break;
+      }
+
+      case 'raise_hand': {
+        window.dispatchEvent(new CustomEvent('call_raise_hand', { detail: { raised: !!payload.raised } }));
+        break;
+      }
+
       default: break;
     }
   }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd]);
@@ -524,7 +534,15 @@ const createPC = useCallback(async (type) => {
         try { localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
         localStreamRef.current = null; setLocalStream(null);
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true,
+          channelCount: 1
+        }, 
+        video: type === 'video' 
+      });
       localStreamRef.current = stream;
       callTypeRef.current = type;
       isCallerRef.current = true;
@@ -574,7 +592,14 @@ const createPC = useCallback(async (type) => {
         localStreamRef.current = null; setLocalStream(null);
       }
       // Get media early so it's ready when offer arrives
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: incoming.type === 'video' });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true 
+        }, 
+        video: incoming.type === 'video' 
+      });
       localStreamRef.current = stream;
       setLocalStream(stream);
       setCalling(incoming.type);
@@ -703,6 +728,14 @@ const createPC = useCallback(async (type) => {
     } catch (_) {}
   }, []);
 
+  const sendReaction = useCallback((emoji) => {
+    sendSignal({ action: 'reaction', emoji });
+  }, [sendSignal]);
+
+  const toggleRaiseHand = useCallback((raised) => {
+    sendSignal({ action: 'raise_hand', raised });
+  }, [sendSignal]);
+
   const testTurnConfig = useCallback(async () => {
     // Get the first TURN server config for logging
     const turnServer = getStaticIceServers().find(s => {
@@ -763,6 +796,7 @@ const createPC = useCallback(async (type) => {
     toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,
     restartIce, changeDevice, testTurnConfig,
+    sendReaction, toggleRaiseHand,
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;

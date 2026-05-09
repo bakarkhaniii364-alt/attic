@@ -6,8 +6,9 @@ export function CallOverlay({
   incomingCall, isRinging, partnerProfile, partnerName, endCall, acceptCall, declineCall,
   calling, callDuration, callStatus, callQuality, isMuted, isDeafened, isCameraOff, isScreenSharing,
   toggleMic, toggleDeafen, toggleCamera, startScreenShare, stopScreenShare,
-  restartIce, changeDevice, isPartnerTyping,
+  restartIce, changeDevice, isPartnerTyping, isPartnerCameraOff,
   sfxEnabled, remoteStream, localStream,
+  onReaction, onRaiseHand,
 }) {
   // Hidden <audio> element to play remote audio stream (bypasses autoplay policy)
   const remoteAudioRef = useRef(null);
@@ -27,11 +28,20 @@ export function CallOverlay({
     }
   }, [remoteStream]);
 
-  // Apply deafen by muting the hidden audio element
+  // Apply deafen and volume settings
   useEffect(() => {
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.muted = isDeafened;
-    }
+    const audio = remoteAudioRef.current;
+    if (!audio) return;
+    audio.muted = isDeafened;
+    
+    const savedVol = Number(localStorage.getItem('call_output_volume') || 1);
+    audio.volume = savedVol;
+
+    const handleVolChange = (e) => {
+      audio.volume = e.detail.volume;
+    };
+    window.addEventListener('call_volume_change', handleVolChange);
+    return () => window.removeEventListener('call_volume_change', handleVolChange);
   }, [isDeafened]);
 
   if (!incomingCall && !calling) return null;
@@ -116,6 +126,7 @@ export function CallOverlay({
           isPartnerTyping={isPartnerTyping} isPartnerCameraOff={isPartnerCameraOff}
           partnerName={partnerName} partnerPfp={partnerProfile?.pfp} sfx={sfxEnabled}
           remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling}
+          onReaction={onReaction} onRaiseHand={onRaiseHand}
         />
       )}
     </>
