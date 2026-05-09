@@ -70,6 +70,34 @@ const ICE_SERVERS = [
     credential: "freeswitch"  
   }
 ];
+// ── Dynamic ICE Fetching (Cloudflare) ────────────────────────────────────────
+async function getFullIceServers() {
+  const keyId = import.meta.env.VITE_CF_CALLS_KEY_ID;
+  const secret = import.meta.env.VITE_CF_CALLS_KEY_SECRET;
+  
+  let cfServers = [];
+  if (keyId && secret) {
+    try {
+      console.log('[WebRTC] Fetching fresh Cloudflare TURN credentials...');
+      const resp = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${secret}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ ttl: 86400 })
+      });
+      const data = await resp.json();
+      if (data.iceServers) {
+        cfServers = data.iceServers;
+        console.log('[WebRTC] Cloudflare TURN credentials acquired.');
+      }
+    } catch (e) {
+      console.warn('[WebRTC] Cloudflare TURN fetch failed, using fallbacks:', e.message);
+    }
+  }
+  return [...cfServers, ...ICE_SERVERS];
+}
 
 console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => {
   const urlSample = Array.isArray(s.urls) ? s.urls[0] : s.urls;
@@ -240,34 +268,6 @@ export function CallProvider({ children }) {
     }).then(({ error }) => { if (error) console.warn('[Call] Missed log failed:', error.message); });
   }, [roomId, userId]);
 
-// ── Dynamic ICE Fetching (Cloudflare) ────────────────────────────────────────
-async function getFullIceServers() {
-  const keyId = import.meta.env.VITE_CF_CALLS_KEY_ID;
-  const secret = import.meta.env.VITE_CF_CALLS_KEY_SECRET;
-  
-  let cfServers = [];
-  if (keyId && secret) {
-    try {
-      console.log('[WebRTC] Fetching fresh Cloudflare TURN credentials...');
-      const resp = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${secret}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ ttl: 86400 })
-      });
-      const data = await resp.json();
-      if (data.iceServers) {
-        cfServers = data.iceServers;
-        console.log('[WebRTC] Cloudflare TURN credentials acquired.');
-      }
-    } catch (e) {
-      console.warn('[WebRTC] Cloudflare TURN fetch failed, using fallbacks:', e.message);
-    }
-  }
-  return [...cfServers, ...ICE_SERVERS];
-}
 
 // ── RTCPeerConnection factory ─────────────────────────────────────────────
 const createPC = useCallback(async (type) => {
