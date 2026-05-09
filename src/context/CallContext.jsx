@@ -67,6 +67,7 @@ export function CallProvider({ children }) {
   const [callStatus,    setCallStatus]    = useState('idle');
   const [callQuality,   setCallQuality]   = useState('good');
   const [partnerInCall, setPartnerInCall] = useState(false);
+  const [isPartnerCameraOff, setIsPartnerCameraOff] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('call_noise_suppression', noiseSuppression);
