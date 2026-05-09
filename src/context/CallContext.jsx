@@ -473,10 +473,6 @@ const createPC = useCallback(async (type) => {
   // Expose test function globally for easier debugging in Dhaka
 
 
-  useEffect(() => {
-    window.__testTurn = testTurnConfig;
-    return () => { delete window.__testTurn; };
-  }, [testTurnConfig]);
 
   // Update presence when call active
   useEffect(() => {
@@ -740,6 +736,11 @@ const createPC = useCallback(async (type) => {
     await pc.setLocalDescription(offer);
     return true;
   }, []);
+
+  useEffect(() => {
+    window.__testTurn = testTurnConfig;
+    return () => { delete window.__testTurn; };
+  }, [testTurnConfig]);
 
   const value = {
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
