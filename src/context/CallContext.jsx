@@ -18,18 +18,9 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
 import { isTestMode, sendTestBroadcast, onTestBroadcast } from '../lib/testMode.js';
-import { getFullIceServers, logIceConfig, STATIC_ICE_SERVERS } from '../utils/webrtc.js';
+import { getFullIceServers, getStaticIceServers } from '../utils/webrtc.js';
 
 const CallContext = createContext(null);
-
-// Warn if TURN credentials look missing or are using the public fallback
-(() => {
-  const u = import.meta.env.VITE_TURN_USERNAME;
-  const p = import.meta.env.VITE_TURN_PASSWORD;
-  if (!u || !p || u === 'openrelayproject' || p === 'openrelayproject') {
-    console.warn('[WebRTC] TURN credentials appear missing or default. Verify Metered.ca credentials.');
-  }
-})();
 
 // ── Ringing tone (Web Audio) ─────────────────────────────────────────────────
 function createRingTone() {
@@ -50,9 +41,16 @@ function createRingTone() {
   } catch (_) { return () => {}; }
 }
 
-// ── Provider ─────────────────────────────────────────────────────────────────
 export function CallProvider({ children }) {
   const { userId, partnerId, roomId } = useAuth();
+
+  useEffect(() => {
+    const u = import.meta.env.VITE_TURN_USERNAME;
+    const p = import.meta.env.VITE_TURN_PASSWORD;
+    if (!u || !p || u === 'openrelayproject' || p === 'openrelayproject') {
+      console.warn('[WebRTC] TURN credentials appear missing or default.');
+    }
+  }, []);
 
   // ── UI state ─────────────────────────────────────────────────────────────
   const [calling,       setCalling]       = useState(null);   // 'audio'|'video'|null
@@ -698,7 +696,7 @@ const createPC = useCallback(async (type) => {
 
   const testTurnConfig = useCallback(async () => {
     // Get the first TURN server config for logging
-    const turnServer = STATIC_ICE_SERVERS.find(s => {
+    const turnServer = getStaticIceServers().find(s => {
       const u = Array.isArray(s.urls) ? s.urls[0] : s.urls;
       return u?.includes('turn:');
     });
