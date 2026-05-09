@@ -82,6 +82,25 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
              
              <section className="space-y-8">
                 <div>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans"><Trophy size={14}/> Top Disciplines</h2>
+                   <div className="space-y-2">
+                      {Object.entries(scores || {})
+                         .sort(([, a], [, b]) => (Object.values(b).reduce((x, y) => x + y, 0)) - (Object.values(a).reduce((x, y) => x + y, 0)))
+                         .slice(0, 3)
+                         .map(([game, stats]) => {
+                            const total = Object.values(stats).reduce((x, y) => x + y, 0);
+                            return (
+                               <div key={game} className="flex justify-between items-center text-sm border-b border-gray-50 pb-1">
+                                  <span className="font-bold opacity-70 capitalize">{game.replace(/_/g, ' ')}</span>
+                                  <span className="font-sans font-black text-[10px]">{total} SESSIONS</span>
+                               </div>
+                            );
+                         })
+                      }
+                      {Object.keys(scores || {}).length === 0 && <p className="text-[10px] opacity-40 font-bold uppercase italic">No sessions recorded yet.</p>}
+                   </div>
+                </div>
+                <div>
                    <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans"><Calendar size={14}/> Significant Dates</h2>
                    <div className="space-y-4">
                       <div className="flex justify-between items-end border-b border-gray-100 pb-1">
@@ -89,15 +108,15 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
                          <p className="font-bold text-sm">{anniversary || 'Ancient History'}</p>
                       </div>
                       <div className="flex justify-between items-end border-b border-gray-100 pb-1">
-                         <p className="text-[10px] font-black uppercase opacity-40 font-sans">Latest Session</p>
+                         <p className="text-[10px] font-black uppercase opacity-40 font-sans">Resume Generation</p>
                          <p className="font-bold text-sm">{new Date().toISOString().split('T')[0]}</p>
                       </div>
                    </div>
                 </div>
                 <div className="p-6 bg-gray-100 border-2 border-black text-center relative">
-                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2 border-2 border-black text-[8px] font-black uppercase tracking-widest font-sans">Endorsement</div>
+                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2 border-2 border-black text-[8px] font-black uppercase tracking-widest font-sans">Executive Summary</div>
                    <p className="italic leading-relaxed text-sm">
-                      "A digital bond authenticated through play, communication, and persistent synchronization."
+                      "A digital bond authenticated through persistent play, communication, and synchronization."
                    </p>
                 </div>
              </section>

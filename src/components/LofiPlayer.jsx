@@ -202,41 +202,49 @@ export function DashboardRadio({ radioState, setRadioState }) {
 
   return (
       <div className="flex flex-col h-full bg-window p-4 relative overflow-hidden">
-        {/* Animated Background Gradients */}
-        <div className={`absolute inset-0 transition-opacity duration-1000 ${radioState.isPlaying ? 'opacity-20' : 'opacity-0'}`}>
-            <div className="absolute inset-0 bg-gradient-to-tr from-pink-500 via-purple-500 to-cyan-500 animate-gradient-slow"></div>
-        </div>
-
-        <div className="flex items-center gap-4 z-10">
-          <div className={`relative w-20 h-20 rounded-full retro-bg-accent retro-border flex items-center justify-center retro-shadow-dark ${radioState.isPlaying ? 'animate-spin-slow' : ''}`} style={{animationDuration: '4s'}}>
-             <Disc size={40} className="opacity-80" />
-             <div className="absolute w-4 h-4 bg-window retro-border rounded-full"></div>
-             {/* Tiny digital numbers effect */}
-             <div className="absolute -bottom-1 right-0 text-[8px] font-mono bg-black text-green-400 px-1 border border-border">
-                {radioState.isPlaying ? 'PLAY' : 'STOP'}
+        <div className="flex items-center gap-5 z-10">
+          <div className={`relative w-24 h-24 rounded-full bg-black border-[6px] border-border/20 flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,1),0_0_15px_rgba(0,0,0,0.2)] ${radioState.isPlaying ? 'animate-spin-slow' : ''}`} style={{animationDuration: '6s'}}>
+             <Disc size={44} className="text-border opacity-20" />
+             <div className="absolute inset-0 rounded-full border-2 border-white/5 pointer-events-none"></div>
+             <div className="absolute w-5 h-5 bg-[#111] retro-border rounded-full shadow-inner"></div>
+             {/* Mechanical status label */}
+             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[7px] font-black bg-primary text-white px-2 py-0.5 retro-border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                {radioState.isPlaying ? 'SYSTEM_ON' : 'SYSTEM_OFF'}
              </div>
           </div>
           <div className="flex-1">
-             <div className="font-black text-[var(--primary)] uppercase text-[10px] tracking-[0.3em] flex items-center gap-2">
-                <BarChart3 size={14} className={radioState.isPlaying ? 'animate-bounce' : ''}/>
-                FM RADIO
+             <div className="font-black text-primary uppercase text-[10px] tracking-[0.2em] mb-1">
+                ATTIC FM STEREO
              </div>
-             <div className="font-black text-2xl leading-tight mt-1 truncate lowercase">{CHANNELS[radioState.channelIdx].name}</div>
-             <div className="flex items-center gap-2 mt-1">
-                  <div className={`w-2 h-2 rounded-full ${radioState.isPlaying ? 'bg-red-500 animate-pulse shadow-[0_0_8px_red]' : 'bg-gray-400'}`}></div>
-                  <div className="text-[10px] font-black opacity-60 uppercase tracking-widest">{radioState.isPlaying ? 'Broadcasting' : 'Off Air'}</div>
+             <div className="font-black text-3xl leading-none truncate lowercase text-main-text mb-2">{CHANNELS[radioState.channelIdx].name}</div>
+             <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 retro-border ${radioState.isPlaying ? 'bg-red-500 animate-pulse shadow-[0_0_10px_red]' : 'bg-black/20'}`}></div>
+                  <div className="text-[10px] font-black opacity-40 uppercase tracking-[0.1em]">{radioState.isPlaying ? 'Live Feed' : 'Standby'}</div>
              </div>
           </div>
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 z-10">
-            <div className="bg-window p-3 retro-border flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <button onClick={togglePlay} className={`px-6 py-2 font-black retro-border rounded active:scale-95 text-[10px] tracking-widest uppercase flex items-center gap-2 transition-all ${radioState.isPlaying ? 'bg-[var(--primary)] text-white shadow-[0_0_10px_var(--primary)]' : 'bg-window hover:bg-accent'}`}>
-                        {radioState.isPlaying ? <><Pause size={14} fill="currentColor"/> PAUSE</> : <><Play size={14} fill="currentColor"/> PLAY</>}
+        <div className="mt-auto z-10">
+            {/* Chunky Mechanical Controls */}
+            <div className="bg-border/5 p-4 retro-border border-dashed flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={togglePlay} 
+                        className={`flex-1 h-14 retro-border border-black font-black text-xs tracking-widest uppercase flex items-center justify-center gap-3 transition-all active:translate-y-1 active:shadow-none ${radioState.isPlaying ? 'bg-primary text-white shadow-[0_6px_0px_0px_rgba(0,0,0,1)]' : 'bg-window hover:bg-black/5 shadow-[0_6px_0px_0px_rgba(0,0,0,1)]'}`}
+                    >
+                        {radioState.isPlaying ? <><Pause size={18} fill="currentColor"/> STOP</> : <><Play size={18} fill="currentColor"/> START</>}
                     </button>
-                    <div className="flex items-center gap-2 group">
-                        <Volume2 size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+                    <button 
+                        onClick={nextCh} 
+                        className="w-16 h-14 bg-secondary text-white retro-border border-black flex items-center justify-center transition-all active:translate-y-1 active:shadow-none shadow-[0_6px_0px_0px_rgba(0,0,0,1)]"
+                    >
+                        <SkipForward size={22} fill="currentColor"/>
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-4 px-2">
+                    <Volume2 size={16} className="opacity-30 shrink-0" />
+                    <div className="flex-1 h-4 bg-black/10 retro-border relative flex items-center p-1">
                         <input 
                             type="range" 
                             min="0" 
@@ -244,16 +252,12 @@ export function DashboardRadio({ radioState, setRadioState }) {
                             step="0.05" 
                             value={radioState?.volume || 0.4} 
                             onChange={(e) => setRadioState({...radioState, volume: parseFloat(e.target.value)})} 
-                            className="w-20 h-1 accent-[var(--primary)] cursor-pointer" 
+                            className="w-full h-1 accent-primary cursor-pointer opacity-80" 
                         />
                     </div>
                 </div>
-                <button onClick={nextCh} className="w-10 h-10 bg-[var(--secondary)] hover:bg-blue-400 retro-border rounded flex items-center justify-center active:scale-95 text-white transition-all hover:rotate-12 shadow-lg">
-                    <SkipForward size={18} fill="currentColor"/>
-                </button>
             </div>
         </div>
-
         <div className="absolute bottom-4 right-4 w-1/2 opacity-5 pointer-events-none text-9xl -mb-10 text-[var(--border)]"><Radio/></div>
       </div>
   );

@@ -4,7 +4,7 @@ import {
   User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, 
   LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, 
   CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, 
-  ShieldCheck, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Search 
+  ShieldCheck, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Search, VolumeX
 } from 'lucide-react';
 import { useCall } from '../context/instances.js';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
@@ -17,7 +17,11 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const toast = useToast();
   
   const safeProfile = profile || { name: 'You', emoji: '👤' };
-  const { testTurnConfig, endCall, callStatus } = useCall();
+  const { 
+    testTurnConfig, endCall, callStatus,
+    noiseSuppression, setNoiseSuppression,
+    echoCancellation, setEchoCancellation
+  } = useCall();
   
   // View management
   const [currentView, setCurrentView] = useState('home'); 
@@ -54,12 +58,12 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const availableThemes = ['default', 'matcha', 'val-sage', 'lavender', 'rose', 'minimal', 'monochrome', 'nord', 'coffee', 'velvet', 'starlight', 'crayon', 'vaporwave', 'messenger', 'reddit', 'discord', 'spotify', 'github', 'cyberpunk', 'synthwave', 'matrix', 'val-killjoy', 'midnight', 'gameboy', 'superman-2025', 'spiderman', 'batman', 'neon-tokyo'];
 
   const categories = [
-    { id: 'profile', label: 'User Account', icon: <User size={20}/>, desc: 'Your name, pfp and pet settings' },
-    { id: 'security', label: 'Security', icon: <Lock size={20}/>, desc: 'Password reset and auth settings' },
-    { id: 'aesthetics', label: 'Aesthetics', icon: <Palette size={20}/>, desc: 'Themes, weather and patterns' },
-    { id: 'relationship', label: 'Relationship', icon: <Heart size={20}/>, desc: 'Partner and anniversary' },
-    { id: 'system', label: 'System & Audio', icon: <Monitor size={20}/>, desc: 'Sounds and connectivity' },
-    { id: 'privacy', label: 'Privacy & Data', icon: <ShieldCheck size={20}/>, desc: 'Data export and room management' },
+    { id: 'profile', label: 'User Account', icon: <User size={18}/>, desc: 'Name, avatar and pet settings' },
+    { id: 'security', label: 'Security', icon: <Lock size={18}/>, desc: 'Password reset and authentication' },
+    { id: 'aesthetics', label: 'Aesthetics', icon: <Palette size={18}/>, desc: 'Themes, weather and dashboard patterns' },
+    { id: 'relationship', label: 'Relationship', icon: <Heart size={18}/>, desc: 'Partner nicknames and anniversary' },
+    { id: 'system', label: 'System & Audio', icon: <Monitor size={18}/>, desc: 'Sounds, notifs and call engine' },
+    { id: 'privacy', label: 'Privacy & Data', icon: <ShieldCheck size={18}/>, desc: 'Data export and account deletion' },
   ];
 
   const filteredCategories = categories.filter(c => 
@@ -132,10 +136,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
           {filteredCategories.map(c => (
             <button key={c.id} onClick={() => navigateTo(c.id)} className="flex items-center gap-4 p-4 retro-border bg-window hover:bg-black/5 text-left group">
-              <div className="p-3 bg-primary/10 text-primary">{c.icon}</div>
+              <div className="p-3 bg-primary/10 text-primary shrink-0">{c.icon}</div>
               <div>
-                <h3 className="font-black text-sm uppercase tracking-wider">{c.label}</h3>
-                <p className="text-[10px] font-bold opacity-40">{c.desc}</p>
+                <h3 className="font-black text-[11px] uppercase tracking-wider leading-none mb-1">{c.label}</h3>
+                <p className="text-[9px] font-bold opacity-40 leading-tight">{c.desc}</p>
               </div>
             </button>
           ))}
@@ -145,18 +149,18 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'profile') {
       return (
-        <div className="p-6 space-y-8">
+        <div className="p-6 space-y-6">
            <div className="flex flex-col sm:flex-row gap-6 items-start">
-             <div className="relative group mx-auto sm:mx-0">
-                {safeProfile?.pfp ? <img src={safeProfile?.pfp} alt="Avatar" className="w-24 h-24 rounded-full border-4 border-black object-cover" /> : <div className="w-24 h-24 rounded-full border-4 border-black bg-primary flex items-center justify-center text-5xl">{safeProfile?.emoji}</div>}
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm"><ImageIcon size={24}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
+             <div className="relative group mx-auto sm:mx-0 shrink-0">
+                {safeProfile?.pfp ? <img src={safeProfile?.pfp} alt="Avatar" className="w-20 h-20 rounded-full border-4 border-black object-cover" /> : <div className="w-20 h-20 rounded-full border-4 border-black bg-primary flex items-center justify-center text-4xl">{safeProfile?.emoji}</div>}
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm transition-opacity"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
              </div>
-             <div className="flex-1 w-full space-y-4">
-               <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={safeProfile.name || ''} onChange={(e) => setProfile({...safeProfile, name: e.target.value})} className="w-full p-2 retro-border bg-window focus:outline-none font-bold" /></div>
-               <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border bg-window focus:outline-none" /></div>
-                  <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Variant</label>
-                    <select value={coupleData.petSkin || '/assets/cat_1_9'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-2 retro-border bg-window focus:outline-none font-bold">
+             <div className="flex-1 w-full space-y-3">
+               <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={safeProfile.name || ''} onChange={(e) => setProfile({...safeProfile, name: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs" /></div>
+               <div className="grid grid-cols-2 gap-3">
+                  <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none text-xs" /></div>
+                  <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Variant</label>
+                    <select value={coupleData.petSkin || '/assets/cat_1_9'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs">
                       <option value="/assets/cat_1">Cat 1</option><option value="/assets/cat_1_6">Cat 2</option><option value="/assets/cat_1_9">Cat 3</option>
                     </select>
                   </div>
@@ -165,7 +169,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
            </div>
            
            <div className="pt-6 border-t border-dashed border-border flex justify-end">
-              <RetroButton onClick={() => setShowLogoutConfirm(true)} variant="secondary" className="bg-red-50 text-red-600 border-red-200">Logout of Attic</RetroButton>
+              <RetroButton onClick={() => setShowLogoutConfirm(true)} variant="secondary" className="px-6 py-2 text-[10px]">LOGOUT OF ATTIC</RetroButton>
            </div>
         </div>
       );
@@ -173,19 +177,20 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'security') {
       return (
-        <div className="p-6 space-y-8">
-           <div>
-              <h4 className="text-xs font-black uppercase tracking-widest mb-4">Password Management</h4>
+        <div className="p-6 space-y-6">
+           <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Security Settings</h4>
+           <div className="p-4 retro-border bg-window border-dashed">
+              <h5 className="text-[11px] font-black uppercase mb-3">Password Management</h5>
               {!showChangePassword ? (
-                <RetroButton onClick={() => setShowChangePassword(true)} variant="secondary" className="px-6 py-2">Reset Password</RetroButton>
+                <RetroButton onClick={() => setShowChangePassword(true)} variant="primary" className="px-6 py-2 text-[10px]">RESET PASSWORD</RetroButton>
               ) : (
                 <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
-                   <div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New Password" minLength={6} className="w-full p-2 retro-border bg-window" /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+                   <div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New Password" minLength={6} className="w-full p-2 retro-border bg-window text-xs" /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30">{showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}</button></div>
                    <div className="flex gap-2">
-                     <RetroButton type="submit" variant="primary" disabled={passwordLoading} className="flex-1">{passwordLoading ? 'Updating...' : 'Update'}</RetroButton>
-                     <RetroButton type="button" onClick={() => setShowChangePassword(false)} className="flex-1">Cancel</RetroButton>
+                     <RetroButton type="submit" variant="primary" disabled={passwordLoading} className="flex-1 py-2 text-[10px]">{passwordLoading ? 'UPDATING...' : 'UPDATE'}</RetroButton>
+                     <RetroButton type="button" onClick={() => setShowChangePassword(false)} variant="secondary" className="flex-1 py-2 text-[10px]">CANCEL</RetroButton>
                    </div>
-                   {passwordError && <p className="text-[10px] text-red-500 font-bold">{passwordError}</p>}
+                   {passwordError && <p className="text-[9px] text-red-500 font-bold uppercase">{passwordError}</p>}
                 </form>
               )}
            </div>
@@ -195,35 +200,47 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'aesthetics') {
       return (
-        <div className="p-6 space-y-8">
+        <div className="p-4 space-y-6">
            <div>
-              <h4 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={14}/> Atmosphere</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={12}/> Atmosphere</h4>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {['clear', 'rain', 'snow', 'thunder', 'storm', 'spores'].map(w => (
-                  <button key={w} onClick={() => { setWeather(w); playAudio('click', sfxEnabled); }} className={`p-2 retro-border font-bold text-[10px] uppercase ${weather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
+                  <button key={w} onClick={() => { setWeather(w); playAudio('click', sfxEnabled); }} className={`py-1.5 retro-border font-bold text-[9px] uppercase ${weather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
                 ))}
               </div>
            </div>
 
            <div>
-              <h4 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={14}/> Visual Themes</h4>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+              <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={12}/> Visual Themes</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {availableThemes.map(t => (
-                  <button 
+                  <div 
                     key={t} 
                     onClick={() => { setTheme(t); playAudio('click', sfxEnabled); }} 
-                    className={`p-1 retro-border flex flex-col items-center gap-1 group transition-none ${theme === t ? 'ring-2 ring-primary' : 'bg-window hover:bg-black/5'}`}
+                    data-theme={t}
+                    className={`retro-border p-3 cursor-pointer transition-none relative group ${theme === t ? 'ring-2 ring-primary' : 'hover:brightness-95'}`}
+                    style={{ backgroundColor: 'var(--color-main)' }}
                   >
-                     <div data-theme={t} className="w-full aspect-square bg-primary border border-black/10"></div>
-                     <span className="text-[8px] font-black uppercase truncate w-full text-center">{t}</span>
-                  </button>
+                     <div className="flex justify-between items-center mb-3">
+                        <span className="text-[9px] font-black uppercase tracking-tighter text-main-text">{t}</span>
+                        {theme === t && <Check size={12} className="text-primary" />}
+                     </div>
+                     
+                     <div className="border border-dashed border-border/40 p-2 opacity-80 pointer-events-none">
+                        <div className="flex gap-1 h-3 mb-1">
+                           <div className="flex-[2] bg-primary border border-black/10"></div>
+                           <div className="flex-1 bg-secondary border border-black/10"></div>
+                        </div>
+                        <div className="h-3 w-3/4 bg-accent border border-black/10"></div>
+                     </div>
+                  </div>
                 ))}
               </div>
            </div>
 
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-dashed border-border">
               <div>
-                 <h4 className="text-xs font-black uppercase tracking-widest mb-3">Dashboard Pattern</h4>
+                 <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Dashboard Pattern</h4>
                  <div className="flex gap-2">
                     {['grid', 'dots', 'lines', 'none'].map(p => (
                       <button key={p} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, bgPattern: p } })} className={`px-3 py-1.5 retro-border text-[9px] font-black uppercase ${coupleData.settings?.bgPattern === p ? 'bg-primary text-white' : 'bg-window'}`}>{p}</button>
@@ -231,10 +248,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  </div>
               </div>
               <div>
-                 <h4 className="text-xs font-black uppercase tracking-widest mb-3">Chat Wallpaper</h4>
+                 <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Chat Wallpaper</h4>
                  <div className="flex gap-2">
                     {['none', 'pixel-garden', 'pixel-stars', 'pixel-clouds'].map(p => (
-                      <button key={p} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, chatWallpaper: p } })} className={`w-10 h-10 retro-border ${coupleData.settings?.chatWallpaper === p ? 'ring-2 ring-primary' : 'opacity-60'}`} style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
+                      <button key={p} onClick={() => setCoupleData({ ...coupleData, settings: { ...coupleData.settings, chatWallpaper: p } })} className={`w-8 h-8 retro-border ${coupleData.settings?.chatWallpaper === p ? 'ring-2 ring-primary' : 'opacity-60'}`} style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
                     ))}
                  </div>
               </div>
@@ -245,10 +262,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'relationship') {
       return (
-        <div className="p-6 space-y-8">
-           <div className="max-w-md space-y-6">
-              <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={coupleData.nicknames?.[partnerId] || ''} onChange={(e) => setCoupleData({ ...coupleData, nicknames: { ...coupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-2 retro-border bg-window focus:outline-none" /></div>
-              <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={coupleData?.anniversary || ''} onChange={(e) => setCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer" /></div>
+        <div className="p-6 space-y-6">
+           <div className="max-w-md space-y-4">
+              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={coupleData.nicknames?.[partnerId] || ''} onChange={(e) => setCoupleData({ ...coupleData, nicknames: { ...coupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-2 retro-border bg-window focus:outline-none text-xs font-bold" /></div>
+              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={coupleData?.anniversary || ''} onChange={(e) => setCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer text-xs font-bold" /></div>
            </div>
         </div>
       );
@@ -256,25 +273,35 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'system') {
       return (
-        <div className="p-6 space-y-8">
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                 <h4 className="text-xs font-black uppercase tracking-widest mb-4">Audio & Notifications</h4>
-                 <div className="flex items-center justify-between p-3 retro-border bg-window">
-                    <span className="text-xs font-bold">UI Sound Effects</span>
-                    <button onClick={() => setSfxEnabled(!sfxEnabled)} className={`w-12 h-6 rounded-full retro-border relative ${sfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white border-2 border-black rounded-full absolute top-[-2px] transition-none ${sfxEnabled ? 'translate-x-6' : 'translate-x-0'}`} /></button>
+        <div className="p-6 space-y-6">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="space-y-5">
+                 <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2"><Volume2 size={12}/> Audio & Alerts</h4>
+                 <div className="flex items-center justify-between p-2 retro-border bg-window">
+                    <span className="text-[11px] font-bold">Sound Effects</span>
+                    <button onClick={() => setSfxEnabled(!sfxEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${sfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${sfxEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                  </div>
-                 <div className="flex items-center justify-between p-3 retro-border bg-window">
-                    <span className="text-xs font-bold">Browser Notifications</span>
-                    <button onClick={() => setNotificationsEnabled(!notificationsEnabled)} className={`w-12 h-6 rounded-full retro-border relative ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white border-2 border-black rounded-full absolute top-[-2px] transition-none ${notificationsEnabled ? 'translate-x-6' : 'translate-x-0'}`} /></button>
+                 <div className="flex items-center justify-between p-2 retro-border bg-window">
+                    <span className="text-[11px] font-bold">Push Notifications</span>
+                    <button onClick={() => setNotificationsEnabled(!notificationsEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${notificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                 </div>
+                 
+                 <h4 className="text-[10px] font-black uppercase tracking-widest mt-6 mb-2 flex items-center gap-2"><Monitor size={12}/> WebRTC Advanced</h4>
+                 <div className="flex items-center justify-between p-2 retro-border bg-window">
+                    <span className="text-[11px] font-bold">Noise Suppression</span>
+                    <button onClick={() => setNoiseSuppression(!noiseSuppression)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${noiseSuppression ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${noiseSuppression ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                 </div>
+                 <div className="flex items-center justify-between p-2 retro-border bg-window">
+                    <span className="text-[11px] font-bold">Echo Cancellation</span>
+                    <button onClick={() => setEchoCancellation(!echoCancellation)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${echoCancellation ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${echoCancellation ? 'translate-x-5' : 'translate-x-0'}`} /></button>
                  </div>
               </div>
               <div className="space-y-4">
-                 <h4 className="text-xs font-black uppercase tracking-widest mb-4">Call Debugger</h4>
-                 <div className="p-4 retro-border bg-window space-y-4 border-dashed">
-                    <RetroButton onClick={handleTestTurn} className="w-full text-[10px] py-2">Test TURN Servers</RetroButton>
-                    <RetroButton onClick={() => { endCall(); toast('Engine reset', 'info'); }} variant="secondary" className="w-full text-[10px] py-2">Reset Call Engine</RetroButton>
-                    <p className="text-[8px] font-black uppercase opacity-40">Status: {callStatus}</p>
+                 <h4 className="text-[10px] font-black uppercase tracking-widest mb-2">Diagnostics</h4>
+                 <div className="p-3 retro-border bg-window space-y-3 border-dashed">
+                    <RetroButton onClick={handleTestTurn} variant="primary" className="w-full text-[9px] py-1.5 uppercase">TEST RELAY ENGINE</RetroButton>
+                    <RetroButton onClick={() => { endCall(); toast('Engine reset', 'info'); }} variant="secondary" className="w-full text-[9px] py-1.5 uppercase">HARD RESET CALLS</RetroButton>
+                    <p className="text-[8px] font-black uppercase opacity-40 text-center tracking-tight">Engine: {callStatus}</p>
                  </div>
               </div>
            </div>
@@ -284,31 +311,31 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'privacy') {
       return (
-        <div className="p-6 space-y-12">
+        <div className="p-6 space-y-10">
            <div>
-              <h4 className="text-xs font-black uppercase tracking-widest mb-4">Data Sovereignty</h4>
-              <p className="text-xs opacity-60 mb-4">Download a portable backup of your history.</p>
-              <RetroButton onClick={handleExportData} className="px-8 py-3">Export Data (.json)</RetroButton>
+              <h4 className="text-[10px] font-black uppercase tracking-widest mb-2">Archive Retrieval</h4>
+              <p className="text-[10px] opacity-60 mb-3 font-bold uppercase tracking-tight leading-tight">Download your shared history in local machine readable format.</p>
+              <RetroButton onClick={handleExportData} variant="primary" className="px-6 py-2 text-[10px]">EXPORT .JSON DATA</RetroButton>
            </div>
 
-           <div className="p-6 border-2 border-dashed border-red-200 bg-red-50/10">
-              <h4 className="text-xs font-black uppercase tracking-widest mb-4 text-red-600 flex items-center gap-2"><Trash2 size={14}/> Danger Zone</h4>
-              <div className="flex flex-col sm:flex-row gap-4">
+           <div className="p-5 border-2 border-dashed border-red-200 bg-red-50/5">
+              <h4 className="text-[11px] font-black uppercase mb-4 text-red-600 flex items-center gap-2 font-black">🚨 CRITICAL ZONE</h4>
+              <div className="flex flex-col sm:flex-row gap-3">
                  <RetroButton onClick={async () => {
                     const ok = window.confirm("Disconnect from partner?");
                     if (ok) {
                       await supabase.rpc('leave_room', { room_uuid: coupleData.room_id });
                       navigate('/handshake'); window.location.reload();
                     }
-                 }} className="flex-1 bg-window text-orange-600 border-orange-300">Unpair Handshake</RetroButton>
+                 }} variant="secondary" className="flex-1 bg-window text-orange-600 border-orange-200 text-[10px] py-2">UNPAIR ACCOUNT</RetroButton>
                  <RetroButton onClick={async () => {
-                    const ok = window.confirm("DELETE ALL DATA?");
+                    const ok = window.confirm("DELETE ALL DATA PERMANENTLY?");
                     if (ok) {
                        await supabase.rpc('delete_my_room');
                        await supabase.auth.signOut();
                        window.location.href = '/';
                     }
-                 }} className="flex-1 bg-red-600 text-white border-red-800">Destroy My Attic</RetroButton>
+                 }} variant="primary" className="flex-1 bg-red-600 text-white border-red-800 text-[10px] py-2">DESTROY ATTIC DATA</RetroButton>
               </div>
            </div>
         </div>
@@ -336,23 +363,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  {currentView !== 'home' && (
                    <>
                      <span className="opacity-30">/</span>
-                     <span className="text-primary font-black uppercase">{categories.find(c => c.id === currentView)?.label}</span>
+                     <span className="text-primary font-black uppercase tracking-tight">{categories.find(c => c.id === currentView)?.label}</span>
                    </>
                  )}
               </div>
            </div>
 
-           <div className="w-full sm:w-48 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" size={14} />
+           <div className="w-full sm:w-44 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" size={12} />
               <input 
                 type="text" 
-                placeholder="Search settings..." 
+                placeholder="Search..." 
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   if (currentView !== 'home') setCurrentView('home');
                 }}
-                className="w-full pl-9 pr-3 py-1.5 retro-border bg-window text-[11px] font-bold focus:outline-none"
+                className="w-full pl-8 pr-3 py-1.5 retro-border bg-window text-[10px] font-bold focus:outline-none"
               />
            </div>
         </div>
@@ -364,10 +391,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
         {/* Footer Area */}
         <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
-           <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Attic Configuration Manager v1.2.1-rigid</div>
+           <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
            <div className="flex gap-2">
-              <RetroButton onClick={onClose} variant="secondary" className="px-4 py-1 text-xs">Close</RetroButton>
-              <RetroButton onClick={() => { playAudio('click', sfxEnabled); toast('Settings Saved!', 'success'); onClose(); }} variant="primary" className="px-6 py-1 text-xs">Save & Exit</RetroButton>
+              <RetroButton onClick={onClose} variant="secondary" className="px-5 py-1 text-[10px]">CLOSE</RetroButton>
+              <RetroButton onClick={() => { playAudio('click', sfxEnabled); toast('Settings Saved!', 'success'); onClose(); }} variant="primary" className="px-6 py-1 text-[10px]">SAVE & EXIT</RetroButton>
            </div>
         </div>
       </RetroWindow>

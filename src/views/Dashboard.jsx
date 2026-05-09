@@ -82,73 +82,36 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           </div>
         </div>
       )}
-      <RetroWindow title="welcome.exe" className="md:col-span-8 h-auto min-h-[12rem]">
-        <div className="flex flex-col h-full justify-between gap-4">
+      <RetroWindow title="welcome.exe" className="md:col-span-8 h-auto min-h-[10rem]">
+        <div className="flex flex-col h-full justify-between gap-2 p-1">
           <div className="flex justify-between items-start">
-            {streaks?.count > 0 && (
-              <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-orange-100/80 backdrop-blur-sm retro-border px-3 py-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500">
-                <Flame size={14} className={`text-orange-500 ${streaks.count > 3 ? 'animate-bounce' : ''}`} fill={streaks.count > 3 ? 'currentColor' : 'none'} />
-                <span className="font-black text-orange-700 text-[10px] tracking-widest uppercase">
-                  {streaks.count} Day{streaks.count !== 1 ? 's' : ''}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center gap-4">
-              {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-16 h-16 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border retro-bg-accent flex items-center justify-center text-3xl sm:text-4xl">{profile.emoji}</div>}
+            <div className="flex items-center gap-3">
+              {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl">{profile.emoji}</div>}
               <div>
-                <h1 className="text-2xl sm:text-3xl font-black mb-1 leading-none lowercase flex items-center gap-2">
+                <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
                   hi {myDisplayName}! {mood}
-                  {coupleData.settings?.masterMode && (
-                    <span className="bg-yellow-400 text-black text-[10px] px-2 py-0.5 retro-border animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-black uppercase tracking-tighter">Master</span>
-                  )}
                 </h1>
 
-                <div className="flex items-center gap-4 mt-3 bg-black/5 p-2 retro-border border-dashed min-h-[50px]">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mt-2 bg-black/5 p-1.5 retro-border border-dashed">
+                  <div className="flex items-center gap-2">
                     <div className="relative">
                       {partnerProfile.pfp ? (
-                        <img src={partnerProfile.pfp} alt="partner" className="w-10 h-10 retro-border object-cover bg-white retro-shadow-dark" />
+                        <img src={partnerProfile.pfp} alt="partner" className="w-8 h-8 retro-border object-cover bg-white" />
                       ) : (
-                        <div className="w-10 h-10 retro-bg-secondary retro-border flex items-center justify-center text-lg">{partnerProfile.emoji || '👤'}</div>
+                        <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
                       )}
-                      {/* Presence indicator */}
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                      <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-white rounded-full ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 tracking-widest leading-none mb-1">Partner Connection</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold truncate max-w-[140px] leading-none">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold truncate max-w-[120px] leading-none">
                           {partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner'}
                         </p>
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
+                        <span className={`text-[8px] font-black uppercase px-1 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
                           {displayStatus.toLowerCase()}
                         </span>
                       </div>
-
-                      {isPartnerOnline && partnerProfile.activity && (
-                        <div className="flex items-center gap-2 mt-1.5 animate-in fade-in slide-in-from-left-2">
-                          <p className="text-[10px] font-bold text-primary italic lowercase">
-                            currently {partnerProfile.activity}
-                          </p>
-                          {['Playing', 'Watching', 'Browsing'].some(s => partnerProfile.activity.includes(s)) && (
-                            <button 
-                              onClick={() => {
-                                if (partnerProfile.activity.includes('SyncWatcher')) setView('watch');
-                                else if (partnerProfile.activity.includes('Games')) setView('activities');
-                                else setView('activities');
-                              }}
-                              className="text-[8px] bg-primary text-white px-1.5 py-0.5 retro-border font-black uppercase hover:scale-105 active:scale-95 transition-transform"
-                            >
-                              Join
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
-                  </div>
-                  <div className="ml-auto flex items-center gap-3">
-                    <div className="h-8 w-px bg-border opacity-20"></div>
-                    <StreakBadge streak={streaks} />
                   </div>
                 </div>
               </div>
@@ -156,62 +119,48 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             <button 
               onClick={handleSendKiss} 
               disabled={Date.now() - lastActionTime < 3000}
-              className={`p-2 w-16 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none'}`} 
-              title="Send a kiss!"
+              className={`p-1.5 w-14 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
             >
-              <Heart size={24} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
-              <span className="text-[10px] font-bold mt-1 uppercase">Kiss</span>
+              <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
+              <span className="text-[9px] font-bold mt-0.5 uppercase">Kiss</span>
             </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-end justify-between pt-4 border-t border-dashed border-border mt-auto">
-            {/* Left: partner's local weather */}
-            <div className="flex items-center gap-2 min-h-[40px]">
-              {partnerWeather ? (
+          <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mt-2">
+            <div className="flex items-center gap-2">
+              {partnerWeather && (
                 <>
-                  <span className="text-xl leading-none">{partnerWeather.emoji}</span>
-                  <div className="leading-none">
-                    <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">{partnerProfile.name || 'Partner'}'s weather</p>
-                    <p className="text-xs font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
-                  </div>
+                  <span className="text-lg leading-none">{partnerWeather.emoji}</span>
+                  <p className="text-[10px] font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
                 </>
-              ) : (
-                <p className="text-[10px] opacity-30 font-bold uppercase tracking-widest">
-                  {partnerProfile?.location ? 'fetching weather…' : 'partner location unknown'}
-                </p>
               )}
             </div>
-
-            {/* Right: controls */}
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex gap-2 items-center">
-
-                <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[10px] py-1.5 px-3 retro-border retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider flex items-center gap-1.5">
-                  <SettingsIcon size={11} /> Control Panel
-                </button>
-                <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[10px] py-1.5 px-3 retro-border border-red-700 retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-transform uppercase tracking-wider">
-                  Log Out
-                </button>
-              </div>
+            <div className="flex gap-2">
+              <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
+                <SettingsIcon size={10} /> Control Panel
+              </button>
             </div>
           </div>
         </div>
       </RetroWindow>
 
-      <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[12rem]">
-        <div className="flex flex-col items-center text-center h-full justify-between">
+      <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className="md:col-span-4 h-auto min-h-[10rem]">
+        <div className="flex flex-col items-center text-center h-full justify-between p-1">
           <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerIdle} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
-          <div className="w-full px-4 mt-2 flex flex-col gap-1 select-none">
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider select-none text-main-text">
-              <span>Happiness</span>
-              <span>{petHappy}%</span>
-            </div>
-            <div className="h-5 retro-border bg-main w-full relative overflow-hidden flex items-center">
-              <div className="h-full bg-primary transition-all duration-300" style={{ width: `${petHappy}%` }}></div>
+          
+          <div className="w-full px-2 mt-1">
+            <div className="flex gap-1 h-3.5 w-full">
+              {[...Array(10)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`flex-1 retro-border transition-colors duration-300 ${i < Math.round(petHappy / 10) ? 'bg-primary' : 'bg-main opacity-20'}`}
+                />
+              ))}
             </div>
           </div>
-          <div className="flex gap-2 w-full mt-4">
-            <RetroButton variant="secondary" className="flex-1 py-2 text-xs" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
+
+          <div className="flex gap-2 w-full mt-2 px-2">
+            <RetroButton variant="secondary" className="flex-1 py-1 text-[10px] font-black uppercase" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
           </div>
         </div>
       </RetroWindow>

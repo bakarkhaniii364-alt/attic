@@ -10,7 +10,7 @@ export function FloatingEnvelope({ doodle, onClick, onReadLater }) {
       </div>
       <button 
         onClick={(e) => { e.stopPropagation(); onReadLater?.(doodle); }}
-        className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border border-white/20 hover:bg-black/80"
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 underline decoration-2 underline-offset-2 hover:text-primary"
       >
         Read later
       </button>

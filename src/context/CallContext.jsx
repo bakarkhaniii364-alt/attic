@@ -62,10 +62,15 @@ export function CallProvider({ children }) {
   const [isDeafened,    setIsDeafened]    = useState(false);
   const [isCameraOff,   setIsCameraOff]   = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [noiseSuppression, setNoiseSuppression] = useState(() => localStorage.getItem('call_noise_suppression') !== 'false');
+  const [echoCancellation, setEchoCancellation] = useState(() => localStorage.getItem('call_echo_cancellation') !== 'false');
   const [callStatus,    setCallStatus]    = useState('idle');
   const [callQuality,   setCallQuality]   = useState('good');
-  const [partnerInCall, setPartnerInCall] = useState(false);
-  const [isPartnerCameraOff, setIsPartnerCameraOff] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('call_noise_suppression', noiseSuppression);
+    localStorage.setItem('call_echo_cancellation', echoCancellation);
+  }, [noiseSuppression, echoCancellation]);
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const pcRef              = useRef(null);  // RTCPeerConnection
@@ -375,7 +380,11 @@ const createPC = useCallback(async (type) => {
             // Defensive: stop any lingering local tracks before re-acquiring camera/mic
             try { if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
             const stream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
+              audio: {
+                 echoCancellation,
+                 noiseSuppression,
+                 autoGainControl: true
+              },
               video: payload.callType === 'video',
             });
             localStreamRef.current = stream;
@@ -454,7 +463,7 @@ const createPC = useCallback(async (type) => {
 
       default: break;
     }
-  }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd]);
+  }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd, echoCancellation, noiseSuppression]);
 
   // ── Supabase signaling channel ────────────────────────────────────────────
   useEffect(() => {
@@ -552,8 +561,8 @@ const createPC = useCallback(async (type) => {
       }
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { 
-          echoCancellation: true, 
-          noiseSuppression: true, 
+          echoCancellation, 
+          noiseSuppression, 
           autoGainControl: true,
           channelCount: 1
         }, 
@@ -591,7 +600,7 @@ const createPC = useCallback(async (type) => {
       cleanupCall();
       alert('Could not access microphone/camera. Please check browser permissions.');
     }
-  }, [partnerId, userId, partnerInCall, sendSignal, cleanupCall, recordMissedCall]);
+  }, [partnerId, userId, partnerInCall, sendSignal, cleanupCall, recordMissedCall, echoCancellation, noiseSuppression]);
 
   const acceptCall = useCallback(async () => {
     const incoming = incomingCall;
@@ -610,8 +619,8 @@ const createPC = useCallback(async (type) => {
       // Get media early so it's ready when offer arrives
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { 
-          echoCancellation: true, 
-          noiseSuppression: true, 
+          echoCancellation, 
+          noiseSuppression, 
           autoGainControl: true 
         }, 
         video: incoming.type === 'video' 
@@ -630,7 +639,7 @@ const createPC = useCallback(async (type) => {
       console.error('[Call] acceptCall failed:', err);
       cleanupCall();
     }
-  }, [incomingCall, sendSignal, cleanupCall]);
+  }, [incomingCall, sendSignal, cleanupCall, echoCancellation, noiseSuppression]);
 
   const declineCall = useCallback(() => {
     if (ringStopRef.current) { ringStopRef.current(); ringStopRef.current = null; }
