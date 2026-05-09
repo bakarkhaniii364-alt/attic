@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Music, Play, Pause, SkipForward, Volume2, Radio, Disc, BarChart3 } from 'lucide-react';
+import { Music, Play, Pause, SkipForward, SkipBack, Volume2, Radio, Disc, BarChart3 } from 'lucide-react';
 import { RetroWindow } from './UI.jsx';
 
 export const CHANNELS = [
