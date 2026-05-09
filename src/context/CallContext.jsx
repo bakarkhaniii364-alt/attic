@@ -18,102 +18,16 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
 import { isTestMode, sendTestBroadcast, onTestBroadcast } from '../lib/testMode.js';
+import { getFullIceServers, logIceConfig, STATIC_ICE_SERVERS } from '../utils/webrtc.js';
 
 const CallContext = createContext(null);
-
-// ── ICE servers ──────────────────────────────────────────────────────────────
-const ICE_SERVERS = [
-  // Google STUN (usually always works)
-  { urls: 'stun:stun.l.google.com:19302' },
-  
-  // Cloudflare TURN (Highest Priority if Token is provided)
-  ...(import.meta.env.VITE_CF_TURN_TOKEN ? [{
-    urls: "turn:turn.cloudflare.com:3478?transport=udp",
-    username: import.meta.env.VITE_CF_TURN_TOKEN,
-    credential: import.meta.env.VITE_CF_TURN_TOKEN
-  }] : []),
-
-  // Metered.ca (Dynamic from ENV)
-  {
-    urls: [
-      import.meta.env.VITE_TURN_URL_SSL || `turns:relay.metered.ca:443?transport=tcp`,
-      import.meta.env.VITE_TURN_URL || `turn:relay.metered.ca:3478?transport=udp`,
-      `turn:relay.metered.ca:3478?transport=tcp`,
-      `turn:relay.metered.ca:443?transport=tcp`,
-      `turn:relay.metered.ca:80?transport=tcp`
-    ],
-    username: import.meta.env.VITE_TURN_USERNAME || '7b7a36e720529076fafd84b7',
-    credential: import.meta.env.VITE_TURN_PASSWORD || 'londsjncTUuBxGCU'
-  },
-
-  // Xirsys TURN (if configured)
-  ...(import.meta.env.VITE_XIRSYS_URL ? [{
-    urls: import.meta.env.VITE_XIRSYS_URL,
-    username: import.meta.env.VITE_XIRSYS_USERNAME,
-    credential: import.meta.env.VITE_XIRSYS_PASSWORD
-  }] : []),
-
-  // Public Community Fallbacks (Unauthenticated or well-known public credentials)
-  {
-    urls: "turn:numb.viagenie.ca",
-    username: "webrtc@live.com",
-    credential: "muazkh"
-  },
-  {
-    urls: "turn:turn.anyfirewall.com:443?transport=tcp",
-    username: "webrtc",
-    credential: "webrtc"
-  },
-  {
-    urls: "turn:turn.freeswitch.org",
-    username: "freeswitch",
-    credential: "freeswitch"  
-  }
-];
-// ── Dynamic ICE Fetching (Cloudflare) ────────────────────────────────────────
-async function getFullIceServers() {
-  const keyId = import.meta.env.VITE_CF_CALLS_KEY_ID;
-  const secret = import.meta.env.VITE_CF_CALLS_KEY_SECRET;
-  
-  let cfServers = [];
-  if (keyId && secret) {
-    try {
-      console.log('[WebRTC] Fetching fresh Cloudflare TURN credentials...');
-      const resp = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${secret}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ ttl: 86400 })
-      });
-      const data = await resp.json();
-      if (data.iceServers) {
-        cfServers = data.iceServers;
-        console.log('[WebRTC] Cloudflare TURN credentials acquired.');
-      }
-    } catch (e) {
-      console.warn('[WebRTC] Cloudflare TURN fetch failed, using fallbacks:', e.message);
-    }
-  }
-  return [...cfServers, ...ICE_SERVERS];
-}
-
-console.log('[WebRTC] ICE Config Loaded:', ICE_SERVERS.map(s => {
-  const urlSample = Array.isArray(s.urls) ? s.urls[0] : s.urls;
-  return {
-    host: urlSample?.split(':')[1] || 'unknown',
-    user: s.username ? `${String(s.username).slice(0,4)}...` : 'none',
-    hasPass: !!s.credential 
-  };
-}));
 
 // Warn if TURN credentials look missing or are using the public fallback
 (() => {
   const u = import.meta.env.VITE_TURN_USERNAME;
   const p = import.meta.env.VITE_TURN_PASSWORD;
   if (!u || !p || u === 'openrelayproject' || p === 'openrelayproject') {
-    console.warn('[WebRTC] TURN credentials appear missing or default. Verify Metered.ca credentials and Vercel `VITE_TURN_USERNAME`/`VITE_TURN_PASSWORD` env vars.');
+    console.warn('[WebRTC] TURN credentials appear missing or default. Verify Metered.ca credentials.');
   }
 })();
 
@@ -784,7 +698,7 @@ const createPC = useCallback(async (type) => {
 
   const testTurnConfig = useCallback(async () => {
     // Get the first TURN server config for logging
-    const turnServer = ICE_SERVERS.find(s => {
+    const turnServer = STATIC_ICE_SERVERS.find(s => {
       const u = Array.isArray(s.urls) ? s.urls[0] : s.urls;
       return u?.includes('turn:');
     });
