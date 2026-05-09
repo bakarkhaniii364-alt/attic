@@ -240,11 +240,42 @@ export function CallProvider({ children }) {
     }).then(({ error }) => { if (error) console.warn('[Call] Missed log failed:', error.message); });
   }, [roomId, userId]);
 
-  // ── RTCPeerConnection factory ─────────────────────────────────────────────
-  const createPC = useCallback((type) => {
-    if (pcRef.current) { try { pcRef.current.close(); } catch(_){} }
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 10 });
-    pcRef.current = pc;
+// ── Dynamic ICE Fetching (Cloudflare) ────────────────────────────────────────
+async function getFullIceServers() {
+  const keyId = import.meta.env.VITE_CF_CALLS_KEY_ID;
+  const secret = import.meta.env.VITE_CF_CALLS_KEY_SECRET;
+  
+  let cfServers = [];
+  if (keyId && secret) {
+    try {
+      console.log('[WebRTC] Fetching fresh Cloudflare TURN credentials...');
+      const resp = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${secret}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ ttl: 86400 })
+      });
+      const data = await resp.json();
+      if (data.iceServers) {
+        cfServers = data.iceServers;
+        console.log('[WebRTC] Cloudflare TURN credentials acquired.');
+      }
+    } catch (e) {
+      console.warn('[WebRTC] Cloudflare TURN fetch failed, using fallbacks:', e.message);
+    }
+  }
+  return [...cfServers, ...ICE_SERVERS];
+}
+
+// ── RTCPeerConnection factory ─────────────────────────────────────────────
+const createPC = useCallback(async (type) => {
+  if (pcRef.current) { try { pcRef.current.close(); } catch(_){} }
+  
+  const dynamicServers = await getFullIceServers();
+  const pc = new RTCPeerConnection({ iceServers: dynamicServers, iceCandidatePoolSize: 10 });
+  pcRef.current = pc;
 
     // Send our tracks to remote
     if (localStreamRef.current) {
@@ -407,7 +438,7 @@ export function CallProvider({ children }) {
 
         try {
           makingOfferRef.current = true;
-          const pc = createPC(payload.callType);
+          const pc = await createPC(payload.callType);
           const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: payload.callType === 'video' });
           await pc.setLocalDescription(offer);
           sendSignal({ action: 'offer', sdp: pc.localDescription, callType: payload.callType });
@@ -438,7 +469,7 @@ export function CallProvider({ children }) {
             setLocalStream(stream);
           }
 
-          const pc = createPC(payload.callType);
+          const pc = await createPC(payload.callType);
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           await applyPendingCandidates();
 
@@ -759,7 +790,8 @@ export function CallProvider({ children }) {
     });
     console.log('[Debug] Starting TURN connectivity test...');
     
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const dynamicServers = await getFullIceServers();
+    const pc = new RTCPeerConnection({ iceServers: dynamicServers });
     const results = [];
     const errors = [];
     
