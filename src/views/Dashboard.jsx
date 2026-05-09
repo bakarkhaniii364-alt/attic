@@ -228,22 +228,17 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
       </RetroWindow>
 
       <RetroWindow title="stats.sys" className="md:col-span-4 h-auto">
-        <div className="flex flex-col h-full p-2 text-sm font-bold gap-2 text-main-text">
-          {/* Current Streak */}
-          <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span className="flex items-center gap-2"><Flame size={14} className="text-orange-500" /> Current Streak</span>
+        <div className="flex flex-col h-full p-2 text-[11px] font-black uppercase tracking-wider text-main-text space-y-1">
+          <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
+            <span>Current Streak</span>
             <span className="text-primary">{streaks.count || 0} Days</span>
           </div>
-          
-          {/* Best Streak */}
-          <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span className="flex items-center gap-2">🏆 Best Streak</span>
+          <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
+            <span>Best Streak</span>
             <span className="text-secondary">{streaks.best || streaks.count || 0} Days</span>
           </div>
-
-          {/* Usage longevity */}
-          <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span className="flex items-center gap-2">🏠 Attic Usage</span>
+          <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
+            <span>Attic Usage</span>
             <span className="text-accent">
               {(() => {
                 const start = profile.created_at ? new Date(profile.created_at) : new Date();
@@ -253,23 +248,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             </span>
           </div>
 
-          {/* Highscore Winner */}
-          <div className="flex justify-between items-center bg-window p-2 retro-border">
-            <span className="flex items-center gap-2">👑 Highscore King</span>
-            <span className="text-primary truncate max-w-[100px]">
-              {(() => {
-                const myTotal = Object.values(scores).reduce((acc, g) => acc + (g[userId] || 0), 0);
-                const partnerTotal = Object.values(scores).reduce((acc, g) => acc + (g[partnerId] || 0), 0);
-                if (myTotal === 0 && partnerTotal === 0) return 'No games yet';
-                if (myTotal === partnerTotal) return 'Tie!';
-                return myTotal > partnerTotal ? 'You' : partnerName;
-              })()}
-            </span>
-          </div>
-
-          {/* Site Version and Theme */}
-          <div className="mt-auto pt-2 border-t border-dashed border-border flex justify-between items-center opacity-40 text-[9px] uppercase tracking-widest font-black">
-            <span>v1.2.0-stable</span>
+          <div className="mt-auto pt-2 flex justify-between items-center opacity-40 text-[9px] font-black">
+            <span>v1.2.1-rigid</span>
             <span>Theme: {theme}</span>
           </div>
         </div>

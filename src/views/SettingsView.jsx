@@ -20,7 +20,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const { testTurnConfig, endCall, callStatus } = useCall();
   
   // View management
-  const [currentView, setCurrentView] = useState('home'); // home, profile, aesthetics, relationship, system, privacy
+  const [currentView, setCurrentView] = useState('home'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [history, setHistory] = useState(['home']);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -54,11 +54,12 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const availableThemes = ['default', 'matcha', 'val-sage', 'lavender', 'rose', 'minimal', 'monochrome', 'nord', 'coffee', 'velvet', 'starlight', 'crayon', 'vaporwave', 'messenger', 'reddit', 'discord', 'spotify', 'github', 'cyberpunk', 'synthwave', 'matrix', 'val-killjoy', 'midnight', 'gameboy', 'superman-2025', 'spiderman', 'batman', 'neon-tokyo'];
 
   const categories = [
-    { id: 'profile', label: 'User Account', icon: <User size={24}/>, desc: 'Manage your avatar, name and password' },
-    { id: 'aesthetics', label: 'Aesthetics', icon: <Palette size={24}/>, desc: 'Change themes, weather and patterns' },
-    { id: 'relationship', label: 'Relationship', icon: <Heart size={24}/>, desc: 'Nicknames and anniversary settings' },
-    { id: 'system', label: 'System & Audio', icon: <Monitor size={24}/>, desc: 'Sounds, notifications and call debugger' },
-    { id: 'privacy', label: 'Privacy & Data', icon: <ShieldCheck size={24}/>, desc: 'Export data and account management' },
+    { id: 'profile', label: 'User Account', icon: <User size={20}/>, desc: 'Your name, pfp and pet settings' },
+    { id: 'security', label: 'Security', icon: <Lock size={20}/>, desc: 'Password reset and auth settings' },
+    { id: 'aesthetics', label: 'Aesthetics', icon: <Palette size={20}/>, desc: 'Themes, weather and patterns' },
+    { id: 'relationship', label: 'Relationship', icon: <Heart size={20}/>, desc: 'Partner and anniversary' },
+    { id: 'system', label: 'System & Audio', icon: <Monitor size={20}/>, desc: 'Sounds and connectivity' },
+    { id: 'privacy', label: 'Privacy & Data', icon: <ShieldCheck size={20}/>, desc: 'Data export and room management' },
   ];
 
   const filteredCategories = categories.filter(c => 
@@ -130,8 +131,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
           {filteredCategories.map(c => (
-            <button key={c.id} onClick={() => navigateTo(c.id)} className="flex items-center gap-4 p-4 retro-border bg-window hover:bg-border/10 transition-all text-left group">
-              <div className="p-3 bg-primary/10 text-primary group-hover:scale-110 transition-transform">{c.icon}</div>
+            <button key={c.id} onClick={() => navigateTo(c.id)} className="flex items-center gap-4 p-4 retro-border bg-window hover:bg-black/5 text-left group">
+              <div className="p-3 bg-primary/10 text-primary">{c.icon}</div>
               <div>
                 <h3 className="font-black text-sm uppercase tracking-wider">{c.label}</h3>
                 <p className="text-[10px] font-bold opacity-40">{c.desc}</p>
@@ -144,38 +145,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'profile') {
       return (
-        <div className="p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="p-6 space-y-8">
            <div className="flex flex-col sm:flex-row gap-6 items-start">
              <div className="relative group mx-auto sm:mx-0">
                 {safeProfile?.pfp ? <img src={safeProfile?.pfp} alt="Avatar" className="w-24 h-24 rounded-full border-4 border-black object-cover" /> : <div className="w-24 h-24 rounded-full border-4 border-black bg-primary flex items-center justify-center text-5xl">{safeProfile?.emoji}</div>}
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity backdrop-blur-sm"><ImageIcon size={24}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm"><ImageIcon size={24}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
              </div>
              <div className="flex-1 w-full space-y-4">
-               <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={safeProfile.name || ''} onChange={(e) => setProfile({...safeProfile, name: e.target.value})} className="w-full p-3 retro-border bg-gray-50 focus:outline-none font-bold" /></div>
+               <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={safeProfile.name || ''} onChange={(e) => setProfile({...safeProfile, name: e.target.value})} className="w-full p-2 retro-border bg-window focus:outline-none font-bold" /></div>
                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border bg-gray-50 focus:outline-none" /></div>
+                  <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Name</label><input type="text" value={coupleData.petName || ''} onChange={(e) => setCoupleData({...coupleData, petName: e.target.value})} className="w-full p-2 retro-border bg-window focus:outline-none" /></div>
                   <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Pet Variant</label>
-                    <select value={coupleData.petSkin || '/assets/cat_1_9'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-2 retro-border bg-gray-50 focus:outline-none font-bold">
+                    <select value={coupleData.petSkin || '/assets/cat_1_9'} onChange={(e) => setCoupleData({...coupleData, petSkin: e.target.value})} className="w-full p-2 retro-border bg-window focus:outline-none font-bold">
                       <option value="/assets/cat_1">Cat 1</option><option value="/assets/cat_1_6">Cat 2</option><option value="/assets/cat_1_9">Cat 3</option>
                     </select>
                   </div>
                </div>
              </div>
-           </div>
-
-           <div className="pt-6 border-t border-dashed border-border">
-              <h4 className="text-xs font-black uppercase tracking-widest mb-4">Account Security</h4>
-              {!showChangePassword ? (
-                <RetroButton onClick={() => setShowChangePassword(true)} variant="secondary" className="px-6 py-2">Change Password</RetroButton>
-              ) : (
-                <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
-                   <div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New Password" minLength={6} className="w-full p-2 retro-border" /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
-                   <div className="flex gap-2">
-                     <RetroButton type="submit" variant="primary" disabled={passwordLoading} className="flex-1">{passwordLoading ? 'Updating...' : 'Update'}</RetroButton>
-                     <RetroButton type="button" onClick={() => setShowChangePassword(false)} className="flex-1">Cancel</RetroButton>
-                   </div>
-                </form>
-              )}
            </div>
            
            <div className="pt-6 border-t border-dashed border-border flex justify-end">
@@ -185,31 +171,52 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       );
     }
 
+    if (currentView === 'security') {
+      return (
+        <div className="p-6 space-y-8">
+           <div>
+              <h4 className="text-xs font-black uppercase tracking-widest mb-4">Password Management</h4>
+              {!showChangePassword ? (
+                <RetroButton onClick={() => setShowChangePassword(true)} variant="secondary" className="px-6 py-2">Reset Password</RetroButton>
+              ) : (
+                <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
+                   <div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New Password" minLength={6} className="w-full p-2 retro-border bg-window" /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
+                   <div className="flex gap-2">
+                     <RetroButton type="submit" variant="primary" disabled={passwordLoading} className="flex-1">{passwordLoading ? 'Updating...' : 'Update'}</RetroButton>
+                     <RetroButton type="button" onClick={() => setShowChangePassword(false)} className="flex-1">Cancel</RetroButton>
+                   </div>
+                   {passwordError && <p className="text-[10px] text-red-500 font-bold">{passwordError}</p>}
+                </form>
+              )}
+           </div>
+        </div>
+      );
+    }
+
     if (currentView === 'aesthetics') {
       return (
-        <div className="p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="p-6 space-y-8">
            <div>
               <h4 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={14}/> Atmosphere</h4>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {['clear', 'rain', 'snow', 'thunder', 'storm', 'spores'].map(w => (
-                  <button key={w} onClick={() => { setWeather(w); playAudio('click', sfxEnabled); }} className={`p-3 retro-border font-bold text-[10px] uppercase transition-all ${weather === w ? 'bg-primary text-white scale-105' : 'bg-window hover:bg-black/5'}`}>{w}</button>
+                  <button key={w} onClick={() => { setWeather(w); playAudio('click', sfxEnabled); }} className={`p-2 retro-border font-bold text-[10px] uppercase ${weather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
                 ))}
               </div>
            </div>
 
            <div>
               <h4 className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Palette size={14}/> Visual Themes</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                 {availableThemes.map(t => (
-                  <div key={t} onClick={() => { setTheme(t); playAudio('click', sfxEnabled); }} className={`p-2 retro-border cursor-pointer transition-all ${theme === t ? 'ring-2 ring-primary scale-105' : 'opacity-70 hover:opacity-100'} bg-gray-50`}>
-                     <div className="flex justify-between items-center mb-2">
-                        <span className="text-[9px] font-black uppercase truncate pr-1">{t}</span>
-                        {theme === t && <Check size={12} className="text-primary" />}
-                     </div>
-                     <div data-theme={t} className="h-6 w-full flex gap-1">
-                        <div className="flex-1 bg-primary border border-black/10"></div><div className="flex-1 bg-secondary border border-black/10"></div><div className="flex-1 bg-accent border border-black/10"></div>
-                     </div>
-                  </div>
+                  <button 
+                    key={t} 
+                    onClick={() => { setTheme(t); playAudio('click', sfxEnabled); }} 
+                    className={`p-1 retro-border flex flex-col items-center gap-1 group transition-none ${theme === t ? 'ring-2 ring-primary' : 'bg-window hover:bg-black/5'}`}
+                  >
+                     <div data-theme={t} className="w-full aspect-square bg-primary border border-black/10"></div>
+                     <span className="text-[8px] font-black uppercase truncate w-full text-center">{t}</span>
+                  </button>
                 ))}
               </div>
            </div>
@@ -238,10 +245,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'relationship') {
       return (
-        <div className="p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="p-6 space-y-8">
            <div className="max-w-md space-y-6">
-              <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={coupleData.nicknames?.[partnerId] || ''} onChange={(e) => setCoupleData({ ...coupleData, nicknames: { ...coupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-3 retro-border bg-gray-50 focus:outline-none" /></div>
-              <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={coupleData?.anniversary || ''} onChange={(e) => setCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-3 retro-border bg-gray-50 focus:outline-none cursor-pointer" /></div>
+              <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={coupleData.nicknames?.[partnerId] || ''} onChange={(e) => setCoupleData({ ...coupleData, nicknames: { ...coupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-2 retro-border bg-window focus:outline-none" /></div>
+              <div><label className="block text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={coupleData?.anniversary || ''} onChange={(e) => setCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer" /></div>
            </div>
         </div>
       );
@@ -249,23 +256,22 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'system') {
       return (
-        <div className="p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="p-6 space-y-8">
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-4">
                  <h4 className="text-xs font-black uppercase tracking-widest mb-4">Audio & Notifications</h4>
-                 <div className="flex items-center justify-between p-3 retro-border bg-gray-50">
+                 <div className="flex items-center justify-between p-3 retro-border bg-window">
                     <span className="text-xs font-bold">UI Sound Effects</span>
-                    <button onClick={() => setSfxEnabled(!sfxEnabled)} className={`w-12 h-6 rounded-full retro-border relative transition-colors ${sfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white border-2 border-black rounded-full absolute top-[-2px] transition-transform ${sfxEnabled ? 'translate-x-6' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setSfxEnabled(!sfxEnabled)} className={`w-12 h-6 rounded-full retro-border relative ${sfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white border-2 border-black rounded-full absolute top-[-2px] transition-none ${sfxEnabled ? 'translate-x-6' : 'translate-x-0'}`} /></button>
                  </div>
-                 <div className="flex items-center justify-between p-3 retro-border bg-gray-50">
+                 <div className="flex items-center justify-between p-3 retro-border bg-window">
                     <span className="text-xs font-bold">Browser Notifications</span>
-                    <button onClick={() => setNotificationsEnabled(!notificationsEnabled)} className={`w-12 h-6 rounded-full retro-border relative transition-colors ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white border-2 border-black rounded-full absolute top-[-2px] transition-transform ${notificationsEnabled ? 'translate-x-6' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setNotificationsEnabled(!notificationsEnabled)} className={`w-12 h-6 rounded-full retro-border relative ${notificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-5 h-5 bg-white border-2 border-black rounded-full absolute top-[-2px] transition-none ${notificationsEnabled ? 'translate-x-6' : 'translate-x-0'}`} /></button>
                  </div>
               </div>
               <div className="space-y-4">
                  <h4 className="text-xs font-black uppercase tracking-widest mb-4">Call Debugger</h4>
-                 <div className="p-4 retro-border bg-black/5 space-y-4">
-                    <p className="text-[10px] font-bold opacity-60 uppercase">Manual Network Tests</p>
+                 <div className="p-4 retro-border bg-window space-y-4 border-dashed">
                     <RetroButton onClick={handleTestTurn} className="w-full text-[10px] py-2">Test TURN Servers</RetroButton>
                     <RetroButton onClick={() => { endCall(); toast('Engine reset', 'info'); }} variant="secondary" className="w-full text-[10px] py-2">Reset Call Engine</RetroButton>
                     <p className="text-[8px] font-black uppercase opacity-40">Status: {callStatus}</p>
@@ -278,14 +284,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
     if (currentView === 'privacy') {
       return (
-        <div className="p-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="p-6 space-y-12">
            <div>
               <h4 className="text-xs font-black uppercase tracking-widest mb-4">Data Sovereignty</h4>
               <p className="text-xs opacity-60 mb-4">Download a portable backup of your history.</p>
               <RetroButton onClick={handleExportData} className="px-8 py-3">Export Data (.json)</RetroButton>
            </div>
 
-           <div className="p-6 border-2 border-dashed border-red-200 bg-red-50/30">
+           <div className="p-6 border-2 border-dashed border-red-200 bg-red-50/10">
               <h4 className="text-xs font-black uppercase tracking-widest mb-4 text-red-600 flex items-center gap-2"><Trash2 size={14}/> Danger Zone</h4>
               <div className="flex flex-col sm:flex-row gap-4">
                  <RetroButton onClick={async () => {
@@ -294,7 +300,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                       await supabase.rpc('leave_room', { room_uuid: coupleData.room_id });
                       navigate('/handshake'); window.location.reload();
                     }
-                 }} className="flex-1 bg-white text-orange-600 border-orange-300">Unpair Handshake</RetroButton>
+                 }} className="flex-1 bg-window text-orange-600 border-orange-300">Unpair Handshake</RetroButton>
                  <RetroButton onClick={async () => {
                     const ok = window.confirm("DELETE ALL DATA?");
                     if (ok) {
@@ -314,23 +320,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
   return (
     <>
-      <RetroWindow title="control_panel.exe" onClose={onClose} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col relative overflow-hidden">
+      <RetroWindow title="control_panel.exe" onClose={onClose} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col relative overflow-hidden transition-none">
         {/* Navigation Bar */}
-        <div className="shrink-0 bg-border/10 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-3 items-center">
+        <div className="shrink-0 bg-border/5 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-3 items-center">
            <div className="flex items-center gap-1 shrink-0">
-              <button onClick={goBack} disabled={historyIndex === 0} className={`p-1.5 retro-border bg-window hover:bg-black/5 disabled:opacity-30 transition-all`}><ChevronLeft size={16} /></button>
-              <button onClick={goForward} disabled={historyIndex === history.length - 1} className={`p-1.5 retro-border bg-window hover:bg-black/5 disabled:opacity-30 transition-all`}><ChevronRight size={16} /></button>
-              <button onClick={() => navigateTo('home')} className="p-1.5 retro-border bg-window hover:bg-black/5 transition-all"><RefreshCw size={16} /></button>
+              <button onClick={goBack} disabled={historyIndex === 0} className={`p-1.5 retro-border bg-window hover:bg-black/5 disabled:opacity-30`}><ChevronLeft size={16} /></button>
+              <button onClick={goForward} disabled={historyIndex === history.length - 1} className={`p-1.5 retro-border bg-window hover:bg-black/5 disabled:opacity-30`}><ChevronRight size={16} /></button>
+              <button onClick={() => navigateTo('home')} className="p-1.5 retro-border bg-window hover:bg-black/5"><RefreshCw size={16} /></button>
            </div>
            
            <div className="flex-1 w-full bg-window retro-border px-3 py-1.5 flex items-center gap-2 text-[11px] font-bold overflow-hidden">
-              <span className="opacity-30 flex-shrink-0">Attic:</span>
+              <span className="opacity-30 flex-shrink-0 font-black">Attic:</span>
               <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
                  <span className="hover:underline cursor-pointer" onClick={() => navigateTo('home')}>Control Panel</span>
                  {currentView !== 'home' && (
                    <>
                      <span className="opacity-30">/</span>
-                     <span className="text-primary">{categories.find(c => c.id === currentView)?.label}</span>
+                     <span className="text-primary font-black uppercase">{categories.find(c => c.id === currentView)?.label}</span>
                    </>
                  )}
               </div>
@@ -352,16 +358,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-main/20">
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-main/5">
            {renderContent()}
         </div>
 
         {/* Footer Area */}
-        <div className="shrink-0 p-4 bg-window border-t-2 border-border flex justify-between items-center">
-           <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Attic Configuration Manager v1.2</div>
+        <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
+           <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Attic Configuration Manager v1.2.1-rigid</div>
            <div className="flex gap-2">
-              <RetroButton onClick={onClose} variant="secondary" className="px-6 py-1.5 text-xs">Close</RetroButton>
-              <RetroButton onClick={() => { playAudio('click', sfxEnabled); toast('Settings Saved!', 'success'); onClose(); }} variant="primary" className="px-8 py-1.5 text-xs">Save & Exit</RetroButton>
+              <RetroButton onClick={onClose} variant="secondary" className="px-4 py-1 text-xs">Close</RetroButton>
+              <RetroButton onClick={() => { playAudio('click', sfxEnabled); toast('Settings Saved!', 'success'); onClose(); }} variant="primary" className="px-6 py-1 text-xs">Save & Exit</RetroButton>
            </div>
         </div>
       </RetroWindow>
