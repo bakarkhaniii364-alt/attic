@@ -26,29 +26,26 @@ export function getStaticIceServers() {
  * Fetches fresh TURN credentials from Cloudflare if configured.
  */
 export async function getFullIceServers() {
-  const keyId = import.meta.env.VITE_CF_CALLS_KEY_ID;
-  const secret = import.meta.env.VITE_CF_CALLS_KEY_SECRET;
+  const WORKER_URL = 'https://attic-turn-creds.damiyanw96.workers.dev/ice-servers';
   
   let cfServers = [];
-  if (keyId && secret) {
-    try {
-      console.log('[WebRTC] Fetching fresh Cloudflare TURN credentials...');
-      const resp = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${keyId}/credentials/generate-ice-servers`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${secret}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ ttl: 86400 })
-      });
-      const data = await resp.json();
-      if (data.iceServers) {
-        cfServers = data.iceServers;
-        console.log('[WebRTC] Cloudflare TURN credentials acquired.');
-      }
-    } catch (e) {
-      console.warn('[WebRTC] Cloudflare TURN fetch failed, using fallbacks:', e.message);
+  try {
+    console.log('[WebRTC] Fetching fresh ICE servers from secure worker...');
+    const resp = await fetch(WORKER_URL);
+    const data = await resp.json();
+    
+    // Support both direct array and wrapped object formats
+    if (Array.isArray(data)) {
+      cfServers = data;
+    } else if (data.iceServers) {
+      cfServers = data.iceServers;
     }
+    
+    if (cfServers.length > 0) {
+      console.log('[WebRTC] Secure ICE servers acquired.');
+    }
+  } catch (e) {
+    console.warn('[WebRTC] Secure ICE fetch failed, using fallbacks:', e.message);
   }
 
   return [...cfServers, ...getStaticIceServers()];

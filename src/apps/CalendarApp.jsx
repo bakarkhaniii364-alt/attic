@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
-import { useLocalStorage } from '../hooks/useLocalStorage.js';
+import { useSync } from '../context/instances.js';
 import { playAudio } from '../utils/audio.js';
 
 export function CalendarApp({ onClose, sfx }) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useLocalStorage('calendar_events', []);
+  const { globalState, updateSyncState } = useSync();
+  const events = globalState.calendar_events || [];
+  const setEvents = (newEvents) => updateSyncState('calendar_events', newEvents);
   const [selectedDay, setSelectedDay] = useState(null);
   const [newTitle, setNewTitle] = useState('');
   const [newColor, setNewColor] = useState('var(--primary)');

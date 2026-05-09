@@ -700,6 +700,7 @@ const createPC = useCallback(async (type) => {
     console.log('[Debug] Starting TURN connectivity test...');
     
     const dynamicServers = await getFullIceServers();
+    console.log('[WebRTC] Full ICE Server list:', dynamicServers);
     const pc = new RTCPeerConnection({ iceServers: dynamicServers });
     const results = [];
     const errors = [];
