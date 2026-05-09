@@ -139,6 +139,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
                 <SettingsIcon size={10} /> Control Panel
               </button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
+                <LogOut size={10} /> Logout
+              </button>
             </div>
           </div>
         </div>

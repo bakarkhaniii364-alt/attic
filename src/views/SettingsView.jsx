@@ -4,7 +4,7 @@ import {
   User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, 
   LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, 
   CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, 
-  ShieldCheck, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Search, VolumeX
+  ShieldCheck, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Search, VolumeX, Info
 } from 'lucide-react';
 import { useCall } from '../context/instances.js';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
@@ -73,8 +73,6 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   const handleSave = () => {
-    // Only apply non-immediate things here if needed
-    // But since we want "Preview", some things are immediate
     setTheme(localTheme);
     setProfile(localProfile);
     setCoupleData(localCoupleData);
@@ -90,7 +88,6 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   const handleCancel = () => {
-    // Revert immediate previews
     setTheme(initialTheme.current);
     setWeather(initialWeather.current);
     onClose();
@@ -105,6 +102,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     { id: 'relationship', label: 'Relationship', icon: <Heart size={18}/>, desc: 'Partner nicknames and anniversary' },
     { id: 'system', label: 'System & Audio', icon: <Monitor size={18}/>, desc: 'Sounds, notifs and call engine' },
     { id: 'privacy', label: 'Privacy & Data', icon: <ShieldCheck size={18}/>, desc: 'Data export and account deletion' },
+    { id: 'about', label: 'About Attic', icon: <Info size={18}/>, desc: 'Technology, privacy and project info' },
   ];
 
   const filteredCategories = categories.filter(c => 
@@ -340,7 +338,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  <div className="p-3 retro-border bg-window space-y-3 border-dashed">
                     <RetroButton onClick={handleTestTurn} variant="primary" className="w-full text-[9px] py-1.5 uppercase">TEST RELAY ENGINE</RetroButton>
                     <RetroButton onClick={() => { endCall(); toast('Engine reset', 'info'); }} variant="secondary" className="w-full text-[9px] py-1.5 uppercase">HARD RESET CALLS</RetroButton>
-                    <p className="text-[8px] font-black uppercase opacity-40 text-center tracking-tight">Engine: {callStatus}</p>
+                    <p className="text-[8px] font-black uppercase tracking-tighter opacity-40 text-center">Engine: {callStatus}</p>
                  </div>
               </div>
            </div>
@@ -376,6 +374,35 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                     }
                  }} variant="primary" className="flex-1 bg-red-600 text-white border-red-800 text-[10px] py-2">DESTROY ATTIC DATA</RetroButton>
               </div>
+           </div>
+        </div>
+      );
+    }
+
+    if (currentView === 'about') {
+      return (
+        <div className="p-6 space-y-8 max-w-lg">
+           <div className="space-y-4">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">The Architecture</h4>
+              <p className="text-xs font-bold leading-relaxed opacity-80">
+                Attic is built as a peer-to-peer workspace for couples. It leverages <span className="text-primary underline">Supabase</span> for real-time synchronization and database storage, while utilizing <span className="text-primary underline">WebRTC</span> for low-latency voice and video communication.
+              </p>
+           </div>
+
+           <div className="space-y-4">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">Privacy & Security</h4>
+              <p className="text-xs font-bold leading-relaxed opacity-80">
+                Privacy is handled by design. Signaling is conducted via encrypted broadcast channels. Live audio and video streams are routed directly between partners using <span className="text-primary">ICE/TURN</span> relay only when direct connection fails; Attic never stores or records your calls. 
+              </p>
+           </div>
+
+           <div className="pt-6 border-t border-dashed border-border">
+              <p className="text-xs font-bold italic opacity-60">
+                Attic was built by <span className="text-main-text not-italic font-black">bakarkhaniii</span> as a fun project to explore digital intimacy and retro-futuristic UI. 
+              </p>
+              <p className="text-[10px] font-black uppercase mt-4 text-primary tracking-widest">
+                Any sort of feedback would always be appreciated.
+              </p>
            </div>
         </div>
       );
