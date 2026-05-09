@@ -85,7 +85,7 @@ export function AuthView({ mode }) {
   const [shake, setShake] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
-  const { toast: addToast } = useToast();
+  const addToast = useToast();
 
   const onBack = () => navigate('/');
 
