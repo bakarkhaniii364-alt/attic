@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
-import { useAuth } from './AuthContext.jsx';
-import { useSync } from './SyncContext.jsx';
+import { useAuth, useSync } from './instances.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 import { ChatContext } from './instances.js';
 
@@ -282,8 +281,3 @@ export function ChatProvider({ children }) {
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }
 
-export function useChat() {
-  const context = useContext(ChatContext);
-  if (!context) throw new Error('useChat must be used within a ChatProvider');
-  return context;
-}

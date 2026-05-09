@@ -5,7 +5,7 @@ import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, Loader, Check, Copy, S
 import { RetroButton, RetroWindow, RetroInput, useToast } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode } from '../lib/testMode.js';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/instances.js';
 import { LegalView } from './LegalView.jsx';
 
 /* ═══════════════════════════════════════════════════════

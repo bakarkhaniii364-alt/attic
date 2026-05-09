@@ -4,7 +4,7 @@ import ReactPlayer from 'react-player';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { Play, Pause, RotateCcw, RotateCw, Heart, Link as LinkIcon, MessageSquare, Volume2, VolumeX, Maximize2, Settings, Globe, Users } from 'lucide-react';
-import { useSync } from '../context/SyncContext.jsx';
+import { useSync } from '../context/instances.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSync } from '../context/SyncContext.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useSync, useAuth } from '../context/instances.js';
 import { isTestMode, onTestStateUpdate, sendTestStateRequest } from '../lib/testMode.js';
 
 /**

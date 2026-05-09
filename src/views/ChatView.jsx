@@ -9,10 +9,7 @@ import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useNavigate } from 'react-router-dom';
 import { base64ToBlob, compressImage } from '../utils/file.js';
 import { isTestMode } from '../lib/testMode.js';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useSync } from '../context/SyncContext.jsx';
-import { useChat } from '../context/ChatContext.jsx';
-import { useCall } from '../context/CallContext.jsx';
+import { useAuth, useSync, useChat, useCall } from '../context/instances.js';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder.js';
 import { useTypingIndicator } from '../hooks/useTypingIndicator.js';
 

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useCall } from '../context/CallContext.jsx';
+import { useAuth, useCall } from '../context/instances.js';
 import { playAudio } from '../utils/audio.js';
 
 const COLORS = ['red', 'blue', 'green', 'yellow'];

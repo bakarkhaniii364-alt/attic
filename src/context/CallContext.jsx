@@ -16,7 +16,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { useAuth } from './AuthContext.jsx';
+import { useAuth } from './instances.js';
 import { isTestMode, sendTestBroadcast, onTestBroadcast } from '../lib/testMode.js';
 import { getFullIceServers, getStaticIceServers } from '../utils/webrtc.js';
 import { CallContext } from './instances.js';
@@ -471,6 +471,8 @@ const createPC = useCallback(async (type) => {
   }, [roomId, userId, handleSignal, flushQueue]);
 
   // Expose test function globally for easier debugging in Dhaka
+
+
   useEffect(() => {
     window.__testTurn = testTurnConfig;
     return () => { delete window.__testTurn; };
@@ -752,8 +754,3 @@ const createPC = useCallback(async (type) => {
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }
 
-export function useCall() {
-  const ctx = useContext(CallContext);
-  if (!ctx) throw new Error('useCall must be used within a CallProvider');
-  return ctx;
-}

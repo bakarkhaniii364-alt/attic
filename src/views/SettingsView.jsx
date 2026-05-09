@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, ShieldCheck, RefreshCw, AlertCircle } from 'lucide-react';
-import { useCall } from '../context/CallContext.jsx';
+import { useCall } from '../context/instances.js';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { getScore, compressImage } from '../utils/helpers.js';
 import { getScoreForUser } from '../utils/userDataHelpers.js';

@@ -5,7 +5,7 @@ import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/instances.js';
 import { RefreshCw } from 'lucide-react';
 
 export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {

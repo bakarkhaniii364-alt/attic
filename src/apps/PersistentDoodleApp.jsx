@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
-import { useCall } from '../context/CallContext.jsx';
+import { useCall } from '../context/instances.js';
 import { Brush } from 'lucide-react';
 import { playAudio } from '../utils/audio.js';
 

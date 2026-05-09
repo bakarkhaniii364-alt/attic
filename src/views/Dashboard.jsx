@@ -10,9 +10,7 @@ import { StreakBadge, WeatherWidget } from '../components/Features.jsx';
 import { PixelPet } from '../components/Dashboard/PixelPet.jsx';
 import { AnniversaryTimer } from '../components/Dashboard/AnniversaryTimer.jsx';
 import { CalendarReminder } from '../components/Dashboard/CalendarReminder.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useSync } from '../context/SyncContext.jsx';
-import { useChat } from '../context/ChatContext.jsx';
+import { useAuth, useSync, useChat } from '../context/instances.js';
 import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 

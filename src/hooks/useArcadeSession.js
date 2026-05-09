@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth, useSync } from '../context/instances.js';
 
 export function useArcadeSession(roomId, gameId, userId) {
   const [session, setSession] = useState(null);

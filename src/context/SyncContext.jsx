@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
-import { useAuth } from './AuthContext.jsx';
+import { useAuth } from './instances.js';
 import { isTestMode, getTestUser, sendTestBroadcast, onTestBroadcast, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 import { SyncContext } from './instances.js';
 
@@ -304,8 +304,3 @@ export function SyncProvider({ children }) {
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
 
-export function useSync() {
-  const context = useContext(SyncContext);
-  if (!context) throw new Error('useSync must be used within a SyncProvider');
-  return context;
-}

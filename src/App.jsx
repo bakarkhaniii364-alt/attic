@@ -16,11 +16,8 @@ import { useTypingIndicator } from './hooks/useTypingIndicator.js';
 import { playAudio } from './utils/audio.js';
 import { INITIAL_CHAT } from './constants/data.js';
 import { StrayTray } from './components/LofiPlayer.jsx';
-import { useAuth } from './context/AuthContext.jsx';
-import { useSync } from './context/SyncContext.jsx';
+import { useAuth, useSync, useCall, useChat } from './context/instances.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
-import { useCall } from './context/CallContext.jsx';
-import { useChat } from './context/ChatContext.jsx';
 import { useAppLogic } from './hooks/useAppLogic.js';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';

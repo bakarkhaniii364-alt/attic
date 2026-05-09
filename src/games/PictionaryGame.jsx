@@ -5,7 +5,7 @@ import { calculateLevenshtein, floodFill } from '../utils/helpers.js';
 import { incrementUserScore, getScoreForUser } from '../utils/userDataHelpers.js';
 import { PICTIONARY_CATEGORIES } from '../constants/data.js';
 import { useBroadcast } from '../hooks/useSupabaseSync.js';
-import { useCall } from '../context/CallContext.jsx';
+import { useCall } from '../context/instances.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
 export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState, isHost }) {

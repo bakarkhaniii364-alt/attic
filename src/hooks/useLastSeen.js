@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSync } from '../context/SyncContext.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useSync, useAuth } from '../context/instances.js';
 
 /**
  * Returns a human-readable "last seen" string for any userId.
