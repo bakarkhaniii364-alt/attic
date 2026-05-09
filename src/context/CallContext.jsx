@@ -65,6 +65,7 @@ export function CallProvider({ children }) {
   const [callStatus,    setCallStatus]    = useState('idle');
   const [callQuality,   setCallQuality]   = useState('good');
   const [partnerInCall, setPartnerInCall] = useState(false);
+  const [isPartnerCameraOff, setIsPartnerCameraOff] = useState(false);
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const pcRef              = useRef(null);  // RTCPeerConnection
@@ -136,6 +137,7 @@ export function CallProvider({ children }) {
     setCalling(null); setIsRinging(false); setIncomingCall(null);
     setRemoteStream(null); setLocalStream(null); setCallDuration(0);
     setIsMuted(false); setIsCameraOff(false); setIsScreenSharing(false);
+    setIsPartnerCameraOff(false);
     setCallStatus('idle'); setCallQuality('good');
   }, []);
 
@@ -430,6 +432,11 @@ const createPC = useCallback(async (type) => {
         break;
       }
 
+      case 'camera_toggle': {
+        setIsPartnerCameraOff(!!payload.off);
+        break;
+      }
+
       default: break;
     }
   }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd]);
@@ -611,8 +618,13 @@ const createPC = useCallback(async (type) => {
 
   const toggleCamera = useCallback(async () => {
     const wasOff = isCameraOff;
-    setIsCameraOff(!wasOff);
-    if (wasOff) {
+    const nowOff = !wasOff;
+    setIsCameraOff(nowOff);
+    
+    // Signal to partner
+    sendSignal({ action: 'camera_toggle', off: nowOff });
+
+    if (!nowOff) {
       if (callTypeRef.current === 'audio') {
         callTypeRef.current = 'video';
         setCalling('video');
@@ -635,7 +647,7 @@ const createPC = useCallback(async (type) => {
     } else {
       localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = false; });
     }
-  }, [isCameraOff]);
+  }, [isCameraOff, sendSignal]);
 
   // ── ICE restart (caller-side only) ────────────────────────────────────────
   const restartIce = useCallback(() => {
@@ -746,7 +758,7 @@ const createPC = useCallback(async (type) => {
   const value = {
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
     remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
-    partnerInCall,
+    partnerInCall, isPartnerCameraOff,
     startCall, acceptCall, declineCall, endCall,
     toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,

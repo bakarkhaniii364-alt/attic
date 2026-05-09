@@ -113,7 +113,7 @@ export function CallOverlay({
           onMicToggle={toggleMic} onDeafenToggle={toggleDeafen} onCameraToggle={toggleCamera} onEndCall={endCall}
           onScreenShare={startScreenShare} onStopScreenShare={stopScreenShare}
           onRestartIce={restartIce} onChangeDevice={changeDevice}
-          isPartnerTyping={isPartnerTyping}
+          isPartnerTyping={isPartnerTyping} isPartnerCameraOff={isPartnerCameraOff}
           partnerName={partnerName} partnerPfp={partnerProfile?.pfp} sfx={sfxEnabled}
           remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling}
         />
