@@ -49,10 +49,10 @@
 }
 
 @keyframes floatUp {
-  0% { transform: translateY(0) scale(0.5) rotate(-10deg); opacity: 0; }
-  20% { opacity: 1; transform: translateY(-20vh) scale(1.2) rotate(10deg); }
-  80% { opacity: 0.8; transform: translateY(-80vh) scale(1) rotate(-10deg); }
-  100% { opacity: 0; transform: translateY(-110vh) scale(0.5) rotate(10deg); }
+  0% { transform: translate(0, 0) scale(0.5) rotate(-10deg); opacity: 0; }
+  20% { opacity: 1; transform: translate(calc(var(--tx) * 0.2), calc(var(--ty) * 0.2)) scale(1.2) rotate(10deg); }
+  80% { opacity: 0.8; transform: translate(calc(var(--tx) * 0.8), calc(var(--ty) * 0.8)) scale(1) rotate(-10deg); }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0.5) rotate(var(--tr)); opacity: 0; }
 }
 
 @keyframes floatAcross {

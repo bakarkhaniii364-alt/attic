@@ -9,24 +9,23 @@ export function OverlayManager({
   showKiss, floatingDoodles, doodleQueue, setDoodleQueue, setFloatingDoodles, 
   activeDoodleView, closeDoodle, gameInvite, setGameInvite, watchpartyInvite, 
   setWatchpartyInvite, textNotifications, setTextNotifications, partnerName, 
-  partnerId, roomProfiles, sfxEnabled, navigate, toast, lobbyState, userId, roomId, updateSyncState 
+  partnerId, roomProfiles, sfxEnabled, navigate, toast, lobbyState, userId, roomId, updateSyncState,
+  onReadLater, onMarkSeen
 }) {
   return (
     <>
       {showKiss && (
         <div className="kiss-container">
-          {[...Array(50)].map((_, i) => {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 200 + Math.random() * 600;
-            const tx = Math.cos(angle) * dist;
-            const ty = Math.sin(angle) * dist;
-            const tr = (Math.random() - 0.5) * 500;
+          {[...Array(60)].map((_, i) => {
+            const dist = 300 + Math.random() * 600;
             return (
               <div key={i} className="floating-heart" style={{ 
-                '--tx': `${tx}px`, 
-                '--ty': `${ty}px`, 
-                '--tr': `${tr}deg`,
-                animationDelay: `${Math.random() * 0.5}s`, 
+                left: `${Math.random() * 100}vw`,
+                bottom: `-${10 + Math.random() * 20}vh`,
+                '--tx': `${(Math.random() - 0.5) * 400}px`, 
+                '--ty': `${-dist}px`, 
+                '--tr': `${(Math.random() - 0.5) * 500}deg`,
+                animationDelay: `${Math.random() * 2}s`, 
                 fontSize: `${1.5 + Math.random() * 3}rem` 
               }}>{['💖', '💗', '💓', '💕', '❤️', '💌'][Math.floor(Math.random() * 6)]}</div>
             );
@@ -81,7 +80,16 @@ export function OverlayManager({
       )}
 
       {floatingDoodles.map((doodle) => (
-         <FloatingEnvelope key={doodle.id} doodle={doodle} onClick={(d) => { setDoodleQueue(prev => [...prev, { image: d.data, sender: partnerId }]); setFloatingDoodles(prev => prev.filter((item) => item.id !== d.id)); }} />
+         <FloatingEnvelope 
+           key={doodle.id} 
+           doodle={doodle} 
+           onClick={(d) => { 
+             setDoodleQueue(prev => [...prev, { image: d.data, sender: partnerId, assetId: d.assetId }]); 
+             setFloatingDoodles(prev => prev.filter((item) => item.id !== d.id)); 
+             onMarkSeen(d.assetId);
+           }} 
+           onReadLater={onReadLater}
+         />
       ))}
 
       {activeDoodleView && (

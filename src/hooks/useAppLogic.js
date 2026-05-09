@@ -124,7 +124,12 @@ export function useAppLogic({
         setTimeout(() => setShowKiss(false), 4500);
       }
       if (event === 'doodle_alert' && payload.sender !== userId) {
-        setFloatingDoodles(prev => [...prev, { id: Date.now(), data: payload.image, sender: payload.sender }]);
+        setFloatingDoodles(prev => [...prev, { 
+          id: payload.id || Date.now(), 
+          data: payload.image, 
+          sender: payload.sender,
+          assetId: payload.id
+        }]);
         toast(`🎨 ${partnerName} sent you a new doodle!`, 'info');
         playAudio('notif', sfxEnabled);
       }
@@ -160,6 +165,21 @@ export function useAppLogic({
 
   const closeDoodle = () => setDoodleQueue(prev => prev.slice(1));
 
+  const handleMarkSeen = (assetId) => {
+    if (!assetId) return;
+    const seen = JSON.parse(localStorage.getItem('seen_assets') || '[]');
+    if (!seen.includes(assetId)) {
+      localStorage.setItem('seen_assets', JSON.stringify([...seen, assetId]));
+    }
+  };
+
+  const handleReadLater = (doodle) => {
+    setFloatingDoodles(prev => prev.filter(item => item.id !== doodle.id));
+    handleMarkSeen(doodle.assetId);
+    toast('Doodle moved to album! 📁', 'success');
+    playAudio('success', sfxEnabled);
+  };
+
   return {
     floatingDoodles,
     setFloatingDoodles,
@@ -174,6 +194,8 @@ export function useAppLogic({
     setShowKiss,
     partnerOnlineModal,
     textNotifications,
-    setTextNotifications
+    setTextNotifications,
+    handleReadLater,
+    handleMarkSeen
   };
 }

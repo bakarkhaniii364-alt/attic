@@ -158,10 +158,6 @@ export function useDashboardLogic({
     playAudio('click', sfxEnabled);
     syncBroadcast('interaction', { type: 'kiss', from: userId, timestamp: Date.now().toString() });
     mergeSyncState('couple_data', { lastKissFrom: userId, lastKissTimestamp: Date.now().toString() });
-    if (setShowKiss) {
-      setShowKiss(true);
-      setTimeout(() => setShowKiss(false), 4500);
-    }
   };
 
   return {

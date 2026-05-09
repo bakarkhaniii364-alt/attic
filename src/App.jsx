@@ -118,6 +118,7 @@ export default function App() {
       if (asset) {
         broadcast('doodle_alert', { 
           action: 'doodle', 
+          id: asset.id,
           image: asset.url, 
           sender: userId, 
           timestamp: Date.now() 
@@ -201,7 +202,8 @@ export default function App() {
     watchpartyInvite, setWatchpartyInvite,
     showKiss, setShowKiss,
     partnerOnlineModal,
-    textNotifications, setTextNotifications
+    textNotifications, setTextNotifications,
+    handleReadLater, handleMarkSeen
   } = useAppLogic({
     user, userId, roomId, partnerId, partnerName,
     isInitialized, sfxEnabled, toast, broadcast,
@@ -248,6 +250,8 @@ export default function App() {
               sfxEnabled={sfxEnabled} navigate={navigateTo} toast={toast} 
               lobbyState={globalState?.arcade_lobby} userId={userId} roomId={roomId} 
               updateSyncState={updateSyncState} 
+              onReadLater={handleReadLater}
+              onMarkSeen={handleMarkSeen}
             />
 
             <CallOverlay 
