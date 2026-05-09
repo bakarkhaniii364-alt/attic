@@ -163,6 +163,17 @@ export function useAppLogic({
     return () => window.removeEventListener('sync_broadcast', handler);
   }, [partnerId, partnerName, sfxEnabled, location.pathname, toast, gameInvite, userId]);
 
+  // Handle specialized call signals
+  useEffect(() => {
+    const onDropped = (e) => {
+      if (e.detail.reason === 'refreshed') {
+        toast(`⚠️ ${partnerName} refreshed their tab. Call dropped.`, 'warning');
+      }
+    };
+    window.addEventListener('call_dropped', onDropped);
+    return () => window.removeEventListener('call_dropped', onDropped);
+  }, [partnerName, toast]);
+
   const closeDoodle = () => setDoodleQueue(prev => prev.slice(1));
 
   const handleMarkSeen = (assetId) => {

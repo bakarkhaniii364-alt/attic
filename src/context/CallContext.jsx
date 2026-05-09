@@ -425,6 +425,11 @@ const createPC = useCallback(async (type) => {
       case 'ended': {
         const wasConnected = callStatusRef.current === 'connected';
         const dur = callDurationRef.current;
+        if (payload.reason === 'refreshed') {
+           // We can't use toast here directly because it's usually in useAppLogic, 
+           // but we can dispatch a custom event.
+           window.dispatchEvent(new CustomEvent('call_dropped', { detail: { reason: 'refreshed' } }));
+        }
         if (wasConnected && callTypeRef.current) {
           recordCallEnd(callTypeRef.current, dur);
         }
@@ -521,6 +526,17 @@ const createPC = useCallback(async (type) => {
     window.addEventListener('sync_broadcast', h);
     return () => window.removeEventListener('sync_broadcast', h);
   }, [handleSignal]);
+
+  // Handle page refresh/unload
+  useEffect(() => {
+    const handleUnload = () => {
+      if (callStatusRef.current !== 'idle') {
+        sendSignal({ action: 'ended', reason: 'refreshed' });
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [sendSignal]);
 
   // ── Public API ────────────────────────────────────────────────────────────
 
