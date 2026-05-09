@@ -3,8 +3,7 @@ import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
 import { isTestMode, getTestUser, sendTestBroadcast, onTestBroadcast, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
-
-const SyncContext = createContext(null);
+import { SyncContext } from './instances.js';
 
 export function SyncProvider({ children }) {
   const { roomId, userId } = useAuth();

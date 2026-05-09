@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, getTestUser, getTestRoomId } from '../lib/testMode.js';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './instances.js';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

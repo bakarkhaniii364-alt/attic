@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
 import { useSync } from './SyncContext.jsx';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
+import { ChatContext } from './instances.js';
 
-const ChatContext = createContext(null);
 const CACHE_VERSION = 'v3'; // Bump this to bust stale caches with corrupted sender_id
 
 const mapMessage = async (row) => {

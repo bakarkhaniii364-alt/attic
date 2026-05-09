@@ -19,8 +19,7 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from './AuthContext.jsx';
 import { isTestMode, sendTestBroadcast, onTestBroadcast } from '../lib/testMode.js';
 import { getFullIceServers, getStaticIceServers } from '../utils/webrtc.js';
-
-const CallContext = createContext(null);
+import { CallContext } from './instances.js';
 
 // ── Ringing tone (Web Audio) ─────────────────────────────────────────────────
 function createRingTone() {
