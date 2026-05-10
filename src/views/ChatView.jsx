@@ -591,7 +591,7 @@ export function ChatView({ onClose, sfx }) {
              onDragOver={handleDragOver}
              onDragLeave={handleDragLeave}
              onDrop={handleDrop}>
-          <div className={`flex flex-col h-full transition-all duration-300 ${showDetails && !isMobile ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
+          <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
             <div 
               className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container chat-wallpaper-${coupleData.settings?.chatWallpaper || 'none'}`}
             >
@@ -1025,7 +1025,7 @@ export function ChatView({ onClose, sfx }) {
               </form>
             </div>
           </div>
-          {showDetails && !isMobile && (
+          {showDetails && (
             <div className="flex flex-col w-full md:w-1/3 bg-main overflow-y-auto relative border-l-2 border-border">
               <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
               <div className="p-2 flex gap-1 bg-border shrink-0">
