@@ -117,4 +117,15 @@
     top: 0 !important;
     border-radius: 0 !important;
   }
+
+  /* ─── GLOBAL SAFETY NET ─── */
+  * {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+  }
 }

@@ -701,7 +701,7 @@ export function ChatView({ onClose, sfx }) {
                             {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block [word-break:break-word] overflow-hidden'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
                             {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
                             {msg.type === 'video' && (
-                              <div className="flex flex-col gap-2 relative group/video max-w-xs">
+                              <div className="flex flex-col gap-2 relative group/video w-full max-w-[280px] sm:max-w-xs overflow-hidden rounded-lg">
                                 <RetroMediaPlayer 
                                   url={msg.url} 
                                   type="video"
@@ -713,7 +713,7 @@ export function ChatView({ onClose, sfx }) {
                               </div>
                             )}
                             {msg.type === 'audio' && (
-                              <div className="w-[280px] sm:w-[320px] max-w-full">
+                              <div className="w-[240px] sm:w-[320px] max-w-full overflow-hidden">
                                 <RetroMediaPlayer 
                                   url={msg.url} 
                                   type="audio"

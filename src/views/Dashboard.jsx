@@ -113,7 +113,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 hi {myDisplayName}! {mood}
               </h1>
 
-              <div className="flex items-center gap-3 mt-2 bg-black/5 p-1.5 retro-border border-dashed">
+              <div className="flex flex-wrap items-center gap-3 mt-2 bg-black/5 p-1.5 retro-border border-dashed">
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     {partnerProfile.pfp ? (
