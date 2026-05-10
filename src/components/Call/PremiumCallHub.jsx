@@ -6,6 +6,7 @@ import { PhoneOff, MicOff, Mic, Volume2, VolumeX,
 import { playAudio } from '../../utils/audio.js';
 import { useVoiceActivity } from '../../hooks/useVoiceActivity.js';
 import { useMobile } from '../../hooks/useMobile.js';
+import { DesktopOnly } from '../MobileOnly.jsx';
 
 // ── Quality Badge ─────────────────────────────────────────────────────────────
 function QualityBadge({ quality }) {
@@ -138,6 +139,7 @@ function DeviceSelector({ onChangeDevice, onClose }) {
     </div>
   );
 }
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PremiumCallHub({
   calling, callDuration, callStatus, callQuality = 'good',
@@ -321,7 +323,7 @@ export function PremiumCallHub({
   const isReconnecting = callStatus === 'reconnecting';
 
   // ── MINIMIZED DOCK ──────────────────────────────────────────────────────────
-  if (isMinimized) {
+  if (isMinimized && !isMobile) {
     return (
       <div className="fixed bottom-6 left-6 z-[950] w-72 bg-window retro-border-thick overflow-hidden"
            style={{ boxShadow: '4px 4px 0 var(--border)' }}>
@@ -348,7 +350,15 @@ export function PremiumCallHub({
             <button onClick={() => setIsMinimized(false)}
                     className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-primary text-white hover:opacity-80 transition-all"
                     style={{ color: 'var(--text-on-primary)' }}>
-              // ── FULL WINDOW ─────────────────────────────────────────────────────────────
+              <Maximize2 size={14}/>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── FULL WINDOW ─────────────────────────────────────────────────────────────
   return (
     <div
       className={`fixed z-[900] flex flex-col bg-window retro-border-thick call-overlay-hud ${isMobile ? 'is-mobile-hub' : ''}`}
@@ -414,7 +424,6 @@ export function PremiumCallHub({
 
       {/* Content */}
       <div className="relative flex-1 min-h-0 bg-black overflow-hidden group flex items-center justify-center">
-        {/* ... (rest of the content remains same) ... */}
         {isReconnecting && (
           <div className="absolute inset-0 z-40 bg-black/85 flex flex-col items-center justify-center gap-4">
             <WifiOff size={36} className="text-yellow-400 animate-bounce"/>
@@ -587,4 +596,3 @@ export function PremiumCallHub({
     </div>
   );
 }
-
