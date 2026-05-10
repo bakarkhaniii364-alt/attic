@@ -77,17 +77,23 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const petName = coupleData.petName || 'pet';
 
   const mobilePivot = (
-    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border pt-8 pb-3 px-6 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-end gap-8 shrink-0 shadow-sm">
-      {['home', 'chat', 'apps', 'settings'].map(tab => (
+    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border pt-8 pb-3 px-6 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-center justify-between shrink-0 shadow-sm">
+      {[
+        { id: 'home', icon: <Heart size={24} fill={mobileTab === 'home' ? 'currentColor' : 'none'} /> },
+        { id: 'chat', icon: <MessageSquare size={24} fill={mobileTab === 'chat' ? 'currentColor' : 'none'} /> },
+        { id: 'apps', icon: <Grid3x3 size={24} /> },
+        { id: 'settings', icon: <SettingsIcon size={24} /> }
+      ].map(tab => (
         <button 
-          key={tab} 
+          key={tab.id} 
           onClick={() => {
             playAudio('click', sfxEnabled);
-            setMobileTab(tab);
+            setMobileTab(tab.id);
           }}
-          className={`font-black uppercase tracking-tighter transition-all duration-300 ${mobileTab === tab ? 'text-4xl text-primary' : 'text-xl opacity-20 hover:opacity-40'}`}
+          className={`transition-all duration-300 relative pb-2 ${mobileTab === tab.id ? 'text-primary scale-110' : 'opacity-20 hover:opacity-40'}`}
         >
-          {tab}
+          {tab.icon}
+          {mobileTab === tab.id && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full" />}
         </button>
       ))}
     </div>
@@ -259,13 +265,13 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         {mobilePivot}
         <div className="flex-1 overflow-y-auto pb-8">
           {mobileTab === 'home' && (
-            <div className="flex flex-col gap-6 p-6 animate-in slide-in-from-right-8 duration-300">
+            <div className="flex flex-col gap-4 p-4 animate-in slide-in-from-right-8 duration-300">
                {/* Simplified Home Layout */}
                <div className="space-y-1">
-                  <h1 className="text-4xl font-black lowercase tracking-tighter">hi {myDisplayName}! {mood}</h1>
+                  <h1 className="text-3xl font-black lowercase tracking-tighter">hi {myDisplayName}! {mood}</h1>
                   <div className="flex items-center gap-2 pt-1">
                     <div className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
-                    <p className="text-sm font-bold opacity-60 uppercase tracking-widest">{partnerName} is {displayStatus.toLowerCase()}</p>
+                    <p className="text-xs font-bold opacity-60 uppercase tracking-widest">{partnerName} is {displayStatus.toLowerCase()}</p>
                   </div>
                </div>
 
@@ -290,7 +296,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             </div>
           )}
           {mobileTab === 'settings' && (
-            <div className="animate-in slide-in-from-right-8 duration-300 px-2">
+            <div className="animate-in slide-in-from-right-8 duration-300">
               <SettingsView 
                 onClose={() => setMobileTab('home')}
                 theme={theme} setTheme={setTheme}

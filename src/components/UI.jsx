@@ -85,7 +85,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           <div className="relative z-10 flex items-center gap-2">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="p-2 sm:p-1 ml-2 retro-border hover:brightness-110 transition-all active:brightness-90" style={{ backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }}>
+              <button onClick={handleCloseClick} aria-label="Close" className="hidden md:block p-2 sm:p-1 ml-2 retro-border hover:brightness-110 transition-all active:brightness-90" style={{ backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }}>
                 <X size={14} />
               </button>
             )}
