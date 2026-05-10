@@ -20,7 +20,7 @@ export const Unit = React.memo(({ val, label }) => {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative w-10 h-12 sm:w-12 sm:h-14 bg-window border-2 border-border shadow-[1.5px_1.5px_0px_0px_var(--border)] font-black text-xl sm:text-2xl text-main-text perspective-1000 preserve-3d">
+      <div className="relative w-8 h-10 sm:w-10 sm:h-12 lg:w-12 lg:h-14 bg-window border-2 border-border shadow-[1.5px_1.5px_0px_0px_var(--border)] font-black text-lg sm:text-xl lg:text-2xl text-main-text perspective-1000 preserve-3d">
         <div className="absolute top-0 left-0 w-full h-1/2 bg-window overflow-hidden flex items-end justify-center pb-[1px] border-b border-border/10">
           <span className="translate-y-1/2">{nextStr}</span>
         </div>

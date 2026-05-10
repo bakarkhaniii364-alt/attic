@@ -287,7 +287,7 @@ export function DashboardRadio({ radioState, setRadioState }) {
                             step="0.05" 
                             value={radioState?.volume || 0.4} 
                             onChange={(e) => setRadioState({...radioState, volume: parseFloat(e.target.value)})} 
-                            className="w-12 h-1 accent-[var(--primary)] cursor-pointer chunky-slider" 
+                            className="w-8 sm:w-12 h-1 accent-[var(--primary)] cursor-pointer chunky-slider transition-all" 
                         />
                         <button 
                             onClick={(e) => { e.stopPropagation(); setRadioState({...radioState, volume: Math.min(1, (radioState.volume || 0.4) + 0.05)}); }}
