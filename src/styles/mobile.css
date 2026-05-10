@@ -29,42 +29,32 @@
   }
 
   /* ─── MOBILE NAVIGATION ─── */
-  .mobile-dock {
+  /* ─── WINDOWS PHONE STYLE DOCK ─── */
+  .mobile-dock-wp {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
+    height: 80px;
     background: var(--bg-window);
     border-top: 2px solid var(--border);
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
+    gap: 48px;
     align-items: center;
     z-index: 1000;
     padding-bottom: env(safe-area-inset-bottom);
-    backdrop-blur: 10px;
-    background: rgba(var(--bg-window-rgb), 0.9);
   }
 
-  .mobile-dock-item {
+  .mobile-dock-wp-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    font-weight: 900;
-    text-transform: uppercase;
-    color: var(--text-main);
-    opacity: 0.5;
-    transition: all 0.2s;
-    width: 20%;
-    height: 100%;
-    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .mobile-dock-item.active {
-    opacity: 1;
-    color: var(--primary);
+  .mobile-dock-wp-item:active {
+    transform: scale(0.9);
   }
 
   /* ─── FULL SCREEN WINDOWS ─── */
@@ -127,5 +117,11 @@
   img, video, iframe {
     max-width: 100%;
     height: auto;
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

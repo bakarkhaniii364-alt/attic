@@ -14,6 +14,7 @@ import { useAuth, useSync, useChat } from '../context/instances.js';
 import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 import { useMobile } from '../hooks/useMobile.js';
+import { ChatView } from './ChatView.jsx';
 
 
 export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
@@ -74,31 +75,20 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const petHappy = coupleData.petHappy ?? 60;
   const petName = coupleData.petName || 'pet';
 
-  const mobileHeader = (
-    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border p-3 flex items-center justify-between shadow-md">
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="w-10 h-10 retro-border overflow-hidden bg-accent flex items-center justify-center text-xl shrink-0">
-          {profile.pfp ? <img src={profile.pfp} className="w-full h-full object-cover" alt="pfp" /> : profile.emoji}
-        </div>
-        <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-widest leading-none truncate">hi {myDisplayName}!</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <div className={`w-1.5 h-1.5 rounded-full ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
-            <p className="text-[9px] font-bold opacity-70 truncate uppercase tracking-tighter">
-              {partnerName} is {displayStatus.toLowerCase()}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
+  const mobilePivot = (
+    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border pt-8 pb-3 px-6 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-end gap-8 shrink-0">
+      {['home', 'chat', 'apps'].map(tab => (
         <button 
-          onClick={handleSendKiss} 
-          disabled={Date.now() - lastActionTime < 3000}
-          className={`p-2 retro-border bg-window active:translate-y-0.5 ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale' : 'retro-shadow-dark'}`}
+          key={tab} 
+          onClick={() => {
+            playAudio('click', sfxEnabled);
+            setMobileTab(tab);
+          }}
+          className={`font-black uppercase tracking-tighter transition-all duration-300 ${mobileTab === tab ? 'text-4xl text-primary' : 'text-xl opacity-20 hover:opacity-40'}`}
         >
-          <Heart size={18} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
+          {tab}
         </button>
-      </div>
+      ))}
     </div>
   );
 
@@ -264,11 +254,11 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
 
   if (isMobile) {
     return (
-      <div className="w-full flex flex-col min-h-[100dvh] relative">
-        {mobileHeader}
-        <div className="flex-1 overflow-y-auto pb-24">
+      <div className="w-full flex flex-col min-h-[100dvh] bg-window relative overflow-hidden">
+        {mobilePivot}
+        <div className="flex-1 overflow-y-auto pb-32">
           {mobileTab === 'home' && (
-            <div className="flex flex-col gap-4 p-4">
+            <div className="flex flex-col gap-4 p-4 animate-in slide-in-from-right-8 duration-300">
               {welcomeWindow}
               {petWindow}
               {timerWindow}
@@ -277,29 +267,36 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               </RetroWindow>
             </div>
           )}
-          {mobileTab === 'radio' && radioWindow}
-          {mobileTab === 'apps' && appsWindow}
-          {mobileTab === 'stats' && statsWindow}
+          {mobileTab === 'chat' && (
+            <div className="h-[calc(100dvh-180px)] flex flex-col animate-in slide-in-from-right-8 duration-300">
+              <ChatView onClose={() => setMobileTab('home')} isMobile={true} />
+            </div>
+          )}
+          {mobileTab === 'apps' && (
+            <div className="animate-in slide-in-from-right-8 duration-300">
+              {appsWindow}
+            </div>
+          )}
         </div>
 
-        {/* Mobile Dock */}
-        <div className="mobile-dock">
-          <button onClick={() => setMobileTab('home')} className={`mobile-dock-item ${mobileTab === 'home' ? 'active' : ''}`}>
-            <Heart size={24} fill={mobileTab === 'home' ? 'var(--primary)' : 'none'} />
-            <span>Home</span>
+        {/* Mobile Dock - Windows Phone Style */}
+        <div className="mobile-dock-wp">
+          <button onClick={() => setMobileTab('home')} className="mobile-dock-wp-item">
+            <Heart size={24} fill={mobileTab === 'home' ? 'var(--primary)' : 'none'} className={mobileTab === 'home' ? 'text-primary' : 'opacity-40'} />
+            {mobileTab === 'home' && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1" />}
           </button>
-          <button onClick={() => nav('chat')} className="mobile-dock-item relative">
-            <MessageSquare size={24} />
-            <span>Chat</span>
+          <button onClick={() => setMobileTab('chat')} className="mobile-dock-wp-item relative">
+            <MessageSquare size={24} className={mobileTab === 'chat' ? 'text-primary' : 'opacity-40'} />
             {unreadChatCount > 0 && (
-              <div className="absolute top-2 right-4 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-black">
+              <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
                 {unreadChatCount}
               </div>
             )}
+            {mobileTab === 'chat' && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1" />}
           </button>
-          <button onClick={() => setMobileTab('apps')} className={`mobile-dock-item ${mobileTab === 'apps' ? 'active' : ''}`}>
-            <Grid3x3 size={24} />
-            <span>Apps</span>
+          <button onClick={() => setMobileTab('apps')} className="mobile-dock-wp-item">
+            <Grid3x3 size={24} className={mobileTab === 'apps' ? 'text-primary' : 'opacity-40'} />
+            {mobileTab === 'apps' && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1" />}
           </button>
         </div>
 
