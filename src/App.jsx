@@ -304,7 +304,15 @@ export default function App() {
               <Route path="/dashboard" element={
                 !user ? <Navigate to="/" replace /> :
                 !roomId ? <Navigate to="/handshake" replace /> :
-                <Dashboard setView={navigateTo} theme={theme} setTheme={setTheme} sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} weather={weather} setWeather={setWeather} radioState={radioState} setRadioState={setRadioState} setShowKiss={setShowKiss} />
+                <Dashboard 
+                  setView={navigateTo} 
+                  theme={theme} setTheme={setTheme} 
+                  sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
+                  notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
+                  weather={weather} setWeather={setWeather} 
+                  radioState={radioState} setRadioState={setRadioState} 
+                  setShowKiss={setShowKiss} 
+                />
               } />
               <Route path="/signup" element={<AuthView mode="signup" />} />
               <Route path="/signin" element={<AuthView mode="signin" />} />

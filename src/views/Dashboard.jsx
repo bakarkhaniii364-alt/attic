@@ -15,9 +15,10 @@ import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 import { useMobile } from '../hooks/useMobile.js';
 import { ChatView } from './ChatView.jsx';
+import { SettingsView } from './SettingsView.jsx';
 
 
-export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
+export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
   const { userId, partnerId, roomId, logout } = useAuth();
   const sync = useSync();
   const { globalState, updateSyncState, updateSyncStateAtomic, mergeSyncState, broadcast: syncBroadcast, onlineUsers } = sync;
@@ -76,8 +77,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const petName = coupleData.petName || 'pet';
 
   const mobilePivot = (
-    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border pt-8 pb-3 px-6 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-end gap-8 shrink-0">
-      {['home', 'chat', 'apps'].map(tab => (
+    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border pt-8 pb-3 px-6 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-end gap-8 shrink-0 shadow-sm">
+      {['home', 'chat', 'apps', 'settings'].map(tab => (
         <button 
           key={tab} 
           onClick={() => {
@@ -256,19 +257,30 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     return (
       <div className="w-full flex flex-col min-h-[100dvh] bg-window relative overflow-hidden">
         {mobilePivot}
-        <div className="flex-1 overflow-y-auto pb-32">
+        <div className="flex-1 overflow-y-auto pb-8">
           {mobileTab === 'home' && (
-            <div className="flex flex-col gap-4 p-4 animate-in slide-in-from-right-8 duration-300">
-              {welcomeWindow}
-              {petWindow}
-              {timerWindow}
-              <RetroWindow title="system_stats" className="w-full">
-                {statsContent}
-              </RetroWindow>
+            <div className="flex flex-col gap-6 p-6 animate-in slide-in-from-right-8 duration-300">
+               {/* Simplified Home Layout */}
+               <div className="space-y-1">
+                  <h1 className="text-4xl font-black lowercase tracking-tighter">hi {myDisplayName}! {mood}</h1>
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                    <p className="text-sm font-bold opacity-60 uppercase tracking-widest">{partnerName} is {displayStatus.toLowerCase()}</p>
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  {welcomeWindow}
+                  {petWindow}
+                  {timerWindow}
+                  <RetroWindow title="system_stats" className="w-full">
+                    {statsContent}
+                  </RetroWindow>
+               </div>
             </div>
           )}
           {mobileTab === 'chat' && (
-            <div className="h-[calc(100dvh-180px)] flex flex-col animate-in slide-in-from-right-8 duration-300">
+            <div className="h-[calc(100dvh-100px)] flex flex-col animate-in slide-in-from-right-8 duration-300">
               <ChatView onClose={() => setMobileTab('home')} isMobile={true} />
             </div>
           )}
@@ -277,27 +289,23 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               {appsWindow}
             </div>
           )}
-        </div>
-
-        {/* Mobile Dock - Windows Phone Style */}
-        <div className="mobile-dock-wp">
-          <button onClick={() => setMobileTab('home')} className="mobile-dock-wp-item">
-            <Heart size={24} fill={mobileTab === 'home' ? 'var(--primary)' : 'none'} className={mobileTab === 'home' ? 'text-primary' : 'opacity-40'} />
-            {mobileTab === 'home' && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1" />}
-          </button>
-          <button onClick={() => setMobileTab('chat')} className="mobile-dock-wp-item relative">
-            <MessageSquare size={24} className={mobileTab === 'chat' ? 'text-primary' : 'opacity-40'} />
-            {unreadChatCount > 0 && (
-              <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-black">
-                {unreadChatCount}
-              </div>
-            )}
-            {mobileTab === 'chat' && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1" />}
-          </button>
-          <button onClick={() => setMobileTab('apps')} className="mobile-dock-wp-item">
-            <Grid3x3 size={24} className={mobileTab === 'apps' ? 'text-primary' : 'opacity-40'} />
-            {mobileTab === 'apps' && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1" />}
-          </button>
+          {mobileTab === 'settings' && (
+            <div className="animate-in slide-in-from-right-8 duration-300 px-2">
+              <SettingsView 
+                onClose={() => setMobileTab('home')}
+                theme={theme} setTheme={setTheme}
+                profile={profile} setProfile={(p) => updateSyncStateAtomic('room_profiles', userId, p)}
+                onLogout={logout}
+                sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled}
+                notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
+                weather={weather} setWeather={setWeather}
+                scores={scores}
+                userId={userId} partnerId={partnerId}
+                coupleData={coupleData} setCoupleData={(d) => mergeSyncState('couple_data', d)}
+                streaks={streaks}
+              />
+            </div>
+          )}
         </div>
 
         {showLogoutConfirm && (
