@@ -84,7 +84,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           <div className="relative z-10 flex items-center gap-2">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="p-1 ml-2 retro-border hover:brightness-110 transition-all active:brightness-90" style={{ backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }}>
+              <button onClick={handleCloseClick} aria-label="Close" className="p-2 sm:p-1 ml-2 retro-border hover:brightness-110 transition-all active:brightness-90" style={{ backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }}>
                 <X size={14} />
               </button>
             )}
@@ -212,7 +212,7 @@ export function AppIcon({ icon, label, color, hue, onClick, badge }) {
     <div
       role="button" tabIndex={0}
       data-testid={`app-icon-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      className="flex flex-col items-center gap-2 group cursor-pointer select-none"
+      className="flex flex-col items-center gap-2 group cursor-pointer select-none app-icon-mobile"
       onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}
     >
       <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border retro-shadow-dark relative transition-all group-hover:-translate-y-1 group-active:translate-y-0.5 group-active:shadow-none overflow-hidden">

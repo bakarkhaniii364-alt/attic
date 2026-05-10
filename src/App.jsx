@@ -19,6 +19,7 @@ import { StrayTray, CHANNELS } from './components/LofiPlayer.jsx';
 import { useAuth, useSync, useCall, useChat } from './context/instances.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { useAppLogic } from './hooks/useAppLogic.js';
+import { DesktopOnly } from './components/MobileOnly.jsx';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { LegalView } from './views/LegalView.jsx';
@@ -238,7 +239,7 @@ export default function App() {
     <>
       {!bootFinished && <BootLoader onComplete={() => setBootFinished(true)} sfxEnabled={sfxEnabled} />}
       
-      <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-2 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
+      <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-0 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
         <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} opacity-10 pointer-events-none`} />
         <LivingBackground weather={weather} />
         <WeatherOverlay weather={weather} />
@@ -246,7 +247,7 @@ export default function App() {
 
         {hasInitialized && (
           <>
-            {user && roomId && <StrayTray radioState={radioState} setRadioState={setRadioState} />}
+            {user && roomId && <DesktopOnly><StrayTray radioState={radioState} setRadioState={setRadioState} /></DesktopOnly>}
 
             <OverlayManager 
               showKiss={showKiss} floatingDoodles={floatingDoodles} doodleQueue={doodleQueue} 

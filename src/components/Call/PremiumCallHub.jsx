@@ -5,6 +5,7 @@ import { PhoneOff, MicOff, Mic, Volume2, VolumeX,
          RefreshCw, ChevronDown, Smile, Hand, Zap, ExternalLink } from 'lucide-react';
 import { playAudio } from '../../utils/audio.js';
 import { useVoiceActivity } from '../../hooks/useVoiceActivity.js';
+import { useMobile } from '../../hooks/useMobile.js';
 
 // ── Quality Badge ─────────────────────────────────────────────────────────────
 function QualityBadge({ quality }) {
@@ -154,9 +155,19 @@ export function PremiumCallHub({
   const myProfile = JSON.parse(localStorage.getItem('user_profile') || '{}');
   const myPfp = myProfile?.pfp;
 
+  const isMobile = useMobile();
+
   // Window State
-  const [pos,  setPos]  = useState(() => ({ x: Math.max(20, window.innerWidth - 520), y: 60 }));
-  const [size, setSize] = useState({ w: 480, h: 340 });
+  const [pos,  setPos]  = useState(() => {
+    if (typeof window === 'undefined') return { x: 0, y: 0 };
+    if (window.innerWidth <= 768) return { x: 0, y: 0 };
+    return { x: Math.max(20, window.innerWidth - 520), y: 60 };
+  });
+  const [size, setSize] = useState(() => {
+    if (typeof window === 'undefined') return { w: 480, h: 340 };
+    if (window.innerWidth <= 768) return { w: window.innerWidth, h: window.innerHeight };
+    return { w: 480, h: 340 };
+  });
   const [isMinimized, setIsMinimized] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [isCameraChanging, setIsCameraChanging] = useState(false);
@@ -294,10 +305,12 @@ export function PremiumCallHub({
   }, [onPointerMove, onPointerUp]);
 
   const startDrag = (e) => {
+    if (isMobile) return;
     if (e.target.closest('button') || resize.current) return;
     drag.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
   };
   const startResize = (dir, e) => {
+    if (isMobile) return;
     e.preventDefault(); e.stopPropagation();
     resize.current = { dir, startX: e.clientX, startY: e.clientY, startW: size.w, startH: size.h, startPosX: pos.x, startPosY: pos.y };
   };
@@ -335,41 +348,36 @@ export function PremiumCallHub({
             <button onClick={() => setIsMinimized(false)}
                     className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-primary text-white hover:opacity-80 transition-all"
                     style={{ color: 'var(--text-on-primary)' }}>
-              <Maximize2 size={14}/>
-            </button>
-            <button onClick={onEndCall}
-                    className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-red-600 text-white hover:bg-red-700 transition-all">
-              <PhoneOff size={14} className="rotate-[135deg]"/>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── FULL WINDOW ─────────────────────────────────────────────────────────────
+              // ── FULL WINDOW ─────────────────────────────────────────────────────────────
   return (
     <div
-      className="fixed z-[900] flex flex-col bg-window retro-border-thick"
+      className={`fixed z-[900] flex flex-col bg-window retro-border-thick call-overlay-hud ${isMobile ? 'is-mobile-hub' : ''}`}
       style={{
-        left: `${pos.x}px`, top: `${pos.y}px`,
-        width: `${size.w}px`, height: `${size.h}px`,
-        boxShadow: '4px 4px 0 var(--border)',
+        left: isMobile ? 0 : `${pos.x}px`,
+        top: isMobile ? 0 : `${pos.y}px`,
+        width: isMobile ? '100vw' : `${size.w}px`,
+        height: isMobile ? (window.innerWidth <= 768 ? '100dvh' : `${size.h}px`) : `${size.h}px`,
+        boxShadow: isMobile ? 'none' : '4px 4px 0 var(--border)',
+        borderRadius: isMobile ? 0 : undefined,
       }}
     >
-      {/* Resize handles */}
-      <div className="absolute top-0 left-2 right-2 h-1.5 cursor-n-resize z-50"   onMouseDown={e => startResize('n', e)} />
-      <div className="absolute bottom-0 left-2 right-2 h-1.5 cursor-s-resize z-50" onMouseDown={e => startResize('s', e)} />
-      <div className="absolute left-0 top-2 bottom-2 w-1.5 cursor-w-resize z-50"   onMouseDown={e => startResize('w', e)} />
-      <div className="absolute right-0 top-2 bottom-2 w-1.5 cursor-e-resize z-50"  onMouseDown={e => startResize('e', e)} />
-      <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-50"  onMouseDown={e => startResize('nw', e)} />
-      <div className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-50" onMouseDown={e => startResize('ne', e)} />
-      <div className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-50" onMouseDown={e => startResize('sw', e)} />
-      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-50" onMouseDown={e => startResize('se', e)} />
+      {/* Resize handles - disabled on mobile via startResize but hiding for clarity */}
+      {!isMobile && (
+        <>
+          <div className="absolute top-0 left-2 right-2 h-1.5 cursor-n-resize z-50"   onMouseDown={e => startResize('n', e)} />
+          <div className="absolute bottom-0 left-2 right-2 h-1.5 cursor-s-resize z-50" onMouseDown={e => startResize('s', e)} />
+          <div className="absolute left-0 top-2 bottom-2 w-1.5 cursor-w-resize z-50"   onMouseDown={e => startResize('w', e)} />
+          <div className="absolute right-0 top-2 bottom-2 w-1.5 cursor-e-resize z-50"  onMouseDown={e => startResize('e', e)} />
+          <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-50"  onMouseDown={e => startResize('nw', e)} />
+          <div className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-50" onMouseDown={e => startResize('ne', e)} />
+          <div className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-50" onMouseDown={e => startResize('sw', e)} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-50" onMouseDown={e => startResize('se', e)} />
+        </>
+      )}
 
       {/* Title Bar */}
       <div
-        className="shrink-0 px-3 py-2 flex items-center justify-between border-b-2 border-border cursor-grab active:cursor-grabbing select-none"
+        className={`shrink-0 px-3 py-2 flex items-center justify-between border-b-2 border-border select-none ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
         style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}
         onMouseDown={startDrag}
       >
@@ -379,7 +387,6 @@ export function PremiumCallHub({
           <span className="text-[11px] font-black uppercase tracking-widest truncate">{partnerName}</span>
           <span className="opacity-40 text-xs shrink-0">|</span>
           <span className="text-[11px] font-bold opacity-70 shrink-0">{isRinging ? '···' : isReconnecting ? '⚠' : timer}</span>
-          {/* Typing in call badge */}
           {isPartnerTyping && !isRinging && (
             <div className="flex items-center gap-1 bg-primary/20 px-2 py-0.5 rounded text-[9px] font-black animate-in fade-in">
               <MessageSquare size={9} />
@@ -394,9 +401,11 @@ export function PremiumCallHub({
               <ExternalLink size={13}/>
             </button>
           )}
-          <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 hover:bg-white/10 transition-colors" title="Minimize">
-            <Minimize2 size={13}/>
-          </button>
+          {!isMobile && (
+            <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 hover:bg-white/10 transition-colors" title="Minimize">
+              <Minimize2 size={13}/>
+            </button>
+          )}
           <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-red-600 text-white hover:bg-red-700 transition-all" title="End Call">
             <PhoneOff size={13}/>
           </button>
@@ -405,8 +414,7 @@ export function PremiumCallHub({
 
       {/* Content */}
       <div className="relative flex-1 min-h-0 bg-black overflow-hidden group flex items-center justify-center">
-
-        {/* ICE Reconnect Overlay */}
+        {/* ... (rest of the content remains same) ... */}
         {isReconnecting && (
           <div className="absolute inset-0 z-40 bg-black/85 flex flex-col items-center justify-center gap-4">
             <WifiOff size={36} className="text-yellow-400 animate-bounce"/>
@@ -428,7 +436,6 @@ export function PremiumCallHub({
           </div>
         )}
 
-        {/* Ringing */}
         {isRinging ? (
           <div className="flex flex-col items-center gap-5 z-10">
             <div className="w-24 h-24 retro-border overflow-hidden relative bg-black animate-pulse">
@@ -441,7 +448,6 @@ export function PremiumCallHub({
           </div>
         ) : (
           <>
-            {/* Remote video or avatar fallback */}
             {remoteStream && !isPartnerCameraOff
               ? <video ref={remoteVideoRef} autoPlay playsInline 
                        className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${partnerSpeaking ? 'brightness-[1.15] contrast-[1.05]' : ''}`}/>
@@ -450,8 +456,6 @@ export function PremiumCallHub({
                   <div className={`relative w-28 h-28 sm:w-36 sm:h-36 retro-border overflow-hidden bg-border/20 backdrop-blur-sm transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_40px_rgba(34,197,94,0.4)] border-green-400' : ''}`}>
                     <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
                     <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
-                    
-                    {/* Speaking Glow Ring */}
                     {partnerSpeaking && (
                       <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
                     )}
@@ -469,9 +473,8 @@ export function PremiumCallHub({
               )
             }
 
-            {/* PIP – local camera or PFP fallback */}
             {localStream && (
-              <div className={`absolute bottom-16 right-4 w-32 sm:w-44 aspect-video bg-black/90 retro-border overflow-hidden z-20 shadow-2xl group-hover:scale-[1.02] transition-all duration-300 ${mySpeaking ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : ''}`}>
+              <div className={`absolute ${isMobile ? 'top-4 right-4 w-24' : 'bottom-16 right-4 w-32 sm:w-44'} aspect-video bg-black/90 retro-border overflow-hidden z-20 shadow-2xl group-hover:scale-[1.02] transition-all duration-300 ${mySpeaking ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : ''}`}>
                 {!isCameraOff || isScreenSharing ? (
                    <video ref={localVideoCallbackRef} autoPlay playsInline muted
                           className={`w-full h-full object-cover transition-all duration-300 ${isScreenSharing ? '' : 'scale-x-[-1]'} ${mySpeaking ? 'brightness-[1.1]' : ''}`}/>
@@ -488,7 +491,6 @@ export function PremiumCallHub({
               </div>
             )}
 
-            {/* Status badges */}
             <div className="absolute top-2 left-2 flex gap-1.5 z-30">
               {isMuted    && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><MicOff  size={12}/></div>}
               {isDeafened && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VolumeX size={12}/></div>}
@@ -500,7 +502,6 @@ export function PremiumCallHub({
               )}
             </div>
 
-            {/* Reaction Layer */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-40">
               {reactions.map(r => (
                 <div key={r.id} 
@@ -511,7 +512,6 @@ export function PremiumCallHub({
               ))}
             </div>
 
-            {/* Live badge */}
             {!isReconnecting && (
               <div className="absolute top-2 right-2 bg-black/70 px-2 py-0.5 retro-border text-[9px] text-white font-black tracking-widest uppercase z-30">LIVE</div>
             )}
@@ -519,38 +519,40 @@ export function PremiumCallHub({
         )}
 
         {/* Hover Controls (Retro Styled) */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-window/95 backdrop-blur-md px-4 py-3 retro-border-thick opacity-0 group-hover:opacity-100 transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)]">
+        <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 bg-window/95 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-3 retro-border-thick transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)] ${isMobile ? 'opacity-100 w-[95%] justify-center flex-wrap' : 'opacity-0 group-hover:opacity-100'}`}>
           <button onClick={onMicToggle} 
-                  className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute (Shift+M)">
-            {isMuted ? <MicOff size={20}/> : <Mic size={20}/>}
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute (Shift+M)">
+            {isMuted ? <MicOff size={isMobile ? 16 : 20}/> : <Mic size={isMobile ? 16 : 20}/>}
           </button>
           <button onClick={onDeafenToggle} 
-                  className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen (Shift+D)">
-            {isDeafened ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen (Shift+D)">
+            {isDeafened ? <VolumeX size={isMobile ? 16 : 20}/> : <Volume2 size={isMobile ? 16 : 20}/>}
           </button>
           <button onClick={handleCameraToggle} 
-                  className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Camera (Shift+V)">
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Camera (Shift+V)">
             {isCameraChanging
-              ? <Loader size={20} className="animate-spin"/>
-              : isCameraOff ? <VideoOff size={20}/> : <Camera size={20}/>
+              ? <Loader size={isMobile ? 16 : 20} className="animate-spin"/>
+              : isCameraOff ? <VideoOff size={isMobile ? 16 : 20}/> : <Camera size={isMobile ? 16 : 20}/>
             }
           </button>
-          <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
-                  className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Screen Share (Shift+S)">
-            {isScreenSharing ? <MonitorOff size={20}/> : <Monitor size={20}/>}
-          </button>
           
-          <div className="w-px h-8 bg-border mx-1 opacity-20"/>
-          
-          {/* Reactions */}
-          <div className="relative group/react">
-            <button className="p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 bg-window hover:bg-border">
-              <Smile size={20}/>
+          <DesktopOnly>
+            <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
+                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Screen Share (Shift+S)">
+              {isScreenSharing ? <MonitorOff size={20}/> : <Monitor size={20}/>}
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/react:flex items-center gap-1.5 bg-window retro-border-thick p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2">
+          </DesktopOnly>
+          
+          <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
+          
+          <div className="relative group/react">
+            <button className="p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 bg-window hover:bg-border">
+              <Smile size={isMobile ? 16 : 20}/>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/react:flex items-center gap-1 sm:gap-1.5 bg-window retro-border-thick p-1.5 sm:p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2">
               {['❤️', '🔥', '😂', '😮', '😢', '👍'].map(emoji => (
                 <button key={emoji} onClick={() => handleSendReaction(emoji)}
-                        className="p-1.5 hover:bg-border rounded transition-all hover:scale-125 text-xl">
+                        className="p-1 sm:p-1.5 hover:bg-border rounded transition-all hover:scale-125 text-lg sm:text-xl">
                   {emoji}
                 </button>
               ))}
@@ -558,28 +560,27 @@ export function PremiumCallHub({
           </div>
 
           <button onClick={handleToggleHand}
-                  className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isHandRaised ? 'bg-yellow-400 text-black' : 'bg-window hover:bg-border'}`} title="Raise Hand">
-            <Hand size={20} fill={isHandRaised ? "currentColor" : "none"} />
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isHandRaised ? 'bg-yellow-400 text-black' : 'bg-window hover:bg-border'}`} title="Raise Hand">
+            <Hand size={isMobile ? 16 : 20} fill={isHandRaised ? "currentColor" : "none"} />
           </button>
           
-          <div className="w-px h-8 bg-border mx-1 opacity-20"/>
+          <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
 
-          {/* Device Selector */}
           <div className="relative">
             <button onClick={() => setShowDevices(p => !p)}
-                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${showDevices ? 'bg-accent text-accent-text' : 'bg-window hover:bg-border'}`} title="Device Settings">
-              <Settings size={20}/>
+                    className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${showDevices ? 'bg-accent text-accent-text' : 'bg-window hover:bg-border'}`} title="Device Settings">
+              <Settings size={isMobile ? 16 : 20}/>
             </button>
             {showDevices && (
               <DeviceSelector onChangeDevice={onChangeDevice} onClose={() => setShowDevices(false)} />
             )}
           </div>
 
-          <div className="w-px h-8 bg-border mx-1 opacity-20"/>
+          <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
 
           <button onClick={onEndCall} 
-                  className="p-3 retro-border-thick shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call (Shift+E)">
-            <PhoneOff size={22} className="rotate-[135deg]"/>
+                  className="p-2.5 sm:p-3 retro-border-thick shadow-[3px_3px_0_var(--border)] sm:shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call (Shift+E)">
+            <PhoneOff size={isMobile ? 18 : 22} className="rotate-[135deg]"/>
           </button>
         </div>
       </div>

@@ -8,6 +8,7 @@ const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer } from '../components/UI.jsx';
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
+import { useMobile } from '../hooks/useMobile.js';
 import { playAudio } from '../utils/audio.js';
 import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useNavigate } from 'react-router-dom';
@@ -131,6 +132,7 @@ function formatMessage(text, isEdited) {
 
 
 export function ChatView({ onClose, sfx }) {
+  const isMobile = useMobile();
   const { userId, partnerId, roomId } = useAuth();
   const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChat();
@@ -569,7 +571,7 @@ export function ChatView({ onClose, sfx }) {
         onClose={onClose} 
         headerActions={headerActions} 
         onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }} 
-        className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col transition-all duration-300 relative" 
+        className={`w-full ${isMobile ? 'h-[100dvh] max-h-none border-none' : 'max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]'} flex flex-col transition-all duration-300 relative`} 
         noPadding
         sfx={sfx}
       >
