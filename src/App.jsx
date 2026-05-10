@@ -15,7 +15,7 @@ import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { useTypingIndicator } from './hooks/useTypingIndicator.js';
 import { playAudio } from './utils/audio.js';
 import { INITIAL_CHAT } from './constants/data.js';
-import { StrayTray } from './components/LofiPlayer.jsx';
+import { StrayTray, CHANNELS } from './components/LofiPlayer.jsx';
 import { useAuth, useSync, useCall, useChat } from './context/instances.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { useAppLogic } from './hooks/useAppLogic.js';
@@ -101,6 +101,15 @@ export default function App() {
   const [confetti, setConfetti] = useState(false);
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
   const [bootFinished, setBootFinished] = useState(false);
+
+  // Ensure radio is off by default on refresh and channel index is valid
+  useEffect(() => {
+    setRadioState(prev => {
+      const newState = { ...prev, isPlaying: false };
+      if (!CHANNELS[prev.channelIdx]) newState.channelIdx = 0;
+      return newState;
+    });
+  }, []);
   
   const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
   
@@ -170,7 +179,7 @@ export default function App() {
     }
   }, [roomId, userId, uploadAsset, toast, sfxEnabled]);
 
-  const isPartnerOnline = partnerId && onlineUsers[partnerId]?.status === 'active';
+  const isPartnerOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
   const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
   useEffect(() => {

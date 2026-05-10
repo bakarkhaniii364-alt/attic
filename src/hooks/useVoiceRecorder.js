@@ -16,7 +16,13 @@ export function useVoiceRecorder() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      const mimeType = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav']
+        .find(type => MediaRecorder.isTypeSupported(type)) || '';
+      
+      const mediaRecorder = mimeType 
+        ? new MediaRecorder(stream, { mimeType }) 
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       

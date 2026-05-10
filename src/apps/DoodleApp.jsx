@@ -329,11 +329,11 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
           <span className="text-[8px] font-black uppercase opacity-50 text-[var(--text-main)]">Size</span>
           <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-full accent-[var(--primary)] h-1 bg-[var(--border)] rounded-lg appearance-none cursor-pointer" />
         </div>
-        <div className="flex gap-1 px-2 items-center">
+        <div className="grid grid-cols-4 gap-1 px-2 items-center">
           {['#5c3a21', '#ffb6b9', '#a3c4f3', '#f9e2af', '#b5c99a', '#ffffff', '#000000', '#ff0000'].map(c => ( 
             <button key={c} onClick={() => { playAudio('click', sfx); setColor(c); if(tool==='eraser') setTool('pen'); }} className={`w-5 h-5 rounded-sm retro-border flex-shrink-0 transition-transform ${color === c && tool !== 'eraser' ? 'ring-2 ring-[var(--primary)] scale-125' : 'hover:scale-110'}`} style={{backgroundColor: c}} /> 
           ))}
-          <div className="relative w-6 h-6 flex-shrink-0 ml-1">
+          <div className="relative w-5 h-5 flex-shrink-0">
              <input type="color" ref={colorInputRef} value={color} onChange={(e) => { setColor(e.target.value); if(tool==='eraser') setTool('pen'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Custom Color" />
              <div className="absolute inset-0 rounded-sm retro-border flex items-center justify-center pointer-events-none" style={{backgroundColor: color}}><Pipette size={12} className="text-white mix-blend-difference" /></div>
           </div>

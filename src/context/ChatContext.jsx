@@ -5,7 +5,7 @@ import { useAuth, useSync } from './instances.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
 import { ChatContext } from './instances.js';
 
-const CACHE_VERSION = 'v3'; // Bump this to bust stale caches with corrupted sender_id
+const CACHE_VERSION = 'v5'; // Bumped for client_id duplication fix
 
 const mapMessage = async (row) => {
   const mapped = {
@@ -18,7 +18,10 @@ const mapMessage = async (row) => {
     isEdited: row.metadata?.isEdited || false,
     duration: row.metadata?.duration || null,
     status: row.metadata?.status || 'sent',
-    readAt: row.metadata?.readAt || null
+    readAt: row.metadata?.readAt || null,
+    fileName: row.metadata?.fileName || null,
+    fileSize: row.metadata?.fileSize || null,
+    clientId: row.metadata?.client_id || null
   };
 
   if (row.type === 'text') {
@@ -30,6 +33,12 @@ const mapMessage = async (row) => {
     mapped.url = row.content;
   } else if (row.type === 'voice') {
     mapped.audioUrl = row.content;
+  } else if (row.type === 'video') {
+    mapped.url = row.content;
+  } else if (row.type === 'audio') {
+    mapped.url = row.content;
+  } else if (row.type === 'file') {
+    mapped.url = row.content;
   } else if (row.type === 'game_invite') {
     mapped.text = row.content;
     mapped.gameId = row.metadata?.gameId;
@@ -65,7 +74,6 @@ export function ChatProvider({ children }) {
         return;
       }
 
-      // Serve versioned cache — stale v1/v2 caches are automatically skipped
       const cached = await localforage.getItem(cacheKey);
       if (cached && mounted) {
         setMessages(cached);
@@ -104,7 +112,20 @@ export function ChatProvider({ children }) {
           mapMessage(payload.new).then(mapped => {
             if (!mounted) return;
             setMessages(prev => {
+              // De-duplication Logic:
+              // 1. Check if this exact DB ID is already present
               if (prev.some(m => m.id === mapped.id)) return prev;
+              
+              // 2. Check if there's an optimistic message with the same client_id
+              const clientId = mapped.clientId;
+              if (clientId && prev.some(m => String(m.id).startsWith('temp-') && m.clientId === clientId)) {
+                // Replace the optimistic message with the real one
+                const next = prev.map(m => (String(m.id).startsWith('temp-') && m.clientId === clientId) ? mapped : m);
+                localforage.setItem(cacheKey, next);
+                return next;
+              }
+
+              // 3. Otherwise, it's a new message from partner, append it
               const next = [...prev, mapped];
               localforage.setItem(cacheKey, next);
               return next;
@@ -133,15 +154,7 @@ export function ChatProvider({ children }) {
 
   const { broadcast } = useSync();
 
-  /**
-   * sendMessage — the sender is ALWAYS the current logged-in user (userId from context).
-   * Signature: (content, type?, metadata?)
-   * Do NOT pass a senderId externally — it caused the identity bug where metadata
-   * was shifted into the senderId slot, making all messages appear as the partner's.
-   */
   const sendMessage = useCallback(async (content, type = 'text', metadata = {}) => {
-    // Guard: if a non-object sneaks into the metadata slot (e.g., old call sites
-    // that still pass userId as 3rd arg), treat it as empty metadata.
     const meta = (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) ? metadata : {};
 
     if (!roomId || !userId) {
@@ -155,23 +168,25 @@ export function ChatProvider({ children }) {
 
     const cacheKey = `chat_cache_${roomId}_${CACHE_VERSION}`;
     const tempId = `temp-${crypto.randomUUID()}`;
-    const optimisticContent = content instanceof Blob ? URL.createObjectURL(content) : content;
+    const clientId = crypto.randomUUID(); // Client-side unique ID for de-duplication
+    const optimisticContent = (content instanceof Blob || content instanceof File) ? URL.createObjectURL(content) : content;
 
-    // Optimistic UI: show message immediately, attributed to current user
     const optimisticMsg = {
       id: tempId,
       room_id: roomId,
       sender_id: userId,
       type,
       content: optimisticContent,
-      metadata: { ...meta, status: 'sending' },
+      metadata: { ...meta, status: 'sending', client_id: clientId },
       created_at: new Date().toISOString()
     };
 
     const mappedOptimistic = await mapMessage(optimisticMsg);
+    // Explicitly set clientId because mapMessage extracts it from metadata
+    mappedOptimistic.clientId = clientId;
+    
     setMessages(prev => [...prev, mappedOptimistic]);
 
-    // In test mode, skip the real DB call — just broadcast and keep optimistic
     if (isTestMode()) {
       sendTestStateUpdate('chat_message', optimisticMsg);
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'sent' } : m));
@@ -181,42 +196,48 @@ export function ChatProvider({ children }) {
     try {
       let finalContent = content;
 
-      if (content instanceof Blob) {
-        const fileExt = content.type.split('/')[1]?.split(';')[0] || 'bin';
-        const bucket = type === 'voice' ? 'voice_notes' : type === 'image' ? 'scrapbook' : 'doodles';
+      if (content instanceof Blob || content instanceof File) {
+        const fileExt = content.name?.split('.').pop() || content.type.split('/')[1]?.split(';')[0] || 'bin';
+        const bucket = (type === 'voice' || type === 'audio') ? 'voice_notes' : 'scrapbook';
         const fileName = `${roomId}/${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, content);
         if (uploadError) throw uploadError;
 
         finalContent = `${bucket}/${fileName}`;
+        
+        if (content.name && !meta.fileName) meta.fileName = content.name;
+        if (content.size && !meta.fileSize) meta.fileSize = content.size;
       }
-      // For text / game_invite / etc — finalContent is already the string
 
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_id: roomId,
-          sender_id: userId,   // Always the logged-in user — never external
+          sender_id: userId,
           type,
           content: finalContent,
-          metadata: { ...meta, status: 'sent' }
+          metadata: { ...meta, status: 'sent', client_id: clientId }
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Broadcast for real-time notification (Radio Antenna)
       if (broadcast) {
         broadcast('chat_message', { sender: userId, type });
       }
 
-      // CRITICAL: Only replace the optimistic message if DB returned a valid row.
       if (data && data.id) {
         const mapped = await mapMessage(data);
         setMessages(prev => {
-          const next = prev.map(m => m.id === tempId ? mapped : m);
+          // If real-time listener already replaced it, this might be redundant but safe
+          if (!prev.some(m => String(m.id).startsWith('temp-') && m.clientId === clientId)) {
+             // If temp message is gone (maybe real-time already arrived), just ensure the real one is there
+             if (prev.some(m => m.id === mapped.id)) return prev;
+             return [...prev, mapped];
+          }
+          const next = prev.map(m => (String(m.id).startsWith('temp-') && m.clientId === clientId) ? mapped : m);
           localforage.setItem(cacheKey, next);
           return next;
         });
@@ -280,4 +301,3 @@ export function ChatProvider({ children }) {
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }
-

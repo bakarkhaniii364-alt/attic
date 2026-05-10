@@ -33,29 +33,25 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     status: 'playing'
   });
 
-  const gameState = isMultiplayer ? syncedState : localGameState;
-
-  const setGameState = (val) => {
-    if (isMultiplayer) {
-      setSyncedState(val);
-    } else {
-      setLocalGameState(typeof val === 'function' ? val(localGameState) : val);
-    }
-  };
-
+  // Zero-Latency Sync: Local state is source of truth for UI, but synced with DB
   useEffect(() => {
-    if (!isMultiplayer) {
-      setLocalGameState({
-        board: Array(size * size).fill(null),
-        xIsNext: true,
-        p1Wins: 0,
-        p2Wins: 0,
-        pieceQueue: [],
-        winLine: null,
-        status: 'playing'
-      });
+    if (isMultiplayer && syncedState) {
+      setLocalGameState(syncedState);
     }
-  }, [config.mode, config.size, isMultiplayer]);
+  }, [syncedState, isMultiplayer]);
+
+  const gameState = localGameState;
+
+  const updateGameState = (updates, isRemote = false) => {
+    setLocalGameState(prev => {
+      const newState = { ...(prev || {}), ...updates };
+      // Only push to DB if we are the one making the move
+      if (isMultiplayer && !isRemote) {
+        setSyncedState(newState);
+      }
+      return newState;
+    });
+  };
 
   const board = gameState?.board || Array(size * size).fill(null);
   const xIsNext = gameState?.xIsNext ?? true;
@@ -71,7 +67,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   // Initialize multiplayer game state
   useEffect(() => {
     if (isMultiplayer && isHost && (!gameState || gameState.status === 'done' || (gameState.p1Wins >= winsRequired || gameState.p2Wins >= winsRequired))) {
-      setGameState({
+      updateGameState({
         board: Array(size * size).fill(null),
         xIsNext: true,
         p1Wins: 0,
@@ -82,10 +78,6 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
       });
     }
   }, [isMultiplayer, isHost, gameState, size]);
-
-  const updateGameState = (updates) => {
-    setGameState(prev => ({ ...(prev || {}), ...updates }));
-  };
 
   const calculateWinner = (squares) => {
     const minReq = size === 3 ? 3 : 4;
@@ -128,14 +120,14 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     }
 
     const player = xIsNext ? p1 : p2;
-    handlePlacePiece(i, player);
+    handlePlacePiece(i, player, isRemote);
 
     if (isMultiplayer && !isRemote) {
       sendMove({ index: i, sender: userId });
     }
   };
 
-  const handlePlacePiece = (i, player) => {
+  const handlePlacePiece = (i, player, isRemote = false) => {
     playAudio('chalk', sfx); 
     let newBoard = [...board]; 
     let newQueue = [...pieceQueue];
@@ -164,7 +156,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
       xIsNext: nextX,
       winLine: winInfo ? winInfo.line : null,
       status: (winInfo || isDraw) ? 'done' : 'playing'
-    });
+    }, isRemote);
   };
 
   const winData = calculateWinner(board); 

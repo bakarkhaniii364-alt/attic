@@ -1,8 +1,10 @@
-import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
-import { X, MessageSquare, Download, Snowflake, Check, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, createContext, useContext, useCallback, useRef } from 'react';
+import { X, MessageSquare, Download, Snowflake, Check, AlertTriangle, Eye, EyeOff, ChevronLeft, ChevronRight, Image as ImageIcon, Maximize2, Minimize2, Trash2, Heart, ExternalLink, Loader, Trash, Play, Pause, Volume2, VolumeX, Ban, Clock, Pencil, Scissors, Square, Circle, Type, Eraser, Save, Music } from 'lucide-react';
 
 import { playAudio } from '../utils/audio.js';
 import html2canvas from 'html2canvas';
+import { SecureImage, SecureVideo, SecureAudio } from './SecureMedia.jsx';
+import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
 
 // ── Toast System ──
 const ToastContext = createContext(null);
@@ -46,8 +48,6 @@ export function ToastProvider({ children }) {
 
 export { WeatherOverlay } from './Visuals/WeatherOverlay.jsx';
 export { Confetti } from './Visuals/Confetti.jsx';
-
-
 
 // ── RetroWindow ──
 export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, hasUnsavedChanges = false, onSaveBeforeClose, sfx }) {
@@ -154,7 +154,6 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
     secondary: { backgroundColor: 'var(--secondary)', color: 'var(--text-on-secondary)' }, 
     white: { backgroundColor: 'var(--bg-window)', color: 'var(--text-main)' }, 
     accent: { backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }, 
-    // FIX: Pull directly from semantic theme variables
     disabled: { 
       backgroundColor: 'var(--bg-disabled)', 
       color: 'var(--text-disabled)', 
@@ -216,11 +215,8 @@ export function AppIcon({ icon, label, color, hue, onClick, badge }) {
       className="flex flex-col items-center gap-2 group cursor-pointer select-none"
       onClick={onClick} onTouchStart={onClick} onKeyDown={handleKey}
     >
-      {/* Outer shell: retro-border gives the retro border+shadow only */}
       <div className="w-16 h-16 sm:w-20 sm:h-20 retro-border retro-shadow-dark relative transition-all group-hover:-translate-y-1 group-active:translate-y-0.5 group-active:shadow-none overflow-hidden">
-        {/* Dedicated color layer — lives inside, can't be overridden by parent classes */}
         <div className="absolute inset-0" style={{ backgroundColor: bgColor }} />
-        {/* Icon */}
         <div className="absolute inset-0 flex items-center justify-center z-10 text-white">
           {React.cloneElement(icon, { size: 30, strokeWidth: 2 })}
         </div>
@@ -407,6 +403,605 @@ export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
           Get Ready! ⚡
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── ImageViewerOverlay ──
+export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, onDelete, onSaveToScrapbook, onReact, sfx }) {
+  if (currentIndex === null || !images || !images[currentIndex]) return null;
+  
+  const currentItem = typeof images[currentIndex] === 'string' ? { url: images[currentIndex], type: 'image' } : images[currentIndex];
+  const currentUrl = currentItem.url;
+  const currentType = currentItem.type || 'image';
+  const isDeleted = currentItem.isDeleted;
+  const metadata = currentItem.metadata || {};
+
+  const [pos, setPos] = useState({ x: window.innerWidth / 2 - 350, y: window.innerHeight / 2 - 250 });
+  const [size, setSize] = useState({ w: 700, h: 500 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showReactPicker, setShowReactPicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  const drag = useRef(null);
+  const resize = useRef(null);
+
+  const { bucket, path } = parseSupabaseUrl(currentUrl);
+  const { signedUrl } = useSignedUrl(bucket, path);
+  const downloadUrl = signedUrl || currentUrl;
+
+  const reactions = [
+    { emoji: '❤️', label: 'love' },
+    { emoji: '😂', label: 'haha' },
+    { emoji: '😮', label: 'wow' },
+    { emoji: '👍', label: 'like' },
+    { emoji: '😭', label: 'sobbing' }
+  ];
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight' && onNext) onNext();
+      if (e.key === 'ArrowLeft' && onPrev) onPrev();
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'f') setIsFullscreen(prev => !prev);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onNext, onPrev, onClose]);
+
+  const onPointerMove = useCallback((e) => {
+    const cx = e.clientX, cy = e.clientY;
+    if (drag.current) {
+      const { startX, startY, startPosX, startPosY } = drag.current;
+      setPos({ x: startPosX + (cx - startX), y: startPosY + (cy - startY) });
+      return;
+    }
+    if (resize.current) {
+      const { dir, startX, startY, startW, startH, startPosX, startPosY } = resize.current;
+      let nW = startW, nH = startH, nX = startPosX, nY = startPosY;
+      const dx = cx - startX, dy = cy - startY;
+      if (dir.includes('e')) nW = startW + dx;
+      if (dir.includes('s')) nH = startH + dy;
+      if (dir.includes('w')) { nW = startW - dx; nX = startPosX + dx; }
+      if (dir.includes('n')) { nH = startH - dy; nY = startPosY + dy; }
+      setSize({ w: Math.max(300, nW), h: Math.max(250, nH) });
+      if (dir.includes('w') && nW > 300) setPos(p => ({ ...p, x: nX }));
+      if (dir.includes('n') && nH > 250) setPos(p => ({ ...p, y: nY }));
+    }
+  }, []);
+
+  const onPointerUp = useCallback(() => { drag.current = null; resize.current = null; }, []);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+    return () => {
+      window.removeEventListener('mousemove', onPointerMove);
+      window.removeEventListener('mouseup', onPointerUp);
+    };
+  }, [onPointerMove, onPointerUp]);
+
+  const startDrag = (e) => {
+    if (e.target.closest('button') || e.target.closest('video') || resize.current) return;
+    drag.current = { startX: e.clientX, startY: e.clientY, startPosX: pos.x, startPosY: pos.y };
+  };
+  
+  const startResize = (dir, e) => {
+    e.preventDefault(); e.stopPropagation();
+    resize.current = { dir, startX: e.clientX, startY: e.clientY, startW: size.w, startH: size.h, startPosX: pos.x, startPosY: pos.y };
+  };
+
+  const handleDownload = () => {
+    if (isDeleted) return;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `attic_media_${Date.now()}.${currentType === 'video' ? 'mp4' : 'png'}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    playAudio('click', sfx);
+  };
+
+  const windowStyle = isFullscreen ? {
+    position: 'fixed', inset: 0, width: '100vw', height: '100vh', zIndex: 1000,
+  } : {
+    position: 'fixed', left: `${pos.x}px`, top: `${pos.y}px`, width: `${size.w}px`, height: `${size.h}px`, zIndex: 1000,
+  };
+
+  return (
+    <div className={`flex flex-col bg-window retro-border-thick transition-all ${isFullscreen ? '' : 'retro-shadow-dark'}`} style={windowStyle}>
+      {!isFullscreen && (
+        <>
+          <div className="absolute top-0 left-2 right-2 h-1.5 cursor-n-resize z-50" onMouseDown={e => startResize('n', e)} />
+          <div className="absolute bottom-0 left-2 right-2 h-1.5 cursor-s-resize z-50" onMouseDown={e => startResize('s', e)} />
+          <div className="absolute left-0 top-2 bottom-2 w-1.5 cursor-w-resize z-50" onMouseDown={e => startResize('w', e)} />
+          <div className="absolute right-0 top-2 bottom-2 w-1.5 cursor-e-resize z-50" onMouseDown={e => startResize('e', e)} />
+          <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-50" onMouseDown={e => startResize('nw', e)} />
+          <div className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-50" onMouseDown={e => startResize('ne', e)} />
+          <div className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-50" onMouseDown={e => startResize('sw', e)} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-50" onMouseDown={e => startResize('se', e)} />
+        </>
+      )}
+
+      {/* Header 1: Main Title & Close */}
+      <div 
+        className="shrink-0 px-3 py-1.5 flex items-center justify-between border-b-2 border-border cursor-grab active:cursor-grabbing select-none"
+        style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}
+        onMouseDown={!isFullscreen ? startDrag : undefined}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-[2px] w-4 shrink-0 opacity-50">
+            <div className="h-[2px] w-full bg-current"></div>
+            <div className="h-[2px] w-full bg-current"></div>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest truncate">media_viewer.exe</span>
+        </div>
+        <div className="flex items-center gap-1">
+           <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1 hover:bg-white/10 transition-colors" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+            {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+          </button>
+          <button onClick={onClose} className="p-1 bg-red-600 text-white retro-border hover:bg-red-700 transition-colors"><X size={12} /></button>
+        </div>
+      </div>
+
+      {/* Header 2: Metadata & Toolbelt */}
+      <div className="shrink-0 px-3 py-2 flex items-center justify-between bg-window border-b-2 border-border shadow-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <ImageIcon size={14} className={`shrink-0 ${isDeleted ? 'text-red-500 opacity-50' : 'text-primary'}`} />
+          <div className="flex flex-col min-w-0">
+            <span className={`text-[10px] font-black uppercase tracking-tight truncate ${isDeleted ? 'line-through opacity-50' : ''}`}>{metadata.title || 'Media Message'}</span>
+            {(metadata.sender || metadata.time) && (
+              <span className="text-[9px] font-bold opacity-60 tracking-tight flex items-center gap-1">
+                {metadata.sender && <span>by {metadata.sender}</span>}
+                {metadata.time && <span>• {metadata.time}</span>}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-4">
+          <button onClick={handleDownload} disabled={isDeleted} className="p-1.5 retro-border bg-window hover:bg-accent/10 transition-colors disabled:opacity-30 disabled:grayscale" title="Download"><Download size={14} /></button>
+          {onDelete && !isDeleted && (
+             <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 retro-border bg-window hover:bg-red-500/10 text-red-600 transition-colors" title="Delete"><Trash2 size={14} /></button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden group">
+        {isDeleted ? (
+           <div className="flex flex-col items-center justify-center gap-4 text-white/40 select-none p-10 text-center">
+              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border-2 border-dashed border-white/10">
+                 <Ban size={40} />
+              </div>
+              <div className="space-y-1">
+                 <p className="font-black uppercase tracking-[0.2em] text-sm">Media Unavailable</p>
+                 <p className="text-[10px] font-bold opacity-60">This {currentType} was deleted on {metadata.time || 'N/A'}</p>
+              </div>
+           </div>
+        ) : currentType === 'video' ? (
+           <RetroMediaPlayer 
+            url={currentUrl} 
+            type="video"
+            className="max-w-full max-h-full" 
+           />
+        ) : (
+           <SecureImage url={currentUrl} alt="preview" className="max-w-full max-h-full object-contain shadow-2xl" />
+        )}
+        
+        {/* Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <button onClick={onPrev} className="absolute left-6 w-14 h-14 bg-window retro-border retro-shadow-dark flex items-center justify-center hover:-translate-x-1 active:translate-x-0 active:shadow-none transition-all z-20 group/nav"><ChevronLeft size={32} className="group-hover/nav:scale-110 transition-transform" /></button>
+            <button onClick={onNext} className="absolute right-6 w-14 h-14 bg-window retro-border retro-shadow-dark flex items-center justify-center hover:translate-x-1 active:translate-x-0 active:shadow-none transition-all z-20 group/nav"><ChevronRight size={32} className="group-hover/nav:scale-110 transition-transform" /></button>
+          </>
+        )}
+        
+        {/* Pagination Info */}
+        {images.length > 1 && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-window retro-border-thick px-4 py-1.5 font-black text-[10px] uppercase tracking-widest select-none z-10 shadow-lg">
+            {currentIndex + 1} / {images.length}
+          </div>
+        )}
+
+        {/* Delete Confirmation Overlay */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+             <div className="bg-window retro-border-thick retro-shadow-dark p-6 max-w-[280px] w-full flex flex-col gap-4 animate-in zoom-in-95">
+                <div className="flex items-center gap-2 text-red-600 mb-2">
+                   <AlertTriangle size={20} />
+                   <span className="font-black uppercase tracking-widest text-sm">Delete Media?</span>
+                </div>
+                <p className="text-xs font-bold opacity-80 leading-relaxed">
+                   {metadata.isMine ? "Do you want to delete this for yourself or everyone?" : "Are you sure you want to delete this message? This cannot be undone."}
+                </p>
+                <div className="flex flex-col gap-2 mt-2">
+                   {metadata.isMine ? (
+                     <>
+                        <RetroButton variant="primary" onClick={() => { onDelete(currentIndex, 'everyone'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2.5 text-xs">Delete for Everyone</RetroButton>
+                        <RetroButton variant="white" onClick={() => { onDelete(currentIndex, 'me'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2.5 text-xs">Delete for Me</RetroButton>
+                     </>
+                   ) : (
+                     <RetroButton variant="primary" onClick={() => { onDelete(currentIndex, 'me'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2.5 text-xs">Yes, Delete</RetroButton>
+                   )}
+                   <RetroButton variant="secondary" onClick={() => setShowDeleteConfirm(false)} className="py-2.5 text-xs">Cancel</RetroButton>
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Controls */}
+      <div className="shrink-0 p-3 bg-window border-t-2 border-border flex items-center justify-between relative">
+        <div className="flex gap-2">
+          {onReact && !isDeleted && (
+             <div className="relative">
+                <button onClick={() => setShowReactPicker(!showReactPicker)} className={`px-4 py-2 bg-window text-main-text retro-border retro-shadow-dark flex items-center gap-2 font-bold text-xs uppercase tracking-widest hover:-translate-y-0.5 active:translate-y-0 transition-all ${showReactPicker ? 'bg-accent' : ''}`}>
+                   <Heart size={16} className={showReactPicker ? 'text-white' : 'text-red-500'} /> React
+                </button>
+                
+                {showReactPicker && (
+                  <div className="absolute bottom-full left-0 mb-3 bg-window retro-border retro-shadow-dark p-1.5 flex gap-1.5 animate-in slide-in-from-bottom-2 duration-200 z-[60]">
+                     {reactions.map(r => (
+                       <button 
+                        key={r.label} 
+                        onClick={() => { onReact(currentIndex, r.emoji); setShowReactPicker(false); playAudio('click', sfx); }}
+                        className="w-10 h-10 flex items-center justify-center text-xl hover:bg-accent/10 hover:scale-125 transition-all retro-border bg-window"
+                        title={r.label}
+                       >
+                         {r.emoji}
+                       </button>
+                     ))}
+                  </div>
+                )}
+             </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+           {onSaveToScrapbook && currentType === 'image' && !isDeleted && (
+             <button onClick={() => { onSaveToScrapbook(currentUrl); playAudio('click', sfx); }} className="px-4 py-2 bg-primary text-white retro-border retro-shadow-dark flex items-center gap-2 font-bold text-xs uppercase tracking-widest hover:-translate-y-0.5 active:translate-y-0 transition-all">
+                <ImageIcon size={16} /> Save to Album
+             </button>
+           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── RetroMediaPlayer ──
+// ── RetroMediaPlayer ──
+export function RetroMediaPlayer({ url, type = 'video', className = "", autoPlay = true, muted = false, onClick, fileName }) {
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [isMuted, setIsMuted] = useState(muted);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const mediaRef = useRef(null);
+  const id = useRef(Math.random().toString(36).substr(2, 9));
+
+  useEffect(() => {
+    const handleGlobalPlay = (e) => {
+      if (e.detail.id !== id.current && isPlaying) {
+        mediaRef.current?.pause();
+        setIsPlaying(false);
+      }
+    };
+    window.addEventListener('attic-media-play', handleGlobalPlay);
+    return () => window.removeEventListener('attic-media-play', handleGlobalPlay);
+  }, [isPlaying]);
+
+  const togglePlay = (e) => {
+    if (e) e.stopPropagation();
+    if (isPlaying) {
+      mediaRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      window.dispatchEvent(new CustomEvent('attic-media-play', { detail: { id: id.current } }));
+      mediaRef.current?.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const toggleSpeed = (e) => {
+    e.stopPropagation();
+    const next = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
+    setPlaybackRate(next);
+    if (mediaRef.current) mediaRef.current.playbackRate = next;
+  };
+
+  const handleDownload = (e) => {
+    e.stopPropagation();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName || `attic_${type}_${Date.now()}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleTimeUpdate = () => {
+    if (mediaRef.current) {
+      setProgress((mediaRef.current.currentTime / mediaRef.current.duration) * 100);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (mediaRef.current) setDuration(mediaRef.current.duration);
+  };
+
+  const formatTime = (time) => {
+    const min = Math.floor(time / 60);
+    const sec = Math.floor(time % 60);
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div 
+      className={`relative group/player overflow-hidden retro-border-thick cursor-pointer ${className} ${type === 'video' ? 'bg-black' : ''}`}
+      onClick={onClick}
+    >
+      {type === 'video' ? (
+        <>
+          <SecureVideo 
+            url={url} 
+            ref={mediaRef}
+            playsInline
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            className="w-full h-full object-cover"
+            autoPlay={autoPlay}
+            muted={isMuted}
+          />
+          {/* Video Controls overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/player:opacity-100 transition-opacity flex flex-col justify-end p-4 gap-3 pointer-events-none group-hover/player:pointer-events-auto">
+             <div className="h-1.5 bg-white/20 rounded-full overflow-hidden cursor-pointer relative" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const p = (e.clientX - rect.left) / rect.width;
+                    if (mediaRef.current) mediaRef.current.currentTime = p * mediaRef.current.duration;
+                  }}>
+                <div className="absolute left-0 top-0 h-full bg-primary" style={{ width: `${progress}%` }} />
+             </div>
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <button onClick={togglePlay} className="p-2 bg-primary text-white retro-border hover:brightness-110 shadow-lg">
+                      {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+                   </button>
+                   <div className="text-[10px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded">
+                      {formatTime(mediaRef.current?.currentTime || 0)} / {formatTime(duration)}
+                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                   <button onClick={toggleSpeed} className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-black text-white transition-colors">
+                      {playbackRate}x
+                   </button>
+                   <button onClick={() => setIsMuted(!isMuted)} className="p-2 text-white opacity-70 hover:opacity-100">
+                      {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                   </button>
+                </div>
+             </div>
+          </div>
+        </>
+      ) : (
+        <div className="w-full flex items-center gap-3 p-3 bg-window/40 rounded-xl relative overflow-hidden backdrop-blur-sm">
+           <button 
+            onClick={togglePlay} 
+            className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all flex-shrink-0 z-10"
+           >
+              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+           </button>
+           
+           <div className="flex-1 flex flex-col gap-1 min-w-0 z-10">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                 <span className="text-[10px] font-black uppercase tracking-tight truncate opacity-70 flex-1">{fileName || 'Audio Message'}</span>
+                 <button onClick={handleDownload} className="p-1 hover:text-primary transition-colors opacity-40 hover:opacity-100">
+                    <Download size={12} />
+                 </button>
+              </div>
+
+              <div 
+                className="h-1.5 bg-black/10 rounded-full overflow-hidden cursor-pointer relative group/slider" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const p = (e.clientX - rect.left) / rect.width;
+                  if (mediaRef.current) mediaRef.current.currentTime = p * mediaRef.current.duration;
+                }}
+              >
+                 <div 
+                  className="absolute left-0 top-0 h-full bg-primary transition-all duration-75" 
+                  style={{ width: `${progress}%` }} 
+                 />
+                 <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary border-2 border-white rounded-full shadow-md opacity-0 group-hover/slider:opacity-100 transition-opacity"
+                  style={{ left: `${progress}%`, marginLeft: '-6px' }}
+                 />
+              </div>
+              
+              <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest opacity-50 mt-1">
+                 <div className="flex items-center gap-2">
+                    <span>{formatTime(mediaRef.current?.currentTime || 0)}</span>
+                    <span className="opacity-30">/</span>
+                    <span>{formatTime(duration)}</span>
+                 </div>
+                 <button onClick={toggleSpeed} className="px-1.5 py-0.5 bg-primary/10 rounded font-black text-primary hover:bg-primary/20 transition-colors">
+                    {playbackRate}x
+                 </button>
+              </div>
+           </div>
+
+           <SecureAudio url={url}>
+              {(signedUrl) => (
+                <audio 
+                  src={signedUrl} 
+                  ref={mediaRef}
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata}
+                  autoPlay={autoPlay}
+                  muted={isMuted}
+                />
+              )}
+           </SecureAudio>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MediaEditorOverlay ──
+export function MediaEditorOverlay({ file, type, onSave, onClose, sfx }) {
+  const [data, setData] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const canvasRef = useRef(null);
+  const mediaRef = useRef(null);
+  
+  // Image states
+  const [brushColor, setBrushColor] = useState('#ff0000');
+  const [brushSize, setBrushSize] = useState(5);
+  const [isDrawing, setIsDrawing] = useState(false);
+  
+  // Video/Audio states
+  const [isMuted, setIsMuted] = useState(false);
+  const [extractAudio, setExtractAudio] = useState(false);
+
+  useEffect(() => {
+    if (type === 'image') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
+          const maxDim = 800;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = (h / w) * maxDim; w = maxDim; }
+            else { w = (w / h) * maxDim; h = maxDim; }
+          }
+          canvas.width = w; canvas.height = h;
+          ctx.drawImage(img, 0, 0, w, h);
+          setData(canvas.toDataURL('image/png'));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const url = URL.createObjectURL(file);
+      setData(url);
+    }
+  }, [file, type]);
+
+  const handleDrawStart = (e) => {
+    if (type !== 'image') return;
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.strokeStyle = brushColor;
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  };
+
+  const handleDrawMove = (e) => {
+    if (!isDrawing || type !== 'image') return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handleDrawEnd = () => setIsDrawing(false);
+
+  const handleSave = async () => {
+    setIsProcessing(true);
+    playAudio('click', sfx);
+    
+    if (type === 'image') {
+      const canvas = canvasRef.current;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const editedFile = new File([blob], file.name, { type: 'image/png' });
+      const dataUrl = canvas.toDataURL('image/png');
+      onSave(editedFile, dataUrl);
+    } else {
+      onSave(file, data, { muted: isMuted, extractAudio });
+    }
+    setIsProcessing(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[var(--z-overlay)] bg-black/90 flex items-center justify-center p-4 animate-in fade-in">
+       <RetroWindow title={`media_editor.exe - ${file.name}`} onClose={onClose} className="w-full max-w-4xl h-[85dvh]" noPadding>
+          <div className="flex flex-col h-full bg-black/20">
+             <div className="shrink-0 p-3 bg-window border-b-2 border-border flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                   {type === 'image' && (
+                     <>
+                        <div className="flex gap-1 bg-black/5 p-1 retro-border border-dashed">
+                           {['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ffffff', '#000000'].map(c => (
+                             <button key={c} onClick={() => setBrushColor(c)} className={`w-6 h-6 retro-border ${brushColor === c ? 'scale-110 ring-2 ring-primary' : ''}`} style={{ backgroundColor: c }} />
+                           ))}
+                        </div>
+                        <input type="range" min="1" max="20" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-24 accent-primary" />
+                     </>
+                   )}
+                   {(type === 'video' || type === 'audio') && (
+                     <>
+                        <button onClick={() => setIsMuted(!isMuted)} className={`p-2 retro-border transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-window text-main-text'}`}>
+                           {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+                        {type === 'video' && (
+                          <button onClick={() => setExtractAudio(!extractAudio)} className={`px-3 py-2 text-xs font-bold retro-border transition-all ${extractAudio ? 'bg-primary text-white' : 'bg-window text-main-text'}`}>
+                             Extract Audio
+                          </button>
+                        )}
+                     </>
+                   )}
+                </div>
+                <div className="flex items-center gap-2">
+                   <RetroButton variant="white" onClick={onClose} className="py-2 px-4 text-xs">Cancel</RetroButton>
+                   <RetroButton onClick={handleSave} disabled={isProcessing} className="py-2 px-6 text-xs min-w-[100px]">
+                      {isProcessing ? <Loader size={14} className="animate-spin" /> : <><Save size={14} /> Finish</>}
+                   </RetroButton>
+                </div>
+             </div>
+
+             <div className="flex-1 relative flex items-center justify-center overflow-hidden p-6 select-none">
+                {type === 'image' && (
+                   <div className="relative shadow-2xl bg-white cursor-crosshair">
+                      <canvas 
+                        ref={canvasRef} 
+                        onMouseDown={handleDrawStart}
+                        onMouseMove={handleDrawMove}
+                        onMouseUp={handleDrawEnd}
+                        onMouseLeave={handleDrawEnd}
+                        className="max-w-full max-h-full"
+                      />
+                   </div>
+                )}
+                {type === 'video' && data && (
+                   <video ref={mediaRef} src={data} controls className="max-w-full max-h-full shadow-2xl retro-border" muted={isMuted} />
+                )}
+                {type === 'audio' && data && (
+                   <div className="w-full max-w-md p-10 bg-window retro-border-thick flex flex-col items-center gap-6">
+                      <div className="w-24 h-24 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl animate-pulse">
+                         <Music size={48} />
+                      </div>
+                      <audio ref={mediaRef} src={data} controls className="w-full" muted={isMuted} />
+                   </div>
+                )}
+             </div>
+          </div>
+       </RetroWindow>
     </div>
   );
 }

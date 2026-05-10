@@ -32,6 +32,35 @@ export function SecureImage({ url, alt, className, ...props }) {
   return <img src={signedUrl} alt={alt} className={className} {...props} />;
 }
 
+export const SecureVideo = React.forwardRef(({ url, className, ...props }, ref) => {
+  const { bucket, path } = parseSupabaseUrl(url);
+  const { signedUrl, loading, error } = useSignedUrl(bucket, path);
+
+  if (!url) return null;
+  
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return <video ref={ref} src={url} className={className} {...props} />;
+  }
+
+  if (loading) {
+    return (
+      <div className={`flex items-center justify-center bg-black/10 retro-border ${className}`}>
+        <Loader size={24} className="animate-spin opacity-20 text-white" />
+      </div>
+    );
+  }
+
+  if (error || !signedUrl) {
+    return (
+      <div className={`flex items-center justify-center bg-red-50 text-red-400 text-[8px] font-bold p-2 retro-border ${className}`}>
+        Failed to load secure video
+      </div>
+    );
+  }
+
+  return <video ref={ref} src={signedUrl} className={className} {...props} />;
+});
+
 export function SecureAudio({ url, children }) {
   const { bucket, path } = parseSupabaseUrl(url);
   const { signedUrl, loading, error } = useSignedUrl(bucket, path);

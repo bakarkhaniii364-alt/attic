@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Image as ImageIcon, Brush } from 'lucide-react';
-import { RetroWindow } from '../components/UI.jsx';
+import { RetroWindow, ImageViewerOverlay } from '../components/UI.jsx';
 import { SecureImage } from '../components/SecureMedia.jsx';
 import { useAssetSync } from '../hooks/useAssetSync.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
@@ -12,6 +12,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
   const [layoutMode, setLayoutMode] = useLocalStorage('scrapbook_mode', 'grid');
   const [layout, setLayout] = useGlobalSync('scrapbook_layout', {});
   const [page, setPage] = useState(1);
+  const [viewerContext, setViewerContext] = useState({ items: [], index: 0, isOpen: false });
   
   const normalizedImages = assets.map(a => a.url);
   const images = [...new Set([...normalizedImages, ...(propImages || [])])];
@@ -49,6 +50,16 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
 
   return (
     <RetroWindow title="scrapbook_v2.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
+      {viewerContext.isOpen && (
+        <ImageViewerOverlay
+          images={viewerContext.items}
+          currentIndex={viewerContext.index}
+          onClose={() => setViewerContext(p => ({ ...p, isOpen: false }))}
+          onNext={() => setViewerContext(p => ({ ...p, index: (p.index + 1) % p.items.length }))}
+          onPrev={() => setViewerContext(p => ({ ...p, index: (p.index - 1 + p.items.length) % p.items.length }))}
+          sfx={sfx}
+        />
+      )}
       <div className="p-3 bg-[var(--bg-main)] border-b-2 retro-border flex items-center justify-between shrink-0">
         <div className="flex gap-2">
           <button onClick={() => setLayoutMode('grid')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'grid' ? 'retro-bg-primary' : 'bg-white'}`}>Grid View</button>
@@ -81,7 +92,15 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
               <div key={i} className="group relative aspect-square retro-border bg-white p-1 retro-shadow-dark hover:-translate-y-1 transition-transform">
                 <SecureImage url={url} alt="memory" loading="lazy" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                   <button onClick={() => { playAudio('click', sfx); setLayoutMode('collage'); setLayout(p => ({ ...p, [url]: { x: 10 + Math.random()*70, y: 10+Math.random()*70, rotate: 0 } })); }} className="p-2 bg-white retro-border hover:bg-[var(--accent)]"><ImageIcon size={16}/></button>
+                   <button onClick={() => setViewerContext({ 
+                     items: images.map((url, idx) => ({ 
+                       url, 
+                       metadata: { title: 'Memory Piece', sender: 'Shared Album' } 
+                     })), 
+                     index: i, 
+                     isOpen: true 
+                   })} className="p-2 bg-white retro-border hover:bg-[var(--accent)]"><ImageIcon size={16}/></button>
+                   <button onClick={() => { playAudio('click', sfx); setLayoutMode('collage'); setLayout(p => ({ ...p, [url]: { x: 10 + Math.random()*70, y: 10+Math.random()*70, rotate: 0 } })); }} className="p-2 bg-white retro-border hover:bg-[var(--accent)]" title="Add to Collage"><Brush size={16}/></button>
                 </div>
               </div>
             ))}
@@ -98,7 +117,15 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
               return (
                 <div key={i} onMouseDown={(e) => handleDragStart(e, url)} onTouchStart={(e) => handleDragStart(e, url)} style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: `translate(-50%, -50%) rotate(${pos.rotate || 0}deg)`, zIndex: i + 10 }} className="absolute w-32 sm:w-48 bg-white p-1 sm:p-2 retro-border shadow-xl cursor-grab active:cursor-grabbing group select-none">
                    <SecureImage url={url} alt="" className="w-full h-auto pointer-events-none" />
-                   <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 flex gap-1">
+                   <div className="absolute inset-0 cursor-pointer" onClick={() => setViewerContext({ 
+                     items: images.map((url, idx) => ({ 
+                       url, 
+                       metadata: { title: 'Memory Piece', sender: 'Shared Album' } 
+                     })), 
+                     index: i, 
+                     isOpen: true 
+                   })} />
+                   <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 flex gap-1 z-20">
                       <button onClick={(e) => { e.stopPropagation(); rotateImage(url); }} className="p-1 bg-white retro-border rounded-full shadow-md hover:bg-[var(--accent)]"><Brush size={12}/></button>
                    </div>
                 </div>

@@ -30,9 +30,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const partnerStatus = partnerProfile.status || 'offline';
 
-  const partnerPresence = partnerId ? (onlineUsers[partnerId] || {}) : {};
-  const isPartnerOnline = partnerId && partnerPresence.status === 'active';
-  const isPartnerIdle = partnerId && partnerPresence.status === 'idle';
+  const partnerPresence = (partnerId && onlineUsers?.[partnerId]) || {};
+  const isPartnerOnline = partnerId && partnerPresence?.status === 'active';
+  const isPartnerIdle = partnerId && partnerPresence?.status === 'idle';
 
   let displayStatus = 'Offline';
   if (isPartnerOnline) displayStatus = 'Online';
@@ -151,12 +151,12 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         <div className="flex flex-col items-center text-center h-full justify-between p-1">
           <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerIdle} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
           
-          <div className="w-full px-2 mt-1">
-            <div className="flex gap-1 h-3.5 w-full">
+          <div className="w-full px-3 mt-1">
+            <div className="retro-border bg-black/5 p-1 flex gap-1 h-5">
               {[...Array(10)].map((_, i) => (
                 <div 
                   key={i} 
-                  className={`flex-1 retro-border transition-colors duration-300 ${i < Math.round(petHappy / 10) ? 'bg-primary' : 'bg-main opacity-20'}`}
+                  className={`flex-1 transition-colors duration-300 ${i < Math.round(petHappy / 10) ? 'bg-primary' : 'bg-transparent'}`}
                 />
               ))}
             </div>

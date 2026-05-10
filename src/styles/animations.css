@@ -83,3 +83,14 @@
 .animate-reaction-rise {
   animation: reaction-rise 3s cubic-bezier(0.2, 0, 0.2, 1) forwards;
 }
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 15s linear infinite;
+  white-space: nowrap;
+}
