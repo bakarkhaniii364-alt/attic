@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Lock, Unlock } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { DesktopOnly } from '../components/MobileOnly.jsx';
 import { playAudio } from '../utils/audio.js';
 
 export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
@@ -60,7 +61,9 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
              <p className="text-right italic font-bold mt-8" style={{ color: '#8b7355' }}>— {readingLetter.senderId === userId ? 'You' : 'Partner'} 💌</p>
           </div>
           <div className="flex gap-2 p-3 retro-border-t bg-[var(--bg-main)] shrink-0">
-            <RetroButton className="flex-1 py-2 text-sm" onClick={handleDownloadLetter}>📥 Download Letter</RetroButton>
+            <DesktopOnly>
+              <RetroButton className="flex-1 py-2 text-sm" onClick={handleDownloadLetter}>📥 Download Letter</RetroButton>
+            </DesktopOnly>
             <RetroButton variant="secondary" className="flex-1 py-2 text-sm" onClick={() => setReadingLetter(null)}>Close</RetroButton>
           </div>
        </RetroWindow>
@@ -88,7 +91,7 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
            {letters.map(l => { 
                const isLocked = l.unlockDate > now; 
                return ( 
-                 <div key={l.id} onClick={() => { if(!isLocked) { playAudio('click', sfx); setReadingLetter(l); } else { playAudio('click', sfx); } }} className={`relative w-full aspect-video sm:aspect-square md:aspect-[4/3] retro-border shadow-[4px_4px_0_rgba(0,0,0,0.2)] cursor-pointer transition-transform hover:-translate-y-2 ${isLocked ? 'bg-[#f4d06f]' : 'bg-[#fffdf9]'}`}>
+                 <div key={l.id} onClick={() => { if(!isLocked) { playAudio('click', sfx); setReadingLetter(l); } else { playAudio('click', sfx); } }} className={`relative w-full aspect-video sm:aspect-square md:aspect-[4/3] retro-border shadow-[4px_4px_0_rgba(0,0,0,0.2)] cursor-not-allowed transition-transform hover:-translate-y-2 ${isLocked ? 'bg-[#f4d06f]' : 'bg-[#fffdf9] cursor-pointer'}`}>
                     {isLocked ? (
                        <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center">
                           <div className="absolute top-0 w-[120%] h-0 border-t-[80px] sm:border-t-[100px] border-t-[#e8c050] border-l-[150px] sm:border-l-[200px] border-l-transparent border-r-[150px] sm:border-r-[200px] border-r-transparent z-10 drop-shadow-md"></div>

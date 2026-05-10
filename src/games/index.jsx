@@ -364,7 +364,9 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
               })()
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full">
-            {Object.entries(GAME_CATALOG).map(([id, g]) => (
+            {Object.entries(GAME_CATALOG)
+              .filter(([id]) => !window.matchMedia('(max-width: 768px)').matches || id !== 'chess')
+              .map(([id, g]) => (
               <button 
                 key={id} 
                 onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}

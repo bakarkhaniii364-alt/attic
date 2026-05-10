@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback, use
 import { X, MessageSquare, Download, Snowflake, Check, AlertTriangle, Eye, EyeOff, ChevronLeft, ChevronRight, Image as ImageIcon, Maximize2, Minimize2, Trash2, Heart, ExternalLink, Loader, Trash, Play, Pause, Volume2, VolumeX, Ban, Clock, Pencil, Scissors, Square, Circle, Type, Eraser, Save, Music } from 'lucide-react';
 
 import { playAudio } from '../utils/audio.js';
+import { DesktopOnly } from './MobileOnly.jsx';
 import html2canvas from 'html2canvas';
 import { SecureImage, SecureVideo, SecureAudio } from './SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
@@ -356,9 +357,13 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
           <div className="flex flex-col gap-2 p-4 border-t-2 border-dashed border-[var(--border)] bg-[var(--bg-main)] shrink-0">
             <div className="flex gap-2">
               <RetroButton onClick={handleChatShare} className="flex-1 py-2 flex justify-center items-center gap-2 text-sm"><MessageSquare size={16} /> Share</RetroButton>
-              <RetroButton variant="secondary" onClick={handleDownload} className="flex-1 py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save</RetroButton>
+              <DesktopOnly>
+                <RetroButton variant="secondary" onClick={handleDownload} className="flex-1 py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save</RetroButton>
+              </DesktopOnly>
             </div>
-            {onSaveToScrapbook && <RetroButton variant="accent" onClick={handleSaveToAlbum} className="py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save to Album</RetroButton>}
+            <DesktopOnly>
+              {onSaveToScrapbook && <RetroButton variant="accent" onClick={handleSaveToAlbum} className="py-2 flex justify-center items-center gap-2 text-sm"><Download size={16} /> Save to Album</RetroButton>}
+            </DesktopOnly>
             {onRematch && <RetroButton variant="primary" onClick={onRematch} className="py-2 flex justify-center items-center gap-2 text-sm font-bold">⚡ Rematch</RetroButton>}
           </div>
         </RetroWindow>

@@ -2,6 +2,7 @@ import React from 'react';
 import { RetroWindow, RetroButton } from '../UI.jsx';
 import { playAudio } from '../../utils/audio.js';
 import { Heart, Trophy, Star, Calendar } from 'lucide-react';
+import { DesktopOnly } from '../MobileOnly.jsx';
 
 export function RelationshipResume({ onClose, profile, coupleData = {}, scores = {}, sfx, userId, roomProfiles = {} }) {
   const partnerId = Object.keys(roomProfiles).find(id => id !== userId);
@@ -133,10 +134,12 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
              </div>
           </div>
        </div>
-       <div className="p-4 bg-gray-50 border-t-2 border-black flex flex-wrap justify-center gap-4">
-          <RetroButton variant="primary" onClick={handleDownload} className="px-8 flex items-center gap-2">📥 Download Document</RetroButton>
-          <RetroButton variant="white" onClick={() => window.print()} className="px-8 flex items-center gap-2">🖨️ Print for Filing</RetroButton>
-       </div>
+       <DesktopOnly>
+         <div className="p-4 bg-gray-50 border-t-2 border-black flex flex-wrap justify-center gap-4">
+            <RetroButton variant="primary" onClick={handleDownload} className="px-8 flex items-center gap-2">📥 Download Document</RetroButton>
+            <RetroButton variant="white" onClick={() => window.print()} className="px-8 flex items-center gap-2">🖨️ Print for Filing</RetroButton>
+         </div>
+       </DesktopOnly>
     </RetroWindow>
   );
 }

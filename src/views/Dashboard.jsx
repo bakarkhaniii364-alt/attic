@@ -207,33 +207,37 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     </RetroWindow>
   );
 
+  const statsContent = (
+    <div className="flex flex-col h-full p-2 text-[11px] font-black uppercase tracking-wider text-main-text space-y-1">
+      <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
+        <span>Current Streak</span>
+        <span className="text-primary">{streaks.count || 0} Days</span>
+      </div>
+      <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
+        <span>Best Streak</span>
+        <span className="text-secondary">{streaks.best || streaks.count || 0} Days</span>
+      </div>
+      <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
+        <span>Attic Usage</span>
+        <span className="text-accent">
+          {(() => {
+            const start = profile.created_at ? new Date(profile.created_at) : new Date();
+            const days = Math.max(1, Math.ceil((new Date() - start) / (1000 * 60 * 60 * 24)));
+            return `${days} Day${days !== 1 ? 's' : ''}`;
+          })()}
+        </span>
+      </div>
+
+      <div className="mt-auto pt-2 flex justify-between items-center opacity-40 text-[9px] font-black">
+        <span>v1.2.1-rigid</span>
+        <span>Theme: {theme}</span>
+      </div>
+    </div>
+  );
+
   const statsWindow = (
     <RetroWindow title="stats.sys" className={isMobile ? "window-screen" : "md:col-span-4 h-auto"}>
-      <div className="flex flex-col h-full p-2 text-[11px] font-black uppercase tracking-wider text-main-text space-y-1">
-        <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
-          <span>Current Streak</span>
-          <span className="text-primary">{streaks.count || 0} Days</span>
-        </div>
-        <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
-          <span>Best Streak</span>
-          <span className="text-secondary">{streaks.best || streaks.count || 0} Days</span>
-        </div>
-        <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
-          <span>Attic Usage</span>
-          <span className="text-accent">
-            {(() => {
-              const start = profile.created_at ? new Date(profile.created_at) : new Date();
-              const days = Math.max(1, Math.ceil((new Date() - start) / (1000 * 60 * 60 * 24)));
-              return `${days} Day${days !== 1 ? 's' : ''}`;
-            })()}
-          </span>
-        </div>
-
-        <div className="mt-auto pt-2 flex justify-between items-center opacity-40 text-[9px] font-black">
-          <span>v1.2.1-rigid</span>
-          <span>Theme: {theme}</span>
-        </div>
-      </div>
+      {statsContent}
     </RetroWindow>
   );
 
@@ -245,6 +249,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         <AppIcon icon={<Monitor      size={28} />} label="Watch"    color="#f472b6" onClick={() => nav('watch')} />
         <AppIcon icon={<Pen          size={28} />} label="Doodle"   color="#ec4899" onClick={() => nav('doodle')} />
         <AppIcon icon={<Brush        size={28} />} label="Pixels"   color="#f97316" onClick={() => nav('pixelart')} />
+        {isMobile && <AppIcon icon={<Volume2 size={28} />} label="Radio" color="var(--primary)" onClick={() => setMobileTab('radio')} />}
         <AppIcon icon={<Clock        size={28} />} label="Capsule"  color="#10b981" onClick={() => nav('capsule')} />
         <AppIcon icon={<Moon         size={28} />} label="Dreams"   color="#6366f1" onClick={() => nav('dreams')} />
         <AppIcon icon={<ListTodo     size={28} />} label="Lists"    color="#ef4444" onClick={() => nav('lists')} />
@@ -267,6 +272,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               {welcomeWindow}
               {petWindow}
               {timerWindow}
+              <RetroWindow title="system_stats" className="w-full">
+                {statsContent}
+              </RetroWindow>
             </div>
           )}
           {mobileTab === 'radio' && radioWindow}
@@ -292,14 +300,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           <button onClick={() => setMobileTab('apps')} className={`mobile-dock-item ${mobileTab === 'apps' ? 'active' : ''}`}>
             <Grid3x3 size={24} />
             <span>Apps</span>
-          </button>
-          <button onClick={() => setMobileTab('radio')} className={`mobile-dock-item ${mobileTab === 'radio' ? 'active' : ''}`}>
-            <Volume2 size={24} />
-            <span>Radio</span>
-          </button>
-          <button onClick={() => setMobileTab('stats')} className={`mobile-dock-item ${mobileTab === 'stats' ? 'active' : ''}`}>
-            <Zap size={24} />
-            <span>Stats</span>
           </button>
         </div>
 
