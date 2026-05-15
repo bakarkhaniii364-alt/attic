@@ -6,7 +6,7 @@ import { useSync, useAuth } from '../context/instances.js';
  * Updates every 30 seconds automatically.
  */
 export function useLastSeen() {
-  const { onlineUsers } = useSync();
+  const { onlineUsers, globalState } = useSync();
   const { partnerId } = useAuth();
   const [tick, setTick] = useState(0);
 
