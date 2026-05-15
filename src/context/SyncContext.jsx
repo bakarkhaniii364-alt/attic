@@ -10,6 +10,7 @@ export function SyncProvider({ children }) {
   const [globalState, setGlobalState] = useState({});
   const [isInitialized, setIsInitialized] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState({});
+  const [currentActivity, setCurrentActivity] = useState(null);
   const channelsRef = useRef({});
   const pendingUpdateRef = useRef(null);
   const latestStateRef = useRef({});
@@ -127,7 +128,8 @@ export function SyncProvider({ children }) {
             const trackPresence = async () => {
               await channel.track({
                 online_at: new Date().toISOString(),
-                status: document.hasFocus() ? 'active' : 'idle'
+                status: document.hasFocus() ? 'active' : 'idle',
+                activity: currentActivity
               });
             };
             trackPresence();
@@ -165,6 +167,21 @@ export function SyncProvider({ children }) {
       isSubscribedRef.current = false;
     };
   }, [roomId, userId]);
+
+  // Trigger presence update when activity changes
+  useEffect(() => {
+    if (!isSubscribedRef.current) return;
+    
+    const channelId = `room_sync_${roomId}`;
+    const channel = channelsRef.current[channelId];
+    if (channel) {
+      channel.track({
+        online_at: new Date().toISOString(),
+        status: document.hasFocus() ? 'active' : 'idle',
+        activity: currentActivity
+      });
+    }
+  }, [currentActivity, roomId]);
 
   const updateSyncState = useCallback(async (key, value) => {
     if (!roomId || !isInitialized) return;
@@ -294,6 +311,8 @@ export function SyncProvider({ children }) {
     globalState,
     isInitialized,
     onlineUsers,
+    currentActivity,
+    setCurrentActivity,
     updateSyncState,
     updateSyncStateAtomic,
     mergeSyncState,

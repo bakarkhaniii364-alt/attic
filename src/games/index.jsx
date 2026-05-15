@@ -97,6 +97,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(syncedRoomId, gameRoute, userId);
+  const { setCurrentActivity, updateSyncStateAtomic } = useSync();
 
   useEffect(() => {
      if (view === 'scores') {
@@ -201,6 +202,38 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         return () => clearTimeout(timer);
     }
   }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
+  
+  // Track Activity Status
+  useEffect(() => {
+    if (!gameRoute) {
+      setCurrentActivity('Browsing Arcade');
+      return;
+    }
+
+    const gameTitle = game?.title || gameRoute;
+    let activity = '';
+
+    if (currentPhase === 'playing_local' || currentPhase === 'playing_remote') {
+      activity = `Playing ${gameTitle}`;
+      // Persist last played game
+      updateSyncStateAtomic('room_profiles', userId, {
+        lastActivity: { game: gameTitle, timestamp: new Date().toISOString() }
+      });
+    } else if (currentPhase === 'lobby') {
+      activity = `In Lobby for ${gameTitle}`;
+    } else if (currentPhase === 'details') {
+      activity = `Setting up ${gameTitle}`;
+    } else {
+      activity = 'Browsing Arcade';
+    }
+
+    setCurrentActivity(activity);
+
+    return () => {
+      // Clear activity when leaving ActivitiesHub or switching games
+      if (!gameRoute) setCurrentActivity(null);
+    };
+  }, [gameRoute, currentPhase, game?.title, setCurrentActivity, updateSyncStateAtomic, userId]);
 
   const handleWin = () => { 
     try { if (sfx) { const winAudio = new Audio('/assets/win.mp3'); winAudio.volume = 0.5; winAudio.play().catch(()=>{}); } } catch(e){}

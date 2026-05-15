@@ -13,6 +13,7 @@ import { CalendarReminder } from '../components/Dashboard/CalendarReminder.jsx';
 import { useAuth, useSync, useChat } from '../context/instances.js';
 import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
+import { useLastSeen } from '../hooks/useLastSeen.js';
 import { useMobile } from '../hooks/useMobile.js';
 import { ChatView } from './ChatView.jsx';
 import { SettingsView } from './SettingsView.jsx';
@@ -35,17 +36,10 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const partnerStatus = partnerProfile.status || 'offline';
 
-  const partnerPresence = (partnerId && onlineUsers?.[partnerId]) || {};
-  const isPartnerOnline = partnerId && partnerPresence?.status === 'active';
-  const isPartnerIdle = partnerId && partnerPresence?.status === 'idle';
-
-  let displayStatus = 'Offline';
-  if (isPartnerOnline) displayStatus = 'Online';
-  else if (isPartnerIdle) displayStatus = 'Idle (Away)';
-  else if (partnerPresence.online_at) {
-    const diffMins = Math.floor((Date.now() - new Date(partnerPresence.online_at).getTime()) / 60000);
-    displayStatus = diffMins < 60 ? `Last seen ${diffMins}m ago` : `Last seen ${Math.floor(diffMins/60)}h ago`;
-  }
+  const { partnerStatusData, partnerStatusLabel } = useLastSeen();
+  const isPartnerOnline = partnerStatusData.status === 'active';
+  const isPartnerIdle = partnerStatusData.status === 'idle';
+  const displayStatus = partnerStatusLabel;
 
   const scores = globalState?.game_scores || {};
   const myDisplayName = profile.name || 'you';

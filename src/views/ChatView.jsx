@@ -9,6 +9,7 @@ import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, Retro
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
 import { useMobile } from '../hooks/useMobile.js';
+import { useLastSeen } from '../hooks/useLastSeen.js';
 import { playAudio } from '../utils/audio.js';
 import { useBroadcast, useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { useNavigate } from 'react-router-dom';
@@ -143,6 +144,7 @@ export function ChatView({ onClose, sfx }) {
   const roomProfiles = globalState?.room_profiles || {};
   const coupleData = globalState.couple_data || {};
   const partnerNickname = coupleData.nicknames?.[partnerId] || partnerProfile.name || 'Partner';
+  const { partnerStatusData, partnerStatusLabel } = useLastSeen();
   const isNormalized = !!roomId;
   const isInputDisabled = false;
   const navigate = useNavigate();
@@ -567,7 +569,7 @@ export function ChatView({ onClose, sfx }) {
         />
       )}
       <RetroWindow
-        title="chat_room.exe"
+        title={`${partnerNickname} | ${partnerStatusLabel.toLowerCase()}`}
         onClose={onClose}
         headerActions={headerActions}
         onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }}
