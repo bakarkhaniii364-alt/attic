@@ -504,7 +504,6 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                                 onClick={() => {
                                     if (topCategory === 'partner') {
                                         handleCreateLobby(activeModeObj);
-                                        onShareToChat(`I'm waiting in the lobby for ${game.title}!`, null, { gameId: gameRoute, mode: activeModeObj.label, type: 'game_invite_modal' });
                                     } else {
                                         handleStartLocal(activeModeObj);
                                     }

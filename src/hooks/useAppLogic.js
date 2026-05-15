@@ -75,16 +75,17 @@ export function useAppLogic({
   useEffect(() => {
     if (!Array.isArray(chatHistory) || !partnerId) return;
     const pendingInvites = chatHistory.filter(m => 
-      m.type === 'game_invite' && 
-      m.sender === partnerId && 
-      (m.metadata?.status === 'pending')
+      (m.type === 'game_invite' || m.type === 'game_invite_modal') && 
+      m.sender === partnerId
     );
     const latestInvite = pendingInvites[pendingInvites.length - 1];
     if (latestInvite && !processedInvites.current.has(latestInvite.id) && gameInvite?.id !== latestInvite.id) {
-      setGameInvite(latestInvite);
-      playAudio('notif', sfxEnabled);
+      processedInvites.current.add(latestInvite.id);
+      const gId = latestInvite.metadata?.gameId || latestInvite.gameId;
+      setGameInvite({ ...latestInvite, gameId: gId, metadata: { ...(latestInvite.metadata || {}), gameId: gId } });
+      if (notificationsEnabled) playAudio('notif', sfxEnabled);
     }
-  }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id]);
+  }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id, notificationsEnabled]);
 
   useEffect(() => {
     if (lobbyState?.gameId && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status === 'waiting') {

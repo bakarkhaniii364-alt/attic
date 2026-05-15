@@ -166,44 +166,26 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   // Realtime Drawing Sync
   const { sendData } = useCall();
   const sendDrawBroadcast = useBroadcast('pictionary_draw');
+  const sendCursorBroadcast = useBroadcast('pictionary_cursor');
   
-  const sendDraw = useCallback((payload) => {
-    // Try WebRTC Data Channel first for high-frequency data
-    const dataSent = sendData({ type: 'pictionary_draw', ...payload });
-    
-    // Fallback to Supabase Realtime if P2P is not connected or for critical state changes
-    if (!dataSent || payload.type === 'clear' || payload.type === 'fill') {
-      sendDrawBroadcast(payload);
-    }
-  }, [sendData, sendDrawBroadcast]);
+  const isDrawerRef = useRef(isDrawer);
+  useEffect(() => { isDrawerRef.current = isDrawer; }, [isDrawer]);
 
-  // Listen for P2P Data
-  useEffect(() => {
-    const handleData = (e) => {
-      if (isDrawer) return;
-      const { type, ...payload } = e.detail;
-      if (type === 'pictionary_draw') {
-        handleRemoteDraw(payload);
-      }
-    };
-    window.addEventListener('webrtc_data', handleData);
-    return () => window.removeEventListener('webrtc_data', handleData);
-  }, [isDrawer, handleRemoteDraw]);
-  
+  // handleRemoteDraw MUST be defined before the useEffect that references it
   const handleRemoteDraw = useCallback((payload) => {
-      if (isDrawer) return; 
+      if (isDrawerRef.current) return; 
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const { x, y, type, color, tool, brushSize } = payload;
+      const { x, y, type, color: pColor, tool: pTool, brushSize: pBrush } = payload;
       
       if (type === 'clear') {
           ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
           return;
       }
 
-      ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
-      ctx.lineWidth = tool === 'eraser' ? brushSize * 4 : brushSize; 
+      ctx.strokeStyle = pTool === 'eraser' ? '#ffffff' : (pColor || '#000000'); 
+      ctx.lineWidth = pTool === 'eraser' ? (pBrush || 4) * 4 : (pBrush || 4); 
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
       if (type === 'down') {
@@ -213,35 +195,57 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           ctx.lineTo(x, y);
           ctx.stroke();
       } else if (type === 'fill') {
-          floodFill(canvas, Math.floor(x), Math.floor(y), color);
+          floodFill(canvas, Math.floor(x), Math.floor(y), pColor || '#000000');
       }
-  }, [isDrawer]);
+  }, []); // no deps — uses refs for isDrawer
 
+  // Subscribe to Supabase broadcast for drawing
   useBroadcast('pictionary_draw', handleRemoteDraw);
 
-  const sendCursorBroadcast = useBroadcast('pictionary_cursor');
-  const sendCursor = useCallback((payload) => {
+  const sendDraw = useCallback((payload) => {
+    const dataSent = sendData({ type: 'pictionary_draw', ...payload });
+    if (!dataSent || payload.type === 'clear' || payload.type === 'fill') {
+      sendDrawBroadcast(payload);
+    }
+  }, [sendData, sendDrawBroadcast]);
+
+  // Listen for P2P Data
+  useEffect(() => {
+    const handleData = (e) => {
+      if (isDrawerRef.current) return;
+      const { type, ...payload } = e.detail;
+      if (type === 'pictionary_draw') {
+        handleRemoteDraw(payload);
+      }
+    };
+    window.addEventListener('webrtc_data', handleData);
+    return () => window.removeEventListener('webrtc_data', handleData);
+  }, [handleRemoteDraw]);
+
+  const sendCursor = useCallback((x, y, show) => {
+    const payload = { x, y, show: !!show };
     const dataSent = sendData({ type: 'pictionary_cursor', ...payload });
     if (!dataSent) sendCursorBroadcast(payload);
   }, [sendData, sendCursorBroadcast]);
 
-  // Listen for P2P Cursor
+  // Listen for partner cursor (P2P)
   useEffect(() => {
     const handleCursorData = (e) => {
-      if (isDrawer) return;
+      if (isDrawerRef.current) return;
       const { type, ...payload } = e.detail;
       if (type === 'pictionary_cursor') {
-        setPartnerCursor(payload);
+        setPartnerCursor({ ...payload, show: true });
       }
     };
     window.addEventListener('webrtc_data', handleCursorData);
     return () => window.removeEventListener('webrtc_data', handleCursorData);
-  }, [isDrawer]);
+  }, []);
 
-  useBroadcast('pictionary_cursor', (payload) => {
-      if (isDrawer) return;
-      setPartnerCursor(payload);
-  });
+  // Listen for partner cursor (Supabase broadcast)
+  useBroadcast('pictionary_cursor', useCallback((payload) => {
+      if (isDrawerRef.current) return;
+      setPartnerCursor({ ...payload, show: true });
+  }, []));
 
   const sendEmoji = useBroadcast('pictionary_emoji');
   useBroadcast('pictionary_emoji', (payload) => {
@@ -283,7 +287,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       const ctx = canvasRef.current.getContext('2d'); 
       ctx.beginPath(); ctx.moveTo(x, y); 
       sendDraw({ type: 'down', x, y, color, tool, brushSize });
-      sendCursor({ x, y, show: true });
+      sendCursor(x, y, true);
   };
 
   const handlePointerMove = (e) => { 
@@ -294,7 +298,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
       const { x, y } = getCoords(e); 
       if (isDrawer) {
-          sendCursor({ x, y, show: true });
+          sendCursor(x, y, true);
           if (isDrawingRef.current && gameState === 'drawing') {
               const ctx = canvasRef.current.getContext('2d'); 
               ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
@@ -310,7 +314,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           isDrawingRef.current = false; 
           saveStateToUndo(); 
           sendDraw({ type: 'up' });
-          sendCursor(p => ({...p, show: false}));
+          sendCursor(0, 0, false);
 
           const canvas = canvasRef.current;
           if (canvas) {

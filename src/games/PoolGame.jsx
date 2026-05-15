@@ -171,8 +171,12 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   }, [sfx]);
 
   const [gameState, setGameState] = useGlobalSync(`pool_${roomId}`, null);
-  const broadcastShot = useBroadcast(`pool_shot_${roomId}`, (payload) => {
-      if (payload.sender !== userId) {
+  
+  // Low-latency shot animation cue (non-authoritative — just starts the visual on guest side)
+  const broadcastShotCue = useBroadcast(`pool_shot_${roomId}`, (payload) => {
+      if (isMultiplayer && payload.sender !== userId && !isHost) {
+         // Guest: apply the shot vector for visual animation only
+         // Authoritative positions will come from setGameState (useGlobalSync) after host settles
          executeShot(payload.vx, payload.vy);
       }
   });
@@ -199,10 +203,19 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
     engineRef.current.isSimulating = false;
   };
 
-  // Load state into engine when simulation is idle
+  // Load authoritative state from DB into engine
+  // - Solo/Host: only when not simulating (don't interrupt active physics)
+  // - Guest (non-host, multiplayer): ALWAYS load — host is authoritative, override local sim
   useEffect(() => {
-      if (gameState && !engineRef.current.isSimulating) {
-          // deep copy
+      if (!gameState?.ballsState) return;
+      if (!isMultiplayer || isHost) {
+          // Host / solo: load only when idle
+          if (!engineRef.current.isSimulating) {
+              engineRef.current.balls = gameState.ballsState.map(b => ({ ...b }));
+          }
+      } else {
+          // Guest: forcibly stop any running local sim and snap to host state
+          engineRef.current.isSimulating = false;
           engineRef.current.balls = gameState.ballsState.map(b => ({ ...b }));
       }
   }, [gameState]);
@@ -664,7 +677,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           }
 
           if (speed > 1) {
-              if (isMultiplayer) broadcastShot({ vx, vy, sender: userId });
+              // Broadcast shot cue for guest animation
+              if (isMultiplayer) broadcastShotCue({ vx, vy, sender: userId });
               executeShot(vx, vy);
           }
       }
@@ -735,7 +749,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               const vx = (finalDx / distCueToGhost) * power;
               const vy = (finalDy / distCueToGhost) * power;
 
-              if (isMultiplayer) broadcastShot({ vx, vy, sender: userId });
+              if (isMultiplayer) broadcastShotCue({ vx, vy, sender: userId });
               executeShot(vx, vy);
 
           }, 1500);

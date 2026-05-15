@@ -5,6 +5,7 @@ import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { Chess } from 'chess.js';
 import { RotateCcw, Flag, Image as ImageIcon, Settings, Clock, Crosshair, ClipboardCopy } from 'lucide-react';
+import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 
 const PIECE_SKINS = {
     classic: { p: '♙', n: '♘', b: '♗', r: '♖', q: '♕', k: '♔', P: '♟', N: '♞', B: '♝', R: '♜', Q: '♛', K: '♚' },
@@ -17,13 +18,32 @@ const PUZZLES = [
     "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", // Ruy lopez
 ];
 
-export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
+export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, isMultiplayer, isHost, roomId }) {
+  // Multiplayer sync
+  const [syncedState, setSyncedState] = useGlobalSync(`chess_${roomId}`, null);
+  const sendMove = useBroadcast(`chess_move_${roomId}`, (payload) => {
+    if (isMultiplayer && payload.sender !== userId) {
+      try {
+        chess.load(payload.fen);
+        setFen(payload.fen);
+        setHistory(chess.history({ verbose: true }));
+        setSelectedSq(null);
+        setValidMoves([]);
+        if (chess.isCheckmate()) {
+          setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`);
+        }
+      } catch(e) {}
+    }
+  });
+
   const [chess] = useState(new Chess());
   const [fen, setFen] = useState(chess.fen());
   const [selectedSq, setSelectedSq] = useState(null);
   const [validMoves, setValidMoves] = useState([]);
   
-  const [isFlipped, setIsFlipped] = useState(false);
+  // Host = White ('w'), Guest = Black ('b')
+  const myColor = isMultiplayer ? (isHost ? 'w' : 'b') : 'w';
+  const [isFlipped, setIsFlipped] = useState(isMultiplayer ? !isHost : false);
   const [skin, setSkin] = useState('classic');
   const [history, setHistory] = useState([]);
   
@@ -32,6 +52,18 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
   const [gameOverResult, setGameOverResult] = useState(null);
   
   const [showSettings, setShowSettings] = useState(false);
+
+  // Sync from DB (for reconnection / tab refresh)
+  useEffect(() => {
+    if (isMultiplayer && syncedState?.fen && !gameOverResult) {
+      try {
+        chess.load(syncedState.fen);
+        setFen(syncedState.fen);
+        if (syncedState.history) setHistory(syncedState.history);
+      } catch(e) {}
+    }
+  }, [syncedState, isMultiplayer]);
+
   
   useEffect(() => {
      let timer;
@@ -76,13 +108,24 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
 
   const makeMove = (moveObj) => {
       try {
+          // Multiplayer turn enforcement
+          if (isMultiplayer && chess.turn() !== myColor) return;
+
           const move = chess.move(moveObj);
           if (move) {
               playAudio('wood_thud', sfx);
-              setFen(chess.fen());
-              setHistory(chess.history({ verbose: true }));
+              const newFen = chess.fen();
+              const newHistory = chess.history({ verbose: true });
+              setFen(newFen);
+              setHistory(newHistory);
               setSelectedSq(null);
               setValidMoves([]);
+              
+              // Broadcast to partner
+              if (isMultiplayer) {
+                sendMove({ fen: newFen, sender: userId });
+                setSyncedState({ fen: newFen, history: newHistory });
+              }
               
               if (chess.isCheckmate()) { playAudio('win', sfx); setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`); setScores(prev => incrementUserScore(prev, userId, 'chess', 1)); onWin(); }
               else if (chess.isDraw()) { setGameOverResult("Draw"); }
@@ -104,7 +147,10 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
   };
 
   const handleSquareClick = (sq) => {
-      if (gameOverResult || (config.mode === 'vs_ai' && chess.turn() === 'b')) return;
+      if (gameOverResult) return;
+      // In multiplayer, block interaction on opponent's turn
+      if (isMultiplayer && chess.turn() !== myColor) return;
+      if (config.mode === 'vs_ai' && chess.turn() === 'b') return;
 
       if (selectedSq) {
           const move = validMoves.find(m => m.to === sq);
@@ -199,7 +245,13 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 relative overflow-hidden">
          <div className="w-full h-1 bg-red-400 absolute bottom-0 left-0"><div className="h-full bg-green-400 transition-all" style={{width: `${Math.max(0, Math.min(100, evalPerc))}%`}}></div></div>
-         <span><Crosshair size={14} className="inline mr-1"/> Eval: {getMaterialDiff() > 0 ? '+'+getMaterialDiff() : getMaterialDiff()}</span>
+         {isMultiplayer ? (
+           <span className={`font-black uppercase text-sm px-2 py-0.5 rounded ${chess.turn() === myColor ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-white opacity-70'}`}>
+             {chess.turn() === myColor ? '⚡ Your Turn' : '⏳ Partner\'s Turn'}
+           </span>
+         ) : (
+           <span><Crosshair size={14} className="inline mr-1"/> Eval: {getMaterialDiff() > 0 ? '+'+getMaterialDiff() : getMaterialDiff()}</span>
+         )}
          <span><Clock size={14} className="inline mr-1"/> {fmtTime(history.length % 2 === (isFlipped ? 1 : 0) ? bTime : wTime)}</span>
          <button onClick={()=>setShowSettings(!showSettings)} className="bg-white/20 px-2 py-1 rounded hover:bg-white/40 active:translate-y-px"><Settings size={14}/></button>
       </div>

@@ -5,6 +5,7 @@ import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { Star, RefreshCw, Eye, Lightbulb, Image as ImageIcon } from 'lucide-react';
 import { useAssetSync } from '../hooks/useAssetSync.js';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 const DECKS = {
     emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔'],
@@ -12,15 +13,42 @@ const DECKS = {
     food: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝']
 };
 
-export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, roomId }) {
+export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, isHost, roomId }) {
   const { assets } = useAssetSync(roomId || 'global', 'scrapbook');
+  
+  const isRemoteCompetitive = config?.mode === 'competitive' && roomId && partnerId;
+
+  // Shared remote state for competitive multiplayer
+  const [remoteState, setRemoteState] = useGlobalSync(`memory_${roomId}`, null);
+
   const [cards, setCards] = useState([]); 
   const [flipped, setFlipped] = useState([]); 
-  const [solved, setSolved] = useState([]); 
+  
+  // For solo/coop: local solved. For remote: use remoteState.solved
+  const [localSolved, setLocalSolved] = useState([]); 
+  const solved = isRemoteCompetitive ? (remoteState?.solved || []) : localSolved;
+  const setSolved = isRemoteCompetitive
+    ? (fn) => {
+        const newSolved = typeof fn === 'function' ? fn(remoteState?.solved || []) : fn;
+        setRemoteState({ ...(remoteState || {}), solved: newSolved });
+      }
+    : setLocalSolved;
+
   const [disabled, setDisabled] = useState(false); 
-  const [turn, setTurn] = useState(1); 
-  const [p1Score, setP1Score] = useState(0); 
-  const [p2Score, setP2Score] = useState(0);
+  
+  // Turns: 1 = player 1 (host), 2 = player 2 (guest). 
+  // In remote: synced via remoteState. Locally: useState for solo.
+  const [localTurn, setLocalTurn] = useState(1);
+  const turn = isRemoteCompetitive ? (remoteState?.turn || 1) : localTurn;
+  
+  const [localP1Score, setLocalP1Score] = useState(0);
+  const [localP2Score, setLocalP2Score] = useState(0);
+  const p1Score = isRemoteCompetitive ? (remoteState?.p1Score || 0) : localP1Score;
+  const p2Score = isRemoteCompetitive ? (remoteState?.p2Score || 0) : localP2Score;
+  
+  // Determine if it's my turn in remote mode
+  const myTurnNum = isRemoteCompetitive ? (isHost ? 1 : 2) : turn;
+  const isMyTurn = !isRemoteCompetitive || turn === myTurnNum;
   
   const [moves, setMoves] = useState(0);
   const [time, setTime] = useState(0);
@@ -32,7 +60,25 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
   const [combo, setCombo] = useState(1);
   const [gameOverOverlay, setGameOverOverlay] = useState(false);
 
-  useEffect(() => { shuffleCards(); }, [config.diff, config.category]);
+  // Sync solved/turn from remote when they change
+  useEffect(() => {
+    if (isRemoteCompetitive && remoteState?.solved && remoteState?.cards && cards.length === 0) {
+      // Load shared cards from remote state (host initialized them)
+      setCards(remoteState.cards);
+      setTimerActive(true);
+    }
+  }, [isRemoteCompetitive, remoteState?.solved, remoteState?.cards, cards.length]);
+
+  useEffect(() => { 
+    if (!isRemoteCompetitive) shuffleCards(); 
+  }, [config.diff, config.category, isRemoteCompetitive]);
+  
+  // Host initializes shared cards in remote mode
+  useEffect(() => {
+    if (isRemoteCompetitive && isHost && !remoteState) {
+      shuffleCards(true);
+    }
+  }, [isRemoteCompetitive, isHost, remoteState]);
   
   useEffect(() => {
      let interval = null;
@@ -41,11 +87,10 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
      return () => clearInterval(interval);
   }, [timerActive]);
 
-  const shuffleCards = () => { 
+  const shuffleCards = (publishRemote = false) => { 
       const fallbackDeck = DECKS[config.category] || DECKS.emojis;
       const pairCount = config.diff === 'easy' ? 8 : config.diff === 'medium' ? 12 : 16;
       
-      // Scrapbook Mode: Use assets if we have at least 8 images
       const useScrapbook = assets && assets.length >= 8;
       const baseDeck = useScrapbook ? assets.slice(0, pairCount).map(a => ({ content: a.url, isImage: true })) : fallbackDeck.slice(0, pairCount).map(e => ({ content: e, isImage: false }));
 
@@ -53,11 +98,18 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
           .sort(() => Math.random() - 0.5)
           .map((item, id) => ({ id, ...item })); 
 
-      setCards(shuffled); setFlipped([]); setSolved([]); setTurn(1); setP1Score(0); setP2Score(0); setMoves(0); setTime(0); setTimerActive(true); setCombo(1); setPeekAvailable(2); setGameOverOverlay(false);
+      setCards(shuffled); setFlipped([]); setLocalSolved([]); setLocalTurn(1); setLocalP1Score(0); setLocalP2Score(0); setMoves(0); setTime(0); setTimerActive(true); setCombo(1); setPeekAvailable(2); setGameOverOverlay(false);
+      
+      if (publishRemote && isRemoteCompetitive) {
+        setRemoteState({ cards: shuffled, solved: [], turn: 1, p1Score: 0, p2Score: 0 });
+      }
   };
 
+
   const handleCardClick = (index) => {
-    if (disabled || flipped.length >= 2 || flipped.includes(index) || solved.includes(index)) return; 
+    if (disabled || flipped.length >= 2 || flipped.includes(index) || solved.includes(index)) return;
+    // Block clicks when not my turn in remote competitive
+    if (isRemoteCompetitive && !isMyTurn) return;
     playAudio('click', sfx);
     const newFlipped = [...flipped, index]; 
     setFlipped(newFlipped);
@@ -71,23 +123,36 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
         if (match) {
           playAudio('win', sfx);
           const newSolved = [...solved, ...newFlipped]; 
-          setSolved(newSolved);
           
           let pointsEarned = 1 * combo;
-          if (config.mode === 'competitive') { 
-              turn === 1 ? setP1Score(p=>p+pointsEarned) : setP2Score(p=>p+pointsEarned); 
-          }
+          const newP1 = turn === 1 ? p1Score + pointsEarned : p1Score;
+          const newP2 = turn === 2 ? p2Score + pointsEarned : p2Score;
           setCombo(c => c+1);
-          
-            if (newSolved.length === cards.length) { 
-              setTimerActive(false);
+
+          if (isRemoteCompetitive) {
+            // Push full update to remote
+            setRemoteState({ ...remoteState, solved: newSolved, p1Score: newP1, p2Score: newP2 });
+          } else {
+            setLocalSolved(newSolved);
+            if (config.mode === 'competitive') {
+              turn === 1 ? setLocalP1Score(newP1) : setLocalP2Score(newP2);
+            }
+          }
+            
+          if (newSolved.length === cards.length) { 
+            setTimerActive(false);
             setScores(prev => incrementUserScore(prev, userId, 'memory', 1)); 
-              onWin(); 
-              setTimeout(() => setGameOverOverlay(true), 1500);
+            onWin(); 
+            setTimeout(() => setGameOverOverlay(true), 1500);
           }
         } else { 
             setCombo(1);
-            if (config.mode === 'competitive') setTurn(turn === 1 ? 2 : 1); 
+            if (isRemoteCompetitive) {
+              const nextTurn = turn === 1 ? 2 : 1;
+              setRemoteState({ ...remoteState, turn: nextTurn });
+            } else if (config.mode === 'competitive') {
+              setLocalTurn(turn === 1 ? 2 : 1);
+            }
         }
         setFlipped([]); setDisabled(false);
       }, 800);
@@ -154,8 +219,13 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
         <div className={`flex w-full justify-between items-center px-4 sm:px-8 mb-6 font-bold text-xs sm:text-base z-30 ${flashlightMode ? 'opacity-40' : 'opacity-100'}`}>
             {config.mode === 'competitive' ? (
                 <>
-                <div className={`p-2 px-4 transition-all duration-300 ${turn === 1 ? 'retro-bg-primary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>P1: {p1Score}</div>
-                <div className={`p-2 px-4 transition-all duration-300 ${turn === 2 ? 'retro-bg-secondary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>P2: {p2Score}</div>
+                <div className={`p-2 px-4 transition-all duration-300 ${turn === 1 ? 'retro-bg-primary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>
+                  {isRemoteCompetitive ? (isHost ? '⚡ You' : 'Partner') : 'P1'}: {p1Score}
+                </div>
+                {isRemoteCompetitive && <div className={`text-xs font-black uppercase px-2 ${isMyTurn ? 'text-green-600 animate-pulse' : 'opacity-40'}`}>{isMyTurn ? 'YOUR TURN' : 'WAIT...'}</div>}
+                <div className={`p-2 px-4 transition-all duration-300 ${turn === 2 ? 'retro-bg-secondary scale-110' : 'retro-bg-window opacity-70'} retro-border`}>
+                  {isRemoteCompetitive ? (!isHost ? '⚡ You' : 'Partner') : 'P2'}: {p2Score}
+                </div>
                 </>
             ) : ( <div className="text-center w-full opacity-60">Team Effort</div>)}
         </div>

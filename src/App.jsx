@@ -141,21 +141,23 @@ export default function App() {
 
   const handleShareToChat = (text, image, metadata) => {
     if (!roomId) return;
-    const msg = {
-      id: Date.now().toString(),
-      text,
-      image,
-      metadata,
-      sender: userId,
-      timestamp: new Date().toISOString(),
-      type: metadata?.type || 'text'
-    };
     
-    // Broadcast for real-time modal if it's an invite
+    // Always write to chat history (persisted for both users to see in chat)
+    if (syncSendMessage) {
+      const msgType = metadata?.type || 'text';
+      syncSendMessage(text, msgType, { ...metadata, image });
+    }
+    
+    // Also broadcast a real-time popup notification if it's an invite
     if (metadata?.type === 'game_invite_modal') {
-      broadcast('invite', { ...msg, action: 'invite', timestamp: Date.now() });
-    } else if (syncSendMessage) {
-      syncSendMessage(text, metadata?.type || 'text', { ...metadata, image });
+      broadcast('invite', {
+        action: 'invite',
+        gameId: metadata?.gameId,
+        mode: metadata?.mode,
+        sender: userId,
+        timestamp: Date.now(),
+        type: 'game_invite_modal'
+      });
     }
   };
   
