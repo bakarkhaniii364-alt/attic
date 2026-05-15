@@ -1028,10 +1028,16 @@ export function ChatView({ onClose, sfx }) {
           {showDetails && (
             <div className="flex flex-col w-full md:w-1/3 bg-main overflow-y-auto relative border-l-2 border-border">
               <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
-              <div className="p-2 flex gap-1 bg-border shrink-0">
-                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'opacity-40 text-main-text hover:opacity-70'}`}>Media</button>
-                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all ${activeSidebarTab === 'calls' ? 'bg-window text-main-text shadow-inner' : 'opacity-40 text-main-text hover:opacity-70'}`}>Calls</button>
-                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all ${activeSidebarTab === 'search' ? 'bg-window text-main-text shadow-inner' : 'opacity-40 text-main-text hover:opacity-70'}`}>Search</button>
+              <div className="p-2 flex gap-1.5 bg-border shrink-0">
+                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <ImageIcon size={12} /> Media
+                </button>
+                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'calls' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <History size={12} /> Calls
+                </button>
+                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'search' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <Search size={12} /> Search
+                </button>
               </div>
               <div className="p-4 flex flex-col gap-6">
 
