@@ -594,9 +594,9 @@ export function ChatView({ onClose, sfx }) {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
           <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
-            <div
-              className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container chat-wallpaper-${coupleData.settings?.chatWallpaper || 'none'}`}
-            >
+              <div
+                className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container`}
+              >
 
               <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
               {syncHasMore && (
@@ -645,11 +645,11 @@ export function ChatView({ onClose, sfx }) {
                       {!msg.isDeleted && !isCallLog && (
                         <div className={`
                           absolute top-1/2 -translate-y-1/2 transition-all duration-300 z-20
-                          ${isMe ? '-left-10 group-hover:left-[-45px]' : '-right-10 group-hover:right-[-45px]'}
-                          opacity-0 group-hover:opacity-100
+                          ${isMe ? '-left-10 md:group-hover:left-[-45px]' : '-right-10 md:group-hover:right-[-45px]'}
+                          opacity-100 md:opacity-0 md:group-hover:opacity-100
                         `}>
-                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 retro-border bg-window/80 backdrop-blur-sm border-dashed text-main-text">
-                            <MoreVertical size={14} className="opacity-70" />
+                          <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 retro-border bg-window border-dashed text-main-text shadow-sm">
+                            <MoreVertical size={14} />
                           </button>
                         </div>
                       )}
@@ -1029,43 +1029,11 @@ export function ChatView({ onClose, sfx }) {
             <div className="flex flex-col w-full md:w-1/3 bg-main overflow-y-auto relative border-l-2 border-border">
               <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
               <div className="p-2 flex gap-1 bg-border shrink-0">
-                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'media' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Media</button>
-                <button onClick={() => setActiveSidebarTab('theme')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'theme' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Theme</button>
-                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'calls' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Calls</button>
-                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1 text-[10px] font-bold uppercase retro-outset ${activeSidebarTab === 'search' ? 'bg-window text-main-text' : 'opacity-50 text-border-text'}`}>Search</button>
+                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'opacity-40 text-main-text hover:opacity-70'}`}>Media</button>
+                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all ${activeSidebarTab === 'calls' ? 'bg-window text-main-text shadow-inner' : 'opacity-40 text-main-text hover:opacity-70'}`}>Calls</button>
+                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all ${activeSidebarTab === 'search' ? 'bg-window text-main-text shadow-inner' : 'opacity-40 text-main-text hover:opacity-70'}`}>Search</button>
               </div>
               <div className="p-4 flex flex-col gap-6">
-                {activeSidebarTab === 'theme' && (
-                  <div className="text-main-text">
-                    <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Palette} size={16} /> Chat Theme</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold mb-2 flex items-center gap-1">Chat Wallpaper</label>
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { id: 'none', label: 'None', color: 'transparent' },
-                            { id: 'pixel-garden', label: 'Garden', color: '#90be6d' },
-                            { id: 'pixel-stars', label: 'Stars', color: '#2b2d42' },
-                            { id: 'pixel-clouds', label: 'Clouds', color: '#a2d2ff' }
-                          ].map(w => (
-                            <button
-                              key={w.id}
-                              onClick={() => setCoupleData(prev => ({ ...prev, settings: { ...prev.settings, chatWallpaper: w.id } }))}
-                              className={`aspect-video retro-border flex flex-col items-center justify-center p-1 gap-1 transition-all ${coupleData.settings?.chatWallpaper === w.id ? 'ring-2 ring-primary scale-105' : 'opacity-70 hover:opacity-100'}`}
-                            >
-                              <div className="w-full h-full border border-border shadow-inner" style={{ backgroundColor: w.color }}></div>
-                              <span className="text-[10px] font-bold uppercase">{w.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-border/30">
-                        <p className="text-[10px] italic opacity-50">This setting is shared between both partners.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {activeSidebarTab === 'search' && (
                   <div className="text-main-text">

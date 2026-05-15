@@ -299,16 +299,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                      ))}
                  </div>
               </div>
-              <div>
-                 <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Chat Wallpaper</h4>
-                 <div className="flex gap-2">
-                     {['none', 'pixel-garden', 'pixel-stars', 'pixel-clouds'].map(p => (
-                       <RetroButton key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, chatWallpaper: p } })} variant={localCoupleData.settings?.chatWallpaper === p ? 'primary' : 'white'} className="w-8 h-8 !p-0 !min-w-[2rem] flex items-center justify-center" style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
-                     ))}
-                 </div>
-              </div>
-           </div>
-        </div>
+            </div>
+         </div>
       );
     }
 
