@@ -30,6 +30,7 @@ function DeviceSelector({ onChangeDevice, onClose }) {
   const [testStream, setTestStream] = useState(null);
   const [isTesting, setIsTesting] = useState(false);
   const [outputVol, setOutputVol] = useState(() => Number(localStorage.getItem('call_output_volume') || 1));
+  const [inputVol,  setInputVol]  = useState(() => Number(localStorage.getItem('call_input_volume')  || 1));
 
   const { volume: testVolume } = useVoiceActivity(testStream);
 
@@ -60,6 +61,13 @@ function DeviceSelector({ onChangeDevice, onClose }) {
     setOutputVol(v);
     localStorage.setItem('call_output_volume', v);
     window.dispatchEvent(new CustomEvent('call_volume_change', { detail: { volume: v } }));
+  };
+
+  const handleInputVolChange = (v) => {
+    setInputVol(v);
+    localStorage.setItem('call_input_volume', v);
+    // In a real app we'd apply this to the local gain node, 
+    // for now we'll just persist the setting for CallContext to pick up.
   };
 
   const toggleMicTest = async () => {
@@ -104,13 +112,41 @@ function DeviceSelector({ onChangeDevice, onClose }) {
             </div>
 
             {/* Output Volume */}
-            <div>
-               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1"><Volume2 size={9} /> Output Volume</span>
-                  <span>{Math.round(outputVol * 100)}%</span>
+            <div className="space-y-2">
+               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Volume2 size={10} /> Output Volume</span>
+                  <span className="font-mono">{Math.round(outputVol * 100)}%</span>
                </p>
-               <input type="range" min="0" max="1" step="0.01" value={outputVol} onChange={e => handleVolChange(Number(e.target.value))}
-                      className="w-full accent-primary h-1 bg-border/20 rounded-full appearance-none cursor-pointer" />
+               <div className="relative h-6 flex items-center group/slider">
+                  <div className="absolute inset-x-0 h-1 bg-border/20 rounded-full" />
+                  <div className="absolute h-1 bg-primary rounded-full transition-all" style={{ width: `${outputVol * 100}%` }} />
+                  <input type="range" min="0" max="1" step="0.01" value={outputVol} 
+                         onChange={e => handleVolChange(Number(e.target.value))}
+                         className="absolute inset-0 w-full opacity-0 cursor-pointer z-10" />
+                  <div className="absolute w-4 h-4 bg-window retro-border shadow-sm pointer-events-none transition-all group-hover/slider:scale-110" 
+                       style={{ left: `calc(${outputVol * 100}% - 8px)` }}>
+                     <div className="absolute inset-1 bg-primary/20" />
+                  </div>
+               </div>
+            </div>
+
+            {/* Input Volume */}
+            <div className="space-y-2">
+               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Mic size={10} /> Input Volume</span>
+                  <span className="font-mono">{Math.round(inputVol * 100)}%</span>
+               </p>
+               <div className="relative h-6 flex items-center group/slider">
+                  <div className="absolute inset-x-0 h-1 bg-border/20 rounded-full" />
+                  <div className="absolute h-1 bg-accent rounded-full transition-all" style={{ width: `${inputVol * 100}%` }} />
+                  <input type="range" min="0" max="1" step="0.01" value={inputVol} 
+                         onChange={e => handleInputVolChange(Number(e.target.value))}
+                         className="absolute inset-0 w-full opacity-0 cursor-pointer z-10" />
+                  <div className="absolute w-4 h-4 bg-window retro-border shadow-sm pointer-events-none transition-all group-hover/slider:scale-110" 
+                       style={{ left: `calc(${inputVol * 100}% - 8px)` }}>
+                     <div className="absolute inset-1 bg-accent/20" />
+                  </div>
+               </div>
             </div>
 
             {videoDevices.length > 0 && (
@@ -585,33 +621,33 @@ export function PremiumCallHub({
         {/* Hover Controls (Retro Styled) */}
         <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 bg-window px-3 sm:px-4 py-2 sm:py-3 retro-border-thick transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)] ${isMobile ? 'opacity-100 w-[95%] justify-center flex-wrap' : 'opacity-0 group-hover:opacity-100'}`}>
           <button onClick={onMicToggle} 
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute (Shift+M)">
-            {isMuted ? <MicOff size={isMobile ? 16 : 20}/> : <Mic size={isMobile ? 16 : 20}/>}
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Mute (Shift+M)">
+            {isMuted ? <MicOff size={14} className="sm:size-5"/> : <Mic size={14} className="sm:size-5"/>}
           </button>
           <button onClick={onDeafenToggle} 
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Deafen (Shift+D)">
-            {isDeafened ? <VolumeX size={isMobile ? 16 : 20}/> : <Volume2 size={isMobile ? 16 : 20}/>}
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Deafen (Shift+D)">
+            {isDeafened ? <VolumeX size={14} className="sm:size-5"/> : <Volume2 size={14} className="sm:size-5"/>}
           </button>
           <button onClick={handleCameraToggle} 
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Camera (Shift+V)">
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Camera (Shift+V)">
             {isCameraChanging
-              ? <Loader size={isMobile ? 16 : 20} className="animate-spin"/>
-              : isCameraOff ? <VideoOff size={isMobile ? 16 : 20}/> : <Camera size={isMobile ? 16 : 20}/>
+              ? <Loader size={14} className="sm:size-5 animate-spin"/>
+              : isCameraOff ? <VideoOff size={14} className="sm:size-5"/> : <Camera size={14} className="sm:size-5"/>
             }
           </button>
           
           <DesktopOnly>
             <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
-                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-border'}`} title="Screen Share (Shift+S)">
-              {isScreenSharing ? <MonitorOff size={20}/> : <Monitor size={20}/>}
+                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Screen Share (Shift+S)">
+              {isScreenSharing ? <MonitorOff size={14} className="sm:size-5"/> : <Monitor size={14} className="sm:size-5"/>}
             </button>
           </DesktopOnly>
           
           <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
           
           <div className="relative group/react">
-            <button className="p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 bg-window hover:bg-border">
-              <Smile size={isMobile ? 16 : 20}/>
+            <button className="p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 bg-window hover:bg-accent hover:text-accent-text">
+              <Smile size={14} className="sm:size-5"/>
             </button>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/react:flex items-center gap-1 sm:gap-1.5 bg-window retro-border-thick p-1.5 sm:p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2">
               {['❤️', '🔥', '😂', '😮', '😢', '👍'].map(emoji => (
@@ -624,16 +660,16 @@ export function PremiumCallHub({
           </div>
 
           <button onClick={handleToggleHand}
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isHandRaised ? 'bg-yellow-400 text-black' : 'bg-window hover:bg-border'}`} title="Raise Hand">
-            <Hand size={isMobile ? 16 : 20} fill={isHandRaised ? "currentColor" : "none"} />
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isHandRaised ? 'bg-yellow-400 text-black' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Raise Hand">
+            <Hand size={14} className="sm:size-5" fill={isHandRaised ? "currentColor" : "none"} />
           </button>
           
           <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
 
           <div className="relative">
             <button onClick={() => setShowDevices(p => !p)}
-                    className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${showDevices ? 'bg-accent text-accent-text' : 'bg-window hover:bg-border'}`} title="Device Settings">
-              <Settings size={isMobile ? 16 : 20}/>
+                    className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${showDevices ? 'bg-accent text-accent-text' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Device Settings">
+              <Settings size={14} className="sm:size-5"/>
             </button>
             {showDevices && (
               <DeviceSelector onChangeDevice={onChangeDevice} onClose={() => setShowDevices(false)} />
