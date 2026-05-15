@@ -62,6 +62,7 @@ export function CallProvider({ children }) {
   const [isDeafened,    setIsDeafened]    = useState(false);
   const [isCameraOff,   setIsCameraOff]   = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isPartnerScreenSharing, setIsPartnerScreenSharing] = useState(false);
   const [noiseSuppression, setNoiseSuppression] = useState(() => localStorage.getItem('call_noise_suppression') !== 'false');
   const [echoCancellation, setEchoCancellation] = useState(() => localStorage.getItem('call_echo_cancellation') !== 'false');
   const [callStatus,    setCallStatus]    = useState('idle');
@@ -144,7 +145,7 @@ export function CallProvider({ children }) {
     setCalling(null); setIsRinging(false); setIncomingCall(null);
     setRemoteStream(null); setLocalStream(null); setCallDuration(0);
     setIsMuted(false); setIsCameraOff(false); setIsScreenSharing(false);
-    setIsPartnerCameraOff(false);
+    setIsPartnerCameraOff(false); setIsPartnerScreenSharing(false);
     setCallStatus('idle'); setCallQuality('good');
   }, []);
 
@@ -453,6 +454,11 @@ const createPC = useCallback(async (type) => {
         break;
       }
 
+      case 'screen_share_toggle': {
+        setIsPartnerScreenSharing(!!payload.active);
+        break;
+      }
+
       case 'reaction': {
         window.dispatchEvent(new CustomEvent('call_reaction', { detail: { emoji: payload.emoji } }));
         break;
@@ -738,6 +744,7 @@ const createPC = useCallback(async (type) => {
       const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
       if (sender) sender.replaceTrack(st); else pcRef.current?.addTrack(st, localStreamRef.current);
       setIsScreenSharing(true);
+      sendSignal({ action: 'screen_share_toggle', active: true });
       setCalling('video');
       callTypeRef.current = 'video';
       st.onended = () => stopScreenShare();
@@ -747,6 +754,7 @@ const createPC = useCallback(async (type) => {
   const stopScreenShare = useCallback(async () => {
     if (screenTrackRef.current) { screenTrackRef.current.stop(); screenTrackRef.current = null; }
     setIsScreenSharing(false);
+    sendSignal({ action: 'screen_share_toggle', active: false });
     try {
       const vs = await navigator.mediaDevices.getUserMedia({ video: true });
       const vt = vs.getVideoTracks()[0];
@@ -819,13 +827,11 @@ const createPC = useCallback(async (type) => {
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
     remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
     partnerInCall, isPartnerCameraOff,
-    startCall, acceptCall, declineCall, endCall,
-    toggleMic, toggleCamera, toggleDeafen,
-    startScreenShare, stopScreenShare,
-    restartIce, changeDevice, testTurnConfig,
+    startCall,    acceptCall, declineCall, endCall, toggleMic, toggleDeafen, toggleCamera,
+    startScreenShare, stopScreenShare, restartIce, changeDevice, testTurnConfig,
     sendReaction, toggleRaiseHand,
+    isPartnerScreenSharing
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }
-

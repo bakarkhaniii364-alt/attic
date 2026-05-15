@@ -7,6 +7,7 @@ import { useArcadeSession } from '../hooks/useArcadeSession.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 import { useActiveLobbies } from '../hooks/useActiveLobbies.js';
+import { useSync } from '../context/instances.js';
 
 // Games
 import { TicTacToe } from './TicTacToeGame.jsx';

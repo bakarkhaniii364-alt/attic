@@ -72,7 +72,7 @@ export function CallOverlay({
       {/* Incoming call modal */}
       {incomingCall && isRinging && (
         <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-window/95 text-main-text retro-border shadow-2xl max-w-sm w-full p-8 text-center animate-in slide-in-from-bottom-10 border-t-4 border-t-primary">
+          <div className="bg-window/95 text-main-text retro-border shadow-2xl max-w-md w-full p-12 text-center animate-in slide-in-from-bottom-10 border-t-8 border-t-primary">
             {/* Avatar */}
             <div className="w-24 h-24 rounded-lg bg-secondary text-secondary-text retro-border mx-auto flex items-center justify-center mb-6 animate-pulse shadow-[0_0_40px_var(--secondary)] relative overflow-hidden">
               {incomingCall.type === 'video'

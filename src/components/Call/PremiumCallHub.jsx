@@ -163,18 +163,19 @@ export function PremiumCallHub({
   const [pos,  setPos]  = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     if (window.innerWidth <= 768) return { x: 0, y: 0 };
-    const defaultW = 800;
-    const defaultH = 560;
+    const defaultW = 1100;
+    const defaultH = 750;
     return { 
       x: Math.max(0, (window.innerWidth - defaultW) / 2), 
       y: Math.max(0, (window.innerHeight - defaultH) / 2) 
     };
   });
   const [size, setSize] = useState(() => {
-    if (typeof window === 'undefined') return { w: 800, h: 560 };
+    if (typeof window === 'undefined') return { w: 1100, h: 750 };
     if (window.innerWidth <= 768) return { w: window.innerWidth, h: window.innerHeight };
-    return { w: 800, h: 560 };
+    return { w: 1100, h: 750 };
   });
+  const [isSwapped, setIsSwapped] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [isCameraChanging, setIsCameraChanging] = useState(false);
@@ -462,45 +463,94 @@ export function PremiumCallHub({
           </div>
         ) : (
           <>
-            {remoteStream && !isPartnerCameraOff
-              ? <video ref={remoteVideoRef} autoPlay playsInline 
-                       className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${partnerSpeaking ? 'brightness-[1.15] contrast-[1.05]' : ''}`}/>
-              : (
-                <div className="flex flex-col items-center gap-6 z-10 animate-in fade-in duration-500">
-                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 retro-border overflow-hidden bg-border/20 transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_40px_rgba(34,197,94,0.4)] border-green-400' : ''}`}>
-                    <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
-                    <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
-                    {partnerSpeaking && (
-                      <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
-                    )}
+            {(remoteStream && !isPartnerCameraOff && !isSwapped) || (isSwapped && localStream && (!isCameraOff || isScreenSharing))
+              ? (
+                <video 
+                  ref={isSwapped ? localVideoCallbackRef : remoteVideoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted={isSwapped}
+                  className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${((!isSwapped && partnerSpeaking) || (isSwapped && mySpeaking)) ? 'brightness-[1.15] contrast-[1.05]' : ''} ${isSwapped && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
+                />
+              ) : (
+                <div className="flex flex-row items-center justify-center gap-8 sm:gap-16 z-10 animate-in fade-in duration-500 w-full h-full px-8">
+                  {/* Partner Avatar */}
+                  <div className="flex flex-col items-center gap-6">
+                    <div className={`relative w-32 h-32 sm:w-48 sm:h-48 retro-border overflow-hidden bg-border/20 transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_50px_rgba(34,197,94,0.5)] border-green-400' : ''}`}>
+                      <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
+                      <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
+                      {partnerSpeaking && (
+                        <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="text-[16px] font-black text-white uppercase tracking-[0.4em] mb-2 flex items-center gap-3">
+                        {partnerName}
+                        {partnerSpeaking && <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_12px_#22c55e] animate-pulse" />}
+                      </p>
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                        {type === 'video' && isPartnerCameraOff ? <><VideoOff size={11}/> Camera Off</> : <><Volume2 size={11}/> Voice Connected</>}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-center">
-                    <p className="text-[14px] font-black text-white uppercase tracking-[0.4em] mb-2 flex items-center gap-3">
-                      {partnerName}
-                      {partnerSpeaking && <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e] animate-pulse" />}
-                    </p>
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                       {type === 'video' ? <><VideoOff size={11}/> Camera Off</> : <><Volume2 size={11}/> Voice Connected</>}
-                    </p>
+
+                  {/* VS / Separator */}
+                  <div className="hidden md:flex flex-col items-center opacity-20">
+                    <div className="w-px h-24 bg-gradient-to-b from-transparent via-white to-transparent" />
+                    <span className="text-[10px] font-black text-white py-4 tracking-widest">VS</span>
+                    <div className="w-px h-24 bg-gradient-to-b from-transparent via-white to-transparent" />
+                  </div>
+
+                  {/* My Avatar */}
+                  <div className="flex flex-col items-center gap-6">
+                    <div className={`relative w-32 h-32 sm:w-48 sm:h-48 retro-border overflow-hidden bg-border/20 transition-all duration-500 ${mySpeaking ? 'scale-105 shadow-[0_0_50px_rgba(34,197,94,0.5)] border-green-400' : ''}`}>
+                      <img src={myPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
+                      <div className="absolute inset-0 bg-secondary/10 mix-blend-overlay"></div>
+                      {mySpeaking && (
+                        <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <p className="text-[16px] font-black text-white uppercase tracking-[0.4em] mb-2 flex items-center gap-3">
+                        You
+                        {mySpeaking && <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_12px_#22c55e] animate-pulse" />}
+                      </p>
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                        {isMuted ? <><MicOff size={11}/> Muted</> : <><Mic size={11}/> Mic On</>}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )
             }
 
             {localStream && (
-              <div className={`absolute ${isMobile ? 'top-4 right-4 w-24' : 'bottom-16 right-4 w-32 sm:w-44'} aspect-video bg-black/90 retro-border overflow-hidden z-20 shadow-2xl group-hover:scale-[1.02] transition-all duration-300 ${mySpeaking ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : ''}`}>
-                {!isCameraOff || isScreenSharing ? (
-                   <video ref={localVideoCallbackRef} autoPlay playsInline muted
-                          className={`w-full h-full object-cover transition-all duration-300 ${isScreenSharing ? '' : 'scale-x-[-1]'} ${mySpeaking ? 'brightness-[1.1]' : ''}`}/>
+              <div 
+                onClick={() => setIsSwapped(!isSwapped)}
+                className={`absolute ${isMobile ? 'top-4 right-4 w-24' : 'bottom-16 right-4 w-32 sm:w-56'} aspect-video bg-black/90 retro-border overflow-hidden z-20 shadow-2xl cursor-pointer hover:scale-[1.05] hover:brightness-110 active:scale-95 transition-all duration-300 ${((!isSwapped && mySpeaking) || (isSwapped && partnerSpeaking)) ? 'border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.4)]' : 'hover:border-primary/50'}`}
+              >
+                {(!isSwapped ? (!isCameraOff || isScreenSharing) : (remoteStream && !isPartnerCameraOff)) ? (
+                   <video 
+                    ref={!isSwapped ? localVideoCallbackRef : remoteVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted={!isSwapped}
+                    className={`w-full h-full object-cover transition-all duration-300 ${(!isSwapped && !isScreenSharing) ? 'scale-x-[-1]' : ''} ${((!isSwapped && mySpeaking) || (isSwapped && partnerSpeaking)) ? 'brightness-[1.1]' : ''}`}
+                   />
                 ) : (
                    <div className="w-full h-full flex items-center justify-center bg-window/20 relative overflow-hidden">
-                      <img src={myPfp} className="w-14 h-14 retro-border object-cover opacity-60" onError={e => e.target.style.display='none'} alt=""/>
-                      <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 text-[8px] text-white font-black uppercase tracking-widest border border-white/10">Muted</div>
+                      <img src={!isSwapped ? myPfp : partnerPfp} className="w-14 h-14 retro-border object-cover opacity-60" onError={e => e.target.style.display='none'} alt=""/>
+                      <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 text-[8px] text-white font-black uppercase tracking-widest border border-white/10">
+                        {!isSwapped ? (isMuted ? 'Muted' : 'You') : partnerName.split(' ')[0]}
+                      </div>
                    </div>
                 )}
                 <div className="absolute top-2 left-2 bg-black/90 px-2 py-1 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-2 border border-white/10">
-                  {isScreenSharing ? 'Screen' : 'You'}
-                  {mySpeaking && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse" />}
+                  {isSwapped ? partnerName.split(' ')[0] : (isScreenSharing ? 'Screen' : 'You')}
+                  {((!isSwapped && mySpeaking) || (isSwapped && partnerSpeaking)) && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse" />}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/20 transition-opacity">
+                  <RefreshCw size={24} className="text-white/50" />
                 </div>
               </div>
             )}
