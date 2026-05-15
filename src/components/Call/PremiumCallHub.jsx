@@ -163,12 +163,17 @@ export function PremiumCallHub({
   const [pos,  setPos]  = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     if (window.innerWidth <= 768) return { x: 0, y: 0 };
-    return { x: Math.max(20, window.innerWidth - 520), y: 60 };
+    const defaultW = 800;
+    const defaultH = 560;
+    return { 
+      x: Math.max(0, (window.innerWidth - defaultW) / 2), 
+      y: Math.max(0, (window.innerHeight - defaultH) / 2) 
+    };
   });
   const [size, setSize] = useState(() => {
-    if (typeof window === 'undefined') return { w: 480, h: 340 };
+    if (typeof window === 'undefined') return { w: 800, h: 560 };
     if (window.innerWidth <= 768) return { w: window.innerWidth, h: window.innerHeight };
-    return { w: 480, h: 340 };
+    return { w: 800, h: 560 };
   });
   const [isMinimized, setIsMinimized] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
@@ -462,7 +467,7 @@ export function PremiumCallHub({
                        className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${partnerSpeaking ? 'brightness-[1.15] contrast-[1.05]' : ''}`}/>
               : (
                 <div className="flex flex-col items-center gap-6 z-10 animate-in fade-in duration-500">
-                  <div className={`relative w-28 h-28 sm:w-36 sm:h-36 retro-border overflow-hidden bg-border/20 backdrop-blur-sm transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_40px_rgba(34,197,94,0.4)] border-green-400' : ''}`}>
+                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 retro-border overflow-hidden bg-border/20 transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_40px_rgba(34,197,94,0.4)] border-green-400' : ''}`}>
                     <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
                     <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
                     {partnerSpeaking && (
@@ -493,7 +498,7 @@ export function PremiumCallHub({
                       <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 text-[8px] text-white font-black uppercase tracking-widest border border-white/10">Muted</div>
                    </div>
                 )}
-                <div className="absolute top-2 left-2 bg-black/80 px-2 py-1 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-2 border border-white/10 backdrop-blur-md">
+                <div className="absolute top-2 left-2 bg-black/90 px-2 py-1 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-2 border border-white/10">
                   {isScreenSharing ? 'Screen' : 'You'}
                   {mySpeaking && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse" />}
                 </div>
@@ -528,7 +533,7 @@ export function PremiumCallHub({
         )}
 
         {/* Hover Controls (Retro Styled) */}
-        <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 bg-window/95 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-3 retro-border-thick transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)] ${isMobile ? 'opacity-100 w-[95%] justify-center flex-wrap' : 'opacity-0 group-hover:opacity-100'}`}>
+        <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 bg-window px-3 sm:px-4 py-2 sm:py-3 retro-border-thick transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)] ${isMobile ? 'opacity-100 w-[95%] justify-center flex-wrap' : 'opacity-0 group-hover:opacity-100'}`}>
           <button onClick={onMicToggle} 
                   className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'}`} title="Mute (Shift+M)">
             {isMuted ? <MicOff size={isMobile ? 16 : 20}/> : <Mic size={isMobile ? 16 : 20}/>}
