@@ -259,20 +259,31 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                     key={t} 
                     onClick={() => { setLocalTheme(t); playAudio('click', localSfxEnabled); }} 
                     data-theme={t}
-                    className={`retro-border p-3 cursor-pointer transition-none relative group h-24 flex flex-col justify-between ${localTheme === t ? 'ring-2 ring-primary border-primary' : 'hover:brightness-95 hover:border-primary/30'}`}
+                    className={`retro-border p-3 cursor-pointer transition-all duration-300 relative group h-24 flex flex-col justify-between overflow-hidden
+                      ${localTheme === t ? 'ring-2 ring-primary border-primary scale-[1.02] shadow-xl' : 'hover:scale-[1.01] hover:border-primary/30'}`}
                     style={{ backgroundColor: 'var(--bg-main)' }}
                   >
+                     {/* Selection Shimmer Effect */}
+                     {localTheme === t && (
+                       <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-primary/0 via-primary/10 to-primary/0 animate-shimmer" 
+                            style={{ backgroundSize: '200% 100%' }} />
+                     )}
+
                      <div className="flex justify-between items-center relative z-10">
                         <span className="text-[10px] font-black uppercase tracking-tighter text-main-text drop-shadow-sm">{t}</span>
-                        {localTheme === t && <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center border border-black/10 shadow-sm"><Check size={10} className="text-primary-text" /></div>}
+                        {localTheme === t && (
+                          <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center border border-black/10 shadow-sm animate-in zoom-in duration-300">
+                            <Check size={10} className="text-primary-text" />
+                          </div>
+                        )}
                      </div>
                      
-                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5 bg-window/50 backdrop-blur-[1px] relative z-0">
+                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5 bg-window/40 backdrop-blur-[1px] relative z-0 transition-colors duration-500">
                         <div className="flex gap-1.5 h-full">
-                           <div className="flex-[2] bg-primary border border-black/10 rounded-sm shadow-sm"></div>
-                           <div className="flex-1 bg-secondary border border-black/10 rounded-sm shadow-sm"></div>
+                           <div className="flex-[2] bg-primary border border-black/10 rounded-sm shadow-sm transition-transform duration-500 group-hover:scale-105"></div>
+                           <div className="flex-1 bg-secondary border border-black/10 rounded-sm shadow-sm transition-transform duration-500 group-hover:scale-95"></div>
                         </div>
-                        <div className="h-2 w-3/4 bg-accent border border-black/10 rounded-sm shadow-sm"></div>
+                        <div className="h-2 w-3/4 bg-accent border border-black/10 rounded-sm shadow-sm transition-all duration-500 group-hover:w-full"></div>
                      </div>
                   </div>
                 ))}
@@ -456,7 +467,9 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-main/5">
-           {renderContent()}
+           <div key={localTheme} className="animate-in fade-in zoom-in-95 duration-500">
+              {renderContent()}
+           </div>
         </div>
 
         {/* Footer Area */}

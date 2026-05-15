@@ -94,3 +94,12 @@
   animation: marquee 15s linear infinite;
   white-space: nowrap;
 }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s infinite linear;
+}

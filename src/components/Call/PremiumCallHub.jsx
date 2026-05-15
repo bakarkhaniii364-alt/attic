@@ -163,17 +163,17 @@ export function PremiumCallHub({
   const [pos,  setPos]  = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     if (window.innerWidth <= 768) return { x: 0, y: 0 };
-    const defaultW = 1100;
-    const defaultH = 750;
+    const defaultW = 900;
+    const defaultH = 600;
     return { 
       x: Math.max(0, (window.innerWidth - defaultW) / 2), 
       y: Math.max(0, (window.innerHeight - defaultH) / 2) 
     };
   });
   const [size, setSize] = useState(() => {
-    if (typeof window === 'undefined') return { w: 1100, h: 750 };
+    if (typeof window === 'undefined') return { w: 900, h: 600 };
     if (window.innerWidth <= 768) return { w: window.innerWidth, h: window.innerHeight };
-    return { w: 1100, h: 750 };
+    return { w: 900, h: 600 };
   });
   const [isSwapped, setIsSwapped] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
