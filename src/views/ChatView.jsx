@@ -477,9 +477,9 @@ export function ChatView({ onClose, sfx }) {
   const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted).reverse();
   const callHistory = safeHistory.filter(m => m.type === 'call_invite');
   const headerActions = (
-    <div className="flex gap-2">
-      <button onClick={() => handleStartCall('audio')} className="p-1.5 retro-border bg-window text-main-text hover:bg-accent transition-all" title="Voice Call"><Phone size={18} /></button>
-      <button onClick={() => handleStartCall('video')} className="p-1.5 retro-border bg-window text-main-text hover:bg-accent transition-all" title="Video Call"><Video size={18} /></button>
+    <div className="flex gap-1.5">
+      <button onClick={() => handleStartCall('audio')} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Voice Call"><Phone size={14} /></button>
+      <button onClick={() => handleStartCall('video')} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Video Call"><Video size={14} /></button>
     </div>
   );
 

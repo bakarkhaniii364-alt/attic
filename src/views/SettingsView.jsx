@@ -73,6 +73,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   const handleSave = () => {
+    // Apply all local state to global state
     setTheme(localTheme);
     setProfile(localProfile);
     setCoupleData(localCoupleData);
@@ -84,12 +85,15 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     
     playAudio('success', localSfxEnabled);
     toast('Settings Saved!', 'success');
-    onClose();
+    
+    // Close the settings view
+    if (onClose) {
+      setTimeout(onClose, 100);
+    }
   };
 
   const handleCancel = () => {
-    setTheme(initialTheme.current);
-    setWeather(initialWeather.current);
+    // Since we only updated local buffers, we just close
     onClose();
   };
 
@@ -172,13 +176,13 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
           {filteredCategories.map(c => (
-            <button key={c.id} onClick={() => navigateTo(c.id)} className="flex items-center gap-4 p-4 retro-border bg-window hover:bg-black/5 text-left group">
-              <div className="p-3 bg-primary/10 text-primary shrink-0">{c.icon}</div>
-              <div>
+            <RetroButton key={c.id} onClick={() => navigateTo(c.id)} variant="white" className="flex items-center gap-4 p-4 text-left group h-auto">
+              <div className="p-3 bg-primary/10 text-primary shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">{c.icon}</div>
+              <div className="flex-1 min-w-0">
                 <h3 className="font-black text-[11px] uppercase tracking-wider leading-none mb-1">{c.label}</h3>
                 <p className="text-[9px] font-bold opacity-40 leading-tight">{c.desc}</p>
               </div>
-            </button>
+            </RetroButton>
           ))}
         </div>
       );
@@ -242,7 +246,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={12}/> Atmosphere</h4>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {['clear', 'rain', 'snow', 'thunder', 'storm', 'spores'].map(w => (
-                  <button key={w} onClick={() => { setLocalWeather(w); setWeather(w); playAudio('click', localSfxEnabled); }} className={`py-1.5 retro-border font-bold text-[9px] uppercase ${localWeather === w ? 'bg-primary text-white' : 'bg-window hover:bg-black/5'}`}>{w}</button>
+                  <RetroButton key={w} onClick={() => { setLocalWeather(w); playAudio('click', localSfxEnabled); }} variant={localWeather === w ? 'primary' : 'white'} className="py-1.5 text-[9px] uppercase">{w}</RetroButton>
                 ))}
               </div>
            </div>
@@ -253,22 +257,22 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                 {availableThemes.map(t => (
                   <div 
                     key={t} 
-                    onClick={() => { setLocalTheme(t); setTheme(t); playAudio('click', localSfxEnabled); }} 
+                    onClick={() => { setLocalTheme(t); playAudio('click', localSfxEnabled); }} 
                     data-theme={t}
-                    className={`retro-border p-3 cursor-pointer transition-none relative group h-24 flex flex-col justify-between ${localTheme === t ? 'ring-2 ring-primary border-primary' : 'hover:brightness-95'}`}
-                    style={{ backgroundColor: 'var(--color-main)' }}
+                    className={`retro-border p-3 cursor-pointer transition-none relative group h-24 flex flex-col justify-between ${localTheme === t ? 'ring-2 ring-primary border-primary' : 'hover:brightness-95 hover:border-primary/30'}`}
+                    style={{ backgroundColor: 'var(--bg-main)' }}
                   >
-                     <div className="flex justify-between items-center">
+                     <div className="flex justify-between items-center relative z-10">
                         <span className="text-[10px] font-black uppercase tracking-tighter text-main-text drop-shadow-sm">{t}</span>
-                        {localTheme === t && <Check size={12} className="text-primary" />}
+                        {localTheme === t && <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center border border-black/10 shadow-sm"><Check size={10} className="text-primary-text" /></div>}
                      </div>
                      
-                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5">
+                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5 bg-window/50 backdrop-blur-[1px] relative z-0">
                         <div className="flex gap-1.5 h-full">
-                           <div className="flex-[2] bg-primary border border-black/10 rounded-sm"></div>
-                           <div className="flex-1 bg-secondary border border-black/10 rounded-sm"></div>
+                           <div className="flex-[2] bg-primary border border-black/10 rounded-sm shadow-sm"></div>
+                           <div className="flex-1 bg-secondary border border-black/10 rounded-sm shadow-sm"></div>
                         </div>
-                        <div className="h-2 w-3/4 bg-accent border border-black/10 rounded-sm"></div>
+                        <div className="h-2 w-3/4 bg-accent border border-black/10 rounded-sm shadow-sm"></div>
                      </div>
                   </div>
                 ))}
@@ -279,17 +283,17 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               <div>
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Dashboard Pattern</h4>
                  <div className="flex gap-2">
-                    {['grid', 'dots', 'lines', 'none'].map(p => (
-                      <button key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, bgPattern: p } })} className={`px-3 py-1.5 retro-border text-[9px] font-black uppercase ${localCoupleData.settings?.bgPattern === p ? 'bg-primary text-white' : 'bg-window'}`}>{p}</button>
-                    ))}
+                     {['grid', 'dots', 'lines', 'none'].map(p => (
+                       <RetroButton key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, bgPattern: p } })} variant={localCoupleData.settings?.bgPattern === p ? 'primary' : 'white'} className="px-3 py-1.5 text-[9px] uppercase">{p}</RetroButton>
+                     ))}
                  </div>
               </div>
               <div>
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-3">Chat Wallpaper</h4>
                  <div className="flex gap-2">
-                    {['none', 'pixel-garden', 'pixel-stars', 'pixel-clouds'].map(p => (
-                      <button key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, chatWallpaper: p } })} className={`w-8 h-8 retro-border ${localCoupleData.settings?.chatWallpaper === p ? 'ring-2 ring-primary' : 'opacity-60'}`} style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
-                    ))}
+                     {['none', 'pixel-garden', 'pixel-stars', 'pixel-clouds'].map(p => (
+                       <RetroButton key={p} onClick={() => setLocalCoupleData({ ...localCoupleData, settings: { ...localCoupleData.settings, chatWallpaper: p } })} variant={localCoupleData.settings?.chatWallpaper === p ? 'primary' : 'white'} className="w-8 h-8 !p-0 !min-w-[2rem] flex items-center justify-center" style={{ backgroundColor: p==='pixel-garden'?'#90be6d':p==='pixel-stars'?'#2b2d42':p==='pixel-clouds'?'#a2d2ff':'transparent' }} />
+                     ))}
                  </div>
               </div>
            </div>
@@ -416,10 +420,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       <RetroWindow title="control_panel.exe" onClose={handleCancel} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col relative overflow-hidden transition-none">
         {/* Navigation Bar */}
         <div className="shrink-0 bg-border/5 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-3 items-center">
-           <div className="flex items-center gap-1 shrink-0">
-              <button onClick={goBack} disabled={historyIndex === 0} className={`p-1.5 retro-border bg-window hover:bg-black/5 disabled:opacity-30`}><ChevronLeft size={16} /></button>
-              <button onClick={goForward} disabled={historyIndex === history.length - 1} className={`p-1.5 retro-border bg-window hover:bg-black/5 disabled:opacity-30`}><ChevronRight size={16} /></button>
-              <button onClick={() => navigateTo('home')} className="p-1.5 retro-border bg-window hover:bg-black/5"><RefreshCw size={16} /></button>
+           <div className="flex items-center gap-1.5 shrink-0">
+              <RetroButton onClick={goBack} disabled={historyIndex === 0} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronLeft size={16} /></RetroButton>
+              <RetroButton onClick={goForward} disabled={historyIndex === history.length - 1} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronRight size={16} /></RetroButton>
+              <RetroButton onClick={() => navigateTo('home')} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><RefreshCw size={16} /></RetroButton>
            </div>
            
            <div className="flex-1 w-full bg-window retro-border px-3 py-1.5 flex items-center gap-2 text-[11px] font-bold overflow-hidden">

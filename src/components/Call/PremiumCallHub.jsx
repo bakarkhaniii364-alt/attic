@@ -413,17 +413,17 @@ export function PremiumCallHub({
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {!isRinging && <QualityBadge quality={callQuality} />}
           {document.pictureInPictureEnabled && remoteStream && !isPartnerCameraOff && (
-            <button onClick={handlePiP} className="p-1.5 hover:bg-white/10 transition-colors" title="Picture in Picture">
-              <ExternalLink size={13}/>
+            <button onClick={handlePiP} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Picture in Picture">
+              <ExternalLink size={14}/>
             </button>
           )}
           {!isMobile && (
-            <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 hover:bg-white/10 transition-colors" title="Minimize">
-              <Minimize2 size={13}/>
+            <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Minimize">
+              <Minimize2 size={14}/>
             </button>
           )}
           <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-red-600 text-white hover:bg-red-700 transition-all" title="End Call">
-            <PhoneOff size={13}/>
+            <PhoneOff size={14}/>
           </button>
         </div>
       </div>

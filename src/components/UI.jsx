@@ -82,10 +82,10 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
             <h2 className="font-black lowercase text-xs sm:text-sm tracking-tight flex items-center gap-2 flex-shrink-0" role="heading" aria-level="2" aria-label={title}>{title}</h2>
             <div className="flex-1 h-px bg-current opacity-30 ml-2"></div>
           </div>
-          <div className="relative z-10 flex items-center gap-2">
+          <div className="relative z-10 flex items-center gap-1.5">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="hidden md:block p-2 sm:p-1 ml-2 retro-border hover:brightness-110 transition-all active:brightness-90" style={{ backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }}>
+              <button onClick={handleCloseClick} aria-label="Close" className="hidden md:flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-red-600 text-white" style={{ color: 'white' }}>
                 <X size={14} />
               </button>
             )}
@@ -148,7 +148,7 @@ export function RetroInput({ label, icon: Icon, type = 'text', error, className 
 
 // ── RetroButton ──
 export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, style = {}, type = "button", ...props }) {
-  const base = "font-bold transition-all active:translate-y-[2px] active:shadow-none disabled:pointer-events-none retro-border retro-shadow-dark lowercase flex items-center justify-center gap-2";
+  const base = "font-bold transition-all active:translate-y-[2px] active:shadow-none disabled:pointer-events-none retro-border retro-shadow-dark flex items-center justify-center gap-2";
   
   const variants = { 
     primary: { backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }, 
@@ -541,11 +541,11 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest truncate">media_viewer.exe</span>
         </div>
-        <div className="flex items-center gap-1">
-           <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1 hover:bg-white/10 transition-colors" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
-            {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+        <div className="flex items-center gap-1.5">
+           <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 retro-border retro-shadow-dark bg-window/10 text-white hover:bg-white/20 transition-all active:translate-y-[1px] active:shadow-none" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
-          <button onClick={onClose} className="p-1 bg-red-600 text-white retro-border hover:bg-red-700 transition-colors"><X size={12} /></button>
+          <button onClick={onClose} className="p-1.5 bg-red-600 text-white retro-border retro-shadow-dark hover:bg-red-700 transition-all active:translate-y-[1px] active:shadow-none"><X size={14} /></button>
         </div>
       </div>
 
