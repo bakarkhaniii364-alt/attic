@@ -13,7 +13,7 @@ const KEYBOARD = [
   ['ENTER','Z','X','C','V','B','N','M','DEL']
 ];
 
-export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
+export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId }) {
   const [targetWord, setTargetWord] = useState(""); 
   const wordLen = config.customWord ? config.customWord.length : (config.diff === 'easy' ? 4 : config.diff === 'medium' ? 5 : 6);
   const maxGuesses = 6;
@@ -119,7 +119,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
                if (currentGuess === targetWord) { 
                    setGameStatus("won"); 
-                   setScores(prev => incrementUserScore(prev, userId, 'wordle', 1)); 
+                   setScores(prev => incrementUserScore(prev, userId, 'wordle', 1, myName || profile?.name || 'You')); 
                    updateStats(true, emptyIndex + 1);
                    if (emptyIndex < 2) setPerfectWin(true);
                    setTimeout(() => { playAudio('win', sfx); onWin(); setShowStats(true); }, 1000); 

@@ -3,6 +3,7 @@ import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.
 import { playAudio } from '../utils/audio.js';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { Keyboard } from 'lucide-react';
+import { incrementUserScore } from '../utils/userDataHelpers.js';
 
 const PASSAGES = [
   "I love you without knowing how, or when, or from where. I love you simply, without problems or pride.",
@@ -15,7 +16,7 @@ const PASSAGES = [
   "Grow old along with me! The best is yet to be, the last of life, for which the first was made.",
 ];
 
-export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, userId, partnerId, isHost, roomId }) {
+export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId, isHost, roomId }) {
   const isMultiplayer = !!(roomId && partnerId);
 
   // Shared passage selection (host picks)
@@ -88,6 +89,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
       if (isMultiplayer && !syncState?.winner) {
         setSyncState({ ...syncState, winner: userId, finishedAt: end });
       }
+      if (setScores) setScores(prev => incrementUserScore(prev, userId, 'typing', wpm, myName || profile?.name || 'You'));
       setTimeout(() => setShowOverlay(true), 500);
     }
   }, [passage, started, sfx, onWin, broadcastProgress, isMultiplayer, isHost, syncState, userId, setSyncState]);

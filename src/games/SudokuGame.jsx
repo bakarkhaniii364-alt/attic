@@ -7,7 +7,7 @@ import { PenTool, Eraser, Lightbulb, Pause, Play, AlertCircle, RefreshCw } from 
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { generateSudoku } from '../utils/sudokuGenerator.js';
 
-export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId }) {
+export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId }) {
   const [board, setBoard] = useState([]);
   const [solution, setSolution] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -51,7 +51,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (currBoard[r][c].val === null) isWin = false;
     if (isWin) {
       playAudio('win', sfx);
-      setScores(prev => incrementUserScore(prev, userId, 'sudoku', 1));
+      setScores(prev => incrementUserScore(prev, userId, 'sudoku', 1, myName || profile?.name || 'You'));
       onWin();
       setTimeout(() => setGameOverOverlay(true), 1500);
       setStats(p => {

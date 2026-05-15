@@ -13,7 +13,7 @@ const DECKS = {
     food: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝']
 };
 
-export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, isHost, roomId }) {
+export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, isHost, roomId }) {
   const { assets } = useAssetSync(roomId || 'global', 'scrapbook');
   
   const isRemoteCompetitive = config?.mode === 'competitive' && roomId && partnerId;
@@ -141,7 +141,7 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
             
           if (newSolved.length === cards.length) { 
             setTimerActive(false);
-            setScores(prev => incrementUserScore(prev, userId, 'memory', 1)); 
+            setScores(prev => incrementUserScore(prev, userId, 'memory', 1, myName || profile?.name || 'You')); 
             onWin(); 
             setTimeout(() => setGameOverOverlay(true), 1500);
           }

@@ -8,7 +8,7 @@ import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useAuth } from '../context/instances.js';
 import { RefreshCw } from 'lucide-react';
 
-export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {
+export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {
   const { roomId } = useAuth();
   const [syncedState, setSyncedState] = useGlobalSync(`tictactoe_${roomId}`, null);
   const sendMove = useBroadcast(`ttt_move_${roomId}`, (move) => {
@@ -176,7 +176,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
               setGameOverOverlay(true);
               if (winData.player === p1) {
                   if (onWin) onWin(); 
-                  if (setScores) setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1));
+                  if (setScores) setScores(prev => incrementUserScore(prev, userId, 'tictactoe', 1, myName || profile?.name || 'You'));
                   setLocalStats(p => ({...p, wins: p.wins+1}));
               } else {
                   setLocalStats(p => ({...p, losses: p.losses+1}));

@@ -18,7 +18,7 @@ const PUZZLES = [
     "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", // Ruy lopez
 ];
 
-export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, isMultiplayer, isHost, roomId }) {
+export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isMultiplayer, isHost, roomId }) {
   // Multiplayer sync
   const [syncedState, setSyncedState] = useGlobalSync(`chess_${roomId}`, null);
   const sendMove = useBroadcast(`chess_move_${roomId}`, (payload) => {
@@ -127,7 +127,7 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
                 setSyncedState({ fen: newFen, history: newHistory });
               }
               
-              if (chess.isCheckmate()) { playAudio('win', sfx); setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`); setScores(prev => incrementUserScore(prev, userId, 'chess', 1)); onWin(); }
+              if (chess.isCheckmate()) { playAudio('win', sfx); setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`); setScores(prev => incrementUserScore(prev, userId, 'chess', 1, myName || profile?.name || 'You')); onWin(); }
               else if (chess.isDraw()) { setGameOverResult("Draw"); }
               else if (chess.isStalemate()) { setGameOverResult("Draw by Stalemate"); }
               

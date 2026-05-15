@@ -8,7 +8,7 @@ import { useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useCall } from '../context/instances.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
-export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, userId, partnerId, pictionaryState, setPictionaryState, isHost }) {
+export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, pictionaryState, setPictionaryState, isHost }) {
   const p1Id = isHost ? userId : partnerId;
   const p2Id = isHost ? partnerId : userId;
 
@@ -112,7 +112,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           word: '',
           displayWord: []
       }));
-      setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1));
+      setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1, myName || profile?.name || 'You'));
   };
 
   const [localTimeLeft, setLocalTimeLeft] = useState(90);
@@ -353,7 +353,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
                 }
              };
           });
-          setScores(prev => incrementUserScore(prev, userId, 'pictionary', pts));
+          setScores(prev => incrementUserScore(prev, userId, 'pictionary', pts, myName || profile?.name || 'You'));
       } else { 
           playAudio('click', sfx); 
           const dist = calculateLevenshtein(guess.toUpperCase(), word.toUpperCase());
@@ -417,7 +417,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     newDisplay[rnd] = word[rnd];
     
     setPictionaryState(prev => ({ ...prev, displayWord: newDisplay }));
-    setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1));
+    setScores(prev => incrementUserScore(prev, userId, 'pictionary', -1, myName || profile?.name || 'You'));
   };
 
   if (gameState === 'game_over') {
