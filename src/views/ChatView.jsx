@@ -1169,16 +1169,16 @@ export function ChatView({ onClose, sfx }) {
                     onKeyDown={handleKeyDown}
                     placeholder={pendingFiles.length > 0 ? "Add a caption..." : "type a message..."}
                     disabled={isRecording || voicePreview !== null || isInputDisabled}
-                    className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto text-main-text ${isInputDisabled ? 'bg-gray-200 opacity-50 cursor-not-allowed' : (isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'bg-transparent')}`}
+                    className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto text-main-text ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
                     style={{ minHeight: '44px', maxHeight: '72px' }}
                   />
                 </div>
                 {!input.trim() && !editingMsgId && voicePreview === null && pendingFiles.length === 0 ? (
-                  <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : (isRecording ? 'bg-red-400 text-white shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
+                  <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : (isRecording ? 'bg-[var(--color-danger)] text-[var(--text-on-danger)] shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
                     <RetroIcon icon={Mic} size={18} className={isRecording ? 'animate-bounce' : ''} />
                   </button>
                 ) : (
-                  <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
+                  <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
                     <RetroIcon icon={Send} size={18} />
                   </button>
                 )}

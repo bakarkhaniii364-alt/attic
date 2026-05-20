@@ -80,8 +80,8 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
       )}
       <div className="p-3 bg-[var(--bg-main)] border-b-2 retro-border flex items-center justify-between shrink-0">
         <div className="flex gap-2">
-          <button onClick={() => setLayoutMode('grid')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'grid' ? 'retro-bg-primary' : 'bg-white'}`}>Grid View</button>
-          <button onClick={() => setLayoutMode('collage')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'collage' ? 'retro-bg-primary' : 'bg-white'}`}>Collage Mode</button>
+          <button onClick={() => setLayoutMode('grid')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'grid' ? 'retro-bg-primary text-[var(--text-on-primary)]' : 'bg-[var(--bg-window)] text-[var(--text-main)]'}`}>Grid View</button>
+          <button onClick={() => setLayoutMode('collage')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'collage' ? 'retro-bg-primary text-[var(--text-on-primary)]' : 'bg-[var(--bg-window)] text-[var(--text-main)]'}`}>Collage Mode</button>
           
           <input 
             type="file" 
@@ -93,7 +93,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
           <button 
             onClick={() => fileInputRef.current?.click()} 
             disabled={isImporting} 
-            className="px-3 py-1 text-xs font-bold retro-border bg-white hover:bg-[var(--accent)] disabled:opacity-50 flex items-center gap-1"
+            className="px-3 py-1 text-xs font-bold retro-border bg-[var(--bg-window)] text-[var(--text-main)] hover:bg-[var(--accent)] hover:text-[var(--text-on-accent)] disabled:opacity-50 flex items-center gap-1"
           >
             {isImporting ? 'Importing...' : 'Import Photo'}
           </button>
@@ -101,7 +101,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
         <h2 className="font-black text-xs uppercase tracking-[0.2em] hidden sm:block">Memory Collection</h2>
         <div className="flex gap-2"><span className="text-[10px] font-bold opacity-40 uppercase mr-2 mt-2">{images.length} photos</span></div>
       </div>
-      <div className="flex-1 overflow-auto bg-[#f0f0f0] relative p-4" ref={containerRef}>
+      <div className="flex-1 overflow-auto bg-[var(--bg-main)] relative p-4" ref={containerRef}>
         {layoutMode === 'grid' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {images.length === 0 && (
@@ -112,7 +112,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
                     <circle cx="30" cy="35" r="6" fill="var(--accent)" fillOpacity="0.7"/>
                     <path d="M12 56 L28 42 L38 52 L52 38 L68 56 Z" fill="var(--primary)" fillOpacity="0.3"/>
                     <rect x="32" y="56" width="16" height="16" rx="8" fill="var(--primary)"/>
-                    <path d="M40 61 V67 M37 64 H43" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M40 61 V67 M37 64 H43" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
                   </svg>
                 </div>
                 <div className="text-center">
@@ -122,7 +122,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
               </div>
             )}
             {visibleImages.map((url, i) => (
-              <div key={i} className="group relative aspect-square retro-border bg-white p-1 retro-shadow-dark hover:-translate-y-1 transition-transform">
+              <div key={i} className="group relative aspect-square retro-border bg-[var(--bg-window)] p-1 retro-shadow-dark hover:-translate-y-1 transition-transform">
                 <SecureImage url={url} alt="memory" loading="lazy" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                    <button onClick={() => setViewerContext({ 
@@ -132,8 +132,8 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
                      })), 
                      index: i, 
                      isOpen: true 
-                   })} className="p-2 bg-white retro-border hover:bg-[var(--accent)]"><ImageIcon size={16}/></button>
-                   <button onClick={() => { playAudio('click', sfx); setLayoutMode('collage'); setLayout(p => ({ ...p, [url]: { x: 10 + Math.random()*70, y: 10+Math.random()*70, rotate: 0 } })); }} className="p-2 bg-white retro-border hover:bg-[var(--accent)]" title="Add to Collage"><Brush size={16}/></button>
+                   })} className="p-2 bg-[var(--bg-window)] text-[var(--text-main)] retro-border hover:bg-[var(--accent)] hover:text-[var(--text-on-accent)]"><ImageIcon size={16}/></button>
+                   <button onClick={() => { playAudio('click', sfx); setLayoutMode('collage'); setLayout(p => ({ ...p, [url]: { x: 10 + Math.random()*70, y: 10+Math.random()*70, rotate: 0 } })); }} className="p-2 bg-[var(--bg-window)] text-[var(--text-main)] retro-border hover:bg-[var(--accent)] hover:text-[var(--text-on-accent)]" title="Add to Collage"><Brush size={16}/></button>
                 </div>
               </div>
             ))}
@@ -148,7 +148,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
             {images.map((url, i) => {
               const pos = layout[url] || { x: 10 + (i % 5) * 15, y: 10 + Math.floor(i / 5) * 20, rotate: (i * 7) % 30 - 15 };
               return (
-                <div key={i} onMouseDown={(e) => handleDragStart(e, url)} onTouchStart={(e) => handleDragStart(e, url)} style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: `translate(-50%, -50%) rotate(${pos.rotate || 0}deg)`, zIndex: i + 10 }} className="absolute w-32 sm:w-48 bg-white p-1 sm:p-2 retro-border shadow-xl cursor-grab active:cursor-grabbing group select-none">
+                <div key={i} onMouseDown={(e) => handleDragStart(e, url)} onTouchStart={(e) => handleDragStart(e, url)} style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: `translate(-50%, -50%) rotate(${pos.rotate || 0}deg)`, zIndex: i + 10 }} className="absolute w-32 sm:w-48 bg-[var(--bg-window)] text-[var(--text-main)] p-1 sm:p-2 retro-border shadow-xl cursor-grab active:cursor-grabbing group select-none">
                    <SecureImage url={url} alt="" className="w-full h-auto pointer-events-none" />
                    <div className="absolute inset-0 cursor-pointer" onClick={() => setViewerContext({ 
                      items: images.map((url, idx) => ({ 
@@ -159,12 +159,12 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
                      isOpen: true 
                    })} />
                    <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 flex gap-1 z-20">
-                      <button onClick={(e) => { e.stopPropagation(); rotateImage(url); }} className="p-1 bg-white retro-border rounded-full shadow-md hover:bg-[var(--accent)]"><Brush size={12}/></button>
+                      <button onClick={(e) => { e.stopPropagation(); rotateImage(url); }} className="p-1 bg-[var(--bg-window)] text-[var(--text-main)] retro-border rounded-full shadow-md hover:bg-[var(--accent)] hover:text-[var(--text-on-accent)]"><Brush size={12}/></button>
                    </div>
                 </div>
               );
             })}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-2 rounded-full font-bold text-xs backdrop-blur-md border border-white/20 pointer-events-none z-[100]">DRAG PHOTOS TO CREATE A COLLAGE ❤️</div>
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[var(--border)] text-[var(--text-on-border)] px-6 py-2 rounded-full font-bold text-xs backdrop-blur-md border border-[var(--border-light)] pointer-events-none z-[100]">DRAG PHOTOS TO CREATE A COLLAGE ❤️</div>
           </div>
           )}
        </div>

@@ -15,9 +15,9 @@ export function PoetryApp({ onClose, sfx }) {
   
   return (
     <RetroWindow title="poetry_fridge.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col" noPadding>
-      <div className="p-4 bg-gray-200 border-b-2 retro-border font-bold flex justify-between"><h2 className="flex items-center gap-2"><Type size={20}/> Magnetic Poetry</h2></div>
-      <div className="flex-1 relative bg-gray-100 overflow-hidden touch-none" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
-        {words.map(w => ( <div key={w.id} onPointerDown={(e) => handlePointerDown(e, w.id)} style={{ left: w.x, top: w.y, zIndex: dragging === w.id ? 10 : 1 }} className={`absolute px-3 py-1 bg-white retro-border cursor-grab select-none font-bold text-sm ${dragging === w.id ? 'retro-shadow-primary scale-110' : 'retro-shadow-dark'}`}>{w.text}</div> ))}
+      <div className="p-4 bg-[var(--bg-header)] text-[var(--text-on-header)] border-b-2 retro-border font-bold flex justify-between"><h2 className="flex items-center gap-2"><Type size={20}/> Magnetic Poetry</h2></div>
+      <div className="flex-1 relative bg-[var(--bg-main)] overflow-hidden touch-none" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+        {words.map(w => ( <div key={w.id} onPointerDown={(e) => handlePointerDown(e, w.id)} style={{ left: w.x, top: w.y, zIndex: dragging === w.id ? 10 : 1 }} className={`absolute px-3 py-1 bg-[var(--bg-window)] text-[var(--text-main)] retro-border cursor-grab select-none font-bold text-sm ${dragging === w.id ? 'retro-shadow-primary scale-110' : 'retro-shadow-dark'}`}>{w.text}</div> ))}
       </div>
     </RetroWindow>
   );

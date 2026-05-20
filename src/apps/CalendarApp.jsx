@@ -74,12 +74,12 @@ export function CalendarApp({ onClose, sfx }) {
             </div>
           ))}
           <div className="flex gap-2 mt-2">
-            <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addEvent()} placeholder="Add event..." className="flex-1 p-1 retro-border retro-bg-window text-sm focus:outline-none" />
-            <select value={newColor} onChange={e => setNewColor(e.target.value)} className="p-1 retro-border retro-bg-window text-xs font-bold">
-              <option value="var(--primary)">❤️</option>
-              <option value="var(--secondary)">💙</option>
-              <option value="#4ade80">💚</option>
-              <option value="#f59e0b">🧡</option>
+            <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addEvent()} placeholder="Add event..." className="flex-1 p-1 retro-border retro-bg-window text-[var(--text-main)] text-sm focus:outline-none" />
+            <select value={newColor} onChange={e => setNewColor(e.target.value)} className="p-1 retro-border retro-bg-window text-[var(--text-main)] text-xs font-bold">
+              <option value="var(--primary)" className="bg-[var(--bg-window)] text-[var(--text-main)]">❤️</option>
+              <option value="var(--secondary)" className="bg-[var(--bg-window)] text-[var(--text-main)]">💙</option>
+              <option value="#4ade80" className="bg-[var(--bg-window)] text-[var(--text-main)]">💚</option>
+              <option value="#f59e0b" className="bg-[var(--bg-window)] text-[var(--text-main)]">🧡</option>
             </select>
             <RetroButton onClick={addEvent} className="px-3 py-1 text-xs">Add</RetroButton>
           </div>
