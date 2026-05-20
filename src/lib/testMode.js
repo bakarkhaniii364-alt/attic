@@ -53,18 +53,34 @@ if (isTestMode()) {
     }
 }
 
+const getHexFromSuffix = (suffix) => {
+    let hex = '';
+    if (suffix) {
+        for (let i = 0; i < suffix.length; i++) {
+            hex += suffix.charCodeAt(i).toString(16);
+        }
+    }
+    return hex.padEnd(12, '0').substring(0, 12);
+};
+
 export const getTestRoomId = () => {
     if (typeof window === 'undefined') return '';
     const user = getTestUser();
     const [_, suffix] = user.split('_');
-    return `00000000-0000-0000-0000-000000000000${suffix ? `-${suffix}` : ''}`;
+    const hex = getHexFromSuffix(suffix);
+    return `00000000-0000-0000-0000-${hex}`;
 };
 
 export const sendTestBroadcast = (event, payload) => {
+    let cleanPayload = payload;
+    try {
+        cleanPayload = JSON.parse(JSON.stringify(payload));
+    } catch (e) {}
+
     const msg = { 
         type: 'broadcast', 
         event, 
-        payload, 
+        payload: cleanPayload, 
         sender: getTestUser(),
         roomId: getTestRoomId() 
     };
@@ -93,10 +109,15 @@ export const onTestBroadcast = (event, callback) => {
 };
 
 export const sendTestStateUpdate = (key, value) => {
+    let cleanValue = value;
+    try {
+        cleanValue = JSON.parse(JSON.stringify(value));
+    } catch (e) {}
+
     const msg = { 
         type: 'state_update', 
         key, 
-        value, 
+        value: cleanValue, 
         sender: getTestUser(),
         roomId: getTestRoomId() 
     };

@@ -69,7 +69,7 @@ img {
 .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 
 /* Custom cursor */
-canvas, input, textarea { cursor: none !important; }
+canvas { cursor: none; }
 
 .diff-cursor {
   position: fixed; top: 0; left: 0; width: 16px; height: 16px;

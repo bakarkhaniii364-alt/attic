@@ -51,7 +51,7 @@ export function OverlayManager({
           onAccept={async () => {
             setGameInvite(null);
             const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-            navigate(`/activities/${gId}`);
+            navigate(`/activities/${gId}`, { state: { autoJoin: true } });
           }}
           onDecline={() => setGameInvite(null)}
           sfx={sfxEnabled}

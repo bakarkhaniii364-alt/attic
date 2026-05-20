@@ -45,19 +45,16 @@ export function useLastSeen() {
       };
     }
 
-    if (presence.status === 'active') {
-      return {
-        status: 'active',
-        label: 'Online',
-        activity: presence.activity,
-        lastActivity: lastActivity
-      };
+    // Determine Activity Label (Discord Style)
+    let activityLabel = null;
+    if (presence.activity) {
+      activityLabel = presence.activity;
     }
 
     return {
-      status: 'idle',
-      label: 'Idle',
-      activity: presence.activity,
+      status: presence.status || 'active',
+      label: presence.status === 'active' ? 'Online' : 'Idle',
+      activity: activityLabel,
       lastActivity: lastActivity
     };
   }, [onlineUsers, globalState, tick]);
@@ -71,7 +68,14 @@ export function useLastSeen() {
     
     let base = data.label;
     if (data.lastActivity) {
-      base += ` (Played ${data.lastActivity.game})`;
+      // Show what they were doing before they went offline
+      const timeDiff = Date.now() - new Date(data.lastActivity.timestamp).getTime();
+      const hoursDiff = timeDiff / (1000 * 60 * 60);
+      
+      // Only show "Played X" if it was recent (last 24h)
+      if (hoursDiff < 24) {
+        base += ` (Played ${data.lastActivity.game})`;
+      }
     }
     return base;
   }, [getLastSeen]);

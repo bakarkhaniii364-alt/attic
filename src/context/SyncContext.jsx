@@ -31,15 +31,25 @@ export function SyncProvider({ children }) {
         const testUser = getTestUser();
         const isA = testUser.startsWith('userA');
         const [_, suffix] = testUser.split('_');
-        const partnerId = `${isA ? 'userB' : 'userA'}${suffix ? `_${suffix}` : ''}`;
+        let hex = '';
+        if (suffix) {
+            for (let i = 0; i < suffix.length; i++) {
+                hex += suffix.charCodeAt(i).toString(16);
+            }
+        }
+        hex = hex.padEnd(12, '0').substring(0, 12);
+        
+        const myUid = isA ? `00000000-0000-0000-000a-${hex}` : `00000000-0000-0000-000b-${hex}`;
+        const partnerUid = isA ? `00000000-0000-0000-000b-${hex}` : `00000000-0000-0000-000a-${hex}`;
+
         setGlobalState(prev => ({
           ...prev,
           room_profiles: {
-            [testUser]: { name: isA ? 'User A' : 'User B', emoji: isA ? '🍎' : '🍏', status: 'online' },
-            [partnerId]: { name: isA ? 'User B' : 'User A', emoji: isA ? '🍏' : '🍎', status: 'online' }
+            [myUid]: { name: isA ? 'User A' : 'User B', emoji: isA ? '🍎' : '🍏', status: 'online' },
+            [partnerUid]: { name: isA ? 'User B' : 'User A', emoji: isA ? '🍏' : '🍎', status: 'online' }
           },
           couple_data: { petName: 'Buddy', petHappy: 80, petSkin: '/assets/cat_1_9' },
-          user_streaks: { [testUser]: { count: 5, best: 10 }, [partnerId]: { count: 5, best: 10 } },
+          user_streaks: { [myUid]: { count: 5, best: 10 }, [partnerUid]: { count: 5, best: 10 } },
           game_scores: {},
           arcade_lobby: prev.arcade_lobby || { players: [], gameId: null, status: 'idle', config: null }
         }));
@@ -168,20 +178,6 @@ export function SyncProvider({ children }) {
     };
   }, [roomId, userId]);
 
-  // Trigger presence update when activity changes
-  useEffect(() => {
-    if (!isSubscribedRef.current) return;
-    
-    const channelId = `room_sync_${roomId}`;
-    const channel = channelsRef.current[channelId];
-    if (channel) {
-      channel.track({
-        online_at: new Date().toISOString(),
-        status: document.hasFocus() ? 'active' : 'idle',
-        activity: currentActivity
-      });
-    }
-  }, [currentActivity, roomId]);
 
   const updateSyncState = useCallback(async (key, value) => {
     if (!roomId || !isInitialized) return;
@@ -306,6 +302,34 @@ export function SyncProvider({ children }) {
     }
     if (isTestMode()) sendTestBroadcast(eventName, payload);
   }, [roomId]);
+
+  // Trigger presence update when activity changes
+  useEffect(() => {
+    if (!isSubscribedRef.current) return;
+    
+    const channelId = `room_sync_${roomId}`;
+    const channel = channelsRef.current[channelId];
+    if (channel) {
+      channel.track({
+        online_at: new Date().toISOString(),
+        status: document.hasFocus() ? 'active' : 'idle',
+        activity: currentActivity
+      });
+    }
+  }, [currentActivity, roomId]);
+
+  // Heartbeat to persist last_online_at in DB
+  useEffect(() => {
+    if (!roomId || !userId || !isInitialized) return;
+    
+    const interval = setInterval(() => {
+      updateSyncStateAtomic('room_profiles', userId, {
+        last_online_at: new Date().toISOString()
+      });
+    }, 60000); // Every minute
+    
+    return () => clearInterval(interval);
+  }, [roomId, userId, isInitialized, updateSyncStateAtomic]);
 
   const value = {
     globalState,

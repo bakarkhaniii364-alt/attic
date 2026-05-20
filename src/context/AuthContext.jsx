@@ -39,11 +39,22 @@ export function AuthProvider({ children }) {
     const init = async () => {
       if (isTestMode()) {
         const testUser = getTestUser();
-        setUser({ id: testUser, email: `${testUser}@test.com`, user_metadata: { name: testUser } });
-        setUserId(testUser);
-        setRoomId(getTestRoomId());
+        const [base, suffix] = testUser.split('_');
+        let hex = '';
+        if (suffix) {
+            for (let i = 0; i < suffix.length; i++) {
+                hex += suffix.charCodeAt(i).toString(16);
+            }
+        }
+        hex = hex.padEnd(12, '0').substring(0, 12);
         const isA = testUser.startsWith('userA');
-        setPartnerId(isA ? 'userB' : 'userA');
+        const myUid = isA ? `00000000-0000-0000-000a-${hex}` : `00000000-0000-0000-000b-${hex}`;
+        const partnerUid = isA ? `00000000-0000-0000-000b-${hex}` : `00000000-0000-0000-000a-${hex}`;
+
+        setUser({ id: myUid, email: `${testUser}@test.com`, user_metadata: { name: testUser } });
+        setUserId(myUid);
+        setRoomId(getTestRoomId());
+        setPartnerId(partnerUid);
         setLoading(false);
         setRoomLoading(false);
         setHasInitialized(true);

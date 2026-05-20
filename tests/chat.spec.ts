@@ -12,13 +12,13 @@ test('Real-time message delivery between two users', async ({ browser }) => {
   pageA.on('console', msg => console.log('PAGE A:', msg.text()));
   pageB.on('console', msg => console.log('PAGE B:', msg.text()));
   
-  // Note: These must be a paired couple in the DB for this to work in real E2E
-  await loginAsTestUser(pageA, 'userA@example.com');
-  await loginAsTestUser(pageB, 'userB@example.com');
+  const sessionId = Math.random().toString(36).substring(2, 7);
+  await loginAsTestUser(pageA, `userA_${sessionId}`);
+  await loginAsTestUser(pageB, `userB_${sessionId}`);
   
   // Both open chat
-  await pageA.getByText('chat', { exact: true }).click();
-  await pageB.getByText('chat', { exact: true }).click();
+  await pageA.getByTestId('app-icon-chat').click();
+  await pageB.getByTestId('app-icon-chat').click();
   
   // User A sends message
   const testMessage = `Hello from A ${Date.now()}`;
@@ -39,11 +39,12 @@ test('Typing indicator sync', async ({ browser }) => {
   pageA.on('console', msg => console.log('PAGE A:', msg.text()));
   pageB.on('console', msg => console.log('PAGE B:', msg.text()));
   
-  await loginAsTestUser(pageA, 'userA@example.com');
-  await loginAsTestUser(pageB, 'userB@example.com');
+  const sessionId = Math.random().toString(36).substring(2, 7);
+  await loginAsTestUser(pageA, `userA_${sessionId}`);
+  await loginAsTestUser(pageB, `userB_${sessionId}`);
   
-  await pageA.getByText('chat', { exact: true }).click();
-  await pageB.getByText('chat', { exact: true }).click();
+  await pageA.getByTestId('app-icon-chat').click();
+  await pageB.getByTestId('app-icon-chat').click();
   
   // User A types
   await pageA.getByPlaceholder('type a message...').type('He');

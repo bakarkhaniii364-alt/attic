@@ -62,8 +62,8 @@ test.describe('Communication E2E Suite', () => {
     await loginAsTestUser(pageB, `userB_${sessionId}`);
     
     // Both navigate to chat to find the call buttons in the header
-    await pageA.getByText('chat', { exact: true }).click();
-    await pageB.getByText('chat', { exact: true }).click();
+    await pageA.getByTestId('app-icon-chat').click();
+    await pageB.getByTestId('app-icon-chat').click();
     
     // Step 1: User A clicks the "Voice Call" button in the chat header
     await expect(pageA.getByTitle('Voice Call')).toBeVisible();
@@ -77,9 +77,7 @@ test.describe('Communication E2E Suite', () => {
     await expect(pageB.getByText(/Incoming Voice Call/i)).toBeVisible({ timeout: 10000 });
     
     // Step 4: User B clicks the Accept (green phone) button
-    // The Accept button is the second button in the incoming call modal
-    const modal = pageB.locator('div').filter({ hasText: /Incoming Voice Call/i }).last();
-    await modal.locator('button').nth(1).click();
+    await pageB.getByTitle('Accept').click();
     
     // Step 5: Assert that both User A and User B's UIs transition to show the active Call Hub
     // and that the duration timer appears

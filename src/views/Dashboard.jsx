@@ -114,14 +114,42 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                     )}
                     <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-white rounded-full ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-bold truncate max-w-[120px] leading-none">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-xs font-black truncate max-w-[150px] leading-tight">
                         {partnerName}
                       </p>
-                      <span className={`text-[8px] font-black uppercase px-1 py-0.5 retro-border leading-none ${displayStatus.includes('Playing') ? 'bg-pink-400 text-white border-pink-600' : isPartnerOnline ? 'bg-green-500 text-white border-green-700' : isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 'bg-transparent border-2 border-border/50 text-main-text opacity-50'}`}>
-                        {displayStatus.toLowerCase()}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
+                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
+                          partnerStatusData.activity ? 'bg-indigo-500 text-white border-indigo-700' : 
+                          isPartnerOnline ? 'bg-green-500 text-white border-green-700' : 
+                          isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 
+                          'bg-gray-200 text-gray-500 border-gray-400 opacity-60'
+                        }`}>
+                          {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
+                        </span>
+                        <p className="text-[9px] font-bold opacity-60 truncate whitespace-nowrap">
+                          {(() => {
+                            if (partnerStatusData.activity) return partnerStatusData.activity;
+                            if (partnerStatusData.status === 'offline') {
+                              const parts = [];
+                              // 1. Last Seen
+                              if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
+                              // 2. Played Last
+                              if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
+                              // 3. Prompt / "Miss you" logic
+                              const lastSeenAt = partnerProfile.last_online_at || partnerProfile.updated_at;
+                              if (lastSeenAt) {
+                                const hoursAway = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
+                                if (hoursAway > 12) parts.push("Missing them?");
+                                else if (hoursAway > 3) parts.push("Send a nudge?");
+                              }
+                              return parts.length > 0 ? parts.join(' · ') : 'Resting...';
+                            }
+                            return displayStatus.toLowerCase();
+                          })()}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -263,10 +291,24 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                {/* Simplified Home Layout */}
                <div className="space-y-1">
                   <h1 className="text-3xl font-black lowercase tracking-tighter">hi {myDisplayName}! {mood}</h1>
-                  <div className="flex items-center gap-2 pt-1">
-                    <div className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
-                    <p className="text-xs font-bold opacity-60 uppercase tracking-widest">{partnerName} is {displayStatus.toLowerCase()}</p>
-                  </div>
+                   <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-80">{partnerName} is {partnerStatusData.status}</p>
+                    </div>
+                    <p className="text-[9px] font-bold opacity-40 mt-0.5 truncate whitespace-nowrap">
+                      {(() => {
+                        if (partnerStatusData.activity) return `Playing ${partnerStatusData.activity}`;
+                        if (partnerStatusData.status === 'offline') {
+                          const parts = [];
+                          if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
+                          if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
+                          return parts.join(' · ');
+                        }
+                        return partnerStatusData.label.toLowerCase();
+                      })()}
+                    </p>
+                   </div>
                </div>
 
                <div className="space-y-4">

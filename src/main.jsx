@@ -1,3 +1,15 @@
+// Initialize test mode immediately if present in query params
+if (typeof window !== 'undefined') {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('test_mode') === 'true') {
+    window.localStorage.setItem('attic_test_mode', 'true');
+    const user = params.get('user');
+    if (user) {
+      window.localStorage.setItem('attic_test_user', user);
+    }
+  }
+}
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'

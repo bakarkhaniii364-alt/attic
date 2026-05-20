@@ -19,11 +19,15 @@ export function useUserContext() {
         const isTestMode = params.get('test_mode') === 'true' || window.localStorage.getItem('attic_test_mode') === 'true';
         if (isTestMode) {
             const testUser = params.get('user') || window.localStorage.getItem('attic_test_user') || 'userA';
-            // If the user string contains a suffix (e.g. userA_123), use it to make the ID unique
-            // This prevents PeerJS ID collisions when multiple tests run in parallel.
             const [base, suffix] = testUser.split('_');
-            const idSuffix = suffix ? `-${suffix}` : '';
-            return base === 'userA' ? `00000000-0000-0000-0000-000000000001${idSuffix}` : `00000000-0000-0000-0000-000000000002${idSuffix}`;
+            let hex = '';
+            if (suffix) {
+                for (let i = 0; i < suffix.length; i++) {
+                    hex += suffix.charCodeAt(i).toString(16);
+                }
+            }
+            hex = hex.padEnd(12, '0').substring(0, 12);
+            return base === 'userA' ? `00000000-0000-0000-000a-${hex}` : `00000000-0000-0000-000b-${hex}`;
         }
     }
     return initial.userId;

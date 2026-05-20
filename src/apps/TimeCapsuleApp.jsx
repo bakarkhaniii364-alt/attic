@@ -3,8 +3,12 @@ import { Heart, Lock, Unlock } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { DesktopOnly } from '../components/MobileOnly.jsx';
 import { playAudio } from '../utils/audio.js';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+import { useAuth } from '../context/instances.js';
 
-export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
+export function TimeCapsuleApp({ onClose, sfx }) {
+  const { userId } = useAuth();
+  const [letters, setLetters] = useGlobalSync('time_capsule_letters', []);
   const [activeTab, setActiveTab] = useState('inbox'); 
   const [newLetter, setNewLetter] = useState(''); 
   const [unlockMins, setUnlockMins] = useState('1'); 
@@ -86,9 +90,9 @@ export function TimeCapsuleApp({ onClose, letters, setLetters, sfx, userId }) {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-main)]">
-           {letters.length === 0 && <p className="text-center opacity-50 mt-10 font-bold uppercase tracking-widest text-sm">Inbox is empty. Time to write!</p>}
+           {(!letters || letters.length === 0) && <p className="text-center opacity-50 mt-10 font-bold uppercase tracking-widest text-sm">Inbox is empty. Time to write!</p>}
            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-           {letters.map(l => { 
+           {letters && letters.map(l => { 
                const isLocked = l.unlockDate > now; 
                return ( 
                  <div key={l.id} onClick={() => { if(!isLocked) { playAudio('click', sfx); setReadingLetter(l); } else { playAudio('click', sfx); } }} className={`relative w-full aspect-video sm:aspect-square md:aspect-[4/3] retro-border shadow-[4px_4px_0_rgba(0,0,0,0.2)] cursor-not-allowed transition-transform hover:-translate-y-2 ${isLocked ? 'bg-[#f4d06f]' : 'bg-[#fffdf9] cursor-pointer'}`}>

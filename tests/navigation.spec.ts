@@ -2,22 +2,23 @@ import { test, expect } from '@playwright/test';
 import { loginAsTestUser } from './utils';
 
 test('Dashboard to Chat navigation and unmounting', async ({ page }) => {
-  // 1. Login
-  await loginAsTestUser(page, 'test@example.com');
+  const sessionId = Math.random().toString(36).substring(2, 7);
+  await loginAsTestUser(page, `userA_${sessionId}`);
   
   // 2. Open Chat
   await page.getByRole('button', { name: /chat/i }).click();
-  await expect(page.getByText('chat_room.exe')).toBeVisible();
+  await expect(page.locator('.glass-window')).toBeVisible();
   
   // 3. Close Chat using the aria-label
   await page.getByLabel('Close').first().click();
   
   // 4. Verify unmounted (not just hidden)
-  await expect(page.getByText('chat_room.exe')).not.toBeAttached();
+  await expect(page.locator('.glass-window')).not.toBeAttached();
 });
 
 test('Activities Hub to Pictionary and back', async ({ page }) => {
-  await loginAsTestUser(page, 'test@example.com');
+  const sessionId = Math.random().toString(36).substring(2, 7);
+  await loginAsTestUser(page, `userA_${sessionId}`);
   
   // Open Games (Arcade)
   await page.getByRole('button', { name: /arcade/i }).click();

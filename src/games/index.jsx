@@ -140,6 +140,18 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     setIsNavigatingLobby(false);
   }, [gameRoute]);
 
+  // Auto-join lobby when navigating via invitation accept action
+  useEffect(() => {
+    if (location.state?.autoJoin && gameRoute && game) {
+      console.log("🚦 [LOBBY] Auto-joining lobby for", gameRoute);
+      setIsNavigatingLobby(true);
+      joinSession().catch(err => {
+        console.error("Auto-joining lobby failed:", err);
+      });
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.autoJoin, gameRoute, game, joinSession, navigate, location.pathname]);
+
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
   if (gameRoute && game) {

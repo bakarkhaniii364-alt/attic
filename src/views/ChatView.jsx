@@ -305,7 +305,7 @@ export function ChatView({ onClose, sfx }) {
       };
     });
     // Navigate to activity
-    navigate(`/activities/${inviteMsg.gameId}`);
+    navigate(`/activities/${inviteMsg.gameId}`, { state: { autoJoin: true } });
   };
 
   const handleSend = (e) => {

@@ -14,12 +14,12 @@ test.describe('Arcade Gameplay Synchronization Suite', () => {
     await loginAsTestUser(pageB, `userB_${testId}`);
     
     // Ensure dashboard is ready
-    await expect(pageA.getByText(/games/i)).toBeVisible({ timeout: 30000 });
+    await expect(pageA.getByTestId('app-icon-arcade')).toBeVisible({ timeout: 30000 });
     await pageA.waitForTimeout(3000);
 
     // Step 1: User A invites User B to Pictionary
     console.log("User A opening games catalog...");
-    await pageA.click('text=games').catch(() => pageA.goto(`http://localhost:5173/activities?test_mode=true&user=userA_${testId}`));
+    await pageA.getByTestId('app-icon-arcade').click().catch(() => pageA.goto(`http://localhost:5173/activities?test_mode=true&user=userA_${testId}`));
     
     console.log("Waiting for Hub to load...");
     await expect(pageA.getByText(/activities_hub\.exe/i)).toBeVisible({ timeout: 20000 });
@@ -110,12 +110,12 @@ test.describe('Arcade Gameplay Synchronization Suite', () => {
     await loginAsTestUser(pageB, `userB_${testId}`);
     
     // Ensure dashboard is ready
-    await expect(pageA.getByText(/games/i)).toBeVisible({ timeout: 30000 });
+    await expect(pageA.getByTestId('app-icon-arcade')).toBeVisible({ timeout: 30000 });
     await pageA.waitForTimeout(3000);
 
     // Step 1: User A invites User B to Uno
     console.log("User A opening games catalog...");
-    await pageA.click('text=games').catch(() => pageA.goto(`http://localhost:5173/activities?test_mode=true&user=userA_${testId}`));
+    await pageA.getByTestId('app-icon-arcade').click().catch(() => pageA.goto(`http://localhost:5173/activities?test_mode=true&user=userA_${testId}`));
 
     console.log("Waiting for Hub to load...");
     await expect(pageA.getByText(/activities_hub\.exe/i)).toBeVisible({ timeout: 20000 });
