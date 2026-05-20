@@ -8,11 +8,29 @@ import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
 
 export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, roomId }) {
-   const { assets } = useAssetSync(roomId); // Fetch all assets for the room
+  const { assets, uploadAsset } = useAssetSync(roomId); // Fetch all assets for the room
   const [layoutMode, setLayoutMode] = useLocalStorage('scrapbook_mode', 'grid');
   const [layout, setLayout] = useGlobalSync('scrapbook_layout', {});
   const [page, setPage] = useState(1);
   const [viewerContext, setViewerContext] = useState({ items: [], index: 0, isOpen: false });
+  const fileInputRef = useRef(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    try {
+      await uploadAsset(file, 'scrapbook', userId);
+      playAudio('click', sfx);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to import photo: ' + err.message);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
   
   const normalizedImages = assets.map(a => a.url);
   const images = [...new Set([...normalizedImages, ...(propImages || [])])];
@@ -64,6 +82,21 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
         <div className="flex gap-2">
           <button onClick={() => setLayoutMode('grid')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'grid' ? 'retro-bg-primary' : 'bg-white'}`}>Grid View</button>
           <button onClick={() => setLayoutMode('collage')} className={`px-3 py-1 text-xs font-bold retro-border ${layoutMode === 'collage' ? 'retro-bg-primary' : 'bg-white'}`}>Collage Mode</button>
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            accept="image/*" 
+            className="hidden" 
+            onChange={handleImportFile} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={isImporting} 
+            className="px-3 py-1 text-xs font-bold retro-border bg-white hover:bg-[var(--accent)] disabled:opacity-50 flex items-center gap-1"
+          >
+            {isImporting ? 'Importing...' : 'Import Photo'}
+          </button>
         </div>
         <h2 className="font-black text-xs uppercase tracking-[0.2em] hidden sm:block">Memory Collection</h2>
         <div className="flex gap-2"><span className="text-[10px] font-bold opacity-40 uppercase mr-2 mt-2">{images.length} photos</span></div>

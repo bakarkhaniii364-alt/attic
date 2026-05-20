@@ -112,7 +112,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                     ) : (
                       <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
                     )}
-                    <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-white rounded-full ${isPartnerOnline ? 'bg-green-500' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
+                    <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col gap-0.5">
@@ -121,10 +121,10 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
                         <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
-                          partnerStatusData.activity ? 'bg-indigo-500 text-white border-indigo-700' : 
-                          isPartnerOnline ? 'bg-green-500 text-white border-green-700' : 
-                          isPartnerIdle ? 'bg-yellow-400 text-black border-yellow-600' : 
-                          'bg-gray-200 text-gray-500 border-gray-400 opacity-60'
+                          partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
+                          isPartnerOnline ? 'bg-success text-success-text border-success' : 
+                          isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
+                          'bg-disabled text-disabled-text border-disabled opacity-60'
                         }`}>
                           {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
                         </span>

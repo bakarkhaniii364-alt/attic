@@ -1,5 +1,13 @@
 /* ════ DEFAULT ════ */
 :root, [data-theme="default"] {
+  --radius: 0px;
+  --shadow-window: 4px 4px 0px 0px var(--border);
+  --shadow-btn: 2px 2px 0px 0px var(--border);
+  --shadow-btn-active: 1px 1px 0px 0px var(--border);
+  --shadow-box: 2.5px 2.5px 0px 0px var(--border);
+  --font-family: 'Space Mono', 'Hind Siliguri', monospace;
+  --font-heading: 'Space Mono', 'Hind Siliguri', monospace;
+
   --bg-main: #f9e2cf;
   --bg-pattern: #b48e6c;
   --bg-window: #fffdf9;

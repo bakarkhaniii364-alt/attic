@@ -31,7 +31,7 @@ export function BootLoader({ onComplete, sfxEnabled }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] flex flex-col items-center justify-center bg-[#f9e2cf] z-[9999] p-4">
+    <div className="fixed inset-0 w-full h-[100dvh] flex flex-col items-center justify-center bg-main z-[9999] p-4">
       <div className="flex flex-col items-start gap-2 p-6 border-[3px] border-border bg-window shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
         <div className="flex items-center gap-2 mb-4 border-b-2 border-border/20 w-full pb-2">
             <div className="w-3 h-3 bg-primary animate-pulse rounded-full"></div>

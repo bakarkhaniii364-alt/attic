@@ -177,7 +177,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
           {filteredCategories.map(c => (
             <RetroButton key={c.id} onClick={() => navigateTo(c.id)} variant="white" className="flex items-center gap-4 p-4 text-left group h-auto">
-              <div className="p-3 bg-primary/10 text-primary shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">{c.icon}</div>
+              <div className="p-3 bg-primary/10 text-primary shrink-0 group-hover:bg-primary group-hover:text-white rounded-md transition-colors">{c.icon}</div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-black text-[11px] uppercase tracking-wider leading-none mb-1">{c.label}</h3>
                 <p className="text-[9px] font-bold opacity-40 leading-tight">{c.desc}</p>
@@ -192,10 +192,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       return (
         <div className="p-6 space-y-6">
            <div className="flex flex-col sm:flex-row gap-6 items-start">
-             <div className="relative group mx-auto sm:mx-0 shrink-0">
-                {localProfile?.pfp ? <img src={localProfile?.pfp} alt="Avatar" className="w-20 h-20 rounded-full border-4 border-black object-cover" /> : <div className="w-20 h-20 rounded-full border-4 border-black bg-primary flex items-center justify-center text-4xl">{localProfile?.emoji}</div>}
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm transition-opacity"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
-             </div>
+              <div className="relative group mx-auto sm:mx-0 shrink-0">
+                 {localProfile?.pfp ? <img src={localProfile?.pfp} alt="Avatar" className="w-20 h-20 rounded-full border-4 border-border object-cover" /> : <div className="w-20 h-20 rounded-full border-4 border-border bg-primary flex items-center justify-center text-4xl">{localProfile?.emoji}</div>}
+                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm transition-opacity"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
+              </div>
              <div className="flex-1 w-full space-y-3">
                <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={localProfile.name || ''} onChange={(e) => setLocalProfile({...localProfile, name: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs" /></div>
                <div className="grid grid-cols-2 gap-3">
@@ -323,21 +323,29 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2"><Volume2 size={12}/> Audio & Alerts</h4>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Sound Effects</span>
-                    <button onClick={() => setLocalSfxEnabled(!localSfxEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localSfxEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localSfxEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalSfxEnabled(!localSfxEnabled)} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors duration-200 focus:outline-none ${localSfxEnabled ? 'bg-primary' : 'bg-disabled'}`}>
+                       <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localSfxEnabled ? 'left-[26px]' : 'left-[2px]'}`} />
+                     </button>
                  </div>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Push Notifications</span>
-                    <button onClick={() => setLocalNotificationsEnabled(!localNotificationsEnabled)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localNotificationsEnabled ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localNotificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalNotificationsEnabled(!localNotificationsEnabled)} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors duration-200 focus:outline-none ${localNotificationsEnabled ? 'bg-primary' : 'bg-disabled'}`}>
+                       <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localNotificationsEnabled ? 'left-[26px]' : 'left-[2px]'}`} />
+                     </button>
                  </div>
                  
                  <h4 className="text-[10px] font-black uppercase tracking-widest mt-6 mb-2 flex items-center gap-2"><Monitor size={12}/> WebRTC Advanced</h4>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Noise Suppression</span>
-                    <button onClick={() => setLocalNoiseSuppression(!localNoiseSuppression)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localNoiseSuppression ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localNoiseSuppression ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalNoiseSuppression(!localNoiseSuppression)} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors duration-200 focus:outline-none ${localNoiseSuppression ? 'bg-primary' : 'bg-disabled'}`}>
+                       <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localNoiseSuppression ? 'left-[26px]' : 'left-[2px]'}`} />
+                     </button>
                  </div>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Echo Cancellation</span>
-                    <button onClick={() => setLocalEchoCancellation(!localEchoCancellation)} className={`w-10 h-5 rounded-full retro-border relative transition-none ${localEchoCancellation ? 'bg-primary' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white border border-black rounded-full absolute top-[-1px] transition-none ${localEchoCancellation ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                    <button onClick={() => setLocalEchoCancellation(!localEchoCancellation)} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors duration-200 focus:outline-none ${localEchoCancellation ? 'bg-primary' : 'bg-disabled'}`}>
+                       <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localEchoCancellation ? 'left-[26px]' : 'left-[2px]'}`} />
+                     </button>
                  </div>
               </div>
               <div className="space-y-4">
@@ -362,8 +370,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               <RetroButton onClick={handleExportData} variant="primary" className="px-6 py-2 text-[10px]">EXPORT .JSON DATA</RetroButton>
            </div>
 
-           <div className="p-5 border-2 border-dashed border-red-200 bg-red-50/5">
-              <h4 className="text-[11px] font-black uppercase mb-4 text-red-600 flex items-center gap-2 font-black">🚨 CRITICAL ZONE</h4>
+           <div className="p-5 border-2 border-dashed border-danger/30 bg-danger/5">
+              <h4 className="text-[11px] font-black uppercase mb-4 text-danger flex items-center gap-2 font-black">🚨 CRITICAL ZONE</h4>
               <div className="flex flex-col sm:flex-row gap-3">
                  <RetroButton onClick={async () => {
                     const ok = window.confirm("Disconnect from partner?");
@@ -371,7 +379,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                       await supabase.rpc('leave_room', { room_uuid: localCoupleData.room_id });
                       navigate('/handshake'); window.location.reload();
                     }
-                 }} variant="secondary" className="flex-1 bg-window text-orange-600 border-orange-200 text-[10px] py-2">UNPAIR ACCOUNT</RetroButton>
+                 }} variant="secondary" className="flex-1 bg-window text-warning border-warning/30 hover:bg-warning/10 text-[10px] py-2">UNPAIR ACCOUNT</RetroButton>
                  <RetroButton onClick={async () => {
                     const ok = window.confirm("DELETE ALL DATA PERMANENTLY?");
                     if (ok) {
@@ -379,7 +387,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                        await supabase.auth.signOut();
                        window.location.href = '/';
                     }
-                 }} variant="primary" className="flex-1 bg-red-600 text-white border-red-800 text-[10px] py-2">DESTROY ATTIC DATA</RetroButton>
+                 }} variant="primary" className="flex-1 bg-danger text-danger-text border-danger text-[10px] py-2">DESTROY ATTIC DATA</RetroButton>
               </div>
            </div>
         </div>

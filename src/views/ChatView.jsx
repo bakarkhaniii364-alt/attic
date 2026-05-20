@@ -8,6 +8,7 @@ const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer } from '../components/UI.jsx';
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
+import { useAssetSync } from '../hooks/useAssetSync.js';
 import { useMobile } from '../hooks/useMobile.js';
 import { useLastSeen } from '../hooks/useLastSeen.js';
 import { playAudio } from '../utils/audio.js';
@@ -138,6 +139,8 @@ export function ChatView({ onClose, sfx }) {
   const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChat();
   const { startCall } = useCall();
+  const { uploadAsset } = useAssetSync(roomId);
+  const [openReactMsgId, setOpenReactMsgId] = useState(null);
 
   const profile = globalState?.room_profiles?.[userId] || {};
   const partnerProfile = globalState?.room_profiles?.[partnerId] || {};
@@ -398,19 +401,35 @@ export function ChatView({ onClose, sfx }) {
     discardVoiceNote();
   };
 
+  const getFileType = (file) => {
+    const name = file.name.toLowerCase();
+    const type = file.type || '';
+    if (type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/.test(name)) {
+      return 'image';
+    }
+    if (type.startsWith('video/') || /\.(mp4|mkv|avi|webm|mov|flv|3gp|wmv)$/.test(name)) {
+      return 'video';
+    }
+    if (type.startsWith('audio/') || /\.(mp3|aac|flac|wav|m4a|ogg)$/.test(name)) {
+      return 'audio';
+    }
+    return 'file';
+  };
+
   const handleFiles = async (files) => {
     if (files.length > 0) {
       for (const file of files) {
-        if (file.type.startsWith('image/')) {
+        const fileType = getFileType(file);
+        if (fileType === 'image') {
           const reader = new FileReader();
           reader.onloadend = async () => {
             const compressed = await compressImage(reader.result);
             setPendingFiles(prev => [...prev, { type: 'image', data: compressed, name: file.name, file }]);
           };
           reader.readAsDataURL(file);
-        } else if (file.type.startsWith('video/')) {
+        } else if (fileType === 'video') {
           setPendingFiles(prev => [...prev, { type: 'video', file, name: file.name }]);
-        } else if (file.type.startsWith('audio/')) {
+        } else if (fileType === 'audio') {
           setPendingFiles(prev => [...prev, { type: 'audio', file, name: file.name }]);
         } else {
           setPendingFiles(prev => [...prev, { type: 'file', file, name: file.name }]);
@@ -453,21 +472,135 @@ export function ChatView({ onClose, sfx }) {
   };
 
   const handleSaveToScrapbook = async (url) => {
-    // Solution 18: Route all scrapbook saves through sync/upload
-    if (isNormalized) {
-      try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        // Assuming uploadAsset is available via prop or we can use syncSendMessage for images
-        // In ChatView we don't have uploadAsset directly but we can use syncSendMessage or similar.
-        // Actually Solution 18 says use uploadAsset. I should pass it to ChatView.
-        await syncSendMessage(blob, 'image', { text: 'Saved from chat' });
-        playAudio('click', sfx);
-        alert("Saved to Scrapbook and shared to chat!");
-      } catch (e) {
-        console.error(e);
-      }
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      await uploadAsset(blob, 'scrapbook', userId);
+      playAudio('click', sfx);
+      alert("Saved to Scrapbook successfully!");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save to Scrapbook: " + e.message);
     }
+  };
+
+  const isPng = (msg) => {
+    const name = (msg.fileName || '').toLowerCase();
+    const url = (msg.url || '').toLowerCase();
+    return name.endsWith('.png') || url.includes('.png') || url.startsWith('data:image/png');
+  };
+
+  const getFileStyle = (fileName) => {
+    const ext = (fileName || '').split('.').pop().toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return { icon: FileText, color: 'text-danger bg-danger/10', label: 'PDF Document' };
+      case 'docx':
+      case 'doc':
+      case 'txt':
+        return { icon: FileText, color: 'text-secondary bg-secondary/10', label: 'Word Document' };
+      case 'blend':
+        return { icon: Zap, color: 'text-warning bg-warning/10', label: 'Blender 3D Scene' };
+      case 'zip':
+      case 'rar':
+      case '7z':
+      case 'tar':
+      case 'gz':
+        return { icon: Paperclip, color: 'text-primary bg-primary/10', label: 'Archive Zip' };
+      default:
+        return { icon: FileText, color: 'text-main-text opacity-70 bg-black/5', label: 'File Attachment' };
+    }
+  };
+
+  const renderMediaToolbar = (msg, isMe) => {
+    const effectiveUrl = msg.url || msg.audioUrl;
+    if (!effectiveUrl) return null;
+
+    return (
+      <div className="flex items-center gap-2.5 mt-2 pt-2 border-t border-dashed border-border/15 shrink-0 text-main-text/60 select-none">
+        {/* Reactions inline picker */}
+        <div className="relative">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setOpenReactMsgId(openReactMsgId === msg.id ? null : msg.id); }} 
+            className="hover:text-primary transition-colors p-1 hover:bg-black/5 rounded flex items-center justify-center"
+            title="React"
+          >
+            <Smile size={13} />
+          </button>
+          {openReactMsgId === msg.id && (
+            <div className="absolute bottom-6 left-0 bg-window border-2 border-border p-1 flex gap-1 shadow-md z-[110] rounded-md animate-in slide-in-from-bottom-2 duration-100">
+              {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
+                <button 
+                  key={emoji} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rs = msg.reactions || [];
+                    syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
+                    setOpenReactMsgId(null);
+                  }} 
+                  className={`text-sm p-1 hover:scale-130 active:scale-95 transition-transform ${msg.reactions?.includes(emoji) ? 'bg-accent/40 rounded' : ''}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Download */}
+        <button 
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              const res = await fetch(effectiveUrl);
+              const blob = await res.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = msg.fileName || 'download';
+              a.click();
+              URL.revokeObjectURL(blobUrl);
+            } catch (err) {
+              window.open(effectiveUrl, '_blank');
+            }
+          }} 
+          className="hover:text-primary transition-colors p-1 hover:bg-black/5 rounded flex items-center justify-center"
+          title="Download"
+        >
+          <Download size={13} />
+        </button>
+
+        {/* Save to Scrapbook (for images) */}
+        {msg.type === 'image' && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSaveToScrapbook(effectiveUrl);
+            }} 
+            className="hover:text-primary transition-colors p-1 hover:bg-black/5 rounded flex items-center gap-1 text-[10px] font-black uppercase"
+            title="Save to Album"
+          >
+            <ImageIcon size={13} /> <span className="hidden sm:inline">Album</span>
+          </button>
+        )}
+
+        {/* Delete */}
+        {isMe && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm("Delete this media message?")) {
+                syncDeleteMessage(msg.id);
+              }
+            }} 
+            className="hover:text-danger transition-colors p-1 hover:bg-black/5 rounded ml-auto flex items-center justify-center text-red-600"
+            title="Delete"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+    );
   };
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
@@ -701,49 +834,63 @@ export function ChatView({ onClose, sfx }) {
                         ) : (
                           <>
                             {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block [word-break:break-word] overflow-hidden'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
-                            {msg.type === 'voice' && <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />}
-                            {msg.type === 'video' && (
-                              <div className="flex flex-col gap-2 relative group/video w-full max-w-[280px] sm:max-w-xs overflow-hidden rounded-lg">
-                                <RetroMediaPlayer
-                                  url={msg.url}
-                                  type="video"
-                                  autoPlay={false}
-                                  className="w-full aspect-video retro-border"
-                                  onClick={() => openViewer(msg.url, msg.id)}
-                                />
-                                {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
-                              </div>
-                            )}
-                            {msg.type === 'audio' && (
-                              <div className="w-[240px] sm:w-[320px] max-w-full overflow-hidden">
-                                <RetroMediaPlayer
-                                  url={msg.url}
-                                  type="audio"
-                                  autoPlay={false}
-                                  fileName={msg.fileName}
-                                  className="w-full retro-border-thick bg-window/20"
-                                />
-                                <div className="mt-1 flex items-center justify-between px-1">
-                                  <span className="text-[9px] font-black uppercase tracking-tighter opacity-40 flex items-center gap-1 truncate max-w-[70%]">
-                                    <Music size={10} /> {msg.fileName || 'Audio Message'}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                            {msg.type === 'file' && (
-                              <div className="flex flex-col gap-2 min-w-[200px]">
-                                <a href={msg.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-window retro-border hover:bg-accent/10 transition-all group no-underline text-main-text">
-                                  <div className="p-2 bg-primary/10 text-primary group-hover:scale-110 transition-transform">
-                                    <FileText size={24} />
-                                  </div>
-                                  <div className="flex flex-col overflow-hidden">
-                                    <span className="font-bold text-xs truncate w-32">{msg.fileName || 'Attachment'}</span>
-                                    <span className="text-[9px] opacity-40 uppercase font-black">{msg.fileSize ? `${(msg.fileSize / 1024).toFixed(1)} KB` : 'Document'}</span>
-                                  </div>
-                                  <Download size={16} className="ml-auto opacity-30 group-hover:opacity-100" />
-                                </a>
-                              </div>
-                            )}
+                            {msg.type === 'voice' && (
+                               <div className="flex flex-col gap-1 w-[240px] sm:w-[300px]">
+                                 <VoiceMessagePlayer duration={msg.duration} audioUrl={msg.audioUrl} isMe={isMe} />
+                                 {renderMediaToolbar({ ...msg, url: msg.audioUrl, fileName: `voice_note_${msg.id}.wav` }, isMe)}
+                               </div>
+                             )}
+                             {msg.type === 'video' && (
+                               <div className="flex flex-col gap-2 relative group/video w-full max-w-[280px] sm:max-w-xs overflow-hidden rounded-lg">
+                                 <RetroMediaPlayer
+                                   url={msg.url}
+                                   type="video"
+                                   autoPlay={false}
+                                   className="w-full aspect-video retro-border"
+                                   onClick={() => openViewer(msg.url, msg.id)}
+                                 />
+                                 {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
+                                 {renderMediaToolbar(msg, isMe)}
+                               </div>
+                             )}
+                             {msg.type === 'audio' && (
+                               <div className="w-[240px] sm:w-[320px] max-w-full overflow-hidden flex flex-col gap-1">
+                                 <RetroMediaPlayer
+                                   url={msg.url}
+                                   type="audio"
+                                   autoPlay={false}
+                                   fileName={msg.fileName}
+                                   className="w-full retro-border bg-window/20"
+                                 />
+                                 <div className="mt-1 flex items-center justify-between px-1">
+                                   <span className="text-[9px] font-black uppercase tracking-tighter opacity-40 flex items-center gap-1 truncate max-w-[70%]">
+                                     <Music size={10} /> {msg.fileName || 'Audio Message'}
+                                   </span>
+                                 </div>
+                                 {renderMediaToolbar(msg, isMe)}
+                               </div>
+                             )}
+                             {msg.type === 'file' && (
+                               <div className="flex flex-col gap-2 min-w-[220px]">
+                                 {(() => {
+                                   const fileStyle = getFileStyle(msg.fileName);
+                                   const FileIcon = fileStyle.icon;
+                                   return (
+                                     <a href={msg.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-window retro-border hover:bg-accent/10 transition-all group no-underline text-main-text rounded-md">
+                                       <div className={`p-2 rounded ${fileStyle.color} group-hover:scale-110 transition-transform`}>
+                                         <FileIcon size={24} />
+                                       </div>
+                                       <div className="flex flex-col overflow-hidden">
+                                         <span className="font-bold text-xs truncate w-32">{msg.fileName || 'Attachment'}</span>
+                                         <span className="text-[9px] opacity-45 uppercase font-black">{msg.fileSize ? `${(msg.fileSize / 1024).toFixed(1)} KB` : fileStyle.label}</span>
+                                       </div>
+                                       <Download size={16} className="ml-auto opacity-30 group-hover:opacity-100" />
+                                     </a>
+                                   );
+                                 })()}
+                                 {renderMediaToolbar(msg, isMe)}
+                               </div>
+                             )}
                             {msg.type === 'game_invite' && (
                               <div className="retro-border retro-shadow-dark bg-window p-3 w-64 text-main-text mt-1">
                                 <div className="flex items-center gap-2 mb-3 border-b-2 border-border/20 pb-2">
@@ -800,31 +947,36 @@ export function ChatView({ onClose, sfx }) {
                               </div>
                             )}
                             {msg.type === 'image' && (
-                              <div className="flex flex-col gap-2">
-                                <SecureImage
-                                  url={msg.url}
-                                  alt=""
-                                  onClick={() => openViewer(msg.url, msg.id)}
-                                  className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-cover retro-border cursor-pointer hover:brightness-95 transition-all`}
-                                />
-                                {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
-                              </div>
-                            )}
-                            {msg.type === 'image_group' && (
-                              <div className="flex flex-col gap-2">
-                                <div className={`grid ${msg.urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-1 w-full max-w-xs`}>
-                                  {msg.urls.map((u, i) => (
-                                    <SecureImage
-                                      key={i}
-                                      url={u}
-                                      onClick={() => openViewer(u, msg.id)}
-                                      className="aspect-square object-cover retro-border cursor-pointer hover:scale-[1.02] transition-transform"
-                                    />
-                                  ))}
-                                </div>
-                                {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
-                              </div>
-                            )}
+                               <div className="flex flex-col gap-2">
+                                 <div className={`relative ${isPng(msg) ? 'bg-transparent-checkerboard' : 'bg-black/5'} rounded-md overflow-hidden`}>
+                                   <SecureImage
+                                     url={msg.url}
+                                     alt=""
+                                     onClick={() => openViewer(msg.url, msg.id)}
+                                     className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-contain retro-border cursor-pointer hover:brightness-95 transition-all`}
+                                   />
+                                 </div>
+                                 {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
+                                 {renderMediaToolbar(msg, isMe)}
+                               </div>
+                             )}
+                             {msg.type === 'image_group' && (
+                               <div className="flex flex-col gap-2">
+                                 <div className={`grid ${msg.urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'} gap-1 w-full max-w-xs`}>
+                                   {msg.urls.map((u, i) => (
+                                     <div key={i} className={`relative ${u.toLowerCase().endsWith('.png') || u.toLowerCase().includes('.png') ? 'bg-transparent-checkerboard' : 'bg-black/5'} rounded-md overflow-hidden`}>
+                                       <SecureImage
+                                         url={u}
+                                         onClick={() => openViewer(u, msg.id)}
+                                         className="aspect-square object-contain retro-border cursor-pointer hover:scale-[1.02] transition-transform"
+                                       />
+                                     </div>
+                                   ))}
+                                 </div>
+                                 {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
+                                 {renderMediaToolbar(msg, isMe)}
+                               </div>
+                             )}
                           </>
                         )}
 
