@@ -10,6 +10,7 @@
 
   --bg-main: #f9e2cf;
   --bg-pattern: #b48e6c;
+  --bg-pattern-opacity: 0.22;
   --bg-window: #fffdf9;
   --bg-header: #f9e2af;
   --border: #5c3a21;
@@ -69,6 +70,7 @@
 [data-theme="midnight"] {
   --bg-main: #0f172a;
   --bg-pattern: #334155;
+  --bg-pattern-opacity: 0.35;
   --bg-window: #0b0f19;
   --bg-header: var(--border);
   --border: #94a3b8;
@@ -96,7 +98,8 @@
 
 [data-theme="cyberpunk"] {
   --bg-main: #050505;
-  --bg-pattern: #333333;
+  --bg-pattern: #2c2c2c;
+  --bg-pattern-opacity: 0.40;
   --bg-window: #000000;
   --bg-header: var(--border);
   --border: #fcee0a;
@@ -180,7 +183,8 @@
 
 [data-theme="monochrome"] {
   --bg-main: #000000;
-  --bg-pattern: #1a1a1a;
+  --bg-pattern: #222222;
+  --bg-pattern-opacity: 0.45;
   --bg-window: #000000;
   --bg-header: #ffffff;
   --border: #ffffff;
@@ -739,7 +743,8 @@
 
 [data-theme="batman"] {
   --bg-main: #121212;
-  --bg-pattern: #1e1e1e;
+  --bg-pattern: #2c2c2c;
+  --bg-pattern-opacity: 0.40;
   --bg-window: #1e1e1e;
   --bg-header: #333333;
   --border: #f9a826;
@@ -767,7 +772,8 @@
 
 [data-theme="neon-tokyo"] {
   --bg-main: #0a0a0f;
-  --bg-pattern: #16161f;
+  --bg-pattern: #2c2c35;
+  --bg-pattern-opacity: 0.35;
   --bg-window: #0a0a0f;
   --bg-header: #ff00ff;
   --border: #00ffff;

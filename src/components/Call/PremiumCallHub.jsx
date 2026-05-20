@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PhoneOff, MicOff, Mic, Volume2, VolumeX,
          Maximize2, Minimize2, VideoOff, Camera, Monitor, MonitorOff,
          Phone, Video, WifiOff, Settings, Loader, MessageSquare,
-         RefreshCw, ChevronDown, Smile, Hand, Zap, ExternalLink } from 'lucide-react';
+         RefreshCw, ChevronDown, Smile, Hand, Zap, ExternalLink,
+         Grid2X2, Sidebar } from 'lucide-react';
 import { playAudio } from '../../utils/audio.js';
 import { useVoiceActivity } from '../../hooks/useVoiceActivity.js';
 import { useMobile } from '../../hooks/useMobile.js';
@@ -176,6 +177,52 @@ function DeviceSelector({ onChangeDevice, onClose }) {
   );
 }
 
+// ── Stream Tile ───────────────────────────────────────────────────────────────
+function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, mirrored, muted, onClick, isActive, className = '' }) {
+  const videoRef = useRef(null);
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v && stream) {
+      v.srcObject = stream;
+      v.play().catch(() => {});
+    }
+  }, [stream]);
+  const hasVideo = stream && stream.getVideoTracks().some(t => t.enabled && t.readyState === 'live');
+  return (
+    <div
+      onClick={onClick}
+      className={`relative overflow-hidden bg-black flex items-center justify-center select-none transition-all duration-300 ${
+        isActive ? 'ring-2 ring-primary' : ''
+      } ${isSpeaking ? 'shadow-[0_0_20px_rgba(34,197,94,0.5)] ring-2 ring-green-500' : ''} ${className}`}
+    >
+      {hasVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={muted}
+          className={`w-full h-full object-cover ${mirrored ? 'scale-x-[-1]' : ''}`}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-black/60">
+          {avatarSrc
+            ? <img src={avatarSrc} className="w-16 h-16 retro-border object-cover opacity-70" onError={e => e.target.style.display='none'} alt="" />
+            : <div className="w-16 h-16 bg-border/20 retro-border flex items-center justify-center"><VideoOff size={28} className="text-white/30" /></div>
+          }
+        </div>
+      )}
+      {/* Label */}
+      <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-1.5 border border-white/10">
+        {label}
+        {isSpeaking && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e] animate-pulse" />}
+      </div>
+      {tileMuted && (
+        <div className="absolute top-2 right-2 bg-red-600/90 p-1 retro-border z-10"><MicOff size={10} className="text-white" /></div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export function PremiumCallHub({
   calling, callDuration, callStatus, callQuality = 'good',
@@ -185,7 +232,8 @@ export function PremiumCallHub({
   onRestartIce, onChangeDevice,
   partnerName, partnerPfp, sfx, remoteStream, localStream, isRinging, type,
   isPartnerTyping, isPartnerCameraOff,
-  onReaction, onRaiseHand
+  onReaction, onRaiseHand,
+  localScreenStream, isPartnerScreenSharing,
 }) {
   const remoteVideoRef = useRef(null);
 
@@ -199,19 +247,20 @@ export function PremiumCallHub({
   const [pos,  setPos]  = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     if (window.innerWidth <= 768) return { x: 0, y: 0 };
-    const defaultW = 800;
-    const defaultH = 500;
+    const defaultW = 850;
+    const defaultH = 530;
     return { 
       x: Math.max(0, (window.innerWidth - defaultW) / 2), 
       y: Math.max(0, (window.innerHeight - defaultH) / 2) 
     };
   });
   const [size, setSize] = useState(() => {
-    if (typeof window === 'undefined') return { w: 800, h: 500 };
+    if (typeof window === 'undefined') return { w: 850, h: 530 };
     if (window.innerWidth <= 768) return { w: window.innerWidth, h: window.innerHeight };
-    return { w: 800, h: 500 };
+    return { w: 850, h: 530 };
   });
-  const [isSwapped, setIsSwapped] = useState(false);
+  const [layoutMode, setLayoutMode] = useState('focused'); // 'grid' | 'focused'
+  const [focusedStream, setFocusedStream] = useState('remote'); // 'remote' | 'local-cam' | 'local-screen'
   const [isMinimized, setIsMinimized] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [isCameraChanging, setIsCameraChanging] = useState(false);
@@ -220,8 +269,8 @@ export function PremiumCallHub({
   const [reactions, setReactions] = useState([]);
 
   // Voice Activity Detection
-  const { isSpeaking: mySpeaking, volume: myVolume } = useVoiceActivity(localStream);
-  const { isSpeaking: partnerSpeaking, volume: partnerVolume } = useVoiceActivity(remoteStream);
+  const { isSpeaking: mySpeaking } = useVoiceActivity(localStream);
+  const { isSpeaking: partnerSpeaking } = useVoiceActivity(remoteStream);
 
   // Listen for signals via custom events from CallContext
   useEffect(() => {
@@ -314,6 +363,19 @@ export function PremiumCallHub({
     onCameraToggle?.();
     setTimeout(() => setIsCameraChanging(false), 1200);
   };
+
+  // Build active stream list
+  const activeStreams = [
+    { id: 'remote',       stream: remoteStream,       label: isPartnerScreenSharing ? `${partnerName.split(' ')[0]} (Screen)` : partnerName.split(' ')[0], isSpeaking: partnerSpeaking, muted: false, avatarSrc: partnerPfp },
+    ...(!isCameraOff && localStream ? [{ id: 'local-cam', stream: localStream, label: 'You (Camera)', isSpeaking: mySpeaking, muted: true, avatarSrc: null, mirrored: true }] : []),
+    ...(localScreenStream ? [{ id: 'local-screen', stream: localScreenStream, label: 'You (Screen)', isSpeaking: false, muted: true, avatarSrc: null }] : []),
+  ];
+
+  // Auto-focus remote on mount; keep focused valid
+  useEffect(() => {
+    const ids = activeStreams.map(s => s.id);
+    if (!ids.includes(focusedStream)) setFocusedStream(ids[0] || 'remote');
+  }, [activeStreams.length]);
 
   // Pointer move
   const onPointerMove = useCallback((e) => {
@@ -499,95 +561,69 @@ export function PremiumCallHub({
           </div>
         ) : (
           <>
-            {(remoteStream && !isPartnerCameraOff && !isSwapped) || (isSwapped && localStream && (!isCameraOff || isScreenSharing))
-              ? (
-                <video 
-                  ref={isSwapped ? localVideoCallbackRef : remoteVideoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted={isSwapped}
-                  className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${((!isSwapped && partnerSpeaking) || (isSwapped && mySpeaking)) ? 'brightness-[1.15] contrast-[1.05]' : ''} ${isSwapped && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
-                />
-              ) : (
-                <div className="flex flex-row items-center justify-center gap-8 sm:gap-16 z-10 animate-in fade-in duration-500 w-full h-full px-8">
-                  {/* Partner Avatar */}
-                  <div className="flex flex-col items-center gap-6">
-                    <div className={`relative w-32 h-32 sm:w-48 sm:h-48 retro-border overflow-hidden bg-border/20 transition-all duration-500 ${partnerSpeaking ? 'scale-105 shadow-[0_0_50px_rgba(34,197,94,0.5)] border-green-400' : ''}`}>
-                      <img src={partnerPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
-                      <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
-                      {partnerSpeaking && (
-                        <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
-                      )}
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <p className="text-[16px] font-black text-white uppercase tracking-[0.4em] mb-2 flex items-center gap-3">
-                        {partnerName}
-                        {partnerSpeaking && <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_12px_#22c55e] animate-pulse" />}
-                      </p>
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                        {type === 'video' && isPartnerCameraOff ? <><VideoOff size={11}/> Camera Off</> : <><Volume2 size={11}/> Voice Connected</>}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* VS / Separator */}
-                  <div className="hidden md:flex flex-col items-center opacity-20">
-                    <div className="w-px h-24 bg-gradient-to-b from-transparent via-white to-transparent" />
-                    <span className="text-[10px] font-black text-white py-4 tracking-widest">VS</span>
-                    <div className="w-px h-24 bg-gradient-to-b from-transparent via-white to-transparent" />
-                  </div>
-
-                  {/* My Avatar */}
-                  <div className="flex flex-col items-center gap-6">
-                    <div className={`relative w-32 h-32 sm:w-48 sm:h-48 retro-border overflow-hidden bg-border/20 transition-all duration-500 ${mySpeaking ? 'scale-105 shadow-[0_0_50px_rgba(34,197,94,0.5)] border-green-400' : ''}`}>
-                      <img src={myPfp} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} alt=""/>
-                      <div className="absolute inset-0 bg-secondary/10 mix-blend-overlay"></div>
-                      {mySpeaking && (
-                        <div className="absolute inset-0 border-4 border-green-500/50 animate-pulse rounded-none" />
-                      )}
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <p className="text-[16px] font-black text-white uppercase tracking-[0.4em] mb-2 flex items-center gap-3">
-                        You
-                        {mySpeaking && <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_12px_#22c55e] animate-pulse" />}
-                      </p>
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                        {isMuted ? <><MicOff size={11}/> Muted</> : <><Mic size={11}/> Mic On</>}
-                      </p>
-                    </div>
-                  </div>
+            {/* ─ GRID MODE ─ */}
+            {layoutMode === 'grid' ? (
+              <div className={`w-full h-full grid gap-1 p-1 ${
+                activeStreams.length === 1 ? 'grid-cols-1' :
+                activeStreams.length === 2 ? 'grid-cols-2' : 'grid-cols-2 grid-rows-2'
+              }`}>
+                {activeStreams.map(s => (
+                  <StreamTile
+                    key={s.id}
+                    stream={s.stream}
+                    label={s.label}
+                    isSpeaking={s.isSpeaking}
+                    isMuted={s.id === 'local-cam' && isMuted}
+                    avatarSrc={s.avatarSrc}
+                    mirrored={s.mirrored}
+                    muted={s.muted}
+                    onClick={() => setFocusedStream(s.id)}
+                    className="w-full h-full"
+                  />
+                ))}
+              </div>
+            ) : (
+              /* ─ FOCUSED MODE ─ */
+              <div className="w-full h-full flex flex-col">
+                {/* Main focused stream */}
+                <div className="flex-1 min-h-0">
+                  {(() => {
+                    const focused = activeStreams.find(s => s.id === focusedStream) || activeStreams[0];
+                    if (!focused) return null;
+                    return (
+                      <StreamTile
+                        stream={focused.stream}
+                        label={focused.label}
+                        isSpeaking={focused.isSpeaking}
+                        isMuted={focused.id === 'local-cam' && isMuted}
+                        avatarSrc={focused.avatarSrc}
+                        mirrored={focused.mirrored}
+                        muted={focused.muted}
+                        className="w-full h-full"
+                      />
+                    );
+                  })()}
                 </div>
-              )
-            }
-
-            {localStream && (
-              <div 
-                onClick={() => setIsSwapped(!isSwapped)}
-                className={`absolute ${isMobile ? 'top-4 right-4 w-24' : 'bottom-16 right-4 w-32 sm:w-56'} aspect-video bg-black/90 retro-border overflow-hidden z-20 shadow-2xl cursor-pointer hover:scale-[1.05] hover:brightness-110 active:scale-95 transition-all duration-300 ${((!isSwapped && mySpeaking) || (isSwapped && partnerSpeaking)) ? 'border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.4)]' : 'hover:border-primary/50'}`}
-              >
-                {(!isSwapped ? (!isCameraOff || isScreenSharing) : (remoteStream && !isPartnerCameraOff)) ? (
-                   <video 
-                    ref={!isSwapped ? localVideoCallbackRef : remoteVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted={!isSwapped}
-                    className={`w-full h-full object-cover transition-all duration-300 ${(!isSwapped && !isScreenSharing) ? 'scale-x-[-1]' : ''} ${((!isSwapped && mySpeaking) || (isSwapped && partnerSpeaking)) ? 'brightness-[1.1]' : ''}`}
-                   />
-                ) : (
-                   <div className="w-full h-full flex items-center justify-center bg-window/20 relative overflow-hidden">
-                      <img src={!isSwapped ? myPfp : partnerPfp} className="w-14 h-14 retro-border object-cover opacity-60" onError={e => e.target.style.display='none'} alt=""/>
-                      <div className="absolute bottom-2 right-2 bg-black/60 px-2 py-0.5 text-[8px] text-white font-black uppercase tracking-widest border border-white/10">
-                        {!isSwapped ? (isMuted ? 'Muted' : 'You') : partnerName.split(' ')[0]}
-                      </div>
-                   </div>
+                {/* Thumbnail strip for other streams */}
+                {activeStreams.length > 1 && (
+                  <div className="shrink-0 flex gap-1 p-1 bg-black/50 overflow-x-auto">
+                    {activeStreams.filter(s => s.id !== focusedStream).map(s => (
+                      <StreamTile
+                        key={s.id}
+                        stream={s.stream}
+                        label={s.label}
+                        isSpeaking={s.isSpeaking}
+                        isMuted={s.id === 'local-cam' && isMuted}
+                        avatarSrc={s.avatarSrc}
+                        mirrored={s.mirrored}
+                        muted={s.muted}
+                        onClick={() => setFocusedStream(s.id)}
+                        isActive={focusedStream === s.id}
+                        className="w-32 h-20 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/60 transition-all"
+                      />
+                    ))}
+                  </div>
                 )}
-                <div className="absolute top-2 left-2 bg-black/90 px-2 py-1 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-2 border border-white/10">
-                  {isSwapped ? partnerName.split(' ')[0] : (isScreenSharing ? 'Screen' : 'You')}
-                  {((!isSwapped && mySpeaking) || (isSwapped && partnerSpeaking)) && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse" />}
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/20 transition-opacity">
-                  <RefreshCw size={24} className="text-white/50" />
-                </div>
               </div>
             )}
 
@@ -617,8 +653,8 @@ export function PremiumCallHub({
             )}
           </>
         )}
-
         {/* Hover Controls (Retro Styled) */}
+
         <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 bg-window px-3 sm:px-4 py-2 sm:py-3 retro-border-thick transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)] ${isMobile ? 'opacity-100 w-[95%] justify-center flex-wrap' : 'opacity-0 group-hover:opacity-100'}`}>
           <button onClick={onMicToggle} 
                   className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Mute (Shift+M)">
@@ -640,6 +676,12 @@ export function PremiumCallHub({
             <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
                     className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Screen Share (Shift+S)">
               {isScreenSharing ? <MonitorOff size={14} className="sm:size-5"/> : <Monitor size={14} className="sm:size-5"/>}
+            </button>
+            {/* Layout toggle */}
+            <button onClick={() => setLayoutMode(m => m === 'grid' ? 'focused' : 'grid')}
+                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${layoutMode === 'grid' ? 'bg-accent text-accent-text' : 'bg-window hover:bg-accent hover:text-accent-text'}`}
+                    title={layoutMode === 'grid' ? 'Switch to Focused View' : 'Switch to Grid View'}>
+              {layoutMode === 'grid' ? <Sidebar size={14} className="sm:size-5"/> : <Grid2X2 size={14} className="sm:size-5"/>}
             </button>
           </DesktopOnly>
           

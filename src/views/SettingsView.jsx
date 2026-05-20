@@ -249,7 +249,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
            <div>
               <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2"><Sun size={12}/> Atmosphere</h4>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {['clear', 'rain', 'snow', 'thunder', 'storm', 'spores'].map(w => (
+                {['clear', 'rain', 'snow', 'thunder', 'storm'].map(w => (
                   <RetroButton key={w} onClick={() => { setLocalWeather(w); playAudio('click', localSfxEnabled); }} variant={localWeather === w ? 'primary' : 'white'} className="py-1.5 text-[9px] uppercase">{w}</RetroButton>
                 ))}
               </div>

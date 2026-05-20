@@ -62,6 +62,7 @@ export function CallProvider({ children }) {
   const [isDeafened,    setIsDeafened]    = useState(false);
   const [isCameraOff,   setIsCameraOff]   = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [localScreenStream, setLocalScreenStream] = useState(null);
   const [isPartnerScreenSharing, setIsPartnerScreenSharing] = useState(false);
   const [noiseSuppression, setNoiseSuppression] = useState(() => localStorage.getItem('call_noise_suppression') !== 'false');
   const [echoCancellation, setEchoCancellation] = useState(() => localStorage.getItem('call_echo_cancellation') !== 'false');
@@ -143,7 +144,7 @@ export function CallProvider({ children }) {
     isCallerRef.current = false;
 
     setCalling(null); setIsRinging(false); setIncomingCall(null);
-    setRemoteStream(null); setLocalStream(null); setCallDuration(0);
+    setRemoteStream(null); setLocalStream(null); setLocalScreenStream(null); setCallDuration(0);
     setIsMuted(false); setIsCameraOff(false); setIsScreenSharing(false);
     setIsPartnerCameraOff(false); setIsPartnerScreenSharing(false);
     setCallStatus('idle'); setCallQuality('good');
@@ -744,6 +745,7 @@ const createPC = useCallback(async (type) => {
       const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
       if (sender) sender.replaceTrack(st); else pcRef.current?.addTrack(st, localStreamRef.current);
       setIsScreenSharing(true);
+      setLocalScreenStream(ss);
       sendSignal({ action: 'screen_share_toggle', active: true });
       setCalling('video');
       callTypeRef.current = 'video';
@@ -754,6 +756,7 @@ const createPC = useCallback(async (type) => {
   const stopScreenShare = useCallback(async () => {
     if (screenTrackRef.current) { screenTrackRef.current.stop(); screenTrackRef.current = null; }
     setIsScreenSharing(false);
+    setLocalScreenStream(null);
     sendSignal({ action: 'screen_share_toggle', active: false });
     try {
       const vs = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -825,12 +828,13 @@ const createPC = useCallback(async (type) => {
 
   const value = {
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
-    remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
+    remoteStream, localStream, localScreenStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
     partnerInCall, isPartnerCameraOff,
     startCall,    acceptCall, declineCall, endCall, toggleMic, toggleDeafen, toggleCamera,
     startScreenShare, stopScreenShare, restartIce, changeDevice, testTurnConfig,
     sendReaction, toggleRaiseHand,
-    isPartnerScreenSharing
+    isPartnerScreenSharing,
+    noiseSuppression, setNoiseSuppression, echoCancellation, setEchoCancellation,
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;

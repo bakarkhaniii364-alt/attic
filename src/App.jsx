@@ -89,6 +89,7 @@ export default function App() {
     startScreenShare, stopScreenShare,
     restartIce, changeDevice, isPartnerCameraOff,
     sendReaction, toggleRaiseHand,
+    localScreenStream, isPartnerScreenSharing,
   } = useCall();
 
   // Typing indicator for the call HUD
@@ -235,16 +236,16 @@ export default function App() {
     }
   }, [remoteStream, isDeafened]);
 
-  const isOnboarding = ['/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
+  const isOnboarding = ['/', '/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
   return (
     <>
       {!bootFinished && <BootLoader onComplete={() => setBootFinished(true)} sfxEnabled={sfxEnabled} />}
       
       <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-0 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-        <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} opacity-10 pointer-events-none`} />
-        <LivingBackground weather={weather} />
-        <WeatherOverlay weather={weather} />
+        <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} pointer-events-none`} style={{ opacity: 'var(--bg-pattern-opacity, 0.22)' }} />
+        {!isOnboarding && <LivingBackground weather={weather} />}
+        {!isOnboarding && <WeatherOverlay weather={weather} />}
         <Confetti active={confetti} />
 
         {hasInitialized && (
@@ -258,10 +259,10 @@ export default function App() {
               gameInvite={gameInvite} setGameInvite={setGameInvite} 
               watchpartyInvite={watchpartyInvite} setWatchpartyInvite={setWatchpartyInvite} 
               textNotifications={textNotifications} setTextNotifications={setTextNotifications} 
-              partnerName={partnerName} partnerId={partnerId} roomProfiles={roomProfiles} 
-              sfxEnabled={sfxEnabled} navigate={navigateTo} toast={toast} 
-              lobbyState={globalState?.arcade_lobby} userId={userId} roomId={roomId} 
-              updateSyncState={updateSyncState} 
+              userId={userId} roomId={roomId} isCalling={!!calling}
+              onGoChat={() => navigateTo('chat')}
+              onGoDashboard={() => navigateTo('dashboard')}
+              onGoArcade={() => navigateTo('activities')}
               onReadLater={handleReadLater}
               onMarkSeen={handleMarkSeen}
             />
@@ -277,6 +278,7 @@ export default function App() {
               isPartnerTyping={isPartnerTyping} isPartnerCameraOff={isPartnerCameraOff}
               sfxEnabled={sfxEnabled} remoteStream={remoteStream} localStream={localStream}
               onReaction={sendReaction} onRaiseHand={toggleRaiseHand}
+              localScreenStream={localScreenStream} isPartnerScreenSharing={isPartnerScreenSharing}
             />
 
             <KeyboardShortcuts

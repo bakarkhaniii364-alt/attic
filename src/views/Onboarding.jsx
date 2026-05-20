@@ -9,60 +9,175 @@ import { useAuth } from '../context/instances.js';
 import { LegalView } from './LegalView.jsx';
 
 /* ═══════════════════════════════════════════════════════
-   LANDING PAGE — cute & animated with floating elements
+   LANDING PAGE — desktop workspace preview
    ═══════════════════════════════════════════════════════ */
+
+const PREVIEW_THEMES = [
+  { id: 'default',    label: 'Default'    },
+  { id: 'matcha',     label: 'Matcha'     },
+  { id: 'midnight',   label: 'Midnight'   },
+  { id: 'vaporwave',  label: 'Vaporwave'  },
+  { id: 'nord',       label: 'Nord'       },
+  { id: 'cyberpunk',  label: 'Cyberpunk'  },
+  { id: 'rose',       label: 'Rose'       },
+  { id: 'batman',     label: 'Batman'     },
+];
+
 export function LandingView() {
   const navigate = useNavigate();
+  const [previewTheme, setPreviewTheme] = useState('matcha');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', previewTheme);
+  }, [previewTheme]);
+
   const onTryAttic = () => navigate('/signin');
-  const onSignIn = () => navigate('/signup');
+  const onSignIn  = () => navigate('/signup');
+
   return (
     <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden text-main-text selection:bg-primary selection:text-white">
 
-      <nav className="relative z-10 flex items-center justify-between px-5 py-3 sm:px-10 sm:py-4 shrink-0">
-        <span className="font-bold text-[10px] tracking-widest uppercase text-main-text opacity-30 select-none">●●●</span>
-        <span className="font-bold text-[10px] tracking-widest uppercase text-main-text opacity-30 select-none">attic</span>
+      {/* ── Topbar ── */}
+      <nav className="relative z-20 flex items-center justify-between px-5 py-2.5 sm:px-8 sm:py-3 shrink-0 border-b-2 border-border/30" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+        <span className="font-black text-[11px] tracking-widest uppercase opacity-80 select-none">attic</span>
+        <div className="flex gap-2">
+          <RetroButton variant="white" onClick={onTryAttic} className="py-1.5 px-4 text-[10px]">Sign In</RetroButton>
+          <RetroButton onClick={onSignIn} className="py-1.5 px-4 text-[10px]">Get Started</RetroButton>
+        </div>
       </nav>
 
-      {/* HERO SECTION — fills remaining height */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 text-center min-h-0">
+      {/* ── Desktop Workspace ── */}
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col lg:flex-row items-center justify-center gap-6 px-4 sm:px-8 py-6 overflow-hidden">
+
+        {/* Floating ambiance */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[10%] left-[5%] text-primary opacity-[0.08] animate-float"><Heart size={70} fill="currentColor" /></div>
-          <div className="absolute top-[60%] right-[8%] text-primary opacity-[0.06] animate-float-delayed"><Heart size={45} fill="currentColor" /></div>
-          <div className="absolute bottom-[15%] left-[45%] text-primary opacity-[0.04] animate-float"><Heart size={35} fill="currentColor" /></div>
-          <div className="absolute top-[25%] right-[15%] text-secondary opacity-[0.1] animate-float-delayed"><Mail size={56} /></div>
-          <div className="absolute bottom-[25%] left-[12%] text-secondary opacity-[0.07] animate-float"><Mail size={44} /></div>
-          <div className="absolute bottom-[35%] right-[22%] text-primary opacity-[0.12] animate-float-delayed"><Send size={48} /></div>
-          <div className="absolute top-[30%] left-[15%] text-primary opacity-[0.08] animate-float"><Send size={38} className="rotate-[-15deg]" /></div>
-          <div className="absolute bottom-[10%] right-[35%] text-accent opacity-[0.06] animate-float"><Grid3X3 size={60} /></div>
-          <div className="absolute top-[55%] left-[8%] text-secondary opacity-[0.05] animate-float"><Sparkle size={40} /></div>
+          <div className="absolute top-[8%] left-[3%] text-primary opacity-[0.07] animate-float"><Heart size={60} fill="currentColor" /></div>
+          <div className="absolute top-[65%] right-[4%] text-primary opacity-[0.05] animate-float-delayed"><Heart size={40} fill="currentColor" /></div>
+          <div className="absolute bottom-[12%] left-[40%] text-primary opacity-[0.04] animate-float"><Heart size={30} fill="currentColor" /></div>
         </div>
 
-        <div className="relative mb-3 sm:mb-5 transform-gpu hover:scale-105 transition-transform duration-500 flex items-center justify-center">
-          <div className="absolute -inset-10 bg-primary/10 blur-[60px] rounded-full animate-pulse" />
-          <img src="/assets/attic.svg" alt="Attic Logo" className="w-[16rem] sm:w-[24rem] md:w-[28rem] relative z-10 drop-shadow-[0_20px_50px_rgba(233,69,96,0.3)] animate-float" />
-        </div>
-
-        <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6 z-10">
-          <p className="text-xs sm:text-base font-mono text-muted-text max-w-sm mx-auto leading-relaxed">
-            A corner of the internet, <br/> <span className="text-primary font-bold">just for two</span>
+        {/* ── Left: Logotype + CTA ── */}
+        <div className="relative z-10 flex flex-col items-center lg:items-start gap-6 shrink-0 max-w-xs w-full text-center lg:text-left">
+          <div className="relative flex items-center justify-center lg:justify-start">
+            <div className="absolute -inset-8 bg-primary/10 blur-[50px] rounded-full animate-pulse pointer-events-none" />
+            <img src="/assets/attic.svg" alt="Attic Logo" className="w-48 sm:w-56 relative z-10 drop-shadow-[0_10px_40px_rgba(233,69,96,0.25)] animate-float" />
+          </div>
+          <p className="text-[12px] font-mono leading-relaxed opacity-70">
+            A corner of the internet,<br/><span className="text-primary font-bold opacity-100">just for two.</span>
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-            <RetroButton onClick={onTryAttic} className="w-52 py-3 text-base sm:text-lg relative overflow-hidden group shadow-[4px_4px_0_var(--border)]">
-              <span className="relative z-10 font-bold">enter attic</span>
-            </RetroButton>
-            <RetroButton variant="white" onClick={onSignIn} className="w-52 py-3 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-[4px_4px_0_var(--border)]">
-              <span className="font-bold">start new journey</span>
-            </RetroButton>
+          <div className="flex flex-col gap-2.5 w-full">
+            <RetroButton onClick={onTryAttic} className="py-3 text-sm w-full shadow-[4px_4px_0_var(--border)]">enter attic</RetroButton>
+            <RetroButton variant="white" onClick={onSignIn} className="py-3 text-sm w-full shadow-[4px_4px_0_var(--border)] opacity-80 hover:opacity-100">start new journey</RetroButton>
+          </div>
+        </div>
+
+        {/* ── Right: Workspace windows ── */}
+        <div className="relative z-10 flex-1 min-w-0 w-full hidden md:flex flex-col gap-3 max-w-2xl">
+
+          {/* Top row: Chat + Scrapbook */}
+          <div className="flex gap-3 items-start">
+            {/* Chat mockup */}
+            <div className="flex-1 glass-window retro-border-thick retro-shadow-dark flex flex-col min-w-0" style={{ boxShadow: '4px 4px 0 var(--border)' }}>
+              <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center px-2.5 py-1.5 flex-shrink-0" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-[3px] w-4"><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/></div>
+                  <span className="text-[10px] font-black">chat.exe</span>
+                  <div className="flex-1 h-px bg-current opacity-30 ml-1 w-12" />
+                </div>
+                <div className="w-3.5 h-3.5 bg-red-500 retro-border flex items-center justify-center"><span className="text-[6px] text-white font-black leading-none">✕</span></div>
+              </div>
+              <div className="bg-window p-3 flex flex-col gap-2 text-main-text">
+                <div className="flex gap-2 items-end justify-start">
+                  <div className="w-6 h-6 retro-border bg-secondary/20 shrink-0 flex items-center justify-center text-[10px]">🐱</div>
+                  <div className="bg-secondary/10 retro-border px-2.5 py-1.5 max-w-[70%]"><p className="text-[10px] font-bold">thinking of you 🌸</p></div>
+                </div>
+                <div className="flex gap-2 items-end justify-end">
+                  <div className="bg-primary/15 retro-border px-2.5 py-1.5 max-w-[70%]"><p className="text-[10px] font-bold text-primary">always ❤️</p></div>
+                  <div className="w-6 h-6 retro-border bg-primary/20 shrink-0 flex items-center justify-center text-[10px]">🌙</div>
+                </div>
+                <div className="flex gap-2 items-end justify-start">
+                  <div className="w-6 h-6 retro-border bg-secondary/20 shrink-0 flex items-center justify-center text-[10px]">🐱</div>
+                  <div className="bg-secondary/10 retro-border px-2.5 py-1.5 max-w-[70%]"><p className="text-[10px] font-bold">can't wait to see you 🏠</p></div>
+                </div>
+                <div className="flex items-center gap-2 mt-1 border-t border-border pt-2">
+                  <div className="flex-1 retro-border bg-secondary/5 px-2 py-1 text-[9px] opacity-40">send a message...</div>
+                  <div className="retro-border bg-primary px-2 py-1 text-[9px] font-black text-white">↑</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrapbook mockup */}
+            <div className="w-44 glass-window retro-border-thick flex flex-col shrink-0" style={{ boxShadow: '4px 4px 0 var(--border)' }}>
+              <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center px-2.5 py-1.5" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex flex-col gap-[3px] w-4"><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/></div>
+                  <span className="text-[10px] font-black">scrapbook</span>
+                </div>
+              </div>
+              <div className="bg-window p-2 grid grid-cols-2 gap-1.5">
+                {['🌸','🌙','☀️','🎸','🌿','🍵'].map((emoji, i) => (
+                  <div key={i} className="retro-border bg-border/10 aspect-square flex items-center justify-center text-xl hover:scale-105 transition-transform cursor-pointer">{emoji}</div>
+                ))}
+                <div className="col-span-2 retro-border border-dashed bg-transparent flex items-center justify-center py-2 opacity-30 text-[9px] font-black uppercase">+ add memory</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom row: Lists + Theme Switcher */}
+          <div className="flex gap-3 items-start">
+            {/* Lists mockup */}
+            <div className="flex-1 glass-window retro-border-thick flex flex-col min-w-0" style={{ boxShadow: '4px 4px 0 var(--border)' }}>
+              <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex items-center px-2.5 py-1.5 gap-2" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+                <div className="flex flex-col gap-[3px] w-4"><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/></div>
+                <span className="text-[10px] font-black">our lists</span>
+              </div>
+              <div className="bg-window p-3 flex flex-col gap-1.5">
+                {[{t:'☕ morning coffee run', done: true},{t:'📦 move apartments', done: false},{t:'🎬 movie marathon', done: false},{t:'🌿 get a plant together', done: true}].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px]">
+                    <div className={`w-3.5 h-3.5 retro-border flex-shrink-0 flex items-center justify-center ${item.done ? 'bg-primary' : ''}`}>
+                      {item.done && <span className="text-white text-[8px] font-black leading-none">✓</span>}
+                    </div>
+                    <span className={item.done ? 'line-through opacity-40' : 'font-bold'}>{item.t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Theme switcher */}
+            <div className="w-44 glass-window retro-border-thick flex flex-col shrink-0" style={{ boxShadow: '4px 4px 0 var(--border)' }}>
+              <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex items-center px-2.5 py-1.5 gap-2" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+                <div className="flex flex-col gap-[3px] w-4"><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/><div className="h-[2px] bg-current opacity-50 w-full"/></div>
+                <span className="text-[10px] font-black">live theme</span>
+              </div>
+              <div className="bg-window p-2 flex flex-col gap-1">
+                {PREVIEW_THEMES.map(t => (
+                  <button
+                    key={t.id}
+                    data-theme={t.id}
+                    onClick={() => setPreviewTheme(t.id)}
+                    className={`text-left px-2 py-1 retro-border text-[9px] font-black uppercase tracking-widest transition-all hover:opacity-100 ${
+                      previewTheme === t.id ? 'opacity-100' : 'opacity-50 hover:opacity-80'
+                    }`}
+                    style={{
+                      backgroundColor: previewTheme === t.id ? 'var(--primary)' : 'var(--bg-window)',
+                      color: previewTheme === t.id ? 'var(--text-on-primary)' : 'var(--text-main)',
+                    }}
+                  >
+                    {previewTheme === t.id ? '▶ ' : '  '}{t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </main>
 
-      <footer className="relative z-10 py-3 text-center shrink-0">
-        <button 
+      <footer className="relative z-20 py-2.5 text-center shrink-0 border-t-2 border-border/20">
+        <button
           onClick={() => navigate('/legal')}
-          className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
+          className="text-[9px] font-black uppercase tracking-[0.2em] opacity-30 hover:opacity-80 transition-opacity"
         >
-          Terms & Conditions / Legal
+          Terms &amp; Conditions / Legal
         </button>
       </footer>
     </div>

@@ -9,6 +9,7 @@ export function CallOverlay({
   restartIce, changeDevice, isPartnerTyping, isPartnerCameraOff,
   sfxEnabled, remoteStream, localStream,
   onReaction, onRaiseHand,
+  localScreenStream, isPartnerScreenSharing,
 }) {
   // Hidden <audio> element to play remote audio stream (bypasses autoplay policy)
   const remoteAudioRef = useRef(null);
@@ -127,6 +128,7 @@ export function CallOverlay({
           partnerName={partnerName} partnerPfp={partnerProfile?.pfp} sfx={sfxEnabled}
           remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling}
           onReaction={onReaction} onRaiseHand={onRaiseHand}
+          localScreenStream={localScreenStream} isPartnerScreenSharing={isPartnerScreenSharing}
         />
       )}
     </>
