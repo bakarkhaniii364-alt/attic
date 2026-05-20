@@ -32,6 +32,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
   // Local Buffers for Save/Cancel logic
   const [localTheme, setLocalTheme] = useState(theme);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', localTheme);
+  }, [localTheme]);
+
   const [localProfile, setLocalProfile] = useState(profile || { name: 'You', emoji: '👤' });
   const [localCoupleData, setLocalCoupleData] = useState(coupleData);
   const [localSfxEnabled, setLocalSfxEnabled] = useState(sfxEnabled);
@@ -93,7 +97,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   const handleCancel = () => {
-    // Since we only updated local buffers, we just close
+    document.documentElement.setAttribute('data-theme', initialTheme.current);
     onClose();
   };
 
@@ -263,10 +267,9 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                       ${localTheme === t ? 'ring-2 ring-primary border-primary scale-[1.02] shadow-xl' : 'hover:scale-[1.01] hover:border-primary/30'}`}
                     style={{ backgroundColor: 'var(--bg-main)' }}
                   >
-                     {/* Selection Shimmer Effect */}
+                     {/* Selection Tint Overlay */}
                      {localTheme === t && (
-                       <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-primary/0 via-primary/10 to-primary/0 animate-shimmer" 
-                            style={{ backgroundSize: '200% 100%' }} />
+                       <div className="absolute inset-0 pointer-events-none bg-primary/10" />
                      )}
 
                      <div className="flex justify-between items-center relative z-10">

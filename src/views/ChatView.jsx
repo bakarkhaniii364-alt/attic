@@ -262,11 +262,19 @@ export function ChatView({ onClose, sfx }) {
     }
   }, [chatHistory, partnerId, isNormalized, syncUpdateMessage]);
 
+  const lastMessageId = chatHistory[chatHistory.length - 1]?.id;
+
+  // Scroll to bottom on initial mount (entering the chat)
   useEffect(() => {
-    if (!activeOptions && searchQuery === '' && !viewerContext.isOpen) {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, []);
+
+  // Scroll to bottom when a new message is added or loaded
+  useEffect(() => {
+    if (lastMessageId) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [chatHistory, activeOptions, searchQuery, viewerContext.isOpen, showDetails]);
+  }, [lastMessageId]);
 
   // Handle click outside to close options
   useEffect(() => {
