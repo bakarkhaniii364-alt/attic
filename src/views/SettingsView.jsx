@@ -11,6 +11,7 @@ import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components
 import { compressImage } from '../utils/helpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
+import { requestNotificationPermission } from '../utils/notifications.js';
 
 export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData, streaks }) {
   const navigate = useNavigate();
@@ -332,7 +333,21 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  </div>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Push Notifications</span>
-                    <button onClick={() => setLocalNotificationsEnabled(!localNotificationsEnabled)} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors duration-200 focus:outline-none ${localNotificationsEnabled ? 'bg-primary' : 'bg-disabled'}`}>
+                    <button onClick={async () => {
+                       const nextState = !localNotificationsEnabled;
+                       if (nextState) {
+                         const granted = await requestNotificationPermission();
+                         if (granted) {
+                           setLocalNotificationsEnabled(true);
+                           toast('Notifications enabled!', 'success');
+                         } else {
+                           toast('Notification permission denied.', 'error');
+                           setLocalNotificationsEnabled(false);
+                         }
+                       } else {
+                         setLocalNotificationsEnabled(false);
+                       }
+                    }} className={`w-12 h-6 rounded-full border-2 border-border relative transition-colors duration-200 focus:outline-none ${localNotificationsEnabled ? 'bg-primary' : 'bg-disabled'}`}>
                        <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localNotificationsEnabled ? 'left-[26px]' : 'left-[2px]'}`} />
                      </button>
                  </div>

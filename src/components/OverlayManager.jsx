@@ -8,7 +8,7 @@ import { FloatingEnvelope } from './Modals/FloatingEnvelope.jsx';
 export function OverlayManager({ 
   showKiss, floatingDoodles, doodleQueue, setDoodleQueue, setFloatingDoodles, 
   activeDoodleView, closeDoodle, gameInvite, setGameInvite, watchpartyInvite, 
-  setWatchpartyInvite, textNotifications, setTextNotifications, partnerName, 
+  setWatchpartyInvite, partnerName, 
   partnerId, roomProfiles, sfxEnabled, navigate, toast, lobbyState, userId, roomId, updateSyncState,
   onReadLater, onMarkSeen
 }) {
@@ -33,17 +33,7 @@ export function OverlayManager({
         </div>
       )}
 
-      <div className="fixed top-24 right-4 z-[var(--z-notification)] flex flex-col gap-2 pointer-events-none">
-        {textNotifications.map(notif => (
-          <div key={notif.notifId} className="bg-window text-main-text retro-border retro-shadow-dark p-3 w-64 animate-in slide-in-from-right-10 fade-in duration-300 pointer-events-auto cursor-pointer" onClick={() => navigate('/chat')}>
-            <div className="flex justify-between items-start mb-1">
-              <span className="font-black text-[10px] uppercase text-primary flex items-center gap-1"><Bell size={10} /> Message from {partnerName}</span>
-              <button onClick={(e) => { e.stopPropagation(); setTextNotifications(p => p.filter(n => n.notifId !== notif.notifId)) }} className="opacity-50 hover:opacity-100"><X size={12}/></button>
-            </div>
-            <p className="text-xs truncate font-bold opacity-90">{notif.type === 'text' ? notif.text : `Sent a ${notif.type}`}</p>
-          </div>
-        ))}
-      </div>
+
 
       {gameInvite && (
         <GameInviteModal 

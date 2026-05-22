@@ -215,7 +215,6 @@ export default function App() {
     watchpartyInvite, setWatchpartyInvite,
     showKiss, setShowKiss,
     partnerOnlineModal,
-    textNotifications, setTextNotifications,
     handleReadLater, handleMarkSeen
   } = useAppLogic({
     user, userId, roomId, partnerId, partnerName,
@@ -258,7 +257,6 @@ export default function App() {
               activeDoodleView={activeDoodleView} closeDoodle={closeDoodle} 
               gameInvite={gameInvite} setGameInvite={setGameInvite} 
               watchpartyInvite={watchpartyInvite} setWatchpartyInvite={setWatchpartyInvite} 
-              textNotifications={textNotifications} setTextNotifications={setTextNotifications} 
               userId={userId} roomId={roomId} isCalling={!!calling}
               onGoChat={() => navigateTo('chat')}
               onGoDashboard={() => navigateTo('dashboard')}

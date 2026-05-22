@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { playAudio } from '../utils/audio.js';
+import { sendNativeNotification } from '../utils/notifications.js';
 
 export function useAppLogic({
   user,
@@ -25,7 +26,6 @@ export function useAppLogic({
   const [watchpartyInvite, setWatchpartyInvite] = useState(null);
   const [showKiss, setShowKiss] = useState(false);
   const [partnerOnlineModal, setPartnerOnlineModal] = useState(false);
-  const [textNotifications, setTextNotifications] = useState([]);
   
   const processedInvites = useRef(new Set());
   const prevPartnerOnline = useRef(false);
@@ -66,6 +66,7 @@ export function useAppLogic({
     if (isPartnerOnline && prevPartnerOnline.current === false && notificationsEnabled) {
       setPartnerOnlineModal(true);
       playAudio('notif', sfxEnabled);
+      sendNativeNotification(`${partnerName || 'Partner'} is online!`, { body: 'They just opened Attic.' });
       setTimeout(() => setPartnerOnlineModal(false), 4000);
     }
     prevPartnerOnline.current = isPartnerOnline;
@@ -83,7 +84,10 @@ export function useAppLogic({
       processedInvites.current.add(latestInvite.id);
       const gId = latestInvite.metadata?.gameId || latestInvite.gameId;
       setGameInvite({ ...latestInvite, gameId: gId, metadata: { ...(latestInvite.metadata || {}), gameId: gId } });
-      if (notificationsEnabled) playAudio('notif', sfxEnabled);
+      if (notificationsEnabled) {
+        playAudio('notif', sfxEnabled);
+        sendNativeNotification(`${partnerName || 'Partner'} sent a game invite!`, { body: `Join them for ${gId}` });
+      }
     }
   }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id, notificationsEnabled]);
 
@@ -107,9 +111,9 @@ export function useAppLogic({
     newMsgs.forEach(msg => {
       if (prevChatLength.current > 0 && msg.sender === partnerId && location.pathname !== '/chat' && notificationsEnabled) {
         playAudio('notif', sfxEnabled);
-        const id = Date.now() + Math.random();
-        setTextNotifications(prev => [...prev, { ...msg, notifId: id }]);
-        setTimeout(() => setTextNotifications(prev => prev.filter(n => n.notifId !== id)), 5000);
+        const msgText = msg.type === 'text' ? msg.text : `Sent a ${msg.type}`;
+        toast(`💬 ${partnerName}: ${msgText}`, 'info');
+        sendNativeNotification(`New message from ${partnerName || 'Partner'}`, { body: msgText });
       }
     });
     prevChatLength.current = chatHistory.length;
@@ -122,6 +126,7 @@ export function useAppLogic({
         setShowKiss(true);
         toast(`💋 ${partnerName} sent you a kiss!`, 'success');
         playAudio('notif', sfxEnabled);
+        if (notificationsEnabled) sendNativeNotification(`${partnerName} sent you a kiss! 💋`);
         setTimeout(() => setShowKiss(false), 4500);
       }
       if (event === 'doodle_alert' && payload.sender !== userId) {
@@ -133,6 +138,7 @@ export function useAppLogic({
         }]);
         toast(`🎨 ${partnerName} sent you a new doodle!`, 'info');
         playAudio('notif', sfxEnabled);
+        if (notificationsEnabled) sendNativeNotification(`${partnerName} sent you a doodle! 🎨`);
       }
       if (payload.action === 'invite' && payload.sender !== userId) {
         const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 30000);
@@ -140,6 +146,7 @@ export function useAppLogic({
            setGameInvite(payload);
            toast(`🎮 ${partnerName} invited you to play!`, 'actionable');
            playAudio('notif', sfxEnabled);
+           if (notificationsEnabled) sendNativeNotification(`${partnerName} invited you to play! 🎮`);
         }
       }
       if (event === 'lobby_closed' && payload.sender !== userId) {
@@ -149,6 +156,7 @@ export function useAppLogic({
       if (event === 'watchparty_invite' && payload.sender !== userId) {
         setWatchpartyInvite(payload);
         toast(`🍿 ${partnerName} started a watch party!`, 'actionable');
+        if (notificationsEnabled) sendNativeNotification(`${partnerName} started a watch party! 🍿`);
       }
       if (event === 'force_reset' && payload.sender !== userId) {
         toast(`🔄 ${partnerName} reset the room state. Synchronizing...`, 'warning');
@@ -162,7 +170,7 @@ export function useAppLogic({
     };
     window.addEventListener('sync_broadcast', handler);
     return () => window.removeEventListener('sync_broadcast', handler);
-  }, [partnerId, partnerName, sfxEnabled, location.pathname, toast, gameInvite, userId]);
+  }, [partnerId, partnerName, sfxEnabled, location.pathname, toast, gameInvite, userId, notificationsEnabled]);
 
   // Handle specialized call signals
   useEffect(() => {
@@ -205,8 +213,6 @@ export function useAppLogic({
     showKiss,
     setShowKiss,
     partnerOnlineModal,
-    textNotifications,
-    setTextNotifications,
     handleReadLater,
     handleMarkSeen
   };
