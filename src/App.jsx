@@ -221,7 +221,8 @@ export default function App() {
     isInitialized, sfxEnabled, toast, broadcast,
     updateSyncStateAtomic, navigate, location,
     chatHistory, onlineUsers, notificationsEnabled,
-    lobbyState: globalState?.arcade_lobby
+    lobbyState: globalState?.arcade_lobby,
+    syncSendMessage
   });
 
   const activeDoodleView = doodleQueue[0] || null;

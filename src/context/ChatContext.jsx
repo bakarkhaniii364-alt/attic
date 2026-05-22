@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { useAuth, useSync } from './instances.js';
@@ -57,6 +57,7 @@ export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const rawContentMapRef = useRef(new Map());
 
   useEffect(() => {
     if (!roomId) {
@@ -185,6 +186,10 @@ export function ChatProvider({ children }) {
     // Explicitly set clientId because mapMessage extracts it from metadata
     mappedOptimistic.clientId = clientId;
     
+    if (content instanceof Blob || content instanceof File) {
+      rawContentMapRef.current.set(clientId, content);
+    }
+    
     setMessages(prev => [...prev, mappedOptimistic]);
 
     if (isTestMode()) {
@@ -230,6 +235,9 @@ export function ChatProvider({ children }) {
 
       if (data && data.id) {
         const mapped = await mapMessage(data);
+        if (clientId) {
+          rawContentMapRef.current.delete(clientId);
+        }
         setMessages(prev => {
           // If real-time listener already replaced it, this might be redundant but safe
           if (!prev.some(m => String(m.id).startsWith('temp-') && m.clientId === clientId)) {
@@ -242,6 +250,9 @@ export function ChatProvider({ children }) {
           return next;
         });
       } else {
+        if (clientId) {
+          rawContentMapRef.current.delete(clientId);
+        }
         setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'sent' } : m));
       }
     } catch (err) {
@@ -297,7 +308,121 @@ export function ChatProvider({ children }) {
     }
   }, [roomId, hasMore, loading, messages]);
 
-  const value = { messages, sendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore };
+  const resetToLatest = useCallback(async () => {
+    if (!roomId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (data) {
+      const resolvedData = await Promise.all(data.map(row => mapMessage(row)));
+      const sortedData = resolvedData.reverse();
+      setMessages(sortedData);
+      setHasMore(data.length === 50);
+    }
+    setLoading(false);
+  }, [roomId]);
+
+  const searchMessages = useCallback(async (query, page = 0, limit = 20) => {
+    if (!roomId || !query) return { data: [], hasMore: false };
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .textSearch('content', query, { type: 'websearch', config: 'english' })
+      .order('created_at', { ascending: false })
+      .range(page * limit, (page + 1) * limit - 1);
+      
+    if (error) {
+      console.error('[CHAT] Search error:', error);
+      return { data: [], hasMore: false };
+    }
+    const resolvedData = await Promise.all(data.map(row => mapMessage(row)));
+    return { data: resolvedData, hasMore: data.length === limit };
+  }, [roomId]);
+
+  const jumpToMessage = useCallback(async (createdAt) => {
+    if (!roomId || !createdAt) return [];
+    setLoading(true);
+    
+    const { data: before } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .lte('created_at', createdAt)
+      .order('created_at', { ascending: false })
+      .limit(25);
+      
+    const { data: after } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .gt('created_at', createdAt)
+      .order('created_at', { ascending: true })
+      .limit(25);
+      
+    const combined = [...(before || []).reverse(), ...(after || [])];
+    const resolvedData = await Promise.all(combined.map(row => mapMessage(row)));
+    setMessages(resolvedData);
+    setHasMore((before || []).length === 25);
+    setLoading(false);
+    return resolvedData;
+  }, [roomId]);
+
+  const loadNewer = useCallback(async () => {
+    if (!roomId || loading) return;
+    const newestMsg = messages[messages.length - 1];
+    if (!newestMsg) return;
+    
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .gt('created_at', newestMsg.created_at)
+      .order('created_at', { ascending: true })
+      .limit(50);
+      
+    if (data && data.length > 0) {
+      const resolvedData = await Promise.all(data.map(row => mapMessage(row)));
+      setMessages(prev => [...prev, ...resolvedData]);
+    }
+  }, [roomId, loading, messages]);
+
+  const retrySendMessage = useCallback(async (msg) => {
+    if (!msg || !msg.id) return;
+    setMessages(prev => prev.filter(m => m.id !== msg.id));
+    const clientId = msg.clientId;
+    let originalContent = msg.content;
+    if (clientId && rawContentMapRef.current.has(clientId)) {
+      originalContent = rawContentMapRef.current.get(clientId);
+    }
+    const { status, client_id, ...meta } = msg.metadata || {};
+    const resendMetadata = {
+      ...meta,
+      replyTo: msg.replyTo,
+      duration: msg.duration,
+      fileName: msg.fileName,
+      fileSize: msg.fileSize,
+      gameId: msg.gameId,
+      gameTitle: msg.gameTitle,
+      callType: msg.callType
+    };
+    Object.keys(resendMetadata).forEach(key => {
+      if (resendMetadata[key] === undefined || resendMetadata[key] === null) {
+        delete resendMetadata[key];
+      }
+    });
+    await sendMessage(originalContent, msg.type, resendMetadata);
+    if (clientId) {
+      rawContentMapRef.current.delete(clientId);
+    }
+  }, [sendMessage]);
+
+  const value = { messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }

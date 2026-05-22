@@ -6,6 +6,7 @@ import {
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer } from '../components/UI.jsx';
+import { PocketWatchWinder } from '../components/PocketWatchWinder.jsx';
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
 import { useAssetSync } from '../hooks/useAssetSync.js';
@@ -137,7 +138,7 @@ export function ChatView({ onClose, sfx }) {
   const isMobile = useMobile();
   const { userId, partnerId, roomId } = useAuth();
   const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
-  const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore } = useChat();
+  const { messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest } = useChat();
   const { startCall } = useCall();
   const { uploadAsset } = useAssetSync(roomId);
   const [openReactMsgId, setOpenReactMsgId] = useState(null);
@@ -188,10 +189,17 @@ export function ChatView({ onClose, sfx }) {
   const [activeOptions, setActiveOptions] = useState(null);
   const [viewLimit, setViewLimit] = useState(50);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchPage, setSearchPage] = useState(0);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isHistoricalView, setIsHistoricalView] = useState(false);
   const [viewerContext, setViewerContext] = useState({ items: [], index: 0, isOpen: false });
   const [pendingFiles, setPendingFiles] = useState([]);
   const [editingFileIndex, setEditingFileIndex] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isWatchWinderOpen, setIsWatchWinderOpen] = useState(false);
+  const [watchWinderInitialDate, setWatchWinderInitialDate] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const readMsgIdsRef = useRef(new Set());
@@ -262,6 +270,114 @@ export function ChatView({ onClose, sfx }) {
     }
   }, [chatHistory, partnerId, isNormalized, syncUpdateMessage]);
 
+  // Search Effect
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.trim()) {
+        setIsSearching(true);
+        const { data, hasMore } = await searchMessages(searchQuery, searchPage, 10);
+        setSearchResults(data);
+        setSearchHasMore(hasMore);
+        setIsSearching(false);
+      } else {
+        setSearchResults([]);
+        setSearchHasMore(false);
+        setSearchPage(0);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, searchPage, searchMessages]);
+
+  const handleJumpToMessage = async (msgId, createdAt) => {
+    const loadedMsgs = await jumpToMessage(createdAt);
+    setIsHistoricalView(true);
+    
+    let targetMsgId = msgId;
+    if (!targetMsgId && createdAt && loadedMsgs && loadedMsgs.length > 0) {
+      const targetTime = new Date(createdAt).getTime();
+      let closest = loadedMsgs[0];
+      let minDiff = Math.abs(new Date(closest.created_at).getTime() - targetTime);
+      for (const m of loadedMsgs) {
+        const diff = Math.abs(new Date(m.created_at).getTime() - targetTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = m;
+        }
+      }
+      targetMsgId = closest.id;
+    }
+
+    if (targetMsgId) {
+      setHighlightedMessageId(targetMsgId);
+    }
+
+    if (window.innerWidth < 768) {
+       setShowDetails(false); // Close sidebar on mobile
+    }
+    setTimeout(() => {
+      if (targetMsgId) {
+        const el = document.getElementById(`msg-${targetMsgId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        }
+      }
+      setTimeout(() => setHighlightedMessageId(null), 3000);
+    }, 200);
+  };
+
+  const handleJumpToPresent = async () => {
+    await resetToLatest();
+    setIsHistoricalView(false);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleChatScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    // Load newer messages if near bottom and in historical view
+    if (scrollHeight - scrollTop - clientHeight < 100 && isHistoricalView) {
+      loadNewer();
+    }
+
+    // Dial update based on which date we are in:
+    if (isWatchWinderOpen) {
+      const container = e.target;
+      const containerRect = container.getBoundingClientRect();
+      const targetY = containerRect.top + containerRect.height / 2;
+
+      let closestMsg = null;
+      let closestDiff = Infinity;
+
+      const msgElements = container.querySelectorAll('[id^="msg-"]');
+      for (const el of msgElements) {
+        const rect = el.getBoundingClientRect();
+        const msgCenterY = rect.top + rect.height / 2;
+        const diff = Math.abs(msgCenterY - targetY);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closestMsg = el;
+        }
+      }
+
+      if (closestMsg) {
+        const msgId = closestMsg.id.replace('msg-', '');
+        const msgObj = safeHistory.find(m => String(m.id) === msgId);
+        if (msgObj && msgObj.created_at) {
+          const newDateStr = msgObj.created_at;
+          const newDate = new Date(newDateStr);
+          setWatchWinderInitialDate(prev => {
+            if (!prev) return newDateStr;
+            const prevDate = new Date(prev);
+            if (prevDate.toDateString() !== newDate.toDateString()) {
+              return newDateStr;
+            }
+            return prev;
+          });
+        }
+      }
+    }
+  };
+
   const lastMessageId = chatHistory[chatHistory.length - 1]?.id;
 
   // Scroll to bottom on initial mount (entering the chat)
@@ -271,10 +387,10 @@ export function ChatView({ onClose, sfx }) {
 
   // Scroll to bottom when a new message is added or loaded
   useEffect(() => {
-    if (lastMessageId) {
+    if (lastMessageId && !isHistoricalView) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [lastMessageId]);
+  }, [lastMessageId, isHistoricalView]);
 
   // Handle click outside to close options
   useEffect(() => {
@@ -294,14 +410,7 @@ export function ChatView({ onClose, sfx }) {
     syncSendMessage(`${type === 'video' ? 'Video' : 'Voice'} Call`, 'call_invite', { status: 'ringing', callType: type });
   };
 
-  const jumpToMessage = (id) => {
-    const el = document.getElementById(`msg-${id}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setHighlightedMessageId(id);
-      setTimeout(() => setHighlightedMessageId(null), 2000);
-    }
-  };
+
 
   const handleJoinGame = (inviteMsg) => {
     playAudio('click', sfx);
@@ -360,6 +469,9 @@ export function ChatView({ onClose, sfx }) {
     }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    if (isHistoricalView) {
+      handleJumpToPresent();
+    }
     stopTyping();
   };
 
@@ -624,14 +736,7 @@ export function ChatView({ onClose, sfx }) {
     </div>
   );
 
-  // Refined search logic to catch names and text
-  const filteredMessages = safeHistory.filter(m => {
-    if (searchQuery === '') return true;
-    const q = searchQuery.toLowerCase();
-    const matchesText = m.text && m.text.toLowerCase().includes(q);
-    const matchesName = roomProfiles[m.sender]?.name?.toLowerCase().includes(q);
-    return matchesText || matchesName;
-  });
+  // Main chat history feed uses safeHistory directly to prevent typing filter side-effects
 
   const openViewer = (url, msgId) => {
     const gallery = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group' || m.type === 'video'))
@@ -734,12 +839,20 @@ export function ChatView({ onClose, sfx }) {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
-          <div className={`flex flex-col h-full transition-all duration-300 ${showDetails ? 'hidden md:flex md:w-2/3 border-r-2 border-border' : 'w-full'}`}>
+          <div className={`flex flex-col h-full transition-all duration-300 flex-1 ${showDetails ? 'hidden md:flex border-r-2 border-border' : 'w-full'}`}>
               <div
                 className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container`}
+                onScroll={handleChatScroll}
               >
 
               <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
+              {isHistoricalView && (
+                <div className="sticky top-4 z-[100] flex justify-center mb-4">
+                  <button onClick={handleJumpToPresent} className="bg-primary text-white px-4 py-2 rounded-full retro-border shadow-xl font-bold text-xs uppercase hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+                    <History size={14} /> Jump to Present
+                  </button>
+                </div>
+              )}
               {syncHasMore && (
                 <button
                   onClick={() => {
@@ -752,10 +865,28 @@ export function ChatView({ onClose, sfx }) {
                   ↑ Load Older Messages
                 </button>
               )}
-              {filteredMessages.slice(-viewLimit).map((msg, index) => {
-                const visibleMsgs = filteredMessages.slice(-viewLimit);
+              {safeHistory.slice(-viewLimit).map((msg, index) => {
+                const visibleMsgs = safeHistory.slice(-viewLimit);
                 const prevMsg = visibleMsgs[index - 1];
                 const nextMsg = visibleMsgs[index + 1];
+
+                // TIME DIVIDER
+                let showTimeDivider = false;
+                let dividerText = '';
+                if (msg.created_at) {
+                  const currTime = new Date(msg.created_at);
+                  if (prevMsg && prevMsg.created_at) {
+                    const prevTime = new Date(prevMsg.created_at);
+                    if (currTime.getTime() - prevTime.getTime() > 3600000 || currTime.getDate() !== prevTime.getDate()) {
+                      showTimeDivider = true;
+                    }
+                  } else {
+                    showTimeDivider = true;
+                  }
+                  if (showTimeDivider) {
+                    dividerText = currTime.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  }
+                }
 
                 // Add this line to detect if the message is at the bottom of the view
                 const isNearBottom = index >= visibleMsgs.length - 3;
@@ -781,7 +912,32 @@ export function ChatView({ onClose, sfx }) {
                 const isHighlighted = highlightedMessageId === msg.id;
 
                 return (
-                  <div key={msg.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
+                  <React.Fragment key={msg.id}>
+                    {showTimeDivider && (
+                      <div className="flex justify-center my-6 animate-in fade-in">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playAudio('click', sfx);
+                            setWatchWinderInitialDate(msg.created_at);
+                            setIsWatchWinderOpen(true);
+                          }}
+                          className="retro-date-divider-btn bg-window/50 hover:bg-accent hover:text-accent-text transition-colors duration-150 backdrop-blur-sm px-4 py-1 retro-border rounded-full shadow-sm text-[10px] font-black uppercase text-main-text/60 tracking-widest cursor-pointer select-none"
+                          title="Wind back in time"
+                        >
+                          {dividerText}
+                        </button>
+                      </div>
+                    )}
+                    {msg.type === 'system' ? (
+                      <div className="flex justify-center my-3 animate-in fade-in">
+                        <div className="bg-primary/10 px-4 py-1.5 retro-border border-dashed rounded text-xs italic font-bold text-primary/80 text-center max-w-sm">
+                          {msg.text}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
                     <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[70%] relative transition-all duration-500 ${isHighlighted ? 'scale-105 brightness-110 z-30' : ''} ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
                       {!msg.isDeleted && !isCallLog && (
                         <div className={`
@@ -988,6 +1144,32 @@ export function ChatView({ onClose, sfx }) {
                           </>
                         )}
 
+                        {/* Inline Timestamp and Read Receipts */}
+                        {!msg.isDeleted && !isCallLog && !noBubble && !isGameInvite && (
+                          <div className={`flex items-center gap-1 mt-1 ${isMe ? 'justify-end text-current' : 'justify-end text-main-text'} opacity-60 text-[9px] font-bold uppercase tracking-tighter`}>
+                            <span>{msg.time}</span>
+                            {isMe && msg.status && msg.status !== 'failed' && (
+                              <span className="flex -space-x-1.5 ml-1">
+                                <Check size={10} className={msg.status === 'read' ? 'text-green-300 drop-shadow-md' : 'opacity-70'} />
+                                {(msg.status === 'delivered' || msg.status === 'read') && <Check size={10} className={msg.status === 'read' ? 'text-green-300 drop-shadow-md' : 'opacity-70'} />}
+                              </span>
+                            )}
+                            {isMe && msg.status === 'failed' && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playAudio('click', sfx);
+                                  retrySendMessage(msg);
+                                }}
+                                className="ml-1.5 text-red-500 hover:text-red-700 underline font-black cursor-pointer flex items-center gap-0.5 normal-case animate-pulse"
+                                title="Click to retry"
+                              >
+                                ⚠️ retry
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         {/* Reactions (Always visible and more stylized) */}
                         {msg.reactions && msg.reactions.length > 0 && !msg.isDeleted && !isCallLog && (
                           <div className={`absolute -bottom-3 ${isMe ? 'right-2' : 'left-2'} bg-window text-main-text retro-border retro-shadow-dark px-2 py-0.5 text-[11px] flex gap-1 z-10 animate-in zoom-in-50`}>
@@ -1003,7 +1185,7 @@ export function ChatView({ onClose, sfx }) {
                       {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
                         <div className={`
-                          message-options-menu absolute z-[100] bg-window retro-border retro-shadow-dark py-1 flex flex-col w-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text
+                          message-options-menu absolute z-[100] bg-window retro-border retro-shadow py-1.5 flex flex-col w-44 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text rounded-md shadow-2xl border-2
                           ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
                           ${isNearBottom ? 'bottom-0' : 'top-0'} 
                         `}>
@@ -1033,23 +1215,9 @@ export function ChatView({ onClose, sfx }) {
                         </div>
                       )}
                     </div>
-
-                    {/* Metadata (Status for Me - Only for very last message in group) */}
-                    {isGroupEnd && isMe && !isCallLog && (
-                      <div className={`flex items-center gap-2 mt-1 px-11 text-[9px] font-black uppercase opacity-30 flex-row-reverse`}>
-                        {msg.status && (
-                          <div className="flex items-center gap-1">
-                            <div className="flex -space-x-1.5">
-                              <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} />
-                              {(msg.status === 'delivered' || msg.status === 'read') && <Check size={10} className={msg.status === 'read' ? 'text-blue-500' : ''} />}
-                            </div>
-                            {msg.status === 'read' && msg.readAt && <span>seen {msg.readAt}</span>}
-                            {msg.status === 'delivered' && <span>delivered</span>}
-                          </div>
-                        )}
                       </div>
                     )}
-                  </div>
+                  </React.Fragment>
                 );
               })}
               <div ref={messagesEndRef} className="h-4" />
@@ -1186,7 +1354,7 @@ export function ChatView({ onClose, sfx }) {
             </div>
           </div>
           {showDetails && (
-            <div className="flex flex-col w-full md:w-1/3 bg-main overflow-y-auto relative border-l-2 border-border">
+            <div className="flex flex-col w-full md:w-80 shrink-0 bg-main overflow-hidden relative border-l-2 border-border">
               <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
               <div className="p-2 flex gap-1.5 bg-border shrink-0">
                 <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
@@ -1199,58 +1367,153 @@ export function ChatView({ onClose, sfx }) {
                   <Search size={12} /> Search
                 </button>
               </div>
-              <div className="p-4 flex flex-col gap-6">
+              <div className="p-4 flex-1 overflow-hidden flex flex-col min-h-0">
 
                 {activeSidebarTab === 'search' && (
-                  <div className="text-main-text">
-                    <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Search} size={16} /> Search Logs</h3>
-                    <div className="flex bg-window retro-inset p-3">
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Filter messages..."
-                        className="bg-transparent outline-none w-full text-sm font-black placeholder:font-normal uppercase"
-                      />
-                      {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><RetroIcon icon={X} size={14} className="opacity-50" /></button>}
+                  <div className="text-main-text flex flex-col h-full min-h-0">
+                    <div className="shrink-0">
+                      <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Search} size={16} /> Search Logs</h3>
+                      <div className="flex bg-window retro-inset p-3 mb-4">
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Filter messages..."
+                          className="bg-transparent outline-none w-full text-sm font-black placeholder:font-normal uppercase"
+                        />
+                        {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><RetroIcon icon={X} size={14} className="opacity-50" /></button>}
+                      </div>
                     </div>
                     {searchQuery && (
-                      <div className="flex flex-col gap-3 mt-4 overflow-y-auto max-h-[500px] pr-2">
-                        <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">
-                          {filteredMessages.length} results found
-                        </p>
-                        {filteredMessages.map(m => (
-                          <div
-                            key={m.id}
-                            onClick={() => jumpToMessage(m.id)}
-                            className="bg-window retro-outset p-3 cursor-pointer hover:bg-accent hover:text-accent-text transition-all group/res active:translate-y-[2px]"
-                          >
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[10px] font-black uppercase text-primary">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
-                              <span className="text-[9px] opacity-40 font-bold">{m.time}</span>
+                      <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-3 min-h-0">
+                        {isSearching ? (
+                          <p className="text-xs font-bold opacity-50 animate-pulse text-center p-4">Searching archives...</p>
+                        ) : searchResults.length === 0 ? (
+                          <p className="text-xs font-bold opacity-50 text-center p-4">No results found.</p>
+                        ) : (
+                          <>
+                            <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">
+                              Page {searchPage + 1}
+                            </p>
+                            {searchResults.map(m => (
+                              <div
+                                key={m.id}
+                                onClick={() => handleJumpToMessage(m.id, m.created_at)}
+                                className="bg-window retro-outset p-3 cursor-pointer hover:bg-accent hover:text-accent-text transition-all group/res active:translate-y-[2px]"
+                              >
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-[10px] font-black uppercase text-primary">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
+                                  <span className="text-[9px] opacity-40 font-bold">{m.time}</span>
+                                </div>
+                                <p className="text-xs font-bold line-clamp-2 leading-relaxed">{m.text || '📸 Media / Attachment'}</p>
+                              </div>
+                            ))}
+                            <div className="flex justify-between items-center mt-2 pt-2 border-t-2 border-border shrink-0 mb-2">
+                              <button
+                                disabled={searchPage === 0}
+                                onClick={() => setSearchPage(p => p - 1)}
+                                className={`px-3 py-1.5 retro-border text-[10px] font-black uppercase ${searchPage === 0 ? 'opacity-50 cursor-not-allowed bg-window/50' : 'bg-window hover:bg-accent hover:text-accent-text'}`}
+                              >
+                                Prev
+                              </button>
+                              <button
+                                disabled={!searchHasMore}
+                                onClick={() => setSearchPage(p => p + 1)}
+                                className={`px-3 py-1.5 retro-border text-[10px] font-black uppercase ${!searchHasMore ? 'opacity-50 cursor-not-allowed bg-window/50' : 'bg-window hover:bg-accent hover:text-accent-text'}`}
+                              >
+                                Next
+                              </button>
                             </div>
-                            <p className="text-xs font-bold line-clamp-2 leading-relaxed">{m.text || '📸 Media / Attachment'}</p>
-                          </div>
-                        ))}
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
 
                 {activeSidebarTab === 'media' && (
-                  <>
-                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Pin} size={16} /> Pinned</h3><div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">{pinnedMessages.length === 0 ? (<p className="text-sm opacity-50">No pinned messages.</p>) : (pinnedMessages.map(m => (<div key={m.id} className="bg-window p-2 text-sm retro-outset border-l-4 border-l-accent"><p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p><p className="truncate">{m.text || 'Attachment/Voice'}</p></div>)))}</div></div>
-                    <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={ImageIcon} size={16} /> Media Grid</h3><div className="grid grid-cols-2 gap-2">{imageMessages.length === 0 ? (<p className="text-sm opacity-50 col-span-2">No media shared yet.</p>) : (imageMessages.map(m => (<div key={m.id} onClick={() => setViewerContext({ urls: m.type === 'image_group' ? m.urls : [m.url], index: 0, isOpen: true })} className="aspect-square retro-outset bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity" style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}></div>)))}</div></div>
-                  </>
+                  <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-6 min-h-0">
+                    <div>
+                      <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Pin} size={16} /> Pinned</h3>
+                      <div className="flex flex-col gap-2">
+                        {pinnedMessages.length === 0 ? (
+                          <p className="text-sm opacity-50">No pinned messages.</p>
+                        ) : (
+                          pinnedMessages.map(m => (
+                            <div key={m.id} className="bg-window p-2 text-sm retro-outset border-l-4 border-l-accent">
+                              <p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p>
+                              <p className="truncate">{m.text || 'Attachment/Voice'}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={ImageIcon} size={16} /> Media Grid</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {imageMessages.length === 0 ? (
+                          <p className="text-sm opacity-50 col-span-2">No media shared yet.</p>
+                        ) : (
+                          imageMessages.map(m => (
+                            <div
+                              key={m.id}
+                              onClick={() => openViewer(m.type === 'image_group' ? m.urls[0] : m.url, m.id)}
+                              className="aspect-square retro-outset bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity"
+                              style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}
+                            ></div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {activeSidebarTab === 'calls' && (
-                  <div><h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={History} size={16} /> Call History</h3><div className="flex flex-col gap-2 overflow-y-auto pr-1">{callHistory.length === 0 ? (<p className="text-sm opacity-50">No call history.</p>) : (callHistory.reverse().map(m => (<div key={m.id} className="bg-window p-3 text-xs retro-outset flex items-center justify-between"><div className="flex items-center gap-2">{m.callType === 'video' ? <RetroIcon icon={Video} size={14} className="text-secondary" /> : <RetroIcon icon={Phone} size={14} className="text-primary" />}<div><p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p><p className="opacity-50">{m.time}</p></div></div><span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 retro-outset ${m.status === 'accepted' || m.status === 'ended' ? 'bg-green-100 text-green-700' : m.status === 'missed' || m.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{m.status === 'sent' || !m.status ? 'Outgoing' : m.status}</span></div>)))}</div></div>
+                  <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-6 min-h-0">
+                    <div>
+                      <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={History} size={16} /> Call History</h3>
+                      <div className="flex flex-col gap-2">
+                        {callHistory.length === 0 ? (
+                          <p className="text-sm opacity-50">No call history.</p>
+                        ) : (
+                          callHistory.reverse().map(m => (
+                            <div key={m.id} className="bg-window p-3 text-xs retro-outset flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {m.callType === 'video' ? <RetroIcon icon={Video} size={14} className="text-secondary" /> : <RetroIcon icon={Phone} size={14} className="text-primary" />}
+                                <div>
+                                  <p className="font-bold">{m.sender === userId ? 'Outgoing' : 'Incoming'}</p>
+                                  <p className="opacity-50">{m.time}</p>
+                                </div>
+                              </div>
+                              <span className={`font-bold uppercase text-[9px] px-1.5 py-0.5 retro-outset ${m.status === 'accepted' || m.status === 'ended' ? 'bg-green-100 text-green-700' : m.status === 'missed' || m.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {m.status === 'sent' || !m.status ? 'Outgoing' : m.status}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
           )}
         </div>
+        {isWatchWinderOpen && (
+          <PocketWatchWinder
+            initialDate={watchWinderInitialDate}
+            roomId={roomId}
+            sfx={sfx}
+            onClose={() => setIsWatchWinderOpen(false)}
+            onJumpToDate={async (date) => {
+              setIsWatchWinderOpen(false);
+              if (date) {
+                setWatchWinderInitialDate(date.toISOString());
+                await handleJumpToMessage(null, date.toISOString());
+              }
+            }}
+          />
+        )}
       </RetroWindow>
     </>
   );

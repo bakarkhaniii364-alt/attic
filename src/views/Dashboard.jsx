@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor, Zap, LogOut } from 'lucide-react';
 import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
@@ -15,8 +15,9 @@ import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 import { useLastSeen } from '../hooks/useLastSeen.js';
 import { useMobile } from '../hooks/useMobile.js';
-import { ChatView } from './ChatView.jsx';
-import { SettingsView } from './SettingsView.jsx';
+
+const ChatView = React.lazy(() => import('./ChatView.jsx').then(m => ({ default: m.ChatView })));
+const SettingsView = React.lazy(() => import('./SettingsView.jsx').then(m => ({ default: m.SettingsView })));
 
 
 export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
@@ -323,7 +324,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           )}
           {mobileTab === 'chat' && (
             <div className="h-[calc(100dvh-100px)] flex flex-col animate-in slide-in-from-right-8 duration-300">
-              <ChatView onClose={() => setMobileTab('home')} isMobile={true} />
+              <Suspense fallback={<div className="p-8 bg-window text-main-text font-bold text-center">Loading...</div>}>
+                <ChatView onClose={() => setMobileTab('home')} isMobile={true} />
+              </Suspense>
             </div>
           )}
           {mobileTab === 'apps' && (
@@ -333,19 +336,21 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           )}
           {mobileTab === 'settings' && (
             <div className="animate-in slide-in-from-right-8 duration-300">
-              <SettingsView 
-                onClose={() => setMobileTab('home')}
-                theme={theme} setTheme={setTheme}
-                profile={profile} setProfile={(p) => updateSyncStateAtomic('room_profiles', userId, p)}
-                onLogout={logout}
-                sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled}
-                notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
-                weather={weather} setWeather={setWeather}
-                scores={scores}
-                userId={userId} partnerId={partnerId}
-                coupleData={coupleData} setCoupleData={(d) => mergeSyncState('couple_data', d)}
-                streaks={streaks}
-              />
+              <Suspense fallback={<div className="p-8 bg-window text-main-text font-bold text-center">Loading...</div>}>
+                <SettingsView 
+                  onClose={() => setMobileTab('home')}
+                  theme={theme} setTheme={setTheme}
+                  profile={profile} setProfile={(p) => updateSyncStateAtomic('room_profiles', userId, p)}
+                  onLogout={logout}
+                  sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled}
+                  notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
+                  weather={weather} setWeather={setWeather}
+                  scores={scores}
+                  userId={userId} partnerId={partnerId}
+                  coupleData={coupleData} setCoupleData={(d) => mergeSyncState('couple_data', d)}
+                  streaks={streaks}
+                />
+              </Suspense>
             </div>
           )}
         </div>

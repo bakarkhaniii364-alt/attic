@@ -18,7 +18,8 @@ export function useAppLogic({
   chatHistory,
   onlineUsers,
   notificationsEnabled,
-  lobbyState
+  lobbyState,
+  syncSendMessage
 }) {
   const [floatingDoodles, setFloatingDoodles] = useState([]);
   const [doodleQueue, setDoodleQueue] = useState([]);
@@ -63,14 +64,22 @@ export function useAppLogic({
 
   // Partner Online Notification
   useEffect(() => {
-    if (isPartnerOnline && prevPartnerOnline.current === false && notificationsEnabled) {
-      setPartnerOnlineModal(true);
-      playAudio('notif', sfxEnabled);
-      sendNativeNotification(`${partnerName || 'Partner'} is online!`, { body: 'They just opened Attic.' });
-      setTimeout(() => setPartnerOnlineModal(false), 4000);
+    if (isPartnerOnline && prevPartnerOnline.current === false) {
+      if (notificationsEnabled) {
+        setPartnerOnlineModal(true);
+        playAudio('notif', sfxEnabled);
+        sendNativeNotification(`${partnerName || 'Partner'} is online!`, { body: 'They just opened Attic.' });
+        setTimeout(() => setPartnerOnlineModal(false), 4000);
+      }
+      
+      // Dispatch permanent system message for login
+      if (syncSendMessage) {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        syncSendMessage(`${partnerName || 'Partner'} logged in on ${timeStr}`, 'system');
+      }
     }
     prevPartnerOnline.current = isPartnerOnline;
-  }, [isPartnerOnline, notificationsEnabled, sfxEnabled]);
+  }, [isPartnerOnline, notificationsEnabled, sfxEnabled, partnerName, syncSendMessage]);
 
   // Game Invite Handling
   useEffect(() => {
