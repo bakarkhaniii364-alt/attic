@@ -14,8 +14,9 @@ import { KeyboardShortcuts } from './components/KeyboardShortcuts.jsx';
 import { useLocalStorage } from './hooks/useLocalStorage.js';
 import { useTypingIndicator } from './hooks/useTypingIndicator.js';
 import { playAudio } from './utils/audio.js';
+import { requestNotificationPermission } from './utils/notifications.js';
 import { INITIAL_CHAT } from './constants/data.js';
-import { StrayTray, CHANNELS } from './components/LofiPlayer.jsx';
+import { StrayTray, CHANNELS, RadioPlayerCore } from './components/LofiPlayer.jsx';
 import { useAuth, useSync, useCall, useChat } from './context/instances.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { useAppLogic } from './hooks/useAppLogic.js';
@@ -190,6 +191,30 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme); 
   }, [theme]);
 
+  // Request notification permission on first user gesture if setting is enabled but browser permission is default
+  useEffect(() => {
+    if (notificationsEnabled && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      const handleFirstInteraction = async () => {
+        const granted = await requestNotificationPermission();
+        if (!granted) {
+          setNotificationsEnabled(false);
+        }
+        cleanup();
+      };
+      
+      const cleanup = () => {
+        window.removeEventListener('click', handleFirstInteraction);
+        window.removeEventListener('keydown', handleFirstInteraction);
+        window.removeEventListener('touchstart', handleFirstInteraction);
+      };
+
+      window.addEventListener('click', handleFirstInteraction);
+      window.addEventListener('keydown', handleFirstInteraction);
+      window.addEventListener('touchstart', handleFirstInteraction);
+      return cleanup;
+    }
+  }, [notificationsEnabled, setNotificationsEnabled]);
+
   useEffect(() => {
     const handleResize = () => {
       const vh = window.innerHeight * 0.01;
@@ -228,6 +253,8 @@ export default function App() {
   const activeDoodleView = doodleQueue[0] || null;
 
   const remoteAudioRef = useRef(null);
+  const radioAudioRef = useRef(null);
+
   useEffect(() => {
     if (remoteStream && remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = remoteStream;
@@ -250,7 +277,8 @@ export default function App() {
 
         {hasInitialized && (
           <>
-            {user && roomId && <DesktopOnly><StrayTray radioState={radioState} setRadioState={setRadioState} /></DesktopOnly>}
+            <RadioPlayerCore radioState={radioState} setRadioState={setRadioState} audioRef={radioAudioRef} />
+            {user && roomId && <DesktopOnly><StrayTray radioState={radioState} setRadioState={setRadioState} audioRef={radioAudioRef} /></DesktopOnly>}
 
             <OverlayManager 
               showKiss={showKiss} floatingDoodles={floatingDoodles} doodleQueue={doodleQueue} 
@@ -305,25 +333,25 @@ export default function App() {
             <Routes key={location.pathname}>
               <Route path="/" element={<PublicRoute><LandingView /></PublicRoute>} />
               <Route path="/dashboard" element={
-                !user ? <Navigate to="/" replace /> :
-                !roomId ? <Navigate to="/handshake" replace /> :
-                <Dashboard 
-                  setView={navigateTo} 
-                  theme={theme} setTheme={setTheme} 
-                  sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
-                  notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
-                  weather={weather} setWeather={setWeather} 
-                  radioState={radioState} setRadioState={setRadioState} 
-                  setShowKiss={setShowKiss} 
-                />
+                <ProtectedRoute>
+                  <Dashboard 
+                    setView={navigateTo} 
+                    theme={theme} setTheme={setTheme} 
+                    sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
+                    notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
+                    weather={weather} setWeather={setWeather} 
+                    radioState={radioState} setRadioState={setRadioState} 
+                    setShowKiss={setShowKiss} 
+                  />
+                </ProtectedRoute>
               } />
-              <Route path="/signup" element={<AuthView mode="signup" />} />
-              <Route path="/signin" element={<AuthView mode="signin" />} />
-              <Route path="/password-reset" element={<ResetPasswordView sfx={sfxEnabled} />} />
+              <Route path="/signup" element={<PublicRoute><AuthView mode="signup" /></PublicRoute>} />
+              <Route path="/signin" element={<PublicRoute><AuthView mode="signin" /></PublicRoute>} />
+              <Route path="/password-reset" element={<PublicRoute><ResetPasswordView sfx={sfxEnabled} /></PublicRoute>} />
               <Route path="/handshake" element={
-                !user ? <Navigate to="/" replace /> :
-                roomId ? <Navigate to="/dashboard" replace /> :
-                <HandshakeView />
+                <ProtectedRoute requireRoom={false}>
+                  <HandshakeView />
+                </ProtectedRoute>
               } />
               <Route path="/settings" element={<ProtectedRoute><SettingsView 
                 theme={theme} setTheme={setTheme} 
@@ -356,7 +384,7 @@ export default function App() {
               <Route path="/calendar" element={<ProtectedRoute><CalendarApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/scrapbook" element={<ProtectedRoute><ScrapbookApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/pixelart" element={<ProtectedRoute><PixelArtApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
-              <Route path="/notes" element={<ProtectedRoute><SharedNotes onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/notes" element={<ProtectedRoute><SharedNotes onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} userName={roomProfiles?.[userId]?.name || 'You'} userColor={theme === 'rose' || theme === 'matcha' ? 'var(--primary)' : '#e94560'} /></ProtectedRoute>} />
               <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />

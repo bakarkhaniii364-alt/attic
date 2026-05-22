@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico'],
       manifest: false, // We supply our own manifest.webmanifest in /public
       workbox: {
@@ -26,7 +26,7 @@ export default defineConfig({
           }
         ]
       },
-      devOptions: { enabled: true }
+      devOptions: { enabled: false }
     })
   ],
   build: {
@@ -38,7 +38,8 @@ export default defineConfig({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           supabase: ['@supabase/supabase-js'],
           tiptap: ['@tiptap/react', '@tiptap/starter-kit'],
-          webrtc: ['yjs', 'y-webrtc', 'peerjs']
+          webrtc: ['yjs', 'y-webrtc'],
+          lucide: ['lucide-react']
         }
       }
     }

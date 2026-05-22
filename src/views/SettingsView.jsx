@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, Trophy, Image as ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, 
+import * as Lucide from 'lucide-react';
+const { 
+  User, Trophy, Image: ImageIcon, Sun, CloudRain, Snowflake, Trash2, Volume2, 
   LogOut, Heart, Calendar, Sparkle, Lock, Eye, EyeOff, Loader, Check, Hand, Zap, 
   CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, 
   ShieldCheck, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Search, VolumeX, Info
-} from 'lucide-react';
+} = Lucide;
 import { useCall } from '../context/instances.js';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { compressImage } from '../utils/helpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
-import { requestNotificationPermission } from '../utils/notifications.js';
+import { requestNotificationPermission, sendNativeNotification } from '../utils/notifications.js';
 
 export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData, streaks }) {
   const navigate = useNavigate();
@@ -351,6 +352,24 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                        <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localNotificationsEnabled ? 'left-[26px]' : 'left-[2px]'}`} />
                      </button>
                  </div>
+                 {localNotificationsEnabled && (
+                    <div className="flex justify-between items-center p-2 retro-border bg-window border-dashed">
+                       <span className="text-[11px] font-bold">Test Connection</span>
+                       <RetroButton 
+                         onClick={() => {
+                           sendNativeNotification('Attic Notification Test! 💌', { 
+                             body: 'This is a test notification to verify that push notifications are working.',
+                             tag: 'test-notification'
+                           }, true);
+                           toast('Test notification triggered!', 'info');
+                         }} 
+                         variant="primary" 
+                         className="text-[9px] py-1 px-3 uppercase"
+                       >
+                         Send Test
+                       </RetroButton>
+                    </div>
+                 )}
                  
                  <h4 className="text-[10px] font-black uppercase tracking-widest mt-6 mb-2 flex items-center gap-2"><Monitor size={12}/> WebRTC Advanced</h4>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">

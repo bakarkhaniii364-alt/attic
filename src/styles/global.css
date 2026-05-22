@@ -102,8 +102,8 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
 .kiss-container { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
 .floating-heart { position: absolute; bottom: -10vh; animation: floatUp 4.5s ease-in-out forwards; will-change: transform, opacity; }
 
-.collaboration-cursor__caret { border-left: 2px solid; border-right: 2px solid; margin-left: -1px; margin-right: -1px; pointer-events: none; position: relative; word-break: normal; }
-.collaboration-cursor__label { border-radius: 3px 3px 3px 0; color: #fff; font-size: 10px; font-weight: 600; left: -1px; padding: 0.1rem 0.3rem; position: absolute; top: -1.4em; white-space: nowrap; }
+.collaboration-cursor__caret { border-left-width: 2px; border-left-style: solid; border-right-width: 2px; border-right-style: solid; margin-left: -1px; margin-right: -1px; pointer-events: none; position: relative; word-break: normal; border-color: currentColor; }
+.collaboration-cursor__label { border-radius: 3px 3px 3px 0; color: #fff; font-size: 10px; font-weight: 600; left: -1px; padding: 0.1rem 0.3rem; position: absolute; top: -1.4em; white-space: nowrap; background-color: currentColor; }
 
 .floating-envelope-container { position: fixed; inset: 0; pointer-events: none; z-index: 9998; overflow: hidden; }
 .envelope-wrapper { position: absolute; pointer-events: auto; cursor: pointer; animation: bob 3s ease-in-out infinite; will-change: transform; }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, externalAction }) => {
+export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, externalAction, partnerName = 'Partner' }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [currentAction, setCurrentAction] = useState('idle');
   const [currentFrame, setCurrentFrame] = useState(0);
@@ -8,6 +8,87 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
   const [isSleeping, setIsSleeping] = useState(false);
   const [sleepStartTime, setSleepStartTime] = useState(null);
   const [lastPetTime, setLastPetTime] = useState(0);
+  
+  const [bubbleText, setBubbleText] = useState('');
+  const bubbleTimeoutRef = useRef(null);
+
+  const showBubble = (text, duration = 4000) => {
+    setBubbleText(text);
+    if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+    bubbleTimeoutRef.current = setTimeout(() => {
+      setBubbleText('');
+    }, duration);
+  };
+
+  const isFirstRender = useRef(true);
+
+  // Clean up bubble timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+    };
+  }, []);
+
+  // 1. Partner AFK/online status message
+  useEffect(() => {
+    if (isFirstRender.current) return;
+    if (isPartnerAfk) {
+      showBubble(`Miss ${partnerName}... where did they go? 💤`);
+    } else {
+      showBubble(`Yay! ${partnerName} is active! 👋`);
+    }
+  }, [isPartnerAfk, partnerName]);
+
+  // 2. Sleeping state toggled
+  useEffect(() => {
+    if (isFirstRender.current) return;
+    if (isSleeping) {
+      showBubble("Zzz... taking a nap... 💤");
+    } else {
+      showBubble("Yawn... morning! ☀️");
+    }
+  }, [isSleeping]);
+
+  // 3. Hover greeted text based on happy levels
+  useEffect(() => {
+    if (isHovering && !isSleeping) {
+      const greeting = happy > 70 
+        ? "I love you! ✨" 
+        : happy > 40 
+          ? "Meow! Cozy vibes here. ❤️" 
+          : "Feed me! 🐟";
+      showBubble(greeting, 3000);
+    }
+  }, [isHovering, isSleeping, happy]);
+
+  // 4. Mark first render finished after mount
+  useEffect(() => {
+    isFirstRender.current = false;
+  }, []);
+
+  // 5. Random cozy thoughts every 30s
+  useEffect(() => {
+    if (isSleeping || isPartnerAfk) return;
+
+    const interval = setInterval(() => {
+      const thoughts = [
+        "Lofi beats are so cozy... 🎵",
+        "Hope you're having a wonderful day! ✨",
+        "Did you drink some water today? 💧",
+        "I'm so glad we have our Attic. 🏠",
+        "Sending cozy vibes your way! 🌈",
+        "Take a deep breath and stretch! 🧘",
+        "A cup of warm cocoa sounds perfect right now. ☕",
+        "Our memories here are the best. 📸",
+        "You're doing great! Keep it up. 🌟",
+        "Just here, enjoying the quiet moment... 🍃"
+      ];
+      const randomThought = thoughts[Math.floor(Math.random() * thoughts.length)];
+      showBubble(randomThought);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isSleeping, isPartnerAfk, partnerName]);
 
   const actionTimeoutRef = useRef(null);
   const holdTimeoutRef = useRef(null);
@@ -202,6 +283,29 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
       onPointerLeave={cancelPress}
       title={isSleeping ? "Shh, pet is sleeping. Hold to pet, tap to hit." : "Hold to pet, tap to hit."}
     >
+      {bubbleText && (
+        <div className="absolute bottom-[105%] left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none w-max max-w-[200px]">
+          <div 
+            className="retro-border retro-shadow-dark p-2 whitespace-normal break-words relative select-none text-center text-[10px] sm:text-[11px] font-bold"
+            style={{ 
+              backgroundColor: 'var(--bg-window)', 
+              color: 'var(--text-main)', 
+              borderColor: 'var(--border)'
+            }}
+          >
+            {bubbleText}
+            {/* Arrow */}
+            <div 
+              className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px]" 
+              style={{ borderTopColor: 'var(--border)' }}
+            />
+            <div 
+              className="absolute left-1/2 -translate-x-1/2 top-[99%] w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px]" 
+              style={{ borderTopColor: 'var(--bg-window)' }}
+            />
+          </div>
+        </div>
+      )}
       <img
         src={frameSrc}
         alt="pet"

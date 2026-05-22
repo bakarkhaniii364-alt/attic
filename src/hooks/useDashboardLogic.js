@@ -13,7 +13,10 @@ export function useDashboardLogic({
   toast,
   setShowKiss,
   syncBroadcast,
-  coupleData
+  coupleData,
+  globalState,
+  isInitialized,
+  user
 }) {
   const [dbStats, setDbStats] = useState({});
   const [partnerWeather, setPartnerWeather] = useState(null);
@@ -21,6 +24,41 @@ export function useDashboardLogic({
   const [petCooldown, setPetCooldown] = useState(false);
   const [petAction, setPetAction] = useState(null);
   const [lastActionTime, setLastActionTime] = useState(0);
+
+  // Track daily login streaks
+  useEffect(() => {
+    if (!isInitialized || !userId || !globalState) return;
+
+    const streaks = globalState.user_streaks?.[userId];
+    const today = new Date().toLocaleDateString('en-CA');
+    const lastLogin = streaks?.lastLogin;
+
+    if (lastLogin === today) {
+      return;
+    }
+
+    let newCount = 1;
+    const currentBest = streaks?.best || 0;
+
+    if (lastLogin) {
+      const todayDate = new Date();
+      const yesterdayDate = new Date(todayDate);
+      yesterdayDate.setDate(todayDate.getDate() - 1);
+      const yesterday = yesterdayDate.toLocaleDateString('en-CA');
+
+      if (lastLogin === yesterday) {
+        newCount = (streaks.count || 0) + 1;
+      }
+    }
+
+    const newBest = Math.max(currentBest, newCount);
+
+    updateSyncStateAtomic('user_streaks', userId, {
+      count: newCount,
+      best: newBest,
+      lastLogin: today
+    });
+  }, [isInitialized, userId, globalState, updateSyncStateAtomic]);
 
   // Fetch Stats
   useEffect(() => {

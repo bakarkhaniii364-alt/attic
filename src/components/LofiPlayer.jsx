@@ -104,33 +104,14 @@ function RetroVisualizer({ audioRef, isPlaying }) {
     );
 }
 
-export function StrayTray({ radioState, setRadioState }) {
-  const audioRef = useRef(null);
-  const [showVolume, setShowVolume] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const timeoutRef = useRef(null);
-
-  const handleMouseEnter = () => {
-     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-     setIsExpanded(true);
-  };
-  
-  const handleMouseLeave = () => {
-     timeoutRef.current = setTimeout(() => {
-        setIsExpanded(false);
-        setShowVolume(false);
-     }, 2000);
-  };
-
+export function RadioPlayerCore({ radioState, setRadioState, audioRef }) {
   useEffect(() => {
      if (audioRef.current) {
         audioRef.current.volume = radioState.volume;
         if (radioState.isPlaying) {
-             // Use a slight delay or explicit load to ensure src is ready
              const playAudio = () => {
                  audioRef.current.play().catch(error => {
                      console.log("Audio playback prevented:", error);
-                     // If it fails, maybe it needs a user gesture or load
                      if (error.name === 'NotAllowedError') {
                          setRadioState(prev => ({ ...prev, isPlaying: false }));
                      }
@@ -148,7 +129,27 @@ export function StrayTray({ radioState, setRadioState }) {
         }
         else audioRef.current.pause();
      }
-  }, [radioState.isPlaying, radioState.volume, radioState.channelIdx]);
+  }, [radioState.isPlaying, radioState.volume, radioState.channelIdx, setRadioState]);
+
+  return <audio ref={audioRef} src={CHANNELS[radioState?.channelIdx || 0]?.url} loop className="hidden" />;
+}
+
+export function StrayTray({ radioState, setRadioState, audioRef }) {
+  const [showVolume, setShowVolume] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const timeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+     setIsExpanded(true);
+  };
+  
+  const handleMouseLeave = () => {
+     timeoutRef.current = setTimeout(() => {
+        setIsExpanded(false);
+        setShowVolume(false);
+     }, 2000);
+  };
 
   const togglePlay = () => setRadioState({ ...radioState, isPlaying: !radioState.isPlaying });
   const nextCh = () => setRadioState({ ...radioState, channelIdx: (radioState.channelIdx + 1) % CHANNELS.length });
@@ -160,7 +161,7 @@ export function StrayTray({ radioState, setRadioState }) {
          onMouseEnter={handleMouseEnter}
          onMouseLeave={handleMouseLeave}
       >
-         <audio ref={audioRef} src={CHANNELS[radioState?.channelIdx || 0]?.url} loop />
+         {/* Audio element moved to RadioPlayerCore */}
          
          {/* Always visible icon */}
          <div className={`flex items-center justify-center w-8 h-8 rounded-full cursor-pointer ${radioState?.isPlaying ? 'bg-[var(--primary)] text-white shadow-[0_0_10px_var(--primary)] animate-pulse' : 'bg-[var(--bg-main)] hover:bg-[var(--accent)]'}`} onClick={togglePlay}>
@@ -257,45 +258,46 @@ export function DashboardRadio({ radioState, setRadioState }) {
           </div>
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 z-10">
-            <div className="bg-window p-3 retro-border flex items-center justify-start">
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 mr-1">
-                        <button onClick={prevCh} className="w-10 h-10 bg-[var(--bg-main)] hover:bg-[var(--accent)] retro-border rounded flex items-center justify-center active:scale-95 transition-all">
-                            <SkipBack size={18} fill="currentColor"/>
-                        </button>
-                        <button onClick={togglePlay} className={`w-10 h-10 font-black retro-border rounded active:scale-95 flex items-center justify-center transition-all ${radioState.isPlaying ? 'bg-[var(--primary)] text-white shadow-[0_0_10px_var(--primary)]' : 'bg-window hover:bg-accent'}`}>
-                            {radioState.isPlaying ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-1"/>}
-                        </button>
-                        <button onClick={nextCh} className="w-10 h-10 bg-[var(--bg-main)] hover:bg-[var(--accent)] retro-border rounded flex items-center justify-center active:scale-95 transition-all">
-                            <SkipForward size={18} fill="currentColor"/>
-                        </button>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 group bg-black/5 rounded-full px-2 py-1 border border-border/10">
-                        <Volume2 size={12} className="opacity-40" />
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); setRadioState({...radioState, volume: Math.max(0, (radioState.volume || 0.4) - 0.05)}); }}
-                            className="w-5 h-5 flex items-center justify-center hover:bg-accent/20 rounded active:scale-90 transition-all"
-                        >
-                            <Minus size={10} />
-                        </button>
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max="1" 
-                            step="0.05" 
-                            value={radioState?.volume || 0.4} 
-                            onChange={(e) => setRadioState({...radioState, volume: parseFloat(e.target.value)})} 
-                            className="w-8 sm:w-12 h-1 accent-[var(--primary)] cursor-pointer chunky-slider transition-all" 
-                        />
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); setRadioState({...radioState, volume: Math.min(1, (radioState.volume || 0.4) + 0.05)}); }}
-                            className="w-5 h-5 flex items-center justify-center hover:bg-accent/20 rounded active:scale-90 transition-all"
-                        >
-                            <Plus size={10} />
-                        </button>
-                    </div>
+        <div className="mt-auto flex flex-col gap-3 z-10 w-full max-w-full overflow-hidden">
+            <div className="bg-window p-2 sm:p-3 retro-border flex items-center justify-between sm:justify-start gap-2 sm:gap-4 w-full max-w-full">
+                <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={prevCh} className="w-10 h-10 bg-[var(--bg-main)] hover:bg-[var(--accent)] retro-border rounded flex items-center justify-center active:scale-95 transition-all">
+                        <SkipBack size={18} fill="currentColor"/>
+                    </button>
+                    <button onClick={togglePlay} className={`w-10 h-10 font-black retro-border rounded active:scale-95 flex items-center justify-center transition-all ${radioState.isPlaying ? 'bg-[var(--primary)] text-white shadow-[0_0_10px_var(--primary)]' : 'bg-window hover:bg-accent'}`}>
+                        {radioState.isPlaying ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-1"/>}
+                    </button>
+                    <button onClick={nextCh} className="w-10 h-10 bg-[var(--bg-main)] hover:bg-[var(--accent)] retro-border rounded flex items-center justify-center active:scale-95 transition-all">
+                        <SkipForward size={18} fill="currentColor"/>
+                    </button>
+                </div>
+                
+                <div className="flex items-center justify-center gap-1 group bg-black/5 rounded-full px-2 py-1 border border-border/10 min-w-0 flex-1 max-w-[150px]">
+                    <Volume2 size={12} className="opacity-40 shrink-0" />
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setRadioState({...radioState, volume: Math.max(0, (radioState.volume || 0.4) - 0.05)}); }}
+                        className="w-5 h-5 flex items-center justify-center hover:bg-accent/20 rounded active:scale-90 transition-all shrink-0"
+                    >
+                        <Minus size={10} />
+                    </button>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.05" 
+                        value={radioState?.volume || 0.4} 
+                        onChange={(e) => setRadioState({...radioState, volume: parseFloat(e.target.value)})} 
+                        className="flex-1 min-w-[30px] max-w-[80px] h-1 accent-[var(--primary)] cursor-pointer chunky-slider transition-all" 
+                    />
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setRadioState({...radioState, volume: Math.min(1, (radioState.volume || 0.4) + 0.05)}); }}
+                        className="w-5 h-5 flex items-center justify-center hover:bg-accent/20 rounded active:scale-90 transition-all shrink-0"
+                    >
+                        <Plus size={10} />
+                    </button>
+                </div>
+            </div>
+        </div>
                     <style>{`
                         .chunky-slider {
                             -webkit-appearance: none;
@@ -322,9 +324,6 @@ export function DashboardRadio({ radioState, setRadioState }) {
                             cursor: pointer;
                         }
                     `}</style>
-                </div>
-            </div>
-        </div>
 
         <div className="absolute bottom-4 right-4 w-1/2 opacity-5 pointer-events-none text-9xl -mb-10 text-[var(--border)]"><Radio/></div>
       </div>

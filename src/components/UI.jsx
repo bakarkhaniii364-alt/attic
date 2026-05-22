@@ -51,7 +51,7 @@ export { WeatherOverlay } from './Visuals/WeatherOverlay.jsx';
 export { Confetti } from './Visuals/Confetti.jsx';
 
 // ── RetroWindow ──
-export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, hasUnsavedChanges = false, onSaveBeforeClose, sfx }) {
+export function RetroWindow({ title, onClose, children, className = "", noPadding = false, headerActions, onTitleClick, confirmOnClose = false, hasUnsavedChanges = false, onSaveBeforeClose, sfx, overflowVisible = false }) {
   const [showConfirm, setShowConfirm] = React.useState(false);
   const [confirmType, setConfirmType] = React.useState('simple');
 
@@ -91,7 +91,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
             )}
           </div>
         </div>
-        <div className={`flex-1 overflow-y-auto flex flex-col text-main-text bg-window ${noPadding ? '' : 'p-5 sm:p-6'}`}>{children}</div>
+        <div className={`flex-1 ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto'} flex flex-col text-main-text bg-window ${noPadding ? '' : 'p-5 sm:p-6'}`}>{children}</div>
       </div>
       {showConfirm && (
         <ConfirmDialog

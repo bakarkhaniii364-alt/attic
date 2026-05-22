@@ -44,5 +44,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-// Service worker logic for PWA and push notifications can be added here
-// currently relying on standard browser caching for stability.
+// Service worker logic for PWA and push notifications
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('Attic Service Worker registered:', reg.scope);
+      })
+      .catch(err => {
+        console.error('Attic Service Worker registration failed:', err);
+      });
+  });
+}
+

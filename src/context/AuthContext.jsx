@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode, getTestUser, getTestRoomId } from '../lib/testMode.js';
 import { AuthContext } from './instances.js';
@@ -14,28 +14,43 @@ export function AuthProvider({ children }) {
 
   const mountedRef = useRef(true);
 
+  const fetchRoomData = useCallback(async (uid) => {
+    if (!uid) {
+      if (mountedRef.current) {
+        setRoomId(null);
+        setPartnerId(null);
+        setRoomLoading(false);
+        setHasInitialized(true);
+      }
+      return;
+    }
+    if (mountedRef.current) {
+      setRoomLoading(true);
+    }
+    try {
+      const { data: room } = await supabase.rpc('get_my_room');
+      if (mountedRef.current) {
+        if (room) {
+          setRoomId(room.id);
+          setPartnerId(room.creator_id === uid ? room.partner_id : room.creator_id);
+        } else {
+          setRoomId(null);
+          setPartnerId(null);
+        }
+      }
+    } catch (err) {
+      console.warn('[AUTH] Room fetch failed:', err.message);
+    } finally {
+      if (mountedRef.current) {
+        setRoomLoading(false);
+        setHasInitialized(true);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
     
-    const fetchRoomData = async (uid) => {
-      if (!uid) return;
-      setRoomLoading(true);
-      try {
-        const { data: room } = await supabase.rpc('get_my_room');
-        if (mountedRef.current && room) {
-          setRoomId(room.id);
-          setPartnerId(room.creator_id === uid ? room.partner_id : room.creator_id);
-        }
-      } catch (err) {
-        console.warn('[AUTH] Room fetch failed:', err.message);
-      } finally {
-        if (mountedRef.current) {
-          setRoomLoading(false);
-          setHasInitialized(true);
-        }
-      }
-    };
-
     const init = async () => {
       if (isTestMode()) {
         const testUser = getTestUser();
@@ -98,17 +113,23 @@ export function AuthProvider({ children }) {
       mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchRoomData]);
 
-  const handleAuthSuccess = (session) => {
-    setUser(session.user);
-    setUserId(session.user.id);
-    setHasInitialized(true);
+  const handleAuthSuccess = async (session) => {
+    if (session) {
+      setUser(session.user);
+      setUserId(session.user.id);
+      await fetchRoomData(session.user.id);
+    }
   };
 
-  const handlePaired = (newRoomId, newPartnerId) => {
-    setRoomId(newRoomId);
-    setPartnerId(newPartnerId);
+  const handlePaired = async (newRoomId, newPartnerId) => {
+    if (newRoomId && newPartnerId) {
+      setRoomId(newRoomId);
+      setPartnerId(newPartnerId);
+    } else {
+      await fetchRoomData(userId);
+    }
   };
 
   const logout = async () => {
@@ -132,8 +153,9 @@ export function AuthProvider({ children }) {
     hasInitialized,
     logout,
     handleAuthSuccess,
-    handlePaired
-  }), [user, userId, roomId, partnerId, loading, roomLoading, hasInitialized]);
+    handlePaired,
+    fetchRoomData
+  }), [user, userId, roomId, partnerId, loading, roomLoading, hasInitialized, fetchRoomData]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

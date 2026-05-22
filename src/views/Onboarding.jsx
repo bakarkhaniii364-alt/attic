@@ -481,6 +481,8 @@ export function HandshakeView() {
   const [pairingCode, setPairingCode] = useState('LOADING...');
   const [partnerCode, setPartnerCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const addToast = useToast();
 
   const pairingTriggeredRef = useRef(false);
@@ -489,27 +491,10 @@ export function HandshakeView() {
     if (!user?.id || pairingTriggeredRef.current) return;
 
     let myRoomId = null;
-
-    const fetchMyCode = async () => {
-      try {
-        const { data } = await supabase.rpc('get_my_room');
-        if (data) {
-          if (data.is_paired) {
-            pairingTriggeredRef.current = true;
-            onPaired(data.id);
-          } else {
-            setPairingCode(data.invite_code);
-            myRoomId = data.id;
-            listenForPartner(data.id);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch code", err);
-      }
-    };
+    let subscription = null;
 
     const listenForPartner = (roomId) => {
-      supabase.channel(`waiting_room_${roomId}`)
+      subscription = supabase.channel(`waiting_room_${roomId}`)
         .on('postgres_changes', { 
             event: 'UPDATE', 
             schema: 'public', 
@@ -523,12 +508,61 @@ export function HandshakeView() {
         }).subscribe();
     };
 
+    const fetchMyCode = async () => {
+      setFetchError(false);
+      setPairingCode('LOADING...');
+      try {
+        const { data } = await supabase.rpc('get_my_room');
+        if (data) {
+          if (data.is_paired) {
+            pairingTriggeredRef.current = true;
+            onPaired(data.id);
+          } else {
+            setPairingCode(data.invite_code);
+            myRoomId = data.id;
+            listenForPartner(data.id);
+          }
+        } else {
+          // If no room is returned, let's create a new room!
+          let insertedRoom = null;
+          let attempts = 0;
+          while (!insertedRoom && attempts < 5) {
+            attempts++;
+            const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const { data: newRoom, error: createError } = await supabase
+              .from('rooms')
+              .insert({ invite_code: inviteCode, creator_id: user.id })
+              .select()
+              .single();
+            if (!createError && newRoom) {
+              insertedRoom = newRoom;
+            } else if (createError && !createError.message.includes('unique_code')) {
+              throw createError;
+            }
+          }
+          if (insertedRoom) {
+            setPairingCode(insertedRoom.invite_code);
+            myRoomId = insertedRoom.id;
+            listenForPartner(insertedRoom.id);
+          } else {
+            throw new Error("Could not generate a unique room code.");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch or create code", err);
+        setFetchError(true);
+        setPairingCode("ERROR");
+      }
+    };
+
     fetchMyCode();
 
     return () => {
-      if (myRoomId) supabase.removeAllChannels();
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
     };
-  }, [user, onPaired]);
+  }, [user, onPaired, retryTrigger]);
 
   const handlePair = async (e) => {
     if (e) e.preventDefault();
@@ -586,9 +620,21 @@ export function HandshakeView() {
              <div className="absolute top-0 right-0 p-2 opacity-10 rotate-12"><Share2 size={48} /></div>
              <div className="text-xs font-black uppercase tracking-widest text-muted-text">Your Pairing Code</div>
              <div className="text-4xl font-black tracking-tighter text-primary select-all">{pairingCode}</div>
-             <button onClick={() => { navigator.clipboard.writeText(pairingCode); addToast("Code copied!", "success"); }} className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current">
-                <Copy size={10} /> copy code
-             </button>
+             {fetchError ? (
+                <div className="space-y-1">
+                  <button 
+                    type="button" 
+                    onClick={() => setRetryTrigger(prev => prev + 1)} 
+                    className="text-[9px] font-black uppercase text-red-500 hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current"
+                  >
+                    Retry Fetching Code
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => { navigator.clipboard.writeText(pairingCode); addToast("Code copied!", "success"); }} className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current">
+                   <Copy size={10} /> copy code
+                </button>
+              )}
           </div>
 
           <form onSubmit={handlePair}>

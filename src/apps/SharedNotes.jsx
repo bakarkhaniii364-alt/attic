@@ -5,19 +5,56 @@ import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
+import { IndexeddbPersistence } from 'y-indexeddb'
 import { RetroWindow } from '../components/UI.jsx'
 
-export function SharedNotes({ onClose, sfx, roomName, userName, userColor }) {
+export function SharedNotes({ onClose, sfx, roomId, userId, userName, userColor }) {
   const ydoc = useMemo(() => new Y.Doc(), []);
   const [provider, setProvider] = useState(null);
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const webrtcProvider = new WebrtcProvider(`attic-notes-${roomName}`, ydoc);
+    // Correctly use roomId passed from route
+    const roomIdentifier = roomId ? `attic-notes-${roomId}` : `attic-notes-fallback`;
+    
+    // Set up local indexeddb persistence
+    const indexeddbProvider = new IndexeddbPersistence(roomIdentifier, ydoc);
+    indexeddbProvider.on('synced', () => {
+      setIsLoaded(true);
+    });
+
+    const webrtcProvider = new WebrtcProvider(roomIdentifier, ydoc);
     setProvider(webrtcProvider);
+    
     return () => {
       webrtcProvider.destroy();
+      indexeddbProvider.destroy();
     }
-  }, [roomName, ydoc]);
+  }, [roomId, ydoc]);
+
+  // Keep track of online users in this note session
+  useEffect(() => {
+    if (!provider) return;
+
+    const handleAwarenessChange = () => {
+      const states = provider.awareness.getStates();
+      const users = [];
+      states.forEach((state) => {
+        if (state.user) {
+          users.push(state.user);
+        }
+      });
+      setActiveUsers(users);
+    };
+
+    provider.awareness.on('change', handleAwarenessChange);
+    handleAwarenessChange(); // fetch initial users
+
+    return () => {
+      provider.awareness.off('change', handleAwarenessChange);
+    };
+  }, [provider]);
 
   const extensions = useMemo(() => {
     const base = [
@@ -42,7 +79,15 @@ export function SharedNotes({ onClose, sfx, roomName, userName, userColor }) {
     extensions,
   }, [extensions]);
 
-  if (!editor) return null;
+  if (!editor || !isLoaded) {
+    return (
+      <RetroWindow title="shared_notes.exe" onClose={onClose} sfx={sfx} className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[800px]">
+        <div className="flex items-center justify-center h-full w-full text-main-text font-black animate-pulse">
+          Loading Notes...
+        </div>
+      </RetroWindow>
+    )
+  }
 
   return (
     <RetroWindow 
@@ -54,19 +99,69 @@ export function SharedNotes({ onClose, sfx, roomName, userName, userColor }) {
       confirmOnClose={true}
       hasUnsavedChanges={() => editor?.getText().trim() !== ''}
     >
+      <style>{`
+        .ruled-notepad {
+          background-color: #fff9e6; /* Retro yellow/cream legal pad background */
+          background-image: 
+            /* Red margin line on the left */
+            linear-gradient(to right, transparent 50px, #ff6b6b 50px, #ff6b6b 51px, transparent 51px),
+            /* Light blue horizontal lines spaced exactly 28px */
+            linear-gradient(to bottom, transparent 27px, #d6e4ff 27px, #d6e4ff 28px);
+          background-size: 100% 100%, 100% 28px;
+          background-attachment: local;
+          padding-left: 65px; /* Margin text offset */
+          padding-right: 25px;
+          padding-top: 14px;
+          padding-bottom: 28px;
+          line-height: 28px;
+          font-family: 'Space Mono', Courier, monospace;
+          font-size: 14px;
+          color: #3e2723; /* Dark brown retro ink color */
+        }
+        .ruled-notepad .ProseMirror {
+          outline: none;
+          min-height: 400px;
+          line-height: 28px !important;
+        }
+        .ruled-notepad .ProseMirror p {
+          margin: 0 !important;
+          line-height: 28px !important;
+          min-height: 28px;
+        }
+      `}</style>
+
       <div className="flex flex-col h-full bg-white">
         <div className="p-3 border-b-2 border-dashed border-[var(--border)] bg-[var(--bg-window)] flex items-center justify-between">
-           <h2 className="font-black text-xs uppercase tracking-widest">Shared Notepad</h2>
-           <div className="flex gap-2">
+           <h2 className="font-black text-xs uppercase tracking-widest text-main-text">Shared Notepad</h2>
+           <div className="flex items-center gap-3">
+              {/* Presence badges */}
+              {activeUsers.length > 0 && (
+                <div className="flex -space-x-1.5 mr-1">
+                  {activeUsers.map((u, idx) => (
+                    <div 
+                      key={idx} 
+                      className="w-5 h-5 rounded-full border border-black flex items-center justify-center text-[8px] font-black uppercase text-white shadow-sm shrink-0"
+                      style={{ backgroundColor: u.color }}
+                      title={u.name}
+                    >
+                      {u.name.substring(0, 2)}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]" title="Live Syncing" />
            </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-6 prose prose-sm font-mono focus:outline-none selection:bg-[var(--accent)] selection:text-[var(--text-main)]">
+        {/* Lined paper layout with click-to-focus */}
+        <div 
+          className="flex-1 overflow-y-auto ruled-notepad cursor-text selection:bg-[var(--accent)] selection:text-[var(--text-main)]"
+          onClick={() => editor?.commands.focus()}
+        >
           <EditorContent editor={editor} className="outline-none" />
         </div>
 
-        <div className="p-2 bg-[var(--bg-window)] border-t border-dashed border-[var(--border)]/20 text-[8px] font-black uppercase tracking-[0.2em] text-center opacity-40">
+        <div className="p-2 bg-[var(--bg-window)] border-t border-dashed border-[var(--border)]/20 text-[8px] font-black uppercase tracking-[0.2em] text-center opacity-40 text-main-text">
            Real-time CRDT Collaboration Active
         </div>
       </div>

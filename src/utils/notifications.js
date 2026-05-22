@@ -39,19 +39,38 @@ export function sendNativeNotification(title, options = {}, force = false) {
 
   try {
     const defaultOptions = {
-      icon: '/vite.svg', // Assuming there's a favicon we can use
-      badge: '/vite.svg',
+      icon: '/assets/favicon.png',
+      badge: '/assets/favicon.png',
       vibrate: [200, 100, 200],
+      data: {
+        url: window.location.origin,
+      }
     };
     
-    const notif = new Notification(title, { ...defaultOptions, ...options });
+    const mergedOptions = { ...defaultOptions, ...options };
     
-    // Focus the window when clicked
-    notif.onclick = function(event) {
-      event.preventDefault(); // prevent the browser from focusing the Notification's tab
-      window.focus();
-      this.close();
-    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          registration.showNotification(title, mergedOptions);
+        })
+        .catch((error) => {
+          console.warn('Service worker not ready for notification, using fallback:', error);
+          const notif = new Notification(title, mergedOptions);
+          notif.onclick = function(event) {
+            event.preventDefault();
+            window.focus();
+            this.close();
+          };
+        });
+    } else {
+      const notif = new Notification(title, mergedOptions);
+      notif.onclick = function(event) {
+        event.preventDefault();
+        window.focus();
+        this.close();
+      };
+    }
   } catch (error) {
     console.error('Failed to send native notification:', error);
   }

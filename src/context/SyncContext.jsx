@@ -232,6 +232,8 @@ export function SyncProvider({ children }) {
       const newState = { ...prev, [key]: newKeyData };
       latestStateRef.current = newState;
 
+      if (isTestMode()) sendTestStateUpdate(key, newKeyData);
+
       // 2. Broadcast the sub-update immediately
       const channelId = `room_sync_${roomId}`;
       if (channelsRef.current[channelId] && isSubscribedRef.current) {

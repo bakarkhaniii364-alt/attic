@@ -21,9 +21,9 @@ const SettingsView = React.lazy(() => import('./SettingsView.jsx').then(m => ({ 
 
 
 export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
-  const { userId, partnerId, roomId, logout } = useAuth();
+  const { userId, partnerId, roomId, logout, user } = useAuth();
   const sync = useSync();
-  const { globalState, updateSyncState, updateSyncStateAtomic, mergeSyncState, broadcast: syncBroadcast, onlineUsers } = sync;
+  const { globalState, isInitialized, updateSyncState, updateSyncStateAtomic, mergeSyncState, broadcast: syncBroadcast, onlineUsers } = sync;
   const { messages: chatHistory } = useChat();
   const toast = useToast();
   const isMobile = useMobile();
@@ -64,7 +64,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   } = useDashboardLogic({
     userId, roomId, partnerId, partnerProfile,
     updateSyncStateAtomic, mergeSyncState, sfxEnabled,
-    toast, setShowKiss, syncBroadcast, coupleData
+    toast, setShowKiss, syncBroadcast, coupleData,
+    globalState, isInitialized, user
   });
 
   const petSkin = coupleData.petSkin || '/assets/cat_1_9';
@@ -190,9 +191,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   );
 
   const petWindow = (
-    <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className={isMobile ? "w-full" : "md:col-span-4 h-auto min-h-[10rem]"}>
+    <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className={isMobile ? "w-full" : "md:col-span-4 h-auto min-h-[10rem]"} overflowVisible={true}>
       <div className="flex flex-col items-center text-center h-full justify-between p-1">
-        <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={isPartnerIdle} externalAction={petAction} onPet={handlePet} onHit={handleHit} />
+        <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={!isPartnerOnline} externalAction={petAction} onPet={handlePet} onHit={handleHit} partnerName={partnerName} />
         
         <div className="w-full px-3 mt-1">
           <div className="retro-border bg-black/5 p-1 flex gap-1 h-5">
@@ -241,7 +242,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         <span>Attic Usage</span>
         <span className="text-accent">
           {(() => {
-            const start = profile.created_at ? new Date(profile.created_at) : new Date();
+            const start = profile.created_at ? new Date(profile.created_at) : (user?.created_at ? new Date(user.created_at) : new Date());
             const days = Math.max(1, Math.ceil((new Date() - start) / (1000 * 60 * 60 * 24)));
             return `${days} Day${days !== 1 ? 's' : ''}`;
           })()}
