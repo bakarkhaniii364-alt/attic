@@ -7,13 +7,14 @@ test('Dashboard to Chat navigation and unmounting', async ({ page }) => {
   
   // 2. Open Chat
   await page.getByRole('button', { name: /chat/i }).click();
-  await expect(page.locator('.glass-window')).toBeVisible();
+  const chatWindow = page.locator('.glass-window').filter({ has: page.getByPlaceholder('type a message...') });
+  await expect(chatWindow).toBeVisible();
   
   // 3. Close Chat using the aria-label
   await page.getByLabel('Close').first().click();
   
   // 4. Verify unmounted (not just hidden)
-  await expect(page.locator('.glass-window')).not.toBeAttached();
+  await expect(chatWindow).not.toBeAttached();
 });
 
 test('Activities Hub to Pictionary and back', async ({ page }) => {

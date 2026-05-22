@@ -725,7 +725,7 @@ export function ChatView({ onClose, sfx }) {
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
 
-  const imageMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group') && !m.isDeleted);
+  const mediaMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group' || m.type === 'video') && !m.isDeleted);
   // Sort pinned messages by time (newest first)
   const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted).reverse();
   const callHistory = safeHistory.filter(m => m.type === 'call_invite');
@@ -746,6 +746,7 @@ export function ChatView({ onClose, sfx }) {
             url: u,
             type: 'image',
             id: m.id,
+            createdAt: m.created_at,
             isDeleted: m.isDeleted,
             metadata: {
               title: `Group Photo ${idx + 1}`,
@@ -760,6 +761,7 @@ export function ChatView({ onClose, sfx }) {
           url: m.url,
           type: m.type,
           id: m.id,
+          createdAt: m.created_at,
           isDeleted: m.isDeleted,
           metadata: {
             title: m.type === 'video' ? 'Video Message' : 'Photo Message',
@@ -799,6 +801,13 @@ export function ChatView({ onClose, sfx }) {
             if (item?.id) {
               const rs = item.reactions || [];
               syncUpdateMessage(item.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
+            }
+          }}
+          onJumpToMessage={(idx) => {
+            const item = viewerContext.items[idx];
+            if (item?.id) {
+              handleJumpToMessage(item.id, item.createdAt);
+              setViewerContext(p => ({ ...p, isOpen: false }));
             }
           }}
           onSaveToScrapbook={handleSaveToScrapbook}
@@ -1354,7 +1363,7 @@ export function ChatView({ onClose, sfx }) {
             </div>
           </div>
           {showDetails && (
-            <div className="flex flex-col w-full md:w-80 shrink-0 bg-main overflow-hidden relative border-l-2 border-border">
+            <div className="flex flex-col w-full md:w-80 shrink-0 bg-main overflow-hidden relative border-l-2 border-border h-full">
               <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
               <div className="p-2 flex gap-1.5 bg-border shrink-0">
                 <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
@@ -1451,17 +1460,33 @@ export function ChatView({ onClose, sfx }) {
                     <div>
                       <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={ImageIcon} size={16} /> Media Grid</h3>
                       <div className="grid grid-cols-2 gap-2">
-                        {imageMessages.length === 0 ? (
+                        {mediaMessages.length === 0 ? (
                           <p className="text-sm opacity-50 col-span-2">No media shared yet.</p>
                         ) : (
-                          imageMessages.map(m => (
-                            <div
-                              key={m.id}
-                              onClick={() => openViewer(m.type === 'image_group' ? m.urls[0] : m.url, m.id)}
-                              className="aspect-square retro-outset bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity"
-                              style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}
-                            ></div>
-                          ))
+                          mediaMessages.map(m => {
+                            if (m.type === 'video') {
+                              return (
+                                <div
+                                  key={m.id}
+                                  onClick={() => openViewer(m.url, m.id)}
+                                  className="aspect-square retro-outset bg-black cursor-pointer hover:opacity-80 transition-opacity relative overflow-hidden flex items-center justify-center"
+                                >
+                                  <video src={m.url} className="w-full h-full object-cover pointer-events-none" muted />
+                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                    <Video size={16} className="text-white drop-shadow-md" />
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div
+                                key={m.id}
+                                onClick={() => openViewer(m.type === 'image_group' ? m.urls[0] : m.url, m.id)}
+                                className="aspect-square retro-outset bg-cover bg-center cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{ backgroundImage: `url(${m.type === 'image_group' ? m.urls[0] : m.url})` }}
+                              ></div>
+                            );
+                          })
                         )}
                       </div>
                     </div>

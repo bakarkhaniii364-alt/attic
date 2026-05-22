@@ -106,50 +106,73 @@ export function ChatProvider({ children }) {
 
     initChat();
 
-    const channel = supabase.channel(`chat_realtime_${roomId}_${CACHE_VERSION}`);
-    channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          mapMessage(payload.new).then(mapped => {
-            if (!mounted) return;
-            setMessages(prev => {
-              // De-duplication Logic:
-              // 1. Check if this exact DB ID is already present
-              if (prev.some(m => m.id === mapped.id)) return prev;
-              
-              // 2. Check if there's an optimistic message with the same client_id
-              const clientId = mapped.clientId;
-              if (clientId && prev.some(m => String(m.id).startsWith('temp-') && m.clientId === clientId)) {
-                // Replace the optimistic message with the real one
-                const next = prev.map(m => (String(m.id).startsWith('temp-') && m.clientId === clientId) ? mapped : m);
+    let channel = null;
+    let unsubs = [];
+
+    if (isTestMode()) {
+      unsubs.push(onTestStateUpdate('chat_message', (payload) => {
+        mapMessage(payload).then(mapped => {
+          if (!mounted) return;
+          setMessages(prev => {
+            if (prev.some(m => m.id === mapped.id)) return prev;
+            return [...prev, mapped];
+          });
+        });
+      }));
+
+      unsubs.push(onTestStateUpdate('chat_message_update', (payload) => {
+        mapMessage(payload).then(mapped => {
+          if (!mounted) return;
+          setMessages(prev => prev.map(m => m.id === mapped.id ? mapped : m));
+        });
+      }));
+    } else {
+      channel = supabase.channel(`chat_realtime_${roomId}_${CACHE_VERSION}`);
+      channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, (payload) => {
+          if (payload.eventType === 'INSERT') {
+            mapMessage(payload.new).then(mapped => {
+              if (!mounted) return;
+              setMessages(prev => {
+                // De-duplication Logic:
+                // 1. Check if this exact DB ID is already present
+                if (prev.some(m => m.id === mapped.id)) return prev;
+                
+                // 2. Check if there's an optimistic message with the same client_id
+                const clientId = mapped.clientId;
+                if (clientId && prev.some(m => String(m.id).startsWith('temp-') && m.clientId === clientId)) {
+                  // Replace the optimistic message with the real one
+                  const next = prev.map(m => (String(m.id).startsWith('temp-') && m.clientId === clientId) ? mapped : m);
+                  localforage.setItem(cacheKey, next);
+                  return next;
+                }
+
+                // 3. Otherwise, it's a new message from partner, append it
+                const next = [...prev, mapped];
                 localforage.setItem(cacheKey, next);
                 return next;
-              }
-
-              // 3. Otherwise, it's a new message from partner, append it
-              const next = [...prev, mapped];
-              localforage.setItem(cacheKey, next);
-              return next;
+              });
             });
-          });
-        } else if (payload.eventType === 'UPDATE') {
-          mapMessage(payload.new).then(mapped => {
-            if (!mounted) return;
-            setMessages(prev => {
-              const next = prev.map(m => m.id === mapped.id ? mapped : m);
-              localforage.setItem(cacheKey, next);
-              return next;
+          } else if (payload.eventType === 'UPDATE') {
+            mapMessage(payload.new).then(mapped => {
+              if (!mounted) return;
+              setMessages(prev => {
+                const next = prev.map(m => m.id === mapped.id ? mapped : m);
+                localforage.setItem(cacheKey, next);
+                return next;
+              });
             });
-          });
-        } else if (payload.eventType === 'DELETE') {
-          if (mounted) setMessages(prev => prev.filter(m => m.id !== payload.old.id));
-        }
-      })
-      .subscribe();
+          } else if (payload.eventType === 'DELETE') {
+            if (mounted) setMessages(prev => prev.filter(m => m.id !== payload.old.id));
+          }
+        })
+        .subscribe();
+    }
 
     return () => {
       mounted = false;
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
+      unsubs.forEach(un => un());
     };
   }, [roomId]);
 

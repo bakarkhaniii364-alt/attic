@@ -413,7 +413,7 @@ export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
 }
 
 // ── ImageViewerOverlay ──
-export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, onDelete, onSaveToScrapbook, onReact, sfx }) {
+export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPrev, onDelete, onSaveToScrapbook, onReact, onJumpToMessage, sfx }) {
   if (currentIndex === null || !images || !images[currentIndex]) return null;
   
   const currentItem = typeof images[currentIndex] === 'string' ? { url: images[currentIndex], type: 'image' } : images[currentIndex];
@@ -564,6 +564,9 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-4">
+          {onJumpToMessage && !isDeleted && (
+             <button onClick={() => { playAudio('click', sfx); onJumpToMessage(currentIndex); }} className="p-1.5 retro-border bg-window hover:bg-accent/10 text-primary transition-colors flex items-center justify-center" title="Jump to Message"><MessageSquare size={14} /></button>
+          )}
           <button onClick={handleDownload} disabled={isDeleted} className="p-1.5 retro-border bg-window hover:bg-accent/10 transition-colors disabled:opacity-30 disabled:grayscale" title="Download"><Download size={14} /></button>
           {onDelete && !isDeleted && (
              <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 retro-border bg-window hover:bg-red-500/10 text-red-600 transition-colors" title="Delete"><Trash2 size={14} /></button>

@@ -217,11 +217,12 @@ export function PocketWatchWinder({ initialDate, onClose, onJumpToDate, roomId, 
       lastAngleRef.current = currentAngle;
 
       const step = 30; // 30 degrees per date item
-      const nextRotation = rotationRef.current + delta;
+      const list = stateRef.current.dates;
+      const maxRotation = list.length > 0 ? (list.length - 1) * step : 0;
+      const nextRotation = Math.max(0, Math.min(maxRotation, rotationRef.current + delta));
       rotationRef.current = nextRotation;
       setRotationAngle(nextRotation);
 
-      const list = stateRef.current.dates;
       const newIndex = Math.max(0, Math.min(list.length - 1, Math.round(nextRotation / step)));
 
       if (newIndex !== stateRef.current.selectedIndex) {
