@@ -529,7 +529,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                 <div className="bg-yellow-100 text-yellow-800 p-2 text-[10px] uppercase tracking-widest font-black text-center border-b-[3px] border-yellow-300">
                                     Warning: Some sites (Netflix, Hulu) block external embedding.
                                 </div>
-                                <iframe src={syncedUrl} className="w-full flex-1 border-none" title="Shared Browser" />
+                                <iframe src={syncedUrl} className="w-full flex-1 border-none" title="Shared Browser" referrerPolicy="no-referrer" />
                             </div>
                         ) : (
                             /* CINEMA MODE */
@@ -549,6 +549,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                             title="Cinema Player" 
                                             allowFullScreen 
                                             allow="autoplay; encrypted-media; picture-in-picture"
+                                            referrerPolicy="no-referrer"
                                         />
                                     </>
                                 ) : (
