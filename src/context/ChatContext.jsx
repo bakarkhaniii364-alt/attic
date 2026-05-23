@@ -512,14 +512,46 @@ export function ChatProvider({ children }) {
     const isArray = Array.isArray(idOrIds);
     if (isArray && idOrIds.length === 0) return;
 
-    let query = supabase.from('chat_messages').update({ metadata: updates });
-    if (isArray) {
-      query = query.in('id', idOrIds);
-    } else {
-      query = query.eq('id', idOrIds);
+    // Supabase JS update replaces JSONB. We must merge it manually.
+    // Fetch the existing message(s) first.
+    const { data: existingRows } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .filter('id', isArray ? 'in' : 'eq', isArray ? `(${idOrIds.join(',')})` : idOrIds);
+      
+    if (!existingRows || existingRows.length === 0) return;
+
+    for (const row of existingRows) {
+      let finalContent = row.content;
+      const mergedMetadata = { ...(row.metadata || {}), ...updates };
+      
+      // If we are updating the text content
+      if (updates.text !== undefined) {
+        finalContent = updates.text;
+        delete mergedMetadata.text; // Text doesn't belong in metadata
+        
+        const currentSharedKey = sharedKeyRef.current;
+        if (currentSharedKey) {
+          try {
+            const encrypted = await encryptText(finalContent, currentSharedKey);
+            finalContent = encrypted.ciphertext;
+            mergedMetadata.iv = encrypted.iv;
+            mergedMetadata.is_encrypted = true;
+          } catch (e) {
+            console.error('[CHAT] Encryption failed during update:', e);
+          }
+        } else {
+          mergedMetadata.is_encrypted = false;
+        }
+      }
+
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({ content: finalContent, metadata: mergedMetadata })
+        .eq('id', row.id);
+        
+      if (error) console.error('[CHAT] Update error:', error);
     }
-    const { error } = await query;
-    if (error) console.error('[CHAT] Update error:', error);
   }, []);
 
   const deleteMessage = useCallback(async (id) => {

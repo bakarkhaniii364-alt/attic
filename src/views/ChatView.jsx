@@ -1218,7 +1218,7 @@ export function ChatView({ onClose, sfx }) {
                           {isMe && !msg.isDeleted && (
                             <>
                               {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
-                              <button onClick={() => { syncDeleteMessage(msg.id); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
+                              <button onClick={() => { if (window.confirm("Delete this message?")) { syncDeleteMessage(msg.id); } setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
                             </>
                           )}
                         </div>
