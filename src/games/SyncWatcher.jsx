@@ -33,7 +33,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     };
 
     const getLocalEmbedUrl = (url, provider) => {
-        if (!url) return '';
+        if (!url || typeof url !== 'string') return '';
         
         // Normalize any passed VidLink URLs so they can be parsed
         let normalizedUrl = url;
@@ -55,13 +55,21 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             const movieIdx = parts.indexOf('movie');
             if (movieIdx !== -1 && parts.length > movieIdx + 1) {
                 const id = parts[movieIdx + 1];
-                if (provider === 'vidsrc') {
-                    return `https://vidsrc.to/embed/movie/${id}`;
-                } else if (provider === 'vidlink') {
-                    return `https://vidlink.pro/movie/${id}`;
-                } else {
-                    return `https://www.vidking.net/embed/movie/${id}?color=e50914&autoPlay=true`;
+                const isImdb = String(id).startsWith('tt');
+                
+                // Vidlink and Vidking strictly require TMDB IDs. Fall back if IMDb ID is passed.
+                let effectiveProvider = provider;
+                if (isImdb && (provider === 'vidlink' || provider === 'vidking')) {
+                    effectiveProvider = 'vidsrc.me';
                 }
+
+                if (effectiveProvider === 'vidsrc' || effectiveProvider === 'vidsrc.to') return `https://vidsrc.to/embed/movie/${id}`;
+                if (effectiveProvider === 'vidsrc.me') return `https://vidsrc.me/embed/movie/${id}`;
+                if (effectiveProvider === 'vidsrc.xyz') return `https://vidsrc.xyz/embed/movie/${id}`;
+                if (effectiveProvider === 'multiembed') return `https://multiembed.mov/directstream.php?video_id=${id}`;
+                if (effectiveProvider === 'vidlink') return `https://vidlink.pro/movie/${id}`;
+                if (effectiveProvider === 'vidking') return `https://www.vidking.net/embed/movie/${id}?color=e50914&autoPlay=true`;
+                return `https://vidsrc.me/embed/movie/${id}`;
             }
         } else {
             const tvIdx = parts.indexOf('tv');
@@ -69,13 +77,20 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 const id = parts[tvIdx + 1];
                 const season = parts[tvIdx + 2];
                 const episode = parts[tvIdx + 3];
-                if (provider === 'vidsrc') {
-                    return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
-                } else if (provider === 'vidlink') {
-                    return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
-                } else {
-                    return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+                const isImdb = String(id).startsWith('tt');
+
+                let effectiveProvider = provider;
+                if (isImdb && (provider === 'vidlink' || provider === 'vidking')) {
+                    effectiveProvider = 'vidsrc.me';
                 }
+
+                if (effectiveProvider === 'vidsrc' || effectiveProvider === 'vidsrc.to') return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
+                if (effectiveProvider === 'vidsrc.me') return `https://vidsrc.me/embed/tv/${id}/${season}/${episode}`;
+                if (effectiveProvider === 'vidsrc.xyz') return `https://vidsrc.xyz/embed/tv/${id}/${season}/${episode}`;
+                if (effectiveProvider === 'multiembed') return `https://multiembed.mov/directstream.php?video_id=${id}&tmdb=0&s=${season}&e=${episode}`;
+                if (effectiveProvider === 'vidlink') return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
+                if (effectiveProvider === 'vidking') return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+                return `https://vidsrc.me/embed/tv/${id}/${season}/${episode}`;
             }
         }
         return url;
@@ -138,7 +153,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                     title: item['#TITLE'],
                     year: item['#YEAR'] || 'N/A',
                     poster: item['#IMG_POSTER'] || '',
-                    type: 'movie',
+                    type: item['#TYPE'] === 'tvSeries' || item['#TYPE'] === 'tvMiniSeries' ? 'tv' : 'movie',
                     actors: item['#ACTORS']
                 }));
             }
@@ -357,7 +372,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     };
 
     // TV Show URL parsing for binging helper controls
-    const isTvUrl = syncedUrl.includes('/embed/tv/');
+    const isTvUrl = syncedUrl?.includes('/embed/tv/');
     let currentTvId = '';
     let currentSeason = 1;
     let currentEpisode = 1;
@@ -548,9 +563,12 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
                   {/* LOCAL PROVIDER SELECTOR (Only in Cinema Mode) */}
                   {mode === 'cinema' && (
-                    <div className="flex bg-black/30 rounded p-0.5 retro-border shadow-inner ml-2 items-center gap-1">
+                    <div className="flex bg-black/30 rounded p-0.5 retro-border shadow-inner ml-2 items-center gap-1 overflow-x-auto custom-scrollbar whitespace-nowrap">
                       <span className="text-white/40 px-1.5 py-1 text-[8px] font-black tracking-wider uppercase select-none hidden xs:inline">MIRROR:</span>
-                      <button onClick={() => handleProviderChange('vidsrc')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDSRC</button>
+                      <button onClick={() => handleProviderChange('vidsrc')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.TO</button>
+                      <button onClick={() => handleProviderChange('vidsrc.me')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc.me' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.ME</button>
+                      <button onClick={() => handleProviderChange('vidsrc.xyz')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc.xyz' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.XYZ</button>
+                      <button onClick={() => handleProviderChange('multiembed')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'multiembed' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>MULTI</button>
                       <button onClick={() => handleProviderChange('vidlink')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidlink' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDLINK</button>
                       <button onClick={() => handleProviderChange('vidking')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidking' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDKING</button>
                     </div>
@@ -606,7 +624,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                 <div className="bg-yellow-100 text-yellow-800 p-2 text-[10px] uppercase tracking-widest font-black text-center border-b-[3px] border-yellow-300">
                                     Warning: Some sites (Netflix, Hulu) block external embedding.
                                 </div>
-                                <iframe src={syncedUrl} className="w-full flex-1 border-none" title="Shared Browser" referrerPolicy="no-referrer" />
+                                <iframe src={syncedUrl} className="w-full flex-1 border-none" title="Shared Browser" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups" />
                             </div>
                         ) : (
                             /* CINEMA MODE */
@@ -627,6 +645,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                             allowFullScreen 
                                             allow="autoplay; encrypted-media; picture-in-picture"
                                             referrerPolicy="no-referrer"
+                                            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
                                         />
                                     </>
                                 ) : (

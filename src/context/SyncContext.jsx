@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import localforage from 'localforage';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from './instances.js';
@@ -333,7 +333,7 @@ export function SyncProvider({ children }) {
     return () => clearInterval(interval);
   }, [roomId, userId, isInitialized, updateSyncStateAtomic]);
 
-  const value = {
+  const value = useMemo(() => ({
     globalState,
     isInitialized,
     onlineUsers,
@@ -344,7 +344,17 @@ export function SyncProvider({ children }) {
     mergeSyncState,
     broadcast,
     roomProfiles: globalState.room_profiles || {}
-  };
+  }), [
+    globalState,
+    isInitialized,
+    onlineUsers,
+    currentActivity,
+    setCurrentActivity,
+    updateSyncState,
+    updateSyncStateAtomic,
+    mergeSyncState,
+    broadcast
+  ]);
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }

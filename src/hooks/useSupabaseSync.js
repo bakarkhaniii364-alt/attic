@@ -26,6 +26,7 @@ export function useGlobalSync(key, initialValue) {
   });
 
   const [loading, setLoading] = useState(!isInitialized);
+  const localStateRef = useRef(localState);
 
   // Sync localState with globalState
   useEffect(() => {
@@ -34,46 +35,52 @@ export function useGlobalSync(key, initialValue) {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (JSON.stringify(parsed) !== JSON.stringify(localState)) {
+          if (JSON.stringify(parsed) !== JSON.stringify(localStateRef.current)) {
+            localStateRef.current = parsed;
             setLocalState(parsed);
           }
         } catch (e) {}
       }
     }
     if (globalState && globalState[key] !== undefined) {
-      if (JSON.stringify(globalState[key]) !== JSON.stringify(localState)) {
+      if (JSON.stringify(globalState[key]) !== JSON.stringify(localStateRef.current)) {
+        localStateRef.current = globalState[key];
         setLocalState(globalState[key]);
       }
       setLoading(false);
     } else if (isInitialized) {
       setLoading(false);
     }
-  }, [globalState, key, isInitialized, localState]);
+  }, [globalState, key, isInitialized]);
 
   const updateState = useCallback(async (value) => {
-    const valueToStore = value instanceof Function ? value(localState) : value;
+    const valueToStore = value instanceof Function ? value(localStateRef.current) : value;
     
     // Optimistic local update
-    if (JSON.stringify(localState) !== JSON.stringify(valueToStore)) {
+    if (JSON.stringify(localStateRef.current) !== JSON.stringify(valueToStore)) {
+      localStateRef.current = valueToStore;
       setLocalState(valueToStore);
       if (isTestMode()) {
         localStorage.setItem(`attic_test_${key}`, JSON.stringify(valueToStore));
       }
       updateSyncState(key, valueToStore);
     }
-  }, [key, localState, updateSyncState]);
+  }, [key, updateSyncState]);
 
   // Test Mode Support
   useEffect(() => {
     if (isTestMode()) {
         sendTestStateRequest(key);
         const un1 = onTestStateUpdate(key, (val) => {
+            localStateRef.current = val;
             setLocalState(val);
         });
         const handleStorage = (e) => {
           if (e.key === `attic_test_${key}` && e.newValue) {
             try {
-              setLocalState(JSON.parse(e.newValue));
+              const parsed = JSON.parse(e.newValue);
+              localStateRef.current = parsed;
+              setLocalState(parsed);
             } catch (err) {}
           }
         };
