@@ -22,6 +22,55 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     // Local UI State
     const [inputUrl, setInputUrl] = useState('');
+    const [localProvider, setLocalProvider] = useState(() => {
+        return localStorage.getItem('sync_watcher_provider') || 'vidsrc'; // Default to vidsrc since it's most compatible
+    });
+
+    const handleProviderChange = (prov) => {
+        playAudio('click', sfx);
+        setLocalProvider(prov);
+        localStorage.setItem('sync_watcher_provider', prov);
+    };
+
+    const getLocalEmbedUrl = (url, provider) => {
+        if (!url) return '';
+        // If it's not a cinema embed URL, return it as is
+        if (!url.includes('/embed/movie/') && !url.includes('/embed/tv/')) {
+            return url;
+        }
+
+        const isMovie = url.includes('/embed/movie/');
+        const parts = url.split('?')[0].split('/');
+        
+        if (isMovie) {
+            const movieIdx = parts.indexOf('movie');
+            if (movieIdx !== -1 && parts.length > movieIdx + 1) {
+                const id = parts[movieIdx + 1];
+                if (provider === 'vidsrc') {
+                    return `https://vidsrc.to/embed/movie/${id}`;
+                } else if (provider === 'vidlink') {
+                    return `https://vidlink.pro/embed/movie/${id}`;
+                } else {
+                    return `https://www.vidking.net/embed/movie/${id}?color=e50914&autoPlay=true`;
+                }
+            }
+        } else {
+            const tvIdx = parts.indexOf('tv');
+            if (tvIdx !== -1 && parts.length > tvIdx + 3) {
+                const id = parts[tvIdx + 1];
+                const season = parts[tvIdx + 2];
+                const episode = parts[tvIdx + 3];
+                if (provider === 'vidsrc') {
+                    return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
+                } else if (provider === 'vidlink') {
+                    return `https://vidlink.pro/embed/tv/${id}/${season}/${episode}`;
+                } else {
+                    return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+                }
+            }
+        }
+        return url;
+    };
     const [volume, setVolume] = useState(0.8);
     const [muted, setMuted] = useState(false);
     const [playing, setPlaying] = useState(false);
@@ -471,7 +520,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         return `${mm}:${ss}`;
     };
 
-    const isCinemaPlayerUrl = syncedUrl && (syncedUrl.includes('vidking.net/embed/') || syncedUrl.includes('vidsrc.to/embed/'));
+    const isCinemaPlayerUrl = syncedUrl && (syncedUrl.includes('vidking.net/embed/') || syncedUrl.includes('vidsrc.to/embed/') || syncedUrl.includes('vidlink.pro/embed/'));
 
     return (
         <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
@@ -487,6 +536,16 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                     <button onClick={() => setMode('browser')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'browser' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>BROWSER</button>
                     <button onClick={() => setMode('cinema')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'cinema' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>CINEMA</button>
                   </div>
+
+                  {/* LOCAL PROVIDER SELECTOR (Only in Cinema Mode) */}
+                  {mode === 'cinema' && (
+                    <div className="flex bg-black/30 rounded p-0.5 retro-border shadow-inner ml-2 items-center gap-1">
+                      <span className="text-white/40 px-1.5 py-1 text-[8px] font-black tracking-wider uppercase select-none hidden xs:inline">MIRROR:</span>
+                      <button onClick={() => handleProviderChange('vidsrc')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDSRC</button>
+                      <button onClick={() => handleProviderChange('vidlink')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidlink' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDLINK</button>
+                      <button onClick={() => handleProviderChange('vidking')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidking' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDKING</button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="hidden sm:flex items-center gap-2 opacity-80">
@@ -553,7 +612,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                             <Search size={12} /> Search Cinema
                                         </button>
                                         <iframe 
-                                            src={syncedUrl} 
+                                            src={getLocalEmbedUrl(syncedUrl, localProvider)} 
                                             className="w-full h-full border-none bg-black" 
                                             title="Cinema Player" 
                                             allowFullScreen 
