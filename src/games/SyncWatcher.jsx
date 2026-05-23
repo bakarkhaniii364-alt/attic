@@ -34,13 +34,22 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     const getLocalEmbedUrl = (url, provider) => {
         if (!url) return '';
+        
+        // Normalize any passed VidLink URLs so they can be parsed
+        let normalizedUrl = url;
+        if (url.includes('vidlink.pro/movie/') && !url.includes('/embed/')) {
+            normalizedUrl = url.replace('vidlink.pro/movie/', 'vidlink.pro/embed/movie/');
+        } else if (url.includes('vidlink.pro/tv/') && !url.includes('/embed/')) {
+            normalizedUrl = url.replace('vidlink.pro/tv/', 'vidlink.pro/embed/tv/');
+        }
+
         // If it's not a cinema embed URL, return it as is
-        if (!url.includes('/embed/movie/') && !url.includes('/embed/tv/')) {
+        if (!normalizedUrl.includes('/embed/movie/') && !normalizedUrl.includes('/embed/tv/')) {
             return url;
         }
 
-        const isMovie = url.includes('/embed/movie/');
-        const parts = url.split('?')[0].split('/');
+        const isMovie = normalizedUrl.includes('/embed/movie/');
+        const parts = normalizedUrl.split('?')[0].split('/');
         
         if (isMovie) {
             const movieIdx = parts.indexOf('movie');
@@ -49,7 +58,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 if (provider === 'vidsrc') {
                     return `https://vidsrc.to/embed/movie/${id}`;
                 } else if (provider === 'vidlink') {
-                    return `https://vidlink.pro/embed/movie/${id}`;
+                    return `https://vidlink.pro/movie/${id}`;
                 } else {
                     return `https://www.vidking.net/embed/movie/${id}?color=e50914&autoPlay=true`;
                 }
@@ -63,7 +72,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 if (provider === 'vidsrc') {
                     return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
                 } else if (provider === 'vidlink') {
-                    return `https://vidlink.pro/embed/tv/${id}/${season}/${episode}`;
+                    return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
                 } else {
                     return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
                 }
@@ -520,7 +529,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         return `${mm}:${ss}`;
     };
 
-    const isCinemaPlayerUrl = syncedUrl && (syncedUrl.includes('vidking.net/embed/') || syncedUrl.includes('vidsrc.to/embed/') || syncedUrl.includes('vidlink.pro/embed/'));
+    const isCinemaPlayerUrl = syncedUrl && (syncedUrl.includes('vidking.net/embed/') || syncedUrl.includes('vidsrc.to/embed/') || syncedUrl.includes('vidlink.pro/embed/') || syncedUrl.includes('vidlink.pro/movie/') || syncedUrl.includes('vidlink.pro/tv/'));
 
     return (
         <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
