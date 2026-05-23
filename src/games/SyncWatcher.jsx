@@ -207,7 +207,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const handleSelectItem = async (item) => {
         playAudio('click', sfx);
         if (item.type === 'movie') {
-            const url = `https://www.vidking.net/embed/movie/${item.id}?color=e50914&autoPlay=true`;
+            const isImdb = String(item.id).startsWith('tt');
+            const url = isImdb 
+                ? `https://vidsrc.to/embed/movie/${item.id}`
+                : `https://www.vidking.net/embed/movie/${item.id}?color=e50914&autoPlay=true`;
             setSyncedUrl(url);
             setMode('cinema');
             broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} played Movie: ${item.title}` });
@@ -286,7 +289,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const handlePlayEpisode = (episodeNumber) => {
         playAudio('click', sfx);
         const id = tmdbKey ? selectedShow.id : (selectedShow.imdbId || selectedShow.id);
-        const url = `https://www.vidking.net/embed/tv/${id}/${selectedSeason}/${episodeNumber}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+        const isImdb = String(id).startsWith('tt');
+        const url = isImdb
+            ? `https://vidsrc.to/embed/tv/${id}/${selectedSeason}/${episodeNumber}`
+            : `https://www.vidking.net/embed/tv/${id}/${selectedSeason}/${episodeNumber}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
         setSyncedUrl(url);
         setMode('cinema');
         broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} played ${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}` });
@@ -310,7 +316,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const handleNextPrevEpisode = (direction) => {
         playAudio('click', sfx);
         const newEp = Math.max(1, currentEpisode + direction);
-        const url = `https://www.vidking.net/embed/tv/${currentTvId}/${currentSeason}/${newEp}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+        const isImdb = String(currentTvId).startsWith('tt');
+        const url = isImdb
+            ? `https://vidsrc.to/embed/tv/${currentTvId}/${currentSeason}/${newEp}`
+            : `https://www.vidking.net/embed/tv/${currentTvId}/${currentSeason}/${newEp}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
         setSyncedUrl(url);
         broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} skipped to Episode ${newEp}` });
     };
@@ -462,7 +471,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         return `${mm}:${ss}`;
     };
 
-    const isVidKingUrl = syncedUrl && syncedUrl.startsWith('https://www.vidking.net/');
+    const isCinemaPlayerUrl = syncedUrl && (syncedUrl.includes('vidking.net/embed/') || syncedUrl.includes('vidsrc.to/embed/'));
 
     return (
         <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
@@ -534,7 +543,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                         ) : (
                             /* CINEMA MODE */
                             <div className="absolute inset-0 bg-main flex flex-col overflow-hidden">
-                                {isVidKingUrl ? (
+                                {isCinemaPlayerUrl ? (
                                     <>
                                         {/* Cinema Search Overlay Toggle */}
                                         <button 
@@ -720,7 +729,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                 )}
 
                                 {/* Floating Hearts Overlay (Only visible during active cinema watch) */}
-                                {isVidKingUrl && (
+                                {isCinemaPlayerUrl && (
                                     <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
                                         {hearts.map(heart => (
                                             <div key={heart.id} className="absolute text-4xl text-primary animate-float-up drop-shadow-xl" style={{ left: `${heart.x}%`, top: `${heart.y}%` }}>❤️</div>
