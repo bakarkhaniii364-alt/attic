@@ -39,7 +39,8 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
     }
   }, [isMultiplayer, isHost, syncState]);
 
-  const passage = isMultiplayer ? (syncState?.passage || '') : PASSAGES[Math.floor(Math.random() * PASSAGES.length)];
+  const [localPassage, setLocalPassage] = useState(() => PASSAGES[Math.floor(Math.random() * PASSAGES.length)]);
+  const passage = isMultiplayer ? (syncState?.passage || '') : localPassage;
 
   const [typed, setTyped] = useState('');
   const [started, setStarted] = useState(false);
@@ -105,7 +106,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
   const accuracy = typed.length > 0 ? Math.round(((typed.length - errors) / typed.length) * 100) : 100;
   const progress = Math.min(100, Math.round((typed.length / (passage.length || 1)) * 100));
 
-  const restart = () => { setTyped(''); setStarted(false); setStartTime(null); setEndTime(null); setErrors(0); setShowOverlay(false); if (isMultiplayer && isHost) setSyncState({ passage: PASSAGES[Math.floor(Math.random() * PASSAGES.length)], startedAt: null, winner: null }); inputRef.current?.focus(); };
+  const restart = () => { setTyped(''); setStarted(false); setStartTime(null); setEndTime(null); setErrors(0); setShowOverlay(false); if (isMultiplayer && isHost) setSyncState({ passage: PASSAGES[Math.floor(Math.random() * PASSAGES.length)], startedAt: null, winner: null }); else setLocalPassage(PASSAGES[Math.floor(Math.random() * PASSAGES.length)]); inputRef.current?.focus(); };
 
   const iWon = endTime && (!isMultiplayer || syncState?.winner === userId);
   const partnerWon = isMultiplayer && syncState?.winner === partnerId;

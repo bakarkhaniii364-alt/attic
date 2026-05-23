@@ -72,6 +72,22 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     
     const dpr = window.devicePixelRatio || 1;
     
+    // Save current content before resizing
+    const oldWidth = canvas.width;
+    const oldHeight = canvas.height;
+    let tempCanvas = null;
+    if (canvas.dataset.initialized === 'true' && oldWidth > 0 && oldHeight > 0) {
+      tempCanvas = document.createElement('canvas');
+      tempCanvas.width = oldWidth;
+      tempCanvas.height = oldHeight;
+      const tCtx = tempCanvas.getContext('2d');
+      if (offscreenCanvasRef.current) {
+        tCtx.drawImage(offscreenCanvasRef.current, 0, 0);
+      } else {
+        tCtx.drawImage(canvas, 0, 0);
+      }
+    }
+
     canvas.width = rect.width * dpr; 
     canvas.height = rect.height * dpr;
     const ctx = canvas.getContext('2d');
@@ -85,11 +101,21 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     offscreen.height = canvas.height;
     const oCtx = offscreen.getContext('2d');
     
+    const drawOffscreenToCanvas = () => {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(offscreen, 0, 0);
+      ctx.restore();
+    };
+
+    const backup = localStorage.getItem('attic_doodle_backup');
+
     if (initialDoodle && !canvas.dataset.initialized) { 
       const img = new Image(); 
       img.onload = () => { 
         oCtx.drawImage(img, 0, 0, offscreen.width, offscreen.height); 
-        ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
+        drawOffscreenToCanvas();
         const snapshot = offscreen.toDataURL();
         setHistory([snapshot]);
         setStep(0);
@@ -97,13 +123,28 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
       img.src = typeof initialDoodle === 'string' ? initialDoodle : initialDoodle.img; 
       canvas.dataset.initialized = 'true'; 
     } 
+    else if (tempCanvas) {
+      oCtx.drawImage(tempCanvas, 0, 0, offscreen.width, offscreen.height);
+      drawOffscreenToCanvas();
+    }
     else if (canvas.dataset.initialized === 'true') {
-        ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
+      drawOffscreenToCanvas();
+    }
+    else if (backup) {
+      const img = new Image();
+      img.onload = () => {
+        oCtx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
+        drawOffscreenToCanvas();
+        setHistory([backup]);
+        setStep(0);
+      };
+      img.src = backup;
+      canvas.dataset.initialized = 'true';
     }
     else { 
       oCtx.fillStyle = '#ffffff'; 
       oCtx.fillRect(0, 0, offscreen.width, offscreen.height); 
-      ctx.drawImage(offscreen, 0, 0, rect.width, rect.height);
+      drawOffscreenToCanvas();
       canvas.dataset.initialized = 'true'; 
       const snapshot = offscreen.toDataURL();
       setHistory([snapshot]);
@@ -129,9 +170,12 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     img.onload = () => {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
-      ctx.drawImage(img, 0, 0, canvas.width/dpr, canvas.height/dpr);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      
       const oCtx = offscreenCanvasRef.current.getContext('2d');
       oCtx.clearRect(0, 0, canvas.width, canvas.height);
       oCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -175,8 +219,18 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     }
     
     if (tool === 'fill') { 
-      floodFill(offscreenCanvasRef.current, Math.floor(x * dpr), Math.floor(y * dpr), color); 
-      canvas.getContext('2d').drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
+      const rect = canvas.getBoundingClientRect();
+      const fillX = Math.floor(x * (canvas.width / rect.width));
+      const fillY = Math.floor(y * (canvas.height / rect.height));
+      floodFill(offscreenCanvasRef.current, fillX, fillY, color); 
+      
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(offscreenCanvasRef.current, 0, 0);
+      ctx.restore();
+      
       setHasUnsavedChanges(true); 
       saveSnapshot();
       return; 
@@ -198,8 +252,12 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     const canvas = canvasRef.current; 
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
-    ctx.drawImage(offscreenCanvasRef.current, 0, 0, canvas.width/dpr, canvas.height/dpr);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(offscreenCanvasRef.current, 0, 0);
+    ctx.restore();
+    
     ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
     ctx.fillStyle = tool === 'eraser' ? '#ffffff' : color;
     ctx.lineWidth = brushSize;
@@ -276,6 +334,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     const dataUrl = canvasRef.current.toDataURL('image/png');
     if (onSendDoodle) onSendDoodle(isNormalized ? dataUrl : {img: dataUrl});
     setHasUnsavedChanges(false);
+    localStorage.removeItem('attic_doodle_backup');
     setShowSentOverlay(true);
   };
 
@@ -288,6 +347,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
             const file = new File([blob], `scrapbook_${Date.now()}.png`, { type: 'image/png' });
             await uploadAsset(file, 'scrapbook', userId);
             setHasUnsavedChanges(false);
+            localStorage.removeItem('attic_doodle_backup');
             alert('Saved to Scrapbook!');
         } catch (e) {
             alert("Failed to save: " + e.message);
@@ -295,6 +355,7 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
     } else {
         if (onSaveToScrapbook) onSaveToScrapbook(dataUrl);
         setHasUnsavedChanges(false);
+        localStorage.removeItem('attic_doodle_backup');
         alert('Saved to Scrapbook!');
     }
   };
@@ -353,7 +414,18 @@ export function DoodleApp({ onClose, initialDoodle, onSendDoodle, onSaveToScrapb
              {(brushSize < 12 || tool === 'line') && ( <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-[1px] bg-white/40" /><div className="h-full w-[1px] bg-white/40 absolute" /></div> )}
           </div>
         )}
-        {(tool === 'fill' || tool.startsWith('stamp_')) && showCursor && ( <div className="pointer-events-none fixed z-[999] text-xl" style={{ left: cursorPos.x + canvasRef.current?.getBoundingClientRect().left, top: cursorPos.y + canvasRef.current?.getBoundingClientRect().top, transform: 'translate(-50%, -50%)' }}>{tool === 'fill' ? '🪣' : tool.split('_')[1]}</div> )}
+        {(tool === 'fill' || tool.startsWith('stamp_')) && showCursor && (
+          <div 
+            className="pointer-events-none absolute z-[9999] text-xl select-none" 
+            style={{ 
+              left: cursorPos.x, 
+              top: cursorPos.y, 
+              transform: tool === 'fill' ? 'translate(-15%, -85%) rotate(-15deg)' : 'translate(-50%, -50%)' 
+            }}
+          >
+            {tool === 'fill' ? '🪣' : tool.split('_')[1]}
+          </div>
+        )}
       </div>
       <div className="p-3 retro-bg-window retro-border-t flex flex-wrap gap-2 justify-between">
         <div className="flex gap-2">

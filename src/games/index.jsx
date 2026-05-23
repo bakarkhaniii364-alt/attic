@@ -24,6 +24,7 @@ import { UnoGame } from './UnoGame.jsx';
 import { OthelloGame } from './OthelloGame.jsx';
 import { PoolGame } from './PoolGame.jsx';
 import { BluffGame } from './BluffGame.jsx';
+import { TwentyQuestions } from './TwentyQuestions.jsx';
 
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: 'var(--game-peach)', modes: [
@@ -80,6 +81,9 @@ const GAME_CATALOG = {
   bluff: { title: 'Cheat (Bluff)', desc: 'Lie to win.', color: 'var(--game-indigo)', modes: [
     { id: 'vs_ai', label: 'Play vs AI', type: 'local', diffs: ['easy', 'hard'], desc: 'Can you outsmart the computer?' },
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Call your partner\'s bluffs!' }
+  ]},
+  twentyq: { title: '20 Questions', desc: 'Guess the secret word.', color: 'var(--game-teal)', modes: [
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'One sets the word, the other guesses.' }
   ]}
 };
 
@@ -331,6 +335,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         case 'othello': return <OthelloGame {...commonProps} />;
         case 'pool': return <PoolGame {...commonProps} />;
         case 'bluff': return <BluffGame {...commonProps} />;
+        case 'twentyq': return <TwentyQuestions {...commonProps} />;
         default: return <div className="p-8 text-center font-bold">Game Engine Offline</div>;
       }
     })();

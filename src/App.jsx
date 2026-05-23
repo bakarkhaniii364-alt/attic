@@ -103,7 +103,13 @@ export default function App() {
   const [triggerShake] = useState(false); 
   const [confetti, setConfetti] = useState(false);
   const [radioState, setRadioState] = useLocalStorage('radio_state', { isPlaying: false, channelIdx: 0, volume: 0.4 });
-  const [bootFinished, setBootFinished] = useState(false);
+  const [bootFinished, setBootFinished] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('attic_boot_finished') === 'true';
+    }
+    return false;
+  });
+
 
   // Ensure radio is off by default on refresh and channel index is valid
   useEffect(() => {
@@ -267,7 +273,17 @@ export default function App() {
 
   return (
     <>
-      {!bootFinished && <BootLoader onComplete={() => setBootFinished(true)} sfxEnabled={sfxEnabled} />}
+      {!bootFinished && (
+        <BootLoader 
+          onComplete={() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('attic_boot_finished', 'true');
+            }
+            setBootFinished(true);
+          }} 
+          sfxEnabled={sfxEnabled} 
+        />
+      )}
       
       <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-0 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
         <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} pointer-events-none`} style={{ opacity: 'var(--bg-pattern-opacity, 0.22)' }} />
@@ -387,7 +403,7 @@ export default function App() {
               <Route path="/notes" element={<ProtectedRoute><SharedNotes onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} userName={roomProfiles?.[userId]?.name || 'You'} userColor={theme === 'rose' || theme === 'matcha' ? 'var(--primary)' : '#e94560'} /></ProtectedRoute>} />
               <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
-              <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
+              <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} profile={roomProfiles?.[userId] || { name: 'You', emoji: '👤' }} coupleData={globalState?.couple_data || {}} scores={globalState?.game_scores || {}} roomProfiles={roomProfiles || {}} /></ProtectedRoute>} />
                <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} onShareToChat={handleShareToChat} /></ProtectedRoute>} />
               <Route path="/legal" element={<LegalView onClose={() => navigateTo('dashboard')} />} />
               <Route path="/activities/*" element={<ProtectedRoute><ActivitiesHub 
