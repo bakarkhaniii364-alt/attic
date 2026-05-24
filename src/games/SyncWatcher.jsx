@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 // IMPORT FIXED: No more lazy(), this guarantees the playerRef has the .seekTo() method
 import ReactPlayer from 'react-player';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
@@ -8,92 +8,168 @@ import {
     MessageSquare, Volume2, VolumeX, Maximize2, Settings, Globe, 
     Users, Search, ArrowLeft, Film, Tv 
 } from 'lucide-react';
-import { useSync } from '../context/instances.js';
+import { useSync, useAuth } from '../context/instances.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
+
+const PROVIDER_LABELS = {
+    vidsrc: 'VS.TO',
+    'vidsrc.su': 'VS.SU',
+    'vidsrc.cc': 'VS.CC',
+    'vidsrc.me': 'VS.ME',
+    'vidsrc.xyz': 'VS.XYZ',
+    multiembed: 'MULTI',
+    vidlink: 'VIDLINK',
+    vidking: 'VIDKING',
+};
+
+const parseEmbedUrl = (urlStr) => {
+    if (!urlStr || typeof urlStr !== 'string') return null;
+
+    try {
+        const absoluteUrlStr = urlStr.startsWith('//') ? `https:${urlStr}` : urlStr;
+        const url = new URL(absoluteUrlStr);
+        let id = '';
+        let type = 'movie';
+        let season = '1';
+        let episode = '1';
+
+        if (url.hostname.includes('multiembed.mov')) {
+            const videoId = url.searchParams.get('video_id');
+            const s = url.searchParams.get('s');
+            const e = url.searchParams.get('e');
+            if (videoId) {
+                id = videoId;
+                if (s && e) {
+                    type = 'tv';
+                    season = s;
+                    episode = e;
+                } else {
+                    type = 'movie';
+                }
+                return { id, type, season, episode };
+            }
+        }
+
+        const pathname = url.pathname;
+        const parts = pathname.split('/').filter(Boolean);
+
+        const movieIdx = parts.indexOf('movie');
+        const tvIdx = parts.indexOf('tv');
+
+        if (movieIdx !== -1 && parts.length > movieIdx + 1) {
+            id = parts[movieIdx + 1];
+            type = 'movie';
+            return { id, type, season, episode };
+        } else if (tvIdx !== -1 && parts.length > tvIdx + 1) {
+            id = parts[tvIdx + 1];
+            type = 'tv';
+            if (parts.length > tvIdx + 2) season = parts[tvIdx + 2];
+            if (parts.length > tvIdx + 3) episode = parts[tvIdx + 3];
+            return { id, type, season, episode };
+        }
+
+        const imdbMatch = pathname.match(/tt\d+/);
+        if (imdbMatch) {
+            id = imdbMatch[0];
+            const afterImdb = parts.slice(parts.indexOf(id) + 1);
+            if (afterImdb.length >= 2 && !isNaN(afterImdb[0]) && !isNaN(afterImdb[1])) {
+                type = 'tv';
+                season = afterImdb[0];
+                episode = afterImdb[1];
+            } else {
+                type = 'movie';
+            }
+            return { id, type, season, episode };
+        }
+
+        return null;
+    } catch (e) {
+        return null;
+    }
+};
 
 export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const { broadcast, roomProfiles } = useSync();
+    const { partnerId } = useAuth();
+    const partnerName = roomProfiles?.[partnerId]?.name || 'Partner';
     
     // Database Synced State (So late-joiners see the right screen)
     const [syncedUrl, setSyncedUrl] = useGlobalSync('sync_watcher_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     const [mode, setMode] = useGlobalSync('sync_watcher_mode', 'video');
+    const [syncedTitle, setSyncedTitle] = useGlobalSync('sync_watcher_title_v2', 'YouTube/Video');
+    const [watcherChat, setWatcherChat] = useGlobalSync('sync_watcher_chat_v2', []);
     
     const myName = roomProfiles?.[userId]?.name || 'You';
 
     // Local UI State
     const [inputUrl, setInputUrl] = useState('');
     const [localProvider, setLocalProvider] = useState(() => {
-        return localStorage.getItem('sync_watcher_provider') || 'vidsrc'; // Default to vidsrc since it's most compatible
+        const saved = localStorage.getItem('sync_watcher_provider_v2');
+        if (!saved || saved === 'vidsrc' || saved === 'vidsrc.to') {
+            return 'multiembed'; // Default to multiembed since it is sandbox-compatible and runs without errors
+        }
+        return saved;
     });
 
-    const handleProviderChange = (prov) => {
-        playAudio('click', sfx);
-        setLocalProvider(prov);
-        localStorage.setItem('sync_watcher_provider', prov);
-    };
-
     const getLocalEmbedUrl = (url, provider) => {
-        if (!url || typeof url !== 'string') return '';
-        
-        // Normalize any passed VidLink URLs so they can be parsed
-        let normalizedUrl = url;
-        if (url.includes('vidlink.pro/movie/') && !url.includes('/embed/')) {
-            normalizedUrl = url.replace('vidlink.pro/movie/', 'vidlink.pro/embed/movie/');
-        } else if (url.includes('vidlink.pro/tv/') && !url.includes('/embed/')) {
-            normalizedUrl = url.replace('vidlink.pro/tv/', 'vidlink.pro/embed/tv/');
-        }
+        const info = parseEmbedUrl(url);
+        if (!info) return url;
 
-        // If it's not a cinema embed URL, return it as is
-        if (!normalizedUrl.includes('/embed/movie/') && !normalizedUrl.includes('/embed/tv/')) {
-            return url;
-        }
+        const { id, type, season, episode } = info;
 
-        const isMovie = normalizedUrl.includes('/embed/movie/');
-        const parts = normalizedUrl.split('?')[0].split('/');
-        
-        if (isMovie) {
-            const movieIdx = parts.indexOf('movie');
-            if (movieIdx !== -1 && parts.length > movieIdx + 1) {
-                const id = parts[movieIdx + 1];
-                const isImdb = String(id).startsWith('tt');
-                
-                // Vidlink and Vidking strictly require TMDB IDs. Fall back if IMDb ID is passed.
-                let effectiveProvider = provider;
-                if (isImdb && (provider === 'vidlink' || provider === 'vidking')) {
-                    effectiveProvider = 'vidsrc.me';
-                }
-
-                if (effectiveProvider === 'vidsrc' || effectiveProvider === 'vidsrc.to') return `https://vidsrc.to/embed/movie/${id}`;
-                if (effectiveProvider === 'vidsrc.me') return `https://vidsrc.me/embed/movie/${id}`;
-                if (effectiveProvider === 'vidsrc.xyz') return `https://vidsrc.xyz/embed/movie/${id}`;
-                if (effectiveProvider === 'multiembed') return `https://multiembed.mov/directstream.php?video_id=${id}`;
-                if (effectiveProvider === 'vidlink') return `https://vidlink.pro/movie/${id}`;
-                if (effectiveProvider === 'vidking') return `https://www.vidking.net/embed/movie/${id}?color=e50914&autoPlay=true`;
-                return `https://vidsrc.me/embed/movie/${id}`;
+        if (type === 'movie') {
+            if (provider === 'vidsrc' || provider === 'vidsrc.to') {
+                return `https://vidsrc.su/embed/movie/${id}`;
             }
+            if (provider === 'vidsrc.su') {
+                return `https://vidsrc.su/embed/movie/${id}`;
+            }
+            if (provider === 'vidsrc.cc') {
+                return `https://vidsrc.cc/v2/embed/movie/${id}`;
+            }
+            if (provider === 'vidsrc.me') {
+                return `https://vidsrcme.ru/embed/movie/${id}`;
+            }
+            if (provider === 'vidsrc.xyz') {
+                return `https://vidsrc-embed.su/embed/movie/${id}`;
+            }
+            if (provider === 'multiembed') {
+                return `https://multiembed.mov/?video_id=${id}`;
+            }
+            if (provider === 'vidlink') {
+                return `https://vidlink.pro/movie/${id}`;
+            }
+            if (provider === 'vidking') {
+                return `https://www.vidking.net/embed/movie/${id}?color=e50914&autoPlay=true`;
+            }
+            return `https://vidsrc.su/embed/movie/${id}`;
         } else {
-            const tvIdx = parts.indexOf('tv');
-            if (tvIdx !== -1 && parts.length > tvIdx + 3) {
-                const id = parts[tvIdx + 1];
-                const season = parts[tvIdx + 2];
-                const episode = parts[tvIdx + 3];
-                const isImdb = String(id).startsWith('tt');
-
-                let effectiveProvider = provider;
-                if (isImdb && (provider === 'vidlink' || provider === 'vidking')) {
-                    effectiveProvider = 'vidsrc.me';
-                }
-
-                if (effectiveProvider === 'vidsrc' || effectiveProvider === 'vidsrc.to') return `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`;
-                if (effectiveProvider === 'vidsrc.me') return `https://vidsrc.me/embed/tv/${id}/${season}/${episode}`;
-                if (effectiveProvider === 'vidsrc.xyz') return `https://vidsrc.xyz/embed/tv/${id}/${season}/${episode}`;
-                if (effectiveProvider === 'multiembed') return `https://multiembed.mov/directstream.php?video_id=${id}&tmdb=0&s=${season}&e=${episode}`;
-                if (effectiveProvider === 'vidlink') return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
-                if (effectiveProvider === 'vidking') return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
-                return `https://vidsrc.me/embed/tv/${id}/${season}/${episode}`;
+            if (provider === 'vidsrc' || provider === 'vidsrc.to') {
+                return `https://vidsrc.su/embed/tv/${id}/${season}/${episode}`;
             }
+            if (provider === 'vidsrc.su') {
+                return `https://vidsrc.su/embed/tv/${id}/${season}/${episode}`;
+            }
+            if (provider === 'vidsrc.cc') {
+                return `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`;
+            }
+            if (provider === 'vidsrc.me') {
+                return `https://vidsrcme.ru/embed/tv/${id}/${season}/${episode}`;
+            }
+            if (provider === 'vidsrc.xyz') {
+                return `https://vidsrc-embed.su/embed/tv/${id}/${season}/${episode}`;
+            }
+            if (provider === 'multiembed') {
+                return `https://multiembed.mov/?video_id=${id}&tmdb=0&s=${season}&e=${episode}`;
+            }
+            if (provider === 'vidlink') {
+                return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
+            }
+            if (provider === 'vidking') {
+                return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+            }
+            return `https://vidsrc.su/embed/tv/${id}/${season}/${episode}`;
         }
-        return url;
     };
     const [volume, setVolume] = useState(0.8);
     const [muted, setMuted] = useState(false);
@@ -104,8 +180,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const [playedSeconds, setPlayedSeconds] = useState(0); 
     const [duration, setDuration] = useState(0);
     
-    // Ephemeral State (Fixes chat database spam)
-    const [ephemeralChat, setEphemeralChat] = useState([]);
+    // Live Reaction Chat Input
     const [chatInput, setChatInput] = useState('');
     const [hearts, setHearts] = useState([]);
     const [loadError, setLoadError] = useState(null);
@@ -128,13 +203,88 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const isSeeking = useRef(false);
     const chatEndRef = useRef(null);
 
+    // Control Sync Refs to avoid infinite broadcast loops
+    const incomingPlay = useRef(0);
+    const incomingPause = useRef(0);
+    const incomingSeek = useRef(0);
+    const hasAnnouncedJoin = useRef(false);
+    const prevPartnerActivity = useRef(null);
+
+    const appendSystemLog = useCallback((text) => {
+        const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, sender: 'SYSTEM', text };
+        setWatcherChat((prev) => [...(prev || []), entry]);
+        broadcast('watcher_chat', entry);
+    }, [setWatcherChat, broadcast]);
+
+    const appendChatMessage = useCallback((msg) => {
+        setWatcherChat((prev) => [...(prev || []), msg]);
+        broadcast('watcher_chat', { ...msg, isMe: false });
+    }, [setWatcherChat, broadcast]);
+
+    const handleProviderChange = (prov) => {
+        playAudio('click', sfx);
+        setLocalProvider(prov);
+        localStorage.setItem('sync_watcher_provider_v2', prov);
+        appendSystemLog(`${myName} switched mirror to ${PROVIDER_LABELS[prov] || prov}`);
+    };
+
+    const handleModeChange = (newMode) => {
+        if (newMode === mode) return;
+        playAudio('click', sfx);
+        setMode(newMode);
+        appendSystemLog(`${myName} switched to ${newMode === 'video' ? 'Video' : 'Cinema'} mode`);
+    };
+
+    const formatTime = (sec) => {
+        if (isNaN(sec) || sec === null || sec === undefined || sec === 0) return "0:00";
+        const date = new Date(sec * 1000);
+        const hh = date.getUTCHours();
+        const mm = date.getUTCMinutes();
+        const ss = date.getUTCSeconds().toString().padStart(2, '0');
+        if (hh > 0) return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
+        return `${mm}:${ss}`;
+    };
+
+    useEffect(() => {
+        if (hasAnnouncedJoin.current) return;
+        hasAnnouncedJoin.current = true;
+        appendSystemLog(`${myName} joined the watch party`);
+    }, [appendSystemLog, myName]);
+
+    useEffect(() => {
+        const activity = partnerId ? roomProfiles?.[partnerId]?.activity : null;
+        if (prevPartnerActivity.current !== null && activity === 'Watching SyncWatcher' && prevPartnerActivity.current !== 'Watching SyncWatcher') {
+            appendSystemLog(`${partnerName} joined the watch party`);
+        }
+        prevPartnerActivity.current = activity;
+    }, [partnerId, roomProfiles, partnerName, appendSystemLog]);
+
     // TMDb API Key from Vite env (Optional)
     const tmdbKey = import.meta.env.VITE_TMDB_API_KEY || '';
+
+    // Embed URL parsing & derived state
+    const parsedEmbed = parseEmbedUrl(syncedUrl);
+    const isCinemaPlayerUrl = !!parsedEmbed;
+    const isTvUrl = parsedEmbed?.type === 'tv';
+    const currentTvId = parsedEmbed?.id || '';
+    const currentSeason = parseInt(parsedEmbed?.season) || 1;
+    const currentEpisode = parseInt(parsedEmbed?.episode) || 1;
+
+    // Fallback if the user has selected a provider that requires TMDB IDs but tmdbKey is missing (so we only have IMDb IDs)
+    let activeProvider = localProvider;
+    if (!tmdbKey) {
+        const compatibleProviders = ['vidsrc', 'vidsrc.su', 'vidsrc.cc', 'vidsrc.me', 'vidsrc.xyz', 'multiembed'];
+        if (!compatibleProviders.includes(localProvider)) {
+            activeProvider = 'multiembed'; // Fallback to MULTI (which is sandbox-compatible and keyless)
+        }
+    }
 
     // Auto-scroll chat
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [ephemeralChat]);
+    }, [watcherChat]);
+
+
 
     // --- CINEMA API FETCH HELPER FUNCTIONS ---
     
@@ -148,14 +298,17 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             });
             const data = await res.json();
             if (data && data.ok && data.description) {
-                return data.description.map(item => ({
-                    id: item['#IMDB_ID'],
-                    title: item['#TITLE'],
-                    year: item['#YEAR'] || 'N/A',
-                    poster: item['#IMG_POSTER'] || '',
-                    type: item['#TYPE'] === 'tvSeries' || item['#TYPE'] === 'tvMiniSeries' ? 'tv' : 'movie',
-                    actors: item['#ACTORS']
-                }));
+                return data.description.map(item => {
+                    console.log('IMDb item type raw:', item['#IMDB_ID'], item['#TYPE']);
+                    return {
+                        id: item['#IMDB_ID'],
+                        title: item['#TITLE'],
+                        year: item['#YEAR'] || 'N/A',
+                        poster: item['#IMG_POSTER'] || '',
+                        type: item['#TYPE'] === 'tvSeries' || item['#TYPE'] === 'tvMiniSeries' ? 'tv' : 'movie',
+                        actors: item['#ACTORS']
+                    };
+                });
             }
             return [];
         } catch (e) {
@@ -242,6 +395,34 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         }
     };
 
+    const resolveShowImdbId = async (show) => {
+        if (show.imdbId) return show.imdbId;
+        
+        try {
+            const res = await fetch(`https://api.tvmaze.com/shows/${show.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.externals?.imdb) {
+                    return data.externals.imdb;
+                }
+            }
+        } catch (e) {
+            console.error('Error fetching TVmaze show details:', e);
+        }
+
+        try {
+            const imdbResults = await searchMoviesIMDb(show.title);
+            const match = imdbResults.find(m => m.title.toLowerCase() === show.title.toLowerCase());
+            if (match) {
+                return match.id;
+            }
+        } catch (e) {
+            console.error('Error searching IMDb proxy by title:', e);
+        }
+
+        return null;
+    };
+
     // --- SEARCH ACTION ---
     const handleSearch = async (query) => {
         if (!query.trim()) return;
@@ -252,23 +433,32 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         try {
             if (tmdbKey) {
                 const results = await searchTMDB(query);
-                if (searchFilter === 'movie') {
-                    setSearchResults(results.filter(r => r.type === 'movie'));
-                } else if (searchFilter === 'tv') {
-                    setSearchResults(results.filter(r => r.type === 'tv'));
-                } else {
-                    setSearchResults(results);
-                }
+                setSearchResults(results);
             } else {
-                let movieResults = [];
-                let tvResults = [];
-                if (searchFilter === 'all' || searchFilter === 'movie') {
-                    movieResults = await searchMoviesIMDb(query);
+                let movieResultsRaw = await searchMoviesIMDb(query);
+                let tvResults = await searchTVmaze(query);
+                
+                const unifiedResults = [];
+                const addedImdbIds = new Set();
+                
+                tvResults.forEach(tv => {
+                    unifiedResults.push(tv);
+                    if (tv.imdbId) addedImdbIds.add(tv.imdbId);
+                });
+
+                for (const item of movieResultsRaw) {
+                    if (addedImdbIds.has(item.id)) {
+                        continue;
+                    }
+                    const tvMatch = tvResults.find(tv => tv.title.toLowerCase() === item.title.toLowerCase());
+                    if (tvMatch) {
+                        continue;
+                    }
+                    unifiedResults.push(item);
+                    addedImdbIds.add(item.id);
                 }
-                if (searchFilter === 'all' || searchFilter === 'tv') {
-                    tvResults = await searchTVmaze(query);
-                }
-                setSearchResults([...movieResults, ...tvResults]);
+                
+                setSearchResults(unifiedResults);
             }
         } catch (err) {
             setSearchError('Search failed. Please verify your connection.');
@@ -279,20 +469,53 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     const handleSelectItem = async (item) => {
         playAudio('click', sfx);
-        if (item.type === 'movie') {
-            const isImdb = String(item.id).startsWith('tt');
+        
+        let itemType = item.type;
+        let resolvedItem = { ...item };
+
+        if (itemType === 'movie' && !tmdbKey && String(item.id).startsWith('tt')) {
+            setSearchLoading(true);
+            try {
+                // First search TVmaze by title to avoid 404 console errors for actual movies
+                const tvmazeRes = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(item.title)}`);
+                if (tvmazeRes.ok) {
+                    const searchData = await tvmazeRes.json();
+                    const match = searchData.find(entry => entry.show?.externals?.imdb === item.id);
+                    if (match && match.show) {
+                        const lookupData = match.show;
+                        itemType = 'tv';
+                        resolvedItem = {
+                            id: lookupData.id,
+                            title: lookupData.name,
+                            year: lookupData.premiered ? new Date(lookupData.premiered).getFullYear() : 'N/A',
+                            poster: lookupData.image?.medium || lookupData.image?.original || item.poster || '',
+                            type: 'tv',
+                            imdbId: item.id,
+                            summary: lookupData.summary
+                        };
+                    }
+                }
+            } catch (e) {
+                console.error('Error in TVmaze movie/tv lookup:', e);
+            } finally {
+                setSearchLoading(false);
+            }
+        }
+
+        if (itemType === 'movie') {
+            const isImdb = String(resolvedItem.id).startsWith('tt');
             const url = isImdb 
-                ? `https://vidsrc.to/embed/movie/${item.id}`
-                : `https://www.vidking.net/embed/movie/${item.id}?color=e50914&autoPlay=true`;
+                ? `https://vidsrc.su/embed/movie/${resolvedItem.id}`
+                : `https://www.vidking.net/embed/movie/${resolvedItem.id}?color=e50914&autoPlay=true`;
             setSyncedUrl(url);
             setMode('cinema');
-            broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} played Movie: ${item.title}` });
+            appendSystemLog(`${myName} played Movie: ${resolvedItem.title}`);
         } else {
-            setSelectedShow(item);
+            setSelectedShow(resolvedItem);
             setEpisodesLoading(true);
             try {
                 if (tmdbKey) {
-                    const details = await fetchTMDBTVDetails(item.id);
+                    const details = await fetchTMDBTVDetails(resolvedItem.id);
                     if (details && details.seasons) {
                         const validSeasons = details.seasons
                             .filter(s => s.season_number > 0)
@@ -301,7 +524,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                         const firstSeason = validSeasons[0] || 1;
                         setSelectedSeason(firstSeason);
                         
-                        const eps = await fetchTMDBSeasonEpisodes(item.id, firstSeason);
+                        const eps = await fetchTMDBSeasonEpisodes(resolvedItem.id, firstSeason);
                         setEpisodes(eps.map(e => ({
                             id: e.id,
                             number: e.episode_number,
@@ -310,7 +533,26 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                         })));
                     }
                 } else {
-                    const eps = await fetchTVmazeEpisodes(item.id);
+                    let tvmazeShowId = resolvedItem.id;
+                    if (String(resolvedItem.id).startsWith('tt')) {
+                        const lookupRes = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${resolvedItem.id}`);
+                        if (lookupRes.ok) {
+                            const lookupData = await lookupRes.json();
+                            tvmazeShowId = lookupData.id;
+                            setSelectedShow({
+                                id: lookupData.id,
+                                title: lookupData.name,
+                                year: lookupData.premiered ? new Date(lookupData.premiered).getFullYear() : 'N/A',
+                                poster: lookupData.image?.medium || lookupData.image?.original || resolvedItem.poster || '',
+                                type: 'tv',
+                                imdbId: resolvedItem.id,
+                                summary: lookupData.summary
+                            });
+                        } else {
+                            throw new Error('Show not found on TVmaze');
+                        }
+                    }
+                    const eps = await fetchTVmazeEpisodes(tvmazeShowId);
                     const uniqueSeasons = [...new Set(eps.map(e => e.season))].sort((a, b) => a - b);
                     setSeasons(uniqueSeasons);
                     const firstSeason = uniqueSeasons[0] || 1;
@@ -359,50 +601,51 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         }
     };
 
-    const handlePlayEpisode = (episodeNumber) => {
+    const handlePlayEpisode = async (episodeNumber) => {
         playAudio('click', sfx);
-        const id = tmdbKey ? selectedShow.id : (selectedShow.imdbId || selectedShow.id);
+        
+        let id = tmdbKey ? selectedShow.id : selectedShow.imdbId;
+        if (!tmdbKey && !id) {
+            setEpisodesLoading(true);
+            id = await resolveShowImdbId(selectedShow);
+            setEpisodesLoading(false);
+            if (id) {
+                setSelectedShow(prev => prev ? { ...prev, imdbId: id } : prev);
+            }
+        }
+
+        if (!id) {
+            console.error('No IMDb ID available for this show');
+            setSearchError('Could not resolve IMDb ID for this series.');
+            return;
+        }
+
         const isImdb = String(id).startsWith('tt');
         const url = isImdb
-            ? `https://vidsrc.to/embed/tv/${id}/${selectedSeason}/${episodeNumber}`
+            ? `https://vidsrc.su/embed/tv/${id}/${selectedSeason}/${episodeNumber}`
             : `https://www.vidking.net/embed/tv/${id}/${selectedSeason}/${episodeNumber}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+        
         setSyncedUrl(url);
         setMode('cinema');
-        broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} played ${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}` });
+        appendSystemLog(`${myName} played ${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}`);
     };
 
-    // TV Show URL parsing for binging helper controls
-    const isTvUrl = syncedUrl?.includes('/embed/tv/');
-    let currentTvId = '';
-    let currentSeason = 1;
-    let currentEpisode = 1;
-    if (isTvUrl) {
-        const parts = syncedUrl.split('?')[0].split('/');
-        const tvIdx = parts.indexOf('tv');
-        if (tvIdx !== -1 && parts.length > tvIdx + 3) {
-            currentTvId = parts[tvIdx + 1];
-            currentSeason = parseInt(parts[tvIdx + 2]) || 1;
-            currentEpisode = parseInt(parts[tvIdx + 3]) || 1;
-        }
-    }
 
     const handleNextPrevEpisode = (direction) => {
         playAudio('click', sfx);
         const newEp = Math.max(1, currentEpisode + direction);
         const isImdb = String(currentTvId).startsWith('tt');
         const url = isImdb
-            ? `https://vidsrc.to/embed/tv/${currentTvId}/${currentSeason}/${newEp}`
+            ? `https://vidsrc.su/embed/tv/${currentTvId}/${currentSeason}/${newEp}`
             : `https://www.vidking.net/embed/tv/${currentTvId}/${currentSeason}/${newEp}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
         setSyncedUrl(url);
-        broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} skipped to Episode ${newEp}` });
+        appendSystemLog(`${myName} skipped to Episode ${newEp}`);
     };
 
     // --- CONTROLS ---
     const handlePlayPause = () => {
         playAudio('click', sfx);
-        const newPlayState = !playing;
-        setPlaying(newPlayState);
-        broadcast('watcher_control', { action: newPlayState ? 'PLAY' : 'PAUSE' });
+        setPlaying(!playing);
     };
 
     const handleSkip = (seconds) => {
@@ -410,10 +653,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         if (playerRef.current) {
             const currentTime = playerRef.current.getCurrentTime() || 0;
             const newTime = Math.max(0, currentTime + seconds);
-            
             playerRef.current.seekTo(newTime, 'seconds');
             setPlayedSeconds(newTime);
-            broadcast('watcher_control', { action: 'SEEK_SECONDS', time: newTime });
+            appendSystemLog(`${myName} skipped to ${formatTime(newTime)}`);
         }
     };
 
@@ -421,7 +663,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         const newFraction = parseFloat(e.target.value);
         if (playerRef.current) {
             playerRef.current.seekTo(newFraction, 'fraction');
-            broadcast('watcher_control', { action: 'SEEK_FRACTION', time: newFraction });
+            const seekSeconds = duration > 0 ? newFraction * duration : 0;
+            appendSystemLog(`${myName} skipped to ${formatTime(seekSeconds)}`);
         }
         isSeeking.current = false;
     };
@@ -437,7 +680,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         if (onShareToChat) {
             onShareToChat(`Join me for a watch party!`, null, { type: 'watchparty_invite', url: syncedUrl });
         }
-        setEphemeralChat(prev => [...prev, { id: Date.now(), sender: 'SYSTEM', text: 'Invite sent to partner!', isMe: true }]);
+        appendSystemLog('Invite sent to partner!');
     };
 
     const handleUrlChange = (e) => setInputUrl(e.target.value);
@@ -447,7 +690,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         setSyncedUrl(inputUrl.trim());
         setInputUrl('');
         setLoadError(null);
-        broadcast('watcher_chat', { id: Date.now(), sender: 'SYSTEM', text: `${myName} loaded a new URL.` });
+        appendSystemLog(`${myName} loaded a new URL.`);
     };
 
     const sendReaction = () => {
@@ -480,7 +723,11 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     useEffect(() => {
         const handleBroadcast = ({ detail: { event, payload } }) => {
             if (event === 'watcher_chat') {
-                setEphemeralChat(prev => [...prev, payload]);
+                setWatcherChat(prev => {
+                    const list = prev || [];
+                    if (list.some(m => m.id === payload.id)) return list;
+                    return [...list, payload];
+                });
             }
             if (event === 'watcher_heart') {
                 const newHeart = { id: Date.now(), x: payload.x, y: payload.y };
@@ -493,17 +740,26 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 // If drift is more than 1.5s, force a seek to match
                 if (diff > 1.5) {
                     console.log(`[SYNC] Correcting drift of ${diff.toFixed(2)}s`);
+                    incomingSeek.current += 1;
                     playerRef.current.seekTo(payload.time, 'seconds');
                 }
             }
             if (event === 'watcher_control' && playerRef.current) {
-                if (payload.action === 'PLAY') setPlaying(true);
-                if (payload.action === 'PAUSE') setPlaying(false);
+                if (payload.action === 'PLAY') {
+                    incomingPlay.current += 1;
+                    setPlaying(true);
+                }
+                if (payload.action === 'PAUSE') {
+                    incomingPause.current += 1;
+                    setPlaying(false);
+                }
                 if (payload.action === 'SEEK_FRACTION') {
+                    incomingSeek.current += 1;
                     playerRef.current.seekTo(payload.time, 'fraction');
                     setPlayedFraction(payload.time);
                 }
                 if (payload.action === 'SEEK_SECONDS') {
+                    incomingSeek.current += 1;
                     playerRef.current.seekTo(payload.time, 'seconds');
                     setPlayedSeconds(payload.time);
                 }
@@ -519,9 +775,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         if (!chatInput.trim()) return;
         playAudio('click', sfx);
         
-        const msg = { id: Date.now(), sender: myName, text: chatInput, isMe: true };
-        setEphemeralChat(prev => [...prev, msg]);
-        broadcast('watcher_chat', { ...msg, isMe: false }); 
+        const msg = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, sender: myName, text: chatInput.trim(), isMe: true };
+        appendChatMessage(msg);
         setChatInput('');
     };
 
@@ -533,18 +788,11 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         }
     };
 
-    // FIX: Protected against NaN crashes
-    const formatTime = (sec) => {
-        if (isNaN(sec) || sec === null || sec === undefined || sec === 0) return "0:00";
-        const date = new Date(sec * 1000);
-        const hh = date.getUTCHours();
-        const mm = date.getUTCMinutes();
-        const ss = date.getUTCSeconds().toString().padStart(2, '0');
-        if (hh > 0) return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
-        return `${mm}:${ss}`;
-    };
+    const filteredResults = searchResults.filter(item => {
+        if (searchFilter === 'all') return true;
+        return item.type === searchFilter;
+    });
 
-    const isCinemaPlayerUrl = syncedUrl && (syncedUrl.includes('vidking.net/embed/') || syncedUrl.includes('vidsrc.to/embed/') || syncedUrl.includes('vidlink.pro/embed/') || syncedUrl.includes('vidlink.pro/movie/') || syncedUrl.includes('vidlink.pro/tv/'));
 
     return (
         <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
@@ -554,23 +802,28 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-2">Shared Sync <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse border border-black/50"></span> Connected</span>
                   
-                  {/* BROWSER / VIDEO / CINEMA TOGGLE */}
+                  {/* VIDEO / CINEMA TOGGLE */}
                   <div className="flex bg-black/30 rounded p-0.5 retro-border shadow-inner">
-                    <button onClick={() => setMode('video')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'video' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>VIDEO</button>
-                    <button onClick={() => setMode('browser')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'browser' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>BROWSER</button>
-                    <button onClick={() => setMode('cinema')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'cinema' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>CINEMA</button>
+                    <button onClick={() => handleModeChange('video')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'video' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>VIDEO</button>
+                    <button onClick={() => handleModeChange('cinema')} className={`px-3 py-1 rounded-sm transition-colors ${mode === 'cinema' ? 'bg-white text-black font-black' : 'text-white/80 hover:text-white'}`}>CINEMA</button>
                   </div>
 
                   {/* LOCAL PROVIDER SELECTOR (Only in Cinema Mode) */}
                   {mode === 'cinema' && (
                     <div className="flex bg-black/30 rounded p-0.5 retro-border shadow-inner ml-2 items-center gap-1 overflow-x-auto custom-scrollbar whitespace-nowrap">
                       <span className="text-white/40 px-1.5 py-1 text-[8px] font-black tracking-wider uppercase select-none hidden xs:inline">MIRROR:</span>
-                      <button onClick={() => handleProviderChange('vidsrc')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.TO</button>
-                      <button onClick={() => handleProviderChange('vidsrc.me')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc.me' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.ME</button>
-                      <button onClick={() => handleProviderChange('vidsrc.xyz')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidsrc.xyz' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.XYZ</button>
-                      <button onClick={() => handleProviderChange('multiembed')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'multiembed' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>MULTI</button>
-                      <button onClick={() => handleProviderChange('vidlink')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidlink' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDLINK</button>
-                      <button onClick={() => handleProviderChange('vidking')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${localProvider === 'vidking' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDKING</button>
+                      <button onClick={() => handleProviderChange('vidsrc')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidsrc' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.TO</button>
+                      <button onClick={() => handleProviderChange('vidsrc.su')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidsrc.su' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.SU</button>
+                      <button onClick={() => handleProviderChange('vidsrc.cc')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidsrc.cc' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.CC</button>
+                      <button onClick={() => handleProviderChange('vidsrc.me')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidsrc.me' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.ME</button>
+                      <button onClick={() => handleProviderChange('vidsrc.xyz')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidsrc.xyz' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VS.XYZ</button>
+                      <button onClick={() => handleProviderChange('multiembed')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'multiembed' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>MULTI</button>
+                      {tmdbKey && (
+                        <>
+                          <button onClick={() => handleProviderChange('vidlink')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidlink' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDLINK</button>
+                          <button onClick={() => handleProviderChange('vidking')} className={`px-2 py-0.5 text-[9px] font-black rounded-sm transition-colors ${activeProvider === 'vidking' ? 'bg-primary text-white border-primary' : 'text-white/80 hover:text-white'}`}>VIDKING</button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -610,8 +863,31 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                         }
                                     }}
                                     onDurationChange={(e) => { if (typeof e.target.duration === 'number') setDuration(e.target.duration); }}
-                                    onPlay={() => setPlaying(true)}
-                                    onPause={() => setPlaying(false)}
+                                    onPlay={() => {
+                                        setPlaying(true);
+                                        if (incomingPlay.current > 0) {
+                                            incomingPlay.current--;
+                                        } else {
+                                            broadcast('watcher_control', { action: 'PLAY' });
+                                            appendSystemLog(`${myName} played`);
+                                        }
+                                    }}
+                                    onPause={() => {
+                                        setPlaying(false);
+                                        if (incomingPause.current > 0) {
+                                            incomingPause.current--;
+                                        } else {
+                                            broadcast('watcher_control', { action: 'PAUSE' });
+                                            appendSystemLog(`${myName} paused`);
+                                        }
+                                    }}
+                                    onSeek={(seconds) => {
+                                        if (incomingSeek.current > 0) {
+                                            incomingSeek.current--;
+                                        } else {
+                                            broadcast('watcher_control', { action: 'SEEK_SECONDS', time: seconds });
+                                        }
+                                    }}
                                     onError={() => setLoadError('URL blocked by owner. Try a different YouTube link.')}
                                     width="100%"
                                     height="100%"
@@ -619,13 +895,6 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                     config={{ youtube: { playerVars: { modestbranding: 1, rel: 0, controls: 1 } } }}
                                 />
                             </>
-                        ) : mode === 'browser' ? (
-                            <div className="w-full h-full bg-white flex flex-col relative">
-                                <div className="bg-yellow-100 text-yellow-800 p-2 text-[10px] uppercase tracking-widest font-black text-center border-b-[3px] border-yellow-300">
-                                    Warning: Some sites (Netflix, Hulu) block external embedding.
-                                </div>
-                                <iframe src={syncedUrl} className="w-full flex-1 border-none" title="Shared Browser" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups" />
-                            </div>
                         ) : (
                             /* CINEMA MODE */
                             <div className="absolute inset-0 bg-main flex flex-col overflow-hidden">
@@ -638,14 +907,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                         >
                                             <Search size={12} /> Search Cinema
                                         </button>
+
                                         <iframe 
-                                            src={getLocalEmbedUrl(syncedUrl, localProvider)} 
+
+                                            src={getLocalEmbedUrl(syncedUrl, activeProvider)} 
                                             className="w-full h-full border-none bg-black" 
                                             title="Cinema Player" 
                                             allowFullScreen 
                                             allow="autoplay; encrypted-media; picture-in-picture"
-                                            referrerPolicy="no-referrer"
-                                            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
                                         />
                                     </>
                                 ) : (
@@ -660,6 +929,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                 </h1>
                                                 <p className="text-[10px] font-bold opacity-60 mt-1 uppercase tracking-widest">
                                                     {tmdbKey ? 'TMDb Search API Active' : 'Keyless Fallback active (Powered by TVmaze & IMDb)'}
+                                                </p>
+                                                <p className="text-[10px] font-bold opacity-60 mt-1 uppercase tracking-widest text-yellow-500">
+                                                    Note: Content is hosted by third-party providers. If a video fails to load, try switching the Mirror above.
                                                 </p>
                                             </div>
                                         </div>
@@ -779,16 +1051,16 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                     </div>
                                                 )}
 
-                                                {!searchLoading && searchResults.length === 0 && searchQuery && (
+                                                {!searchLoading && filteredResults.length === 0 && searchQuery && (
                                                     <div className="text-center py-12 opacity-55 text-[10px] font-black uppercase tracking-widest">
                                                         No matches found. Try other keywords.
                                                     </div>
                                                 )}
 
                                                 {/* Results Grid */}
-                                                {!searchLoading && searchResults.length > 0 && (
+                                                {!searchLoading && filteredResults.length > 0 && (
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in-50 duration-200">
-                                                        {searchResults.map(item => (
+                                                        {filteredResults.map(item => (
                                                             <div 
                                                                 key={`${item.type}-${item.id}`} 
                                                                 onClick={() => handleSelectItem(item)}
@@ -910,38 +1182,42 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                         </div>
                     ) : null}
 
-                    {/* URL Loader (Always Visible, supports direct VidKing embed pasting) */}
-                    <div className="bg-window p-3 sm:p-4 shrink-0 flex gap-2 border-t-[3px] border-border border-dashed z-20">
-                        <input 
-                            type="text" 
-                            value={inputUrl} 
-                            onChange={(e) => setInputUrl(e.target.value)} 
-                            placeholder={mode === 'video' ? "Paste YouTube or MP4 link..." : mode === 'browser' ? "Paste website URL (https://...)" : "Paste direct VidKing embed URL..."} 
-                            className="flex-1 bg-main text-main-text font-bold border-[3px] border-border px-3 py-2 text-xs focus:outline-none focus:border-primary placeholder:opacity-50" 
-                        />
-                        <RetroButton variant="primary" onClick={handleLoadUrl} className="px-6 text-xs font-bold flex items-center gap-2 shadow-sm">
-                            {mode === 'video' ? <LinkIcon size={14} /> : <Globe size={14} />} Load
-                        </RetroButton>
-                        <RetroButton onClick={handleInvite} className="px-6 text-xs font-bold flex items-center gap-2 bg-secondary text-secondary-text shadow-sm" title="Invite partner to watch together">
-                             <Users size={14} /> Invite
-                        </RetroButton>
-                    </div>
+                    {/* URL Loader (Only for standard Video Mode, supports direct VidKing embed pasting) */}
+                    {mode === 'video' && (
+                        <div className="bg-window p-3 sm:p-4 shrink-0 flex gap-2 border-t-[3px] border-border border-dashed z-20">
+                            <input 
+                                type="text" 
+                                value={inputUrl} 
+                                onChange={(e) => setInputUrl(e.target.value)} 
+                                placeholder="Paste YouTube or MP4 link..."
+                                className="flex-1 bg-main text-main-text font-bold border-[3px] border-border px-3 py-2 text-xs focus:outline-none focus:border-primary placeholder:opacity-50" 
+                            />
+                            <RetroButton variant="primary" onClick={handleLoadUrl} className="px-6 text-xs font-bold flex items-center gap-2 shadow-sm">
+                                <LinkIcon size={14} /> Load
+                            </RetroButton>
+                        </div>
+                    )}
                 </div>
 
                 {/* RIGHT: Live Chat Sidebar */}
                 <div className="w-full lg:w-80 bg-window flex flex-col shrink-0 h-64 lg:h-auto">
-                    <div className="p-3 bg-border text-window font-black uppercase tracking-widest text-[10px] flex items-center gap-2 shrink-0 shadow-sm border-b-[3px] border-border">
-                        <MessageSquare size={14} /> Live Reaction Chat
+                    <div className="p-3 bg-border text-window font-black uppercase tracking-widest text-[10px] flex justify-between items-center shrink-0 shadow-sm border-b-[3px] border-border">
+                        <span className="flex items-center gap-2">
+                            <MessageSquare size={14} /> Live Reaction Chat
+                        </span>
+                        <RetroButton onClick={handleInvite} className="text-[9px] font-black px-2 py-1 flex items-center gap-1.5 bg-secondary text-secondary-text border-secondary active:translate-y-[1px]" title="Invite partner to watch together">
+                            <Users size={10} /> Invite
+                        </RetroButton>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-main/50">
-                        {ephemeralChat.length === 0 && (
+                        {(watcherChat || []).length === 0 && (
                             <div className="flex flex-col items-center justify-center h-full text-center opacity-40 text-main-text">
                                 <MessageSquare size={32} className="mb-2" />
                                 <p className="text-[10px] font-black uppercase tracking-widest">No messages yet.<br/>Say hello!</p>
                             </div>
                         )}
-                        {ephemeralChat.map((log) => (
+                        {(watcherChat || []).map((log) => (
                             <div key={log.id} className={`flex flex-col animate-in slide-in-from-bottom-2 ${log.sender === 'SYSTEM' ? 'items-center' : log.isMe ? 'items-end' : 'items-start'}`}>
                                 {log.sender === 'SYSTEM' ? (
                                     <div className="bg-window px-3 py-1 retro-border text-[9px] uppercase font-black opacity-60 mt-2 tracking-widest text-main-text">
