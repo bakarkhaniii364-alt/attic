@@ -13,18 +13,37 @@ export function AuthProvider({ children }) {
   const [hasInitialized, setHasInitialized] = useState(false);
 
   const mountedRef = useRef(true);
+  const userIdRef = useRef(null);
+  const roomIdRef = useRef(null);
+  const partnerIdRef = useRef(null);
 
-  const fetchRoomData = useCallback(async (uid) => {
+  // Keep refs synced with React state to avoid stale closures in listeners
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+
+  useEffect(() => {
+    partnerIdRef.current = partnerId;
+  }, [partnerId]);
+
+  const fetchRoomData = useCallback(async (uid, showLoading = true) => {
     if (!uid) {
       if (mountedRef.current) {
         setRoomId(null);
+        roomIdRef.current = null;
         setPartnerId(null);
+        partnerIdRef.current = null;
         setRoomLoading(false);
         setHasInitialized(true);
       }
       return;
     }
-    if (mountedRef.current) {
+    // Only set roomLoading to true if showLoading is explicitly requested
+    if (mountedRef.current && showLoading) {
       setRoomLoading(true);
     }
     try {
@@ -32,10 +51,15 @@ export function AuthProvider({ children }) {
       if (mountedRef.current) {
         if (room) {
           setRoomId(room.id);
-          setPartnerId(room.creator_id === uid ? room.partner_id : room.creator_id);
+          roomIdRef.current = room.id;
+          const pId = room.creator_id === uid ? room.partner_id : room.creator_id;
+          setPartnerId(pId);
+          partnerIdRef.current = pId;
         } else {
           setRoomId(null);
+          roomIdRef.current = null;
           setPartnerId(null);
+          partnerIdRef.current = null;
         }
       }
     } catch (err) {
@@ -68,8 +92,11 @@ export function AuthProvider({ children }) {
 
         setUser({ id: myUid, email: `${testUser}@test.com`, user_metadata: { name: testUser } });
         setUserId(myUid);
+        userIdRef.current = myUid;
         setRoomId(getTestRoomId());
+        roomIdRef.current = getTestRoomId();
         setPartnerId(partnerUid);
+        partnerIdRef.current = partnerUid;
         setLoading(false);
         setRoomLoading(false);
         setHasInitialized(true);
@@ -81,7 +108,8 @@ export function AuthProvider({ children }) {
         if (session) {
           setUser(session.user);
           setUserId(session.user.id);
-          fetchRoomData(session.user.id);
+          userIdRef.current = session.user.id;
+          fetchRoomData(session.user.id, true);
         } else {
           setRoomLoading(false);
           setHasInitialized(true);
@@ -95,14 +123,31 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mountedRef.current) return;
       if (session) {
+        const currentUserId = userIdRef.current;
+        const currentRoomId = roomIdRef.current;
+        const currentPartnerId = partnerIdRef.current;
+
         setUser(session.user);
         setUserId(session.user.id);
-        fetchRoomData(session.user.id);
+        userIdRef.current = session.user.id;
+        
+        const isSameUser = currentUserId === session.user.id;
+        if (!isSameUser) {
+          // New login or identity change, show blocking loader
+          fetchRoomData(session.user.id, true);
+        } else {
+          // Same user, background check if already initialized, otherwise blocking loader
+          const hasRoomDetails = !!(currentRoomId && currentPartnerId);
+          fetchRoomData(session.user.id, !hasRoomDetails);
+        }
       } else {
         setUser(null);
         setUserId(null);
+        userIdRef.current = null;
         setRoomId(null);
+        roomIdRef.current = null;
         setPartnerId(null);
+        partnerIdRef.current = null;
         setRoomLoading(false);
         setHasInitialized(true);
       }
