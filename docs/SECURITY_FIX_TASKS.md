@@ -19,6 +19,7 @@
 
 ### 0.1 CSP (`public/_headers`)
 
+- [x] Allow `https://nominatim.openstreetmap.org` in `connect-src` (reverse geocode in `useDashboardLogic.js`)
 - [ ] Remove `'unsafe-inline'` from `style-src`
 - [ ] Deploy and smoke-test UI (dashboard, chat, onboarding, arcade)
 - [ ] Confirm DevTools Console has no CSP violations
@@ -225,3 +226,4 @@ Copy to PR description or release notes when shipping.
 | 2026-05-25 | Verified migration RPCs in Supabase SQL Editor |
 | 2026-05-25 | Verified auth/room RPCs (`get_my_room`, `leave_room`, `delete_my_room`, `delete_user_data`) |
 | 2026-05-25 | Created `SECURITY_FIX_PLAN.md` and `SECURITY_FIX_TASKS.md` |
+| 2026-05-25 | CSP: added `nominatim.openstreetmap.org` to `connect-src` in `public/_headers` |

@@ -32,8 +32,8 @@ Your application has a **strong security baseline**:
 default-src 'self'
   ↳ Everything blocked by default; only same-origin allowed
 
-connect-src 'self' https://*.supabase.co wss://*.supabase.co
-  ↳ API calls, WebSocket connections to Supabase only
+connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org
+  ↳ API calls, WebSocket connections to Supabase; reverse geocode (dashboard location)
 
 style-src 'self' https://fonts.googleapis.com
   ↳ Inline styles (dynamic CSS) are safe; no 'unsafe-inline' needed
