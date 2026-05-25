@@ -10,7 +10,9 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
   const [lastPetTime, setLastPetTime] = useState(0);
   
   const [bubbleText, setBubbleText] = useState('');
+  const [useSpriteSheet, setUseSpriteSheet] = useState(false);
   const bubbleTimeoutRef = useRef(null);
+  const spriteMetadataRef = useRef(null);
 
   const showBubble = (text, duration = 4000) => {
     setBubbleText(text);
@@ -103,6 +105,26 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
     if (skinFolder.endsWith('.png')) skinFolder = skinFolder.replace('.png', '');
     if (!skinFolder.startsWith('/') && !skinFolder.startsWith('http')) skinFolder = '/assets/' + skinFolder;
   }
+
+  // Load sprite sheet metadata if available (performance optimization)
+  useEffect(() => {
+    const loadSpriteMetadata = async () => {
+      try {
+        const response = await fetch(`${skinFolder}/_sprite.json`);
+        if (response.ok) {
+          const metadata = await response.json();
+          spriteMetadataRef.current = metadata;
+          setUseSpriteSheet(true);
+        } else {
+          setUseSpriteSheet(false);
+        }
+      } catch (err) {
+        // Sprite sheet not available, fall back to individual tiles
+        setUseSpriteSheet(false);
+      }
+    };
+    loadSpriteMetadata();
+  }, [skinFolder]);
   
   const isHungry = happy < 50;
   const isIgnored = lastPetTime > 0 && (Date.now() - lastPetTime > 4 * 60 * 60 * 1000);
@@ -269,9 +291,23 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
   }, [start, frames, duration]);
 
   const frameId = (start + currentFrame).toString().padStart(3, '0');
-  const frameSrc = `${skinFolder}/tile${frameId}.png`;
   const scale = 4;
   const frameSize = 32 * scale;
+
+  // Calculate sprite position for sprite sheet optimization
+  const getSpritePosition = () => {
+    if (!useSpriteSheet || !spriteMetadataRef.current) return null;
+    const metadata = spriteMetadataRef.current;
+    const frameIndex = start + currentFrame;
+    const col = frameIndex % metadata.tilesPerRow;
+    const row = Math.floor(frameIndex / metadata.tilesPerRow);
+    return {
+      bgX: -(col * 32 * scale),
+      bgY: -(row * 32 * scale),
+    };
+  };
+
+  const spritePos = useSpriteSheet ? getSpritePosition() : null;
 
   return (
     <div
@@ -306,24 +342,42 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
           </div>
         </div>
       )}
-      <img
-        src={frameSrc}
-        alt="pet"
-        draggable="false"
-        onDragStart={e => e.preventDefault()}
-        onError={(e) => {
-          e.target.onerror = null;
-          e.target.src = '/assets/cat_1_9/tile0.png';
-        }}
-        style={{
-          width: `${frameSize}px`,
-          height: `${frameSize}px`,
-          imageRendering: 'pixelated',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          pointerEvents: 'none',
-        }}
-      />
+      {/* Pet sprite - uses sprite sheet if available, falls back to individual tiles */}
+      {useSpriteSheet && spritePos ? (
+        <div
+          style={{
+            width: `${frameSize}px`,
+            height: `${frameSize}px`,
+            backgroundImage: `url(${skinFolder}/_sprite.png)`,
+            backgroundPosition: `${spritePos.bgX}px ${spritePos.bgY}px`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'auto',
+            imageRendering: 'pixelated',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            pointerEvents: 'none',
+          }}
+        />
+      ) : (
+        <img
+          src={`${skinFolder}/tile${(start + currentFrame).toString().padStart(3, '0')}.png`}
+          alt="pet"
+          draggable="false"
+          onDragStart={e => e.preventDefault()}
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = '/assets/cat_1_9/tile0.png';
+          }}
+          style={{
+            width: `${frameSize}px`,
+            height: `${frameSize}px`,
+            imageRendering: 'pixelated',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       {isSleeping && (
         <span className="absolute -top-2 -right-2 text-sm font-mono font-bold animate-pulse text-border drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)] opacity-0">zzz</span>
       )}
