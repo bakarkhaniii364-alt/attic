@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS public.highscores (
 ALTER TABLE public.highscores
   ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE;
 
+ALTER TABLE public.highscores
+  ALTER COLUMN user_id TYPE UUID USING user_id::uuid;
+
 UPDATE public.highscores h
 SET room_id = r.id
 FROM public.rooms r
@@ -133,5 +136,5 @@ CREATE POLICY "access_room_highscores" ON public.highscores
       WHERE (creator_id = auth.uid() OR partner_id = auth.uid())
         AND is_active = true
     )
-    AND user_id = auth.uid()
+    AND user_id::uuid = auth.uid()
   );

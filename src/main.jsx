@@ -12,6 +12,7 @@ if (typeof window !== 'undefined' && canUseTestMode()) {
 }
 
 import React from 'react'
+import { initMonitoring } from './utils/monitoring.js'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ToastProvider } from './components/UI.jsx'
@@ -44,6 +45,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </ErrorBoundary>
   </React.StrictMode>,
 )
+
+// Initialize monitoring (Sentry) if configured
+if (typeof window !== 'undefined') {
+  initMonitoring();
+}
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

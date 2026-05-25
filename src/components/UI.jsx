@@ -13,10 +13,14 @@ export function useToast() { return useContext(ToastContext); }
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
-  const addToast = useCallback((message, type = 'info', duration = 3000) => {
+  const addToast = useCallback((messageOrObj, type = 'info', duration = 3000) => {
+    // messageOrObj can be string or { message, action: { label, onClick }, type, duration }
     const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
+    const toast = typeof messageOrObj === 'string' ? { id, message: messageOrObj, type, duration } : { id, ...messageOrObj };
+    setToasts(prev => [...prev, toast]);
+    const auto = toast.duration || duration;
+    if (auto !== 0) setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), auto);
+    return id;
   }, []);
   return (
     <ToastContext.Provider value={addToast}>
@@ -37,8 +41,14 @@ export function ToastProvider({ children }) {
               style={{ backgroundColor: bgColor, color: textColor }}>
               {t.type === 'success' && <Check size={16} className="shrink-0 mt-0.5" />}
               {t.type === 'warn' && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
-              <span>{t.message}</span>
-              <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))} className="ml-auto shrink-0 opacity-70 hover:opacity-100"><X size={14} /></button>
+              <div className="flex-1">
+                <span>{t.message}</span>
+                {t.detail && <div className="text-xs opacity-70 mt-1">{t.detail}</div>}
+              </div>
+              {t.action && (
+                <button onClick={() => { t.action.onClick && t.action.onClick(); setToasts(prev => prev.filter(x => x.id !== t.id)); }} className="ml-2 px-2 py-1 bg-black/10 retro-border text-sm font-bold">{t.action.label}</button>
+              )}
+              <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))} className="ml-2 shrink-0 opacity-70 hover:opacity-100"><X size={14} /></button>
             </div>
           )
         })}

@@ -3,7 +3,7 @@ const DEFAULT_DESCRIPTION =
   'Attic is a private space for couples — encrypted chat, shared scrapbooks, games, and calls. Just the two of you.';
 
 export const SITE_URL =
-  import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') || 'https://attic.app';
+  import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') || 'https://attic-5gp.pages.dev';
 
 const DEFAULT_OG_IMAGE = `${SITE_URL}/assets/icon-512.png`;
 

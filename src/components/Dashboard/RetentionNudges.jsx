@@ -15,6 +15,7 @@ export function RetentionNudges({
   partnerName = 'your partner',
   onOpenChat,
   onOpenDailyQuestion,
+  excludeDaily = false,
 }) {
   const today = todayKey();
   const myDailyDone = !!dailyAnswers?.[today]?.[userId];
@@ -29,7 +30,7 @@ export function RetentionNudges({
     });
   }
 
-  if (!myDailyDone) {
+  if (!myDailyDone && !excludeDaily) {
     nudges.push({
       id: 'daily',
       icon: <Sparkles size={16} className="text-primary" />,

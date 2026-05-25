@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useToast } from '../components/UI.jsx';
 // IMPORT FIXED: No more lazy(), this guarantees the playerRef has the .seekTo() method
 import ReactPlayer from 'react-player';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
@@ -11,82 +12,7 @@ import {
 import { useSync, useAuth } from '../context/instances.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
-const PROVIDER_LABELS = {
-    vidsrc: 'VS.TO',
-    'vidsrc.su': 'VS.SU',
-    'vidsrc.cc': 'VS.CC',
-    'vidsrc.me': 'VS.ME',
-    'vidsrc.xyz': 'VS.XYZ',
-    multiembed: 'MULTI',
-    vidlink: 'VIDLINK',
-    vidking: 'VIDKING',
-};
-
-const parseEmbedUrl = (urlStr) => {
-    if (!urlStr || typeof urlStr !== 'string') return null;
-
-    try {
-        const absoluteUrlStr = urlStr.startsWith('//') ? `https:${urlStr}` : urlStr;
-        const url = new URL(absoluteUrlStr);
-        let id = '';
-        let type = 'movie';
-        let season = '1';
-        let episode = '1';
-
-        if (url.hostname.includes('multiembed.mov')) {
-            const videoId = url.searchParams.get('video_id');
-            const s = url.searchParams.get('s');
-            const e = url.searchParams.get('e');
-            if (videoId) {
-                id = videoId;
-                if (s && e) {
-                    type = 'tv';
-                    season = s;
-                    episode = e;
-                } else {
-                    type = 'movie';
-                }
-                return { id, type, season, episode };
-            }
-        }
-
-        const pathname = url.pathname;
-        const parts = pathname.split('/').filter(Boolean);
-
-        const movieIdx = parts.indexOf('movie');
-        const tvIdx = parts.indexOf('tv');
-
-        if (movieIdx !== -1 && parts.length > movieIdx + 1) {
-            id = parts[movieIdx + 1];
-            type = 'movie';
-            return { id, type, season, episode };
-        } else if (tvIdx !== -1 && parts.length > tvIdx + 1) {
-            id = parts[tvIdx + 1];
-            type = 'tv';
-            if (parts.length > tvIdx + 2) season = parts[tvIdx + 2];
-            if (parts.length > tvIdx + 3) episode = parts[tvIdx + 3];
-            return { id, type, season, episode };
-        }
-
-        const imdbMatch = pathname.match(/tt\d+/);
-        if (imdbMatch) {
-            id = imdbMatch[0];
-            const afterImdb = parts.slice(parts.indexOf(id) + 1);
-            if (afterImdb.length >= 2 && !isNaN(afterImdb[0]) && !isNaN(afterImdb[1])) {
-                type = 'tv';
-                season = afterImdb[0];
-                episode = afterImdb[1];
-            } else {
-                type = 'movie';
-            }
-            return { id, type, season, episode };
-        }
-
-        return null;
-    } catch (e) {
-        return null;
-    }
-};
+import { parseEmbedUrl, getLocalEmbedUrl, PROVIDER_LABELS } from '../utils/embed.js';
 
 export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const { broadcast, roomProfiles } = useSync();
@@ -100,6 +26,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const [watcherChat, setWatcherChat] = useGlobalSync('sync_watcher_chat_v2', []);
     
     const myName = roomProfiles?.[userId]?.name || 'You';
+
+    const addToast = useToast();
 
     // Local UI State
     const [inputUrl, setInputUrl] = useState('');
@@ -313,6 +241,12 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             activeProvider = 'multiembed'; // Fallback to MULTI (which is sandbox-compatible and keyless)
         }
     }
+
+    // For troubleshooting: temporarily consider sandbox not applied so iframe is rendered without sandbox attribute
+    const [forceEmbed, setForceEmbed] = useState(false);
+    const trustedEmbedProviders = ['multiembed'];
+    const providerSupportsSandbox = trustedEmbedProviders.includes(activeProvider);
+    const providerAllowedEmbed = trustedEmbedProviders.includes(activeProvider) || forceEmbed;
 
     // Auto-scroll chat
     useEffect(() => {
@@ -720,7 +654,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 title: syncedTitle 
             });
         }
-        appendSystemLog('Invite sent to partner!');
+                appendSystemLog('Invite sent to partner!');
+                // Show undoable toast
+                if (addToast) {
+                    addToast({ message: 'Invite sent', type: 'success', duration: 5000, action: { label: 'Undo', onClick: () => {
+                        broadcast('watchparty_invite_cancel', { sender: userId, timestamp: Date.now(), url: syncedUrl });
+                        appendSystemLog('Invite cancelled');
+                    }}});
+                }
     };
 
     const handleUrlChange = (e) => setInputUrl(e.target.value);
@@ -952,7 +893,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                         ) : (
                             /* CINEMA MODE */
                             <div className="absolute inset-0 bg-main flex flex-col overflow-hidden">
-                                {isCinemaPlayerUrl ? (
+                                        {isCinemaPlayerUrl ? (
                                     <>
                                         {/* Cinema Search Overlay Toggle */}
                                         <button 
@@ -962,14 +903,34 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                             <Search size={12} /> Search Cinema
                                         </button>
 
-                                        <iframe 
-                                            src={getLocalEmbedUrl(syncedUrl, activeProvider)} 
-                                            className="w-full h-full border-none bg-black" 
-                                            title="Cinema Player" 
-                                            allowFullScreen 
-                                            allow="autoplay; encrypted-media; picture-in-picture"
-                                            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
-                                        />
+                                        {providerAllowedEmbed ? (
+                                            <>
+                                                <iframe
+                                                    src={getLocalEmbedUrl(syncedUrl, activeProvider)}
+                                                    className="w-full h-full border-none bg-black"
+                                                    title="Cinema Player"
+                                                    allowFullScreen
+                                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                                />
+                                                <div className="absolute top-2 left-2 z-40 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded retro-border pointer-events-none select-none">
+                                                    <div>provider: {activeProvider}</div>
+                                                    <div className="truncate" title={getLocalEmbedUrl(syncedUrl, activeProvider)}>src: {getLocalEmbedUrl(syncedUrl, activeProvider)}</div>
+                                                    <div>sandbox: {providerSupportsSandbox ? 'applied' : 'none'}</div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <div className="bg-window p-4 retro-border text-center max-w-lg">
+                                                    <p className="text-lg font-black text-red-600">This mirror may open popups or redirects.</p>
+                                                    <p className="text-sm opacity-70 my-2">Embedding is blocked for safety. You can open the provider in a new tab instead.</p>
+                                                    <div className="flex gap-2 justify-center mt-3">
+                                                        <button onClick={() => window.open(getLocalEmbedUrl(syncedUrl, activeProvider), '_blank', 'noopener')} className="px-4 py-2 bg-primary text-white font-black">Open Provider</button>
+                                                        <button onClick={() => setForceEmbed(true)} className="px-4 py-2 bg-black text-white font-bold border border-white/10">Embed Anyway</button>
+                                                    </div>
+                                                    <div className="text-[10px] opacity-60 mt-2">Provider: {activeProvider}</div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </>
                                 ) : (
                                     /* CINEMA SEARCH INTERFACE */

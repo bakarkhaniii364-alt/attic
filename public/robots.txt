@@ -12,6 +12,6 @@ Disallow: /activities
 Disallow: /doodle
 Disallow: /scrapbook
 Disallow: /notes
-Disallow: /watch
+Disallow: 
 
-Sitemap: https://attic.app/sitemap.xml
+Sitemap: https://attic-5gp.pages.dev/sitemap.xml

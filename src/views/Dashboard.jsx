@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor, Zap, LogOut } from 'lucide-react';
+import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor, Zap, LogOut, Sparkles } from 'lucide-react';
 import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -21,6 +21,8 @@ import {
   recordVisit,
   getDaysSinceLastVisit,
 } from '../components/Dashboard/RetentionNudges.jsx';
+
+const todayKey = () => new Date().toLocaleDateString('en-CA');
 
 const ChatView = React.lazy(() => import('./ChatView.jsx').then(m => ({ default: m.ChatView })));
 const SettingsView = React.lazy(() => import('./SettingsView.jsx').then(m => ({ default: m.SettingsView })));
@@ -126,6 +128,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         partnerName={partnerName}
         onOpenChat={() => nav('chat')}
         onOpenDailyQuestion={() => nav('daily-q')}
+        excludeDaily={!isMobile}
       />
     </>
   );
@@ -204,6 +207,22 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             <span className="text-[9px] font-bold mt-0.5 uppercase">Kiss</span>
           </button>
         </div>
+
+        {!dailyAnswers?.[todayKey()]?.[userId] && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-2 font-bold min-w-0">
+              <Sparkles size={16} className="text-primary shrink-0" />
+              <span className="text-[10px] leading-tight">Today's couple question is waiting — answer together.</span>
+            </div>
+            <RetroButton
+              type="button"
+              className="text-[9px] py-1 px-2.5 shrink-0"
+              onClick={() => nav('daily-q')}
+            >
+              Answer
+            </RetroButton>
+          </div>
+        )}
 
         <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mt-2">
           <div className="flex items-center gap-2">
