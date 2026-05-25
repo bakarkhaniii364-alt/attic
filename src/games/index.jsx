@@ -309,7 +309,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   }, [gameRoute, leaveSession]);
 
   const renderActiveGame = () => {
-    const remoteDefaults = { diff: selectedDiff, mode: 'coop_remote', matchType: 1, ...selectedOptions };
+    const firstRemoteMode = game?.modes?.find(m => m.type === 'remote')?.id || '1v1_remote';
+    const remoteDefaults = { diff: selectedDiff, mode: firstRemoteMode, matchType: 1, ...selectedOptions };
     const activeConfig = currentPhase === 'playing_local'
       ? localPlayConfig
       : (arcadeSession?.game_state && Object.keys(arcadeSession.game_state).length > 0
