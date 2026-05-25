@@ -32,8 +32,8 @@ Your application has a **strong security baseline**:
 default-src 'self'
   ↳ Everything blocked by default; only same-origin allowed
 
-connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org
-  ↳ API calls, WebSocket connections to Supabase; reverse geocode (dashboard location)
+connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://api.open-meteo.com https://wttr.in https://api.tvmaze.com https://imdb.iamidiotareyoutoo.com https://api.themoviedb.org …
+  ↳ Supabase, geocode, weather, Cinema APIs (TVmaze / TMDb / IMDb proxy), WebRTC, Sentry — see docs/CSP_FIX_PLAN.md
 
 style-src 'self' https://fonts.googleapis.com
   ↳ Inline styles (dynamic CSS) are safe; no 'unsafe-inline' needed

@@ -1,6 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { useAuth, useSync } from '../context/instances.js';
+
+/** Normalize RPC/realtime payloads into an arcade_sessions row. */
+function normalizeArcadeSession(data) {
+  if (!data) return null;
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  if (data.room_id && data.game_id) return data;
+  return null;
+}
 
 export function useArcadeSession(roomId, gameId, userId) {
   const [session, setSession] = useState(null);
@@ -16,8 +29,11 @@ export function useArcadeSession(roomId, gameId, userId) {
         .select('*')
         .eq('room_id', roomId)
         .eq('game_id', gameId)
-        .single();
+        .maybeSingle();
 
+      if (error && error.code !== 'PGRST116') {
+        console.warn('[LOBBY] Session fetch:', error.message);
+      }
       if (data) {
         setSession(data);
       }
@@ -35,8 +51,13 @@ export function useArcadeSession(roomId, gameId, userId) {
         table: 'arcade_sessions',
         filter: `room_id=eq.${roomId}`
       }, (payload) => {
-        if (payload.new && payload.new.game_id === gameId) {
-          setSession(payload.new);
+        if (payload.eventType === 'DELETE') {
+          setSession(null);
+          return;
+        }
+        const row = payload.new;
+        if (row && row.game_id === gameId) {
+          setSession(row);
         }
       })
       .subscribe();
@@ -53,7 +74,9 @@ export function useArcadeSession(roomId, gameId, userId) {
       p_user_id: userId
     });
     if (error) throw error;
-    return data;
+    const row = normalizeArcadeSession(data);
+    if (row) setSession(row);
+    return row ?? data;
   }, [roomId, gameId, userId]);
 
   const setReady = useCallback(async (ready, partnerOnline = true) => {
@@ -65,7 +88,9 @@ export function useArcadeSession(roomId, gameId, userId) {
       p_partner_online: partnerOnline
     });
     if (error) throw error;
-    return data;
+    const row = normalizeArcadeSession(data);
+    if (row) setSession(row);
+    return row ?? data;
   }, [roomId, gameId, userId]);
 
   const updateGameState = useCallback(async (newState) => {

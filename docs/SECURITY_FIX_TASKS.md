@@ -19,8 +19,34 @@
 
 ### 0.1 CSP (`public/_headers`)
 
-- [x] Allow `https://nominatim.openstreetmap.org` in `connect-src` (reverse geocode in `useDashboardLogic.js`)
-- [ ] Remove `'unsafe-inline'` from `style-src`
+See full audit: [CSP_FIX_PLAN.md](./CSP_FIX_PLAN.md)
+
+#### connect-src (API / fetch)
+
+- [x] `nominatim.openstreetmap.org` — geocode (`useDashboardLogic.js`)
+- [x] `api.open-meteo.com` — weather forecast (`useDashboardLogic.js`)
+- [x] `wttr.in` — weather widget (`WeatherWidget.jsx`)
+- [x] `api.datamuse.com` — word game (`helpers.js`)
+- [x] `api.tvmaze.com` — Cinema TV search (`SyncWatcher.jsx`)
+- [x] `imdb.iamidiotareyoutoo.com` — Cinema movie proxy (`SyncWatcher.jsx`)
+- [x] `api.themoviedb.org` — Cinema when `VITE_TMDB_API_KEY` set
+- [x] `*.workers.dev` — WebRTC TURN creds (`webrtc.js`)
+- [x] `*.ingest.sentry.io` / `*.sentry.io` — Sentry reporting
+
+#### img-src / frame-src / media-src / script-src
+
+- [x] `static.tvmaze.com`, `image.tmdb.org`, `m.media-amazon.com` — posters
+- [x] Video embed hosts (`vidsrc.*`, `multiembed.mov`, `vidlink.pro`, `vidking.net`)
+- [x] `www.soundhelix.com` — Lofi player
+- [x] `browser.sentry-cdn.com` — Sentry script
+
+#### Deploy & verify
+
+- [ ] Deploy `public/_headers` to production
+- [ ] Hard refresh; confirm CSP header in Network tab
+- [ ] Test Cinema search (“inception”) — no CSP errors
+- [ ] Test video iframe playback
+- [ ] Remove `'unsafe-inline'` from `style-src` (separate security task)
 - [ ] Deploy and smoke-test UI (dashboard, chat, onboarding, arcade)
 - [ ] Confirm DevTools Console has no CSP violations
 - [ ] Update `SECURITY_HARDENING.md` to match deployed `_headers`
@@ -173,6 +199,19 @@ WHERE n.nspname = 'public' AND p.proname = 'set_arcade_ready';
 
 ---
 
+## Arcade / Pictionary (not CSP)
+
+See [ARCADE_LOBBY_FIX_PLAN.md](./ARCADE_LOBBY_FIX_PLAN.md)
+
+- [x] Fix `arcade_sessions` 406 — use `.maybeSingle()` in `useArcadeSession.js`
+- [x] Fix `Ee is not a function` — implement `sendData` in `CallContext.jsx` + guards in Pictionary/Uno
+- [x] Arcade lobby: RPC response updates local session; `game_state` saved on create
+- [x] Pictionary: functional sync state, genre config, cursor throttle, emoji broadcast fix
+- [x] SyncWatcher: `cinemaApi.js` helpers + poster CSP (`ia.media-imdb.com`)
+- [ ] Deploy and retest: Cinema search, Pictionary lobby → draw, arcade ready flow
+
+---
+
 ## Phase 3 — Optional
 
 ### 3.1 Automated tests
@@ -227,3 +266,5 @@ Copy to PR description or release notes when shipping.
 | 2026-05-25 | Verified auth/room RPCs (`get_my_room`, `leave_room`, `delete_my_room`, `delete_user_data`) |
 | 2026-05-25 | Created `SECURITY_FIX_PLAN.md` and `SECURITY_FIX_TASKS.md` |
 | 2026-05-25 | CSP: added `nominatim.openstreetmap.org` to `connect-src` in `public/_headers` |
+| 2026-05-25 | CSP: full audit — TVmaze, IMDb proxy, TMDb, weather, embeds, images; see `CSP_FIX_PLAN.md` |
+| 2026-05-25 | Arcade: 406 maybeSingle + sendData / Pictionary crash; see `ARCADE_LOBBY_FIX_PLAN.md` |

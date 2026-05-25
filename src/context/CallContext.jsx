@@ -78,6 +78,7 @@ export function CallProvider({ children }) {
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const pcRef              = useRef(null);  // RTCPeerConnection
+  const dcRef              = useRef(null);  // RTCDataChannel (game/doodle P2P)
   const localStreamRef     = useRef(null);
   const screenTrackRef     = useRef(null);
   const callChannelRef     = useRef(null);
@@ -133,6 +134,10 @@ export function CallProvider({ children }) {
         t.stop();
       });
       localStreamRef.current = null;
+    }
+    if (dcRef.current) {
+      try { dcRef.current.close(); } catch (_) {}
+      dcRef.current = null;
     }
     if (pcRef.current) {
       pcRef.current.getSenders().forEach(s => { if (s.track) s.track.stop(); });
@@ -191,6 +196,30 @@ export function CallProvider({ children }) {
   }, [roomId, userId]);
 
 
+  const attachDataChannel = useCallback((channel) => {
+    dcRef.current = channel;
+    channel.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        window.dispatchEvent(new CustomEvent('webrtc_data', { detail: data }));
+      } catch (_) {}
+    };
+    channel.onclose = () => {
+      if (dcRef.current === channel) dcRef.current = null;
+    };
+  }, []);
+
+  const sendData = useCallback((payload) => {
+    const dc = dcRef.current;
+    if (!dc || dc.readyState !== 'open') return false;
+    try {
+      dc.send(JSON.stringify(payload));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }, []);
+
 // ── RTCPeerConnection factory ─────────────────────────────────────────────
 const createPC = useCallback(async (type) => {
   if (pcRef.current) { try { pcRef.current.close(); } catch(_){} }
@@ -198,6 +227,11 @@ const createPC = useCallback(async (type) => {
   const dynamicServers = await getFullIceServers();
   const pc = new RTCPeerConnection({ iceServers: dynamicServers, iceCandidatePoolSize: 10 });
   pcRef.current = pc;
+
+    pc.ondatachannel = (e) => attachDataChannel(e.channel);
+    if (isCallerRef.current) {
+      attachDataChannel(pc.createDataChannel('attic-data', { ordered: true }));
+    }
 
     // Send our tracks to remote
     if (localStreamRef.current) {
@@ -295,7 +329,7 @@ const createPC = useCallback(async (type) => {
     };
 
     return pc;
-  }, [sendSignal, cleanupCall]);
+  }, [sendSignal, cleanupCall, attachDataChannel]);
 
   // ── Quality monitor ───────────────────────────────────────────────────────
   const startQualityMonitor = useCallback((pc) => {
@@ -834,6 +868,7 @@ const createPC = useCallback(async (type) => {
     startScreenShare, stopScreenShare, restartIce, changeDevice, testTurnConfig,
     sendReaction, toggleRaiseHand,
     isPartnerScreenSharing,
+    sendData,
     noiseSuppression, setNoiseSuppression, echoCancellation, setEchoCancellation,
   };
 

@@ -429,7 +429,7 @@ export default function App() {
                 partnerName={partnerName}
                 syncedRoomId={roomId}
                 pictionaryState={globalState.pictionary_state}
-                setPictionaryState={(val) => updateSyncState('pictionary_state', typeof val === 'function' ? val(globalState.pictionary_state || {}) : val)}
+                setPictionaryState={(val) => updateSyncState('pictionary_state', val)}
                 onSaveToScrapbook={handleSaveToScrapbook}
               /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />

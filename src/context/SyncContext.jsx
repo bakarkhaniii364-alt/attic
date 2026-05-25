@@ -183,7 +183,8 @@ export function SyncProvider({ children }) {
     if (!roomId || !isInitialized) return;
 
     setGlobalState(prev => {
-      const newState = { ...prev, [key]: value };
+      const resolved = typeof value === 'function' ? value(prev[key]) : value;
+      const newState = { ...prev, [key]: resolved };
       latestStateRef.current = newState;
       
       // Instant Broadcast

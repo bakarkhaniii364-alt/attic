@@ -101,7 +101,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
-  const { session: arcadeSession, joinSession, setReady, leaveSession } = useArcadeSession(syncedRoomId, gameRoute, userId);
+  const { session: arcadeSession, joinSession, setReady, leaveSession, updateGameState } = useArcadeSession(syncedRoomId, gameRoute, userId);
   const { setCurrentActivity, updateSyncStateAtomic } = useSync();
 
   useEffect(() => {
@@ -144,6 +144,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // Reset navigation when game changes
   useEffect(() => {
     setIsNavigatingLobby(false);
+    setLobbyPhase('IDLE');
   }, [gameRoute]);
 
   // Auto-join lobby when navigating via invitation accept action
@@ -187,20 +188,19 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   useEffect(() => {
     if (gameRoute && game && !arcadeSession && currentPhase === 'lobby') {
       console.log("🚦 [LOBBY] Bootstrapping session for", gameRoute);
-      joinSession();
+      joinSession().catch((e) => console.error('[LOBBY] Bootstrap failed:', e));
     }
   }, [gameRoute, game, arcadeSession, joinSession, currentPhase]);
 
   // Sync lobbyPhase with arcadeSession status
   useEffect(() => {
-    if (arcadeSession?.status === 'starting' && lobbyPhase !== 'STARTING') {
+    if (arcadeSession?.status === 'starting') {
       console.log("🚦 [LOBBY] DB status is 'starting'. Moving to STARTING phase.");
       setLobbyPhase('STARTING');
+    } else if (arcadeSession?.status === 'playing') {
+      setLobbyPhase('PLAYING');
     }
-    if (arcadeSession?.status === 'playing' && lobbyPhase !== 'STARTING') {
-      setLobbyPhase('STARTING');
-    }
-  }, [arcadeSession, lobbyPhase]);
+  }, [arcadeSession?.status]);
 
   // Solo Bypass Handshake Listener
   useEffect(() => {
@@ -264,19 +264,28 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       setLocalPlayConfig({ mode: mode.id, diff: selectedDiff, ...selectedOptions });
   };
 
+  const buildRemoteGameConfig = (mode) => ({
+    mode: mode.id,
+    type: 'remote',
+    diff: selectedDiff,
+    ...selectedOptions,
+    modeLabel: mode.label,
+  });
+
   const handleCreateLobby = async (mode) => {
       playAudio('click', sfx);
       setIsNavigatingLobby(true);
+      setLobbyPhase('IDLE');
       try {
-        const sessionData = await joinSession();
-        // Force sync local arcadeSession if it's still null to prevent phase lag
-        if (sessionData && !arcadeSession) {
-            console.log("🚦 [LOBBY] Session created, moving to lobby phase.");
-        }
+        const gameConfig = buildRemoteGameConfig(mode);
+        await joinSession();
+        await updateGameState(gameConfig);
+        console.log("🚦 [LOBBY] Session created with config:", gameConfig);
         onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute, type: 'game_invite_modal' });
       } catch (e) {
         console.error("Failed to create lobby:", e);
         setIsNavigatingLobby(false);
+        setLobbyPhase('IDLE');
       }
   };
 
@@ -300,7 +309,12 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   }, [gameRoute, leaveSession]);
 
   const renderActiveGame = () => {
-    const activeConfig = currentPhase === 'playing_local' ? localPlayConfig : arcadeSession?.game_state;
+    const remoteDefaults = { diff: selectedDiff, mode: 'coop_remote', matchType: 1, ...selectedOptions };
+    const activeConfig = currentPhase === 'playing_local'
+      ? localPlayConfig
+      : (arcadeSession?.game_state && Object.keys(arcadeSession.game_state).length > 0
+          ? arcadeSession.game_state
+          : remoteDefaults);
     const isMultiplayer = currentPhase === 'playing_remote';
     const isHost = isMultiplayer ? (arcadeSession?.player_a_id === userId) : true;
     const myPlayerId = isMultiplayer ? (isHost ? 'p1' : 'p2') : 'p1';
@@ -447,6 +461,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         broadcast('lobby_closed', { sender: userId, gameId: gameRoute });
       }
       setShowLeaveConfirm(false);
+      setIsNavigatingLobby(false);
+      setLobbyPhase('IDLE');
       navigate('/activities');
   };
   const handleLeaveClick = () => {

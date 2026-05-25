@@ -91,7 +91,9 @@ export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer
   // Optimized setter that sends via P2P first
   const broadcastMove = useCallback((newState) => {
     // 1. P2P (Low Latency)
-    const p2pSent = sendData({ type: 'uno_move', roomId, state: newState });
+    const p2pSent = typeof sendData === 'function'
+      ? sendData({ type: 'uno_move', roomId, state: newState })
+      : false;
     if (p2pSent) console.log('[UNO] Move broadcast via P2P');
     
     // 2. Supabase (Reliability/Persistence)

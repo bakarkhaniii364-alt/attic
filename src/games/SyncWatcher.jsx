@@ -13,6 +13,16 @@ import { useSync, useAuth } from '../context/instances.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 
 import { parseEmbedUrl, getLocalEmbedUrl, PROVIDER_LABELS } from '../utils/embed.js';
+import {
+  fetchJson,
+  searchTVmaze,
+  searchIMDbProxy,
+  searchTMDB,
+  fetchTVmazeEpisodes,
+  fetchTVmazeShow,
+  lookupTVmazeByImdb,
+  cinemaFetchErrorMessage,
+} from '../utils/cinemaApi.js';
 
 export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const { broadcast, roomProfiles } = useSync();
@@ -255,98 +265,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
 
 
-    // --- CINEMA API FETCH HELPER FUNCTIONS ---
-    
-    // Fallback keyless IMDb Proxy Search (with CORS enabled)
-    const searchMoviesIMDb = async (query) => {
-        try {
-            const res = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(query)}`, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                }
-            });
-            const data = await res.json();
-            if (data && data.ok && data.description) {
-                return data.description.map(item => {
-                    console.log('IMDb item type raw:', item['#IMDB_ID'], item['#TYPE']);
-                    return {
-                        id: item['#IMDB_ID'],
-                        title: item['#TITLE'],
-                        year: item['#YEAR'] || 'N/A',
-                        poster: item['#IMG_POSTER'] || '',
-                        type: item['#TYPE'] === 'tvSeries' || item['#TYPE'] === 'tvMiniSeries' ? 'tv' : 'movie',
-                        actors: item['#ACTORS']
-                    };
-                });
-            }
-            return [];
-        } catch (e) {
-            console.error('IMDb Proxy error:', e);
-            return [];
-        }
-    };
-
-    // Fallback keyless TVmaze Search
-    const searchTVmaze = async (query) => {
-        try {
-            const res = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data) {
-                return data.map(item => ({
-                    id: item.show.id,
-                    title: item.show.name,
-                    year: item.show.premiered ? new Date(item.show.premiered).getFullYear() : 'N/A',
-                    poster: item.show.image?.medium || item.show.image?.original || '',
-                    type: 'tv',
-                    imdbId: item.show.externals?.imdb || '',
-                    summary: item.show.summary
-                }));
-            }
-            return [];
-        } catch (e) {
-            console.error('TVmaze search error:', e);
-            return [];
-        }
-    };
-
-    const fetchTVmazeEpisodes = async (showId) => {
-        try {
-            const res = await fetch(`https://api.tvmaze.com/shows/${showId}/episodes`);
-            return await res.json();
-        } catch (e) {
-            console.error('TVmaze episodes error:', e);
-            return [];
-        }
-    };
-
-    // TMDb API searches (when key is available)
-    const searchTMDB = async (query) => {
-        try {
-            const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${tmdbKey}&query=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data && data.results) {
-                return data.results
-                    .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
-                    .map(item => ({
-                        id: item.id,
-                        title: item.title || item.name,
-                        year: item.release_date ? new Date(item.release_date).getFullYear() : (item.first_air_date ? new Date(item.first_air_date).getFullYear() : 'N/A'),
-                        poster: item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : '',
-                        type: item.media_type,
-                        overview: item.overview
-                    }));
-            }
-            return [];
-        } catch (e) {
-            console.error('TMDb search error:', e);
-            return [];
-        }
-    };
-
     const fetchTMDBTVDetails = async (showId) => {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/tv/${showId}?api_key=${tmdbKey}`);
-            return await res.json();
+            return await fetchJson(`https://api.themoviedb.org/3/tv/${showId}?api_key=${tmdbKey}`);
         } catch (e) {
             console.error('TMDb TV details error:', e);
             return null;
@@ -355,8 +276,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     const fetchTMDBSeasonEpisodes = async (showId, seasonNumber) => {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${tmdbKey}`);
-            const data = await res.json();
+            const data = await fetchJson(
+              `https://api.themoviedb.org/3/tv/${showId}/season/${seasonNumber}?api_key=${tmdbKey}`
+            );
             return data?.episodes || [];
         } catch (e) {
             console.error('TMDb season episodes error:', e);
@@ -366,29 +288,15 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     const resolveShowImdbId = async (show) => {
         if (show.imdbId) return show.imdbId;
-        
+        const tvmaze = await fetchTVmazeShow(show.id);
+        if (tvmaze?.externals?.imdb) return tvmaze.externals.imdb;
         try {
-            const res = await fetch(`https://api.tvmaze.com/shows/${show.id}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.externals?.imdb) {
-                    return data.externals.imdb;
-                }
-            }
-        } catch (e) {
-            console.error('Error fetching TVmaze show details:', e);
-        }
-
-        try {
-            const imdbResults = await searchMoviesIMDb(show.title);
-            const match = imdbResults.find(m => m.title.toLowerCase() === show.title.toLowerCase());
-            if (match) {
-                return match.id;
-            }
+            const imdbResults = await searchIMDbProxy(show.title);
+            const match = imdbResults.find((m) => m.title.toLowerCase() === show.title.toLowerCase());
+            if (match) return match.id;
         } catch (e) {
             console.error('Error searching IMDb proxy by title:', e);
         }
-
         return null;
     };
 
@@ -401,10 +309,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         setSelectedShow(null);
         try {
             if (tmdbKey) {
-                const results = await searchTMDB(query);
+                const results = await searchTMDB(query, tmdbKey);
                 setSearchResults(results);
             } else {
-                let movieResultsRaw = await searchMoviesIMDb(query);
+                let movieResultsRaw = await searchIMDbProxy(query);
                 let tvResults = await searchTVmaze(query);
                 
                 const unifiedResults = [];
@@ -430,7 +338,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 setSearchResults(unifiedResults);
             }
         } catch (err) {
-            setSearchError('Search failed. Please verify your connection.');
+            console.error('[Cinema] Search failed:', err);
+            setSearchError(cinemaFetchErrorMessage(err));
         } finally {
             setSearchLoading(false);
         }
@@ -446,23 +355,22 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             setSearchLoading(true);
             try {
                 // First search TVmaze by title to avoid 404 console errors for actual movies
-                const tvmazeRes = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(item.title)}`);
-                if (tvmazeRes.ok) {
-                    const searchData = await tvmazeRes.json();
-                    const match = searchData.find(entry => entry.show?.externals?.imdb === item.id);
-                    if (match && match.show) {
-                        const lookupData = match.show;
-                        itemType = 'tv';
-                        resolvedItem = {
-                            id: lookupData.id,
-                            title: lookupData.name,
-                            year: lookupData.premiered ? new Date(lookupData.premiered).getFullYear() : 'N/A',
-                            poster: lookupData.image?.medium || lookupData.image?.original || item.poster || '',
-                            type: 'tv',
-                            imdbId: item.id,
-                            summary: lookupData.summary
-                        };
-                    }
+                const searchData = await searchTVmaze(item.title);
+                const match = searchData.find((entry) => entry.imdbId === item.id);
+                if (match) {
+                  const lookupData = await fetchTVmazeShow(match.id);
+                  if (lookupData) {
+                    itemType = 'tv';
+                    resolvedItem = {
+                      id: lookupData.id,
+                      title: lookupData.name,
+                      year: lookupData.premiered ? new Date(lookupData.premiered).getFullYear() : 'N/A',
+                      poster: lookupData.image?.medium || lookupData.image?.original || item.poster || '',
+                      type: 'tv',
+                      imdbId: item.id,
+                      summary: lookupData.summary,
+                    };
+                  }
                 }
             } catch (e) {
                 console.error('Error in TVmaze movie/tv lookup:', e);
@@ -504,9 +412,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 } else {
                     let tvmazeShowId = resolvedItem.id;
                     if (String(resolvedItem.id).startsWith('tt')) {
-                        const lookupRes = await fetch(`https://api.tvmaze.com/lookup/shows?imdb=${resolvedItem.id}`);
-                        if (lookupRes.ok) {
-                            const lookupData = await lookupRes.json();
+                        const lookupData = await lookupTVmazeByImdb(resolvedItem.id);
+                        if (lookupData?.id) {
                             tvmazeShowId = lookupData.id;
                             setSelectedShow({
                                 id: lookupData.id,

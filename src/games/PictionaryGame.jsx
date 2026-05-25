@@ -9,8 +9,8 @@ import { useCall } from '../context/instances.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
 export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, pictionaryState, setPictionaryState, isHost }) {
-  const p1Id = isHost ? userId : partnerId;
-  const p2Id = isHost ? partnerId : userId;
+  const p1Id = isHost ? userId : (partnerId || userId);
+  const p2Id = isHost ? (partnerId || userId) : userId;
 
   const defaultState = {
     gameState: 'prep',
@@ -59,7 +59,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const [fakeCursor, setFakeCursor] = useState({ x: 0, y: 0, show: false });
 
   const getWordOptions = () => {
-    const genre = config.genre || 'General';
+    const genre = config?.genre || config?.category || 'General';
     const words = PICTIONARY_CATEGORIES[genre] || PICTIONARY_CATEGORIES['General'] || ['Apple', 'Tree', 'Cat'];
     // Pick 3 distinct words randomly
     const shuffled = [...words].sort(() => 0.5 - Math.random());
@@ -167,8 +167,10 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const { sendData } = useCall();
   const sendDrawBroadcast = useBroadcast('pictionary_draw');
   const sendCursorBroadcast = useBroadcast('pictionary_cursor');
-  
+  const sendEmojiBroadcast = useBroadcast('pictionary_emoji');
+
   const isDrawerRef = useRef(isDrawer);
+  const lastCursorSendRef = useRef(0);
   useEffect(() => { isDrawerRef.current = isDrawer; }, [isDrawer]);
 
   // handleRemoteDraw MUST be defined before the useEffect that references it
@@ -203,7 +205,9 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   useBroadcast('pictionary_draw', handleRemoteDraw);
 
   const sendDraw = useCallback((payload) => {
-    const dataSent = sendData({ type: 'pictionary_draw', ...payload });
+    const dataSent = typeof sendData === 'function'
+      ? sendData({ type: 'pictionary_draw', ...payload })
+      : false;
     if (!dataSent || payload.type === 'clear' || payload.type === 'fill') {
       sendDrawBroadcast(payload);
     }
@@ -224,7 +228,9 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   const sendCursor = useCallback((x, y, show) => {
     const payload = { x, y, show: !!show };
-    const dataSent = sendData({ type: 'pictionary_cursor', ...payload });
+    const dataSent = typeof sendData === 'function'
+      ? sendData({ type: 'pictionary_cursor', ...payload })
+      : false;
     if (!dataSent) sendCursorBroadcast(payload);
   }, [sendData, sendCursorBroadcast]);
 
@@ -247,7 +253,6 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       setPartnerCursor({ ...payload, show: true });
   }, []));
 
-  const sendEmoji = useBroadcast('pictionary_emoji');
   useBroadcast('pictionary_emoji', (payload) => {
       setFloatingEmojis(p => [...p, { id: Date.now(), ...payload }]);
       setTimeout(() => { setFloatingEmojis(p => p.slice(1)); }, 2000);
@@ -258,7 +263,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       const payload = { emj, left: Math.random() * 80 + 10, top: Math.random() * 80 + 10 };
       setFloatingEmojis(p => [...p, { id: Date.now(), ...payload }]);
       setTimeout(() => { setFloatingEmojis(p => p.slice(1)); }, 2000);
-      sendEmoji(payload);
+      sendEmojiBroadcast(payload);
   };
 
   const saveStateToUndo = () => { const canvas = canvasRef.current; if (!canvas) return; setUndoStack(prev => [...prev, canvas.toDataURL()]); };
@@ -298,7 +303,11 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
       const { x, y } = getCoords(e); 
       if (isDrawer) {
-          sendCursor(x, y, true);
+          const now = Date.now();
+          if (now - lastCursorSendRef.current > 50) {
+            lastCursorSendRef.current = now;
+            sendCursor(x, y, true);
+          }
           if (isDrawingRef.current && gameState === 'drawing') {
               const ctx = canvasRef.current.getContext('2d'); 
               ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color; 
