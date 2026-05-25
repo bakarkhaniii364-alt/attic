@@ -5,14 +5,17 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
+  // In production we prefer to warn rather than throw so the site can still
+  // render (with degraded functionality) if env vars are not present.
   if (import.meta.env.PROD) {
-    throw new Error(
+    console.error(
       '[Attic] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Copy .env.example to .env and set your Supabase credentials.'
     );
+  } else {
+    console.warn(
+      '[Attic] Supabase env vars missing — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env (see .env.example).'
+    );
   }
-  console.warn(
-    '[Attic] Supabase env vars missing — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env (see .env.example).'
-  );
 }
 
 const realClient = createClient(
