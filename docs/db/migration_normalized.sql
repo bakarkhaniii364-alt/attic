@@ -224,12 +224,12 @@ DROP FUNCTION IF EXISTS update_app_state_atomic(text, text, text, jsonb);
 DROP FUNCTION IF EXISTS update_app_state_atomic(uuid, text, text, jsonb);
 
 -- Safely updates a nested subkey (e.g., room_profiles -> user_id)
-CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id text, p_key text, p_subkey text, p_value jsonb)
+CREATE OR REPLACE FUNCTION update_app_state_atomic(p_room_id uuid, p_key text, p_subkey text, p_value jsonb)
 RETURNS void AS $$
 BEGIN
   -- 1. Ensure row exists (UPSERT)
   INSERT INTO app_state (room_id, state)
-  VALUES (p_room_id::uuid, '{}'::jsonb)
+  VALUES (p_room_id, '{}'::jsonb)
   ON CONFLICT (room_id) DO NOTHING;
 
   -- 2. Atomic update with smart merge
@@ -245,7 +245,7 @@ BEGIN
     END,
     true
   )
-  WHERE room_id::text = p_room_id;
+  WHERE room_id = p_room_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

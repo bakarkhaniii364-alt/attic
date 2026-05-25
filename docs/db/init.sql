@@ -1,6 +1,6 @@
 -- Run this script exactly once in the Supabase SQL Editor
 create table if not exists app_state (
-  room_id text primary key,
+  room_id uuid primary key,
   state jsonb default '{}'::jsonb,
   last_updated timestamp with time zone default timezone('utc'::text, now())
 );

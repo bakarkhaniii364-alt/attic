@@ -100,6 +100,19 @@ CREATE TABLE IF NOT EXISTS public.highscores (
 ALTER TABLE public.highscores
   ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE;
 
+-- Policies block ALTER TYPE; drop all on highscores before changing columns
+DO $$
+DECLARE pol record;
+BEGIN
+  FOR pol IN
+    SELECT policyname
+    FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'highscores'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.highscores', pol.policyname);
+  END LOOP;
+END $$;
+
 ALTER TABLE public.highscores
   ALTER COLUMN user_id TYPE UUID USING user_id::uuid;
 
@@ -136,5 +149,5 @@ CREATE POLICY "access_room_highscores" ON public.highscores
       WHERE (creator_id = auth.uid() OR partner_id = auth.uid())
         AND is_active = true
     )
-    AND user_id::uuid = auth.uid()
+    AND user_id = auth.uid()
   );
