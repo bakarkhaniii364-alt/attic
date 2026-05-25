@@ -1,7 +1,7 @@
 import {
   X, Send, Paperclip, Smile, Mic, Trash2, Pin, Edit2, Reply, Image as ImageIcon,
   Gamepad2, Check, Clock, Ban, Phone, PhoneOff, Video, Download, Play, Monitor,
-  Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search
+  Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search, Film
 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
@@ -916,7 +916,7 @@ export function ChatView({ onClose, sfx }) {
                 const isCallLog = msg.type === 'call_invite';
                 const isPureEmoji = msg.type === 'text' && msg.text && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
                 const isPureImage = (msg.type === 'image' || msg.type === 'image_group') && !msg.text;
-                const isGameInvite = msg.type === 'game_invite';
+                const isGameInvite = msg.type === 'game_invite' || msg.type === 'watchparty_invite' || msg.type === 'watchparty_summary';
                 const noBubble = (isPureEmoji || isPureImage) && !msg.isDeleted;
                 const isHighlighted = highlightedMessageId === msg.id;
 
@@ -1084,10 +1084,49 @@ export function ChatView({ onClose, sfx }) {
                               <div className="retro-border retro-shadow-dark bg-window p-3 w-64 text-main-text mt-1">
                                 <div className="flex items-center gap-2 mb-3 border-b-2 border-border/20 pb-2">
                                   <Monitor size={18} className="text-secondary" />
-                                  <span className="font-black text-[10px] uppercase tracking-widest">Watchparty Invite</span>
+                                  <span className="font-black text-[10px] uppercase tracking-widest text-secondary">Watchparty Invite</span>
                                 </div>
                                 <p className="text-xs font-bold mb-4 opacity-80">{msg.text || `Join me for a watch party!`}</p>
                                 <button onClick={() => navigate('/watch')} className="w-full py-2 text-xs font-bold bg-secondary text-secondary-text retro-border retro-shadow-dark hover:brightness-110 transition-all">Join Now</button>
+                                <div className="flex justify-between items-center mt-3 border-t border-border/10 pt-2 text-[9px] opacity-60 font-bold uppercase tracking-tighter">
+                                  <span>{msg.time}</span>
+                                  {isMe && msg.status && (
+                                    <span>{msg.status === 'read' ? 'Seen' : 'Sent'}</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {msg.type === 'watchparty_summary' && (
+                              <div className="retro-border retro-shadow-dark bg-window p-3.5 w-72 text-main-text mt-1">
+                                <div className="flex items-center gap-2 mb-3 border-b-2 border-border/20 pb-2">
+                                  <Film size={18} className="text-primary" />
+                                  <span className="font-black text-[10px] uppercase tracking-widest text-primary">Watch Party Summary</span>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <h4 className="text-[10px] font-black text-main-text/75 uppercase tracking-wide leading-none">🍿 Finished watching:</h4>
+                                  <p className="text-xs font-bold text-primary break-words">{msg.metadata?.title || 'Unknown Video'}</p>
+                                  
+                                  <div className="bg-black/5 p-2.5 rounded border border-black/10 text-[10px] font-bold text-main-text flex flex-col gap-1.5 mt-1 shadow-inner">
+                                    <div className="flex justify-between">
+                                      <span className="opacity-80">💬 Reactions:</span>
+                                      <span className="font-black text-primary">{msg.metadata?.msgCount || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="opacity-80">🔄 Sync plays:</span>
+                                      <span className="font-black">{msg.metadata?.playCount || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="opacity-80">⏸ Sync pauses:</span>
+                                      <span className="font-black">{msg.metadata?.pauseCount || 0}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center mt-3 border-t border-border/10 pt-2 text-[9px] opacity-60 font-bold uppercase tracking-tighter">
+                                  <span>{msg.time}</span>
+                                  {isMe && msg.status && (
+                                    <span>{msg.status === 'read' ? 'Seen' : 'Sent'}</span>
+                                  )}
+                                </div>
                               </div>
                             )}
                             {msg.type === 'call_invite' && (

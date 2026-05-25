@@ -164,8 +164,9 @@ export function useAppLogic({
       }
       if (event === 'watchparty_invite' && payload.sender !== userId) {
         setWatchpartyInvite(payload);
-        toast(`🍿 ${partnerName} started a watch party!`, 'actionable');
-        if (notificationsEnabled) sendNativeNotification(`${partnerName} started a watch party! 🍿`);
+        const titleStr = payload.title ? ` to watch "${payload.title}"` : '';
+        toast(`🍿 ${partnerName} invited you to watch${titleStr}!`, 'actionable');
+        if (notificationsEnabled) sendNativeNotification(`${partnerName} invited you to watch${titleStr}! 🍿`);
       }
       if (event === 'force_reset' && payload.sender !== userId) {
         toast(`🔄 ${partnerName} reset the room state. Synchronizing...`, 'warning');

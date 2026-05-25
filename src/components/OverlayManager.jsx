@@ -56,7 +56,9 @@ export function OverlayManager({
                   <Monitor size={32} />
                </div>
                <h2 className="text-xl font-black mb-2 uppercase tracking-tighter">{watchpartyInvite.senderName} invited you!</h2>
-               <p className="text-sm font-bold opacity-70 mb-6 lowercase">join them for a watch party on syncwatcher?</p>
+               <p className="text-sm font-bold opacity-70 mb-6 lowercase">
+                  {watchpartyInvite.title ? `join them to watch "${watchpartyInvite.title}" on syncwatcher?` : 'join them for a watch party on syncwatcher?'}
+               </p>
                <div className="flex gap-3">
                   <RetroButton variant="white" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => setWatchpartyInvite(null)}>Decline</RetroButton>
                   <RetroButton variant="primary" className="flex-1 py-2 text-xs font-black uppercase" onClick={() => {

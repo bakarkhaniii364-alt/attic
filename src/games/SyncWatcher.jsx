@@ -221,6 +221,41 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         broadcast('watcher_chat', { ...msg, isMe: false });
     }, [setWatcherChat, broadcast]);
 
+    const archiveSession = useCallback((prevUrl, prevTitle, chatLogs) => {
+        if (!prevUrl || !chatLogs || chatLogs.length === 0) return;
+
+        const userMsgs = chatLogs.filter(m => m.sender !== 'SYSTEM');
+        if (userMsgs.length === 0 && chatLogs.length <= 1) {
+            return;
+        }
+
+        const msgCount = userMsgs.length;
+        const systemLogs = chatLogs.filter(m => m.sender === 'SYSTEM');
+        
+        const playCount = systemLogs.filter(m => m.text.toLowerCase().includes('played') || m.text.toLowerCase().includes('started')).length;
+        const pauseCount = systemLogs.filter(m => m.text.toLowerCase().includes('paused')).length;
+
+        const summaryText = `🍿 Finished watching: **${prevTitle || 'Custom Video'}**\n💬 ${msgCount} chat reactions exchanged\n🔄 Sync adjustments: ${playCount} plays, ${pauseCount} pauses.`;
+
+        if (onShareToChat) {
+            onShareToChat(summaryText, null, {
+                type: 'watchparty_summary',
+                title: prevTitle || 'Custom Video',
+                msgCount,
+                playCount,
+                pauseCount,
+                url: prevUrl
+            });
+        }
+    }, [onShareToChat]);
+
+    const loadNewVideo = useCallback((newUrl, newTitle) => {
+        archiveSession(syncedUrl, syncedTitle, watcherChat);
+        setSyncedUrl(newUrl);
+        setSyncedTitle(newTitle);
+        setWatcherChat([]);
+    }, [syncedUrl, syncedTitle, watcherChat, archiveSession, setSyncedUrl, setSyncedTitle, setWatcherChat]);
+
     const handleProviderChange = (prov) => {
         playAudio('click', sfx);
         setLocalProvider(prov);
@@ -507,9 +542,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             const url = isImdb 
                 ? `https://vidsrc.su/embed/movie/${resolvedItem.id}`
                 : `https://www.vidking.net/embed/movie/${resolvedItem.id}?color=e50914&autoPlay=true`;
-            setSyncedUrl(url);
+            loadNewVideo(url, resolvedItem.title);
             setMode('cinema');
-            appendSystemLog(`${myName} played Movie: ${resolvedItem.title}`);
+            appendSystemLog(`${myName} started playing Movie: ${resolvedItem.title}`);
         } else {
             setSelectedShow(resolvedItem);
             setEpisodesLoading(true);
@@ -625,9 +660,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             ? `https://vidsrc.su/embed/tv/${id}/${selectedSeason}/${episodeNumber}`
             : `https://www.vidking.net/embed/tv/${id}/${selectedSeason}/${episodeNumber}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
         
-        setSyncedUrl(url);
+        const epTitle = `${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}`;
+        loadNewVideo(url, epTitle);
         setMode('cinema');
-        appendSystemLog(`${myName} played ${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}`);
+        appendSystemLog(`${myName} started playing TV: ${epTitle}`);
     };
 
 
@@ -638,7 +674,10 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         const url = isImdb
             ? `https://vidsrc.su/embed/tv/${currentTvId}/${currentSeason}/${newEp}`
             : `https://www.vidking.net/embed/tv/${currentTvId}/${currentSeason}/${newEp}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
-        setSyncedUrl(url);
+        
+        const showTitle = selectedShow?.title || (isTvUrl ? "TV Show" : "Cinema");
+        const epTitle = `${showTitle} - Season ${currentSeason} Ep ${newEp}`;
+        loadNewVideo(url, epTitle);
         appendSystemLog(`${myName} skipped to Episode ${newEp}`);
     };
 
@@ -654,8 +693,6 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             const currentTime = playerRef.current.getCurrentTime() || 0;
             const newTime = Math.max(0, currentTime + seconds);
             playerRef.current.seekTo(newTime, 'seconds');
-            setPlayedSeconds(newTime);
-            appendSystemLog(`${myName} skipped to ${formatTime(newTime)}`);
         }
     };
 
@@ -663,8 +700,6 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         const newFraction = parseFloat(e.target.value);
         if (playerRef.current) {
             playerRef.current.seekTo(newFraction, 'fraction');
-            const seekSeconds = duration > 0 ? newFraction * duration : 0;
-            appendSystemLog(`${myName} skipped to ${formatTime(seekSeconds)}`);
         }
         isSeeking.current = false;
     };
@@ -675,10 +710,15 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             sender: userId, 
             senderName: myName,
             url: syncedUrl,
+            title: syncedTitle,
             timestamp: Date.now() 
         });
         if (onShareToChat) {
-            onShareToChat(`Join me for a watch party!`, null, { type: 'watchparty_invite', url: syncedUrl });
+            onShareToChat(`Join me to watch "${syncedTitle}"!`, null, { 
+                type: 'watchparty_invite', 
+                url: syncedUrl, 
+                title: syncedTitle 
+            });
         }
         appendSystemLog('Invite sent to partner!');
     };
@@ -687,10 +727,18 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const handleLoadUrl = () => {
         if (!inputUrl) return;
         playAudio('click', sfx);
-        setSyncedUrl(inputUrl.trim());
+        const targetUrl = inputUrl.trim();
         setInputUrl('');
         setLoadError(null);
-        appendSystemLog(`${myName} loaded a new URL.`);
+        
+        let newTitle = "Custom Video";
+        const parsed = parseEmbedUrl(targetUrl);
+        if (parsed) {
+            newTitle = parsed.type === 'movie' ? `Movie: ${parsed.id}` : `TV Show: ${parsed.id} (S${parsed.season}E${parsed.episode})`;
+        }
+        
+        loadNewVideo(targetUrl, newTitle);
+        appendSystemLog(`${myName} loaded new video: ${newTitle}`);
     };
 
     const sendReaction = () => {
@@ -886,6 +934,12 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                             incomingSeek.current--;
                                         } else {
                                             broadcast('watcher_control', { action: 'SEEK_SECONDS', time: seconds });
+                                            const diff = seconds - playedSeconds;
+                                            const absDiff = Math.abs(diff);
+                                            if (absDiff > 1.5) {
+                                                const direction = diff > 0 ? 'forward' : 'backward';
+                                                appendSystemLog(`${myName} sought ${direction} to ${formatTime(seconds)} (${Math.round(absDiff)}s)`);
+                                            }
                                         }
                                     }}
                                     onError={() => setLoadError('URL blocked by owner. Try a different YouTube link.')}
@@ -909,12 +963,12 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                         </button>
 
                                         <iframe 
-
                                             src={getLocalEmbedUrl(syncedUrl, activeProvider)} 
                                             className="w-full h-full border-none bg-black" 
                                             title="Cinema Player" 
                                             allowFullScreen 
                                             allow="autoplay; encrypted-media; picture-in-picture"
+                                            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
                                         />
                                     </>
                                 ) : (
