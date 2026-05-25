@@ -11,7 +11,9 @@
     "test:e2e": "playwright test",
     "ci": "npm run test:e2e",
     "lint": "eslint . --ext .js,.jsx",
-    "lint:fix": "eslint . --ext .js,.jsx --fix"
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "security": "node scripts/security-setup.js",
+    "audit": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
@@ -37,7 +39,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react-oxc": "^0.4.3",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.50.0",
     "eslint-plugin-react": "^7.32.2",

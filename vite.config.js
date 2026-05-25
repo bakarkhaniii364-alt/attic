@@ -1,8 +1,15 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react-oxc';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => ({
+  optimizeDeps: {
+    esbuild: {
+      supported: {
+        'top-level-await': true,
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
