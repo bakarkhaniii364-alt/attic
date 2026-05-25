@@ -10,6 +10,8 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ['favicon.ico'],
       manifest: false,
       workbox: {
+        // Allow larger assets (vendor chunks) to be precached by Workbox.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         runtimeCaching: [
           {
@@ -33,14 +35,17 @@ export default defineConfig(({ mode }) => ({
   build: {
     sourcemap: mode !== 'production',
     chunkSizeWarningLimit: 1000,
-    rollupOptions: {
+      rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js'],
-          tiptap: ['@tiptap/react', '@tiptap/starter-kit'],
-          webrtc: ['yjs', 'y-webrtc'],
-          lucide: ['lucide-react'],
+        manualChunks(id) {
+          if (!id) return;
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) return 'vendor';
+            if (id.includes('@supabase/supabase-js')) return 'supabase';
+            if (id.includes('@tiptap/react') || id.includes('@tiptap/starter-kit')) return 'tiptap';
+            if (id.includes('yjs') || id.includes('y-webrtc')) return 'webrtc';
+            if (id.includes('lucide-react')) return 'lucide';
+          }
         },
       },
     },
