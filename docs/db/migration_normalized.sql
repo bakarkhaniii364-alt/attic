@@ -83,6 +83,9 @@ END $$;
 -- 1. 'doodles' (Public: false)
 -- 2. 'scrapbook' (Public: false)
 -- 3. 'voice_notes' (Public: false)
+--
+-- Then run docs/db/storage_policies.sql for room-scoped RLS on objects.
+-- Then run docs/db/security_hardening.sql (pairing rate limits, highscores RLS).
 -- ============================================================
 
 -- ============================================================

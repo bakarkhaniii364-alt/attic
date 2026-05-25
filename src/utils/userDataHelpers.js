@@ -111,30 +111,43 @@ export const getBothUsersActive = (streaks, userId, partnerId) => {
   return { userActive, partnerActive, bothActive: userActive && partnerActive };
 };
 
-export const submitHighscore = async (gameId, mode, score, playerName, userId) => {
-  const localObj = {
-    id: `local-${Date.now()}-${Math.random()}`,
-    user_id: userId,
-    player_name: playerName || 'Player',
-    game_id: gameId,
-    mode: mode,
-    score: score,
-    created_at: new Date().toISOString()
-  };
+export const submitHighscore = async (gameId, mode, score, playerName, userId, roomId = null) => {
+  let resolvedRoomId = roomId;
   try {
-    const cached = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
-    cached.push(localObj);
-    localStorage.setItem('attic_local_highscores', JSON.stringify(cached));
-  } catch(e) {}
+    const { supabase } = await import('../lib/supabase.js');
+    if (!resolvedRoomId) {
+      const { data: room } = await supabase.rpc('get_my_room');
+      resolvedRoomId = room?.id;
+    }
+    if (!resolvedRoomId) return;
 
-  try {
-     const { supabase } = await import('../lib/supabase.js');
-     await supabase.from('highscores').insert([{
-         user_id: userId,
-         player_name: playerName || 'Player',
-         game_id: gameId,
-         mode: mode,
-         score: score
-     }]);
-  } catch(e) { console.error('Failed to submit highscore', e); }
+    const localObj = {
+      id: `local-${Date.now()}-${Math.random()}`,
+      room_id: resolvedRoomId,
+      user_id: userId,
+      player_name: playerName || 'Player',
+      game_id: gameId,
+      mode: mode,
+      score: score,
+      created_at: new Date().toISOString(),
+    };
+    try {
+      const cached = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+      cached.push(localObj);
+      localStorage.setItem('attic_local_highscores', JSON.stringify(cached.slice(-500)));
+    } catch {
+      /* ignore */
+    }
+
+    await supabase.from('highscores').insert([{
+      room_id: resolvedRoomId,
+      user_id: userId,
+      player_name: playerName || 'Player',
+      game_id: gameId,
+      mode: mode,
+      score: score,
+    }]);
+  } catch (e) {
+    console.error('Failed to submit highscore', e);
+  }
 };

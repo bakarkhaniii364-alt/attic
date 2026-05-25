@@ -1,7 +1,7 @@
 {
   "name": "Attic",
   "short_name": "Attic",
-  "description": "Your private space. Just the two of you.",
+  "description": "A private space for couples — encrypted chat, memories, games, and calls. Just the two of you.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f9e2cf",

@@ -1,5 +1,6 @@
-// Initialize test mode immediately if present in query params
-if (typeof window !== 'undefined') {
+import { canUseTestMode } from './lib/testMode.js';
+
+if (typeof window !== 'undefined' && canUseTestMode()) {
   const params = new URLSearchParams(window.location.search);
   if (params.get('test_mode') === 'true') {
     window.localStorage.setItem('attic_test_mode', 'true');
@@ -44,16 +45,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-// Service worker logic for PWA and push notifications
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => {
-        console.log('Attic Service Worker registered:', reg.scope);
-      })
-      .catch(err => {
-        console.error('Attic Service Worker registration failed:', err);
-      });
+      .then((reg) => console.log('Attic Service Worker registered:', reg.scope))
+      .catch((err) => console.error('Attic Service Worker registration failed:', err));
   });
 }
-

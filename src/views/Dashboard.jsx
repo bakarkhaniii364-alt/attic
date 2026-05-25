@@ -15,6 +15,12 @@ import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 import { useLastSeen } from '../hooks/useLastSeen.js';
 import { useMobile } from '../hooks/useMobile.js';
+import {
+  RetentionNudges,
+  WelcomeBackBanner,
+  recordVisit,
+  getDaysSinceLastVisit,
+} from '../components/Dashboard/RetentionNudges.jsx';
 
 const ChatView = React.lazy(() => import('./ChatView.jsx').then(m => ({ default: m.ChatView })));
 const SettingsView = React.lazy(() => import('./SettingsView.jsx').then(m => ({ default: m.SettingsView })));
@@ -33,6 +39,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const partnerProfile = globalState?.room_profiles?.[partnerId] || {};
   const coupleData = globalState?.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9', petHappy: 60 };
   const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
+  const dailyAnswers = globalState?.daily_answers || {};
   
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const partnerStatus = partnerProfile.status || 'offline';
@@ -55,6 +62,13 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     return d.owner_id === partnerId && !readBy.includes(userId);
   });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [daysAway, setDaysAway] = useState(0);
+
+  useEffect(() => {
+    const prev = recordVisit();
+    setDaysAway(getDaysSinceLastVisit(prev));
+  }, []);
 
   const {
     dbStats, partnerWeather, unviewedDoodle,
@@ -95,12 +109,33 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     </div>
   );
 
+  const retentionBlock = (
+    <>
+      {!welcomeDismissed && daysAway >= 1 && (
+        <WelcomeBackBanner
+          partnerName={partnerName}
+          daysAway={daysAway}
+          onDismiss={() => setWelcomeDismissed(true)}
+        />
+      )}
+      <RetentionNudges
+        streakCount={streaks.count || 0}
+        unreadChatCount={unreadChatCount}
+        dailyAnswers={dailyAnswers}
+        userId={userId}
+        partnerName={partnerName}
+        onOpenChat={() => nav('chat')}
+        onOpenDailyQuestion={() => nav('daily-q')}
+      />
+    </>
+  );
+
   const welcomeWindow = (
     <RetroWindow title="welcome.exe" className={isMobile ? "w-full" : "md:col-span-8 h-auto min-h-[10rem]"}>
       <div className="flex flex-col h-full justify-between gap-2 p-1">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-3">
-            {profile.pfp ? <img src={profile.pfp} alt="pfp" className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl">{profile.emoji}</div>}
+            {profile.pfp ? <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl" aria-hidden="true">{profile.emoji}</div>}
             <div>
               <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
                 hi {myDisplayName}! {mood}
@@ -110,7 +145,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     {partnerProfile.pfp ? (
-                      <img src={partnerProfile.pfp} alt="partner" className="w-8 h-8 retro-border object-cover bg-white" />
+                      <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
                     ) : (
                       <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
                     )}
@@ -159,8 +194,10 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             </div>
           </div>
           <button 
+            type="button"
             onClick={handleSendKiss} 
             disabled={Date.now() - lastActionTime < 3000}
+            aria-label={`Send a kiss to ${partnerName}`}
             className={`p-1.5 w-14 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
           >
             <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
@@ -278,6 +315,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         <AppIcon icon={<ImageIcon    size={28} />} label="Album"    color="#eab308" onClick={() => nav('scrapbook')} />
         <AppIcon icon={<FileText     size={28} />} label="Notes"    color="#0ea5e9" onClick={() => nav('notes')} />
         <AppIcon icon={<Heart        size={28} />} label="Story"    color="#f43f5e" onClick={() => nav('resume')} />
+        <AppIcon icon={<MessageCircle size={28} />} label="Daily Q"  color="#f59e0b" onClick={() => nav('daily-q')} />
         <AppIcon icon={<SettingsIcon size={28} />} label="Settings" color="#64748b" onClick={() => nav('settings')} />
       </div>
     </RetroWindow>
@@ -314,6 +352,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                </div>
 
                <div className="space-y-4">
+                  {retentionBlock}
                   {welcomeWindow}
                   {petWindow}
                   {timerWindow}
@@ -381,6 +420,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         </div>
       )}
       
+      <div className="md:col-span-12">{retentionBlock}</div>
       {welcomeWindow}
       {petWindow}
       {timerWindow}

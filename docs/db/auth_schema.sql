@@ -124,9 +124,9 @@ begin
     return json_build_object('error', 'not_paired', 'message', 'this room is already unpaired');
   end if;
 
-  new_code := upper(substring(md5(random()::text) from 1 for 6));
+  new_code := upper(substring(md5(random()::text) from 1 for 8));
   while exists(select 1 from rooms where invite_code = new_code) loop
-    new_code := upper(substring(md5(random()::text) from 1 for 6));
+    new_code := upper(substring(md5(random()::text) from 1 for 8));
   end loop;
 
   -- Save away: Deactivate the room instead of clearing it
@@ -171,12 +171,12 @@ returns trigger as $$
 declare
   new_invite_code text;
 begin
-  -- Generate a random 6-character code
-  new_invite_code := upper(substring(md5(random()::text) from 1 for 6));
+  -- Generate a random 8-character code
+  new_invite_code := upper(substring(md5(random()::text) from 1 for 8));
   
   -- Ensure it's unique
   while exists(select 1 from public.rooms where invite_code = new_invite_code) loop
-    new_invite_code := upper(substring(md5(random()::text) from 1 for 6));
+    new_invite_code := upper(substring(md5(random()::text) from 1 for 8));
   end loop;
 
   -- Create their initial solo room
@@ -203,9 +203,9 @@ begin
     select id into existing_room_id from public.rooms where creator_id = user_record.id or partner_id = user_record.id limit 1;
     
     if existing_room_id is null then
-       new_code := upper(substring(md5(random()::text) from 1 for 6));
+       new_code := upper(substring(md5(random()::text) from 1 for 8));
        while exists(select 1 from public.rooms where invite_code = new_code) loop
-         new_code := upper(substring(md5(random()::text) from 1 for 6));
+         new_code := upper(substring(md5(random()::text) from 1 for 8));
        end loop;
        
        insert into public.rooms (invite_code, creator_id)

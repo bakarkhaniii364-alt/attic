@@ -105,11 +105,12 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const { setCurrentActivity, updateSyncStateAtomic } = useSync();
 
   useEffect(() => {
-     if (view === 'scores') {
+     if (view === 'scores' && syncedRoomId) {
          setLoadingLeaderboard(true);
-         supabase.from('highscores').select('*').order('score', { ascending: false }).limit(100)
+         supabase.from('highscores').select('*').eq('room_id', syncedRoomId).order('score', { ascending: false }).limit(100)
            .then(({ data }) => {
-               const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+               const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]')
+                 .filter((s) => s.room_id === syncedRoomId);
                const combined = [...(data || []), ...localScores];
                const seen = new Set();
                const unique = [];
@@ -124,13 +125,14 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                setLeaderboardData(unique);
                setLoadingLeaderboard(false);
            }).catch(() => {
-               const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]');
+               const localScores = JSON.parse(localStorage.getItem('attic_local_highscores') || '[]')
+                 .filter((s) => s.room_id === syncedRoomId);
                localScores.sort((a, b) => (b.score || 0) - (a.score || 0));
                setLeaderboardData(localScores);
                setLoadingLeaderboard(false);
            });
      }
-  }, [view]);
+  }, [view, syncedRoomId]);
   const [selectedModeId, setSelectedModeId] = useState(null);
   const [selectedDiff, setSelectedDiff] = useState('medium');
   const [selectedOptions, setSelectedOptions] = useState({ matchType: 1 });

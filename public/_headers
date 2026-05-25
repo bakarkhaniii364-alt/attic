@@ -1,0 +1,6 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.supabase.co https://api.dicebear.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.metered.ca turn: relay.metered.ca stun:; media-src 'self' blob: https://*.supabase.co; frame-src 'self' https://www.youtube.com https://youtube.com; worker-src 'self' blob:; manifest-src 'self'

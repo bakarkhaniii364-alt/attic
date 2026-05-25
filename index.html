@@ -2,19 +2,46 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Attic is a private space for couples — encrypted chat, shared scrapbooks, games, and calls. Just the two of you." />
+    <meta name="theme-color" content="#e94560" />
+    <meta name="robots" content="index, follow" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Attic" />
+    <meta property="og:title" content="Attic — A private space for two" />
+    <meta property="og:description" content="A corner of the internet, just for two. Encrypted chat, memories, games, and more." />
+    <meta property="og:image" content="/assets/icon-512.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Attic — A private space for two" />
+    <meta name="twitter:description" content="A corner of the internet, just for two." />
+    <meta name="twitter:image" content="/assets/icon-512.png" />
+
     <link rel="icon" href="/assets/favicon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#e94560" />
+    <link rel="canonical" href="https://attic.app/" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="apple-touch-icon" href="/assets/favicon.png" />
+    <meta name="apple-mobile-web-app-title" content="Attic" />
+    <link rel="apple-touch-icon" href="/assets/icon-512.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <title>attic</title>
+    <title>Attic — A private space for two</title>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Attic",
+      "description": "A private digital space for couples with encrypted chat, shared memories, and two-player games.",
+      "applicationCategory": "LifestyleApplication",
+      "operatingSystem": "Web",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }
+    </script>
 
     <script>
       (function() {
@@ -26,6 +53,12 @@
     </script>
   </head>
   <body>
+    <noscript>
+      <main style="font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; padding: 1rem;">
+        <h1>Attic — A private space for two</h1>
+        <p>Attic is a couples app for encrypted chat, shared scrapbooks, games, and video calls. Enable JavaScript to use the app, or <a href="/signin">sign in</a> from a supported browser.</p>
+      </main>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

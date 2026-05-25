@@ -413,7 +413,7 @@ export function HandshakeView() {
           let attempts = 0;
           while (!insertedRoom && attempts < 5) {
             attempts++;
-            const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data: newRoom, error: createError } = await supabase
               .from('rooms')
               .insert({ invite_code: inviteCode, creator_id: user.id })
@@ -456,6 +456,14 @@ export function HandshakeView() {
       const { data, error } = await supabase.rpc('pair_with_code', { target_code: partnerCode });
       
       if (error) throw error;
+      if (data?.error) {
+        if (data.error === 'rate_limited') {
+          addToast('Too many attempts — please wait 15 minutes.', 'error');
+        } else {
+          addToast(data.message || 'Could not pair with that code.', 'error');
+        }
+        return;
+      }
       if (data?.session) {
         handleAuthSuccess(data.session);
         navigate('/handshake');
@@ -477,8 +485,8 @@ export function HandshakeView() {
           throw new Error("Pairing succeeded but couldn't retrieve room ID. Please refresh.");
       }
       
-    } catch (err) { 
-      addToast(err.message || "Failed to pair", "error"); 
+    } catch (err) {
+      addToast(err?.message || 'Failed to pair', 'error');
     } finally { 
       setLoading(false); 
     }
@@ -492,19 +500,20 @@ export function HandshakeView() {
     <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
 
       
-      <RetroWindow title="handshake_protocol.exe" className="w-full max-w-[440px] shadow-2xl scale-up-15">
+      <RetroWindow title="Pair with your partner" className="w-full max-w-[440px] shadow-2xl scale-up-15">
         <div className="flex flex-col gap-8 py-4">
           <div className="space-y-4 animate-in zoom-in-95 duration-500 text-center">
-             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse">
+             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse" aria-hidden="true">
                 <Heart size={32} className="text-primary" fill="currentColor" />
              </div>
-             <p className="font-bold text-muted-text text-sm">Send this code to your partner to pair up!</p>
+             <h1 className="text-lg font-black">Invite your partner</h1>
+             <p className="font-bold text-muted-text text-sm">Share your code by text or in person. Only they can unlock your Attic.</p>
           </div>
 
           <div className="bg-accent/20 border-2 border-border p-6 text-center space-y-3 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-2 opacity-10 rotate-12"><Share2 size={48} /></div>
-             <div className="text-xs font-black uppercase tracking-widest text-muted-text">Your Pairing Code</div>
-             <div className="text-4xl font-black tracking-tighter text-primary select-all">{pairingCode}</div>
+             <div className="absolute top-0 right-0 p-2 opacity-10 rotate-12" aria-hidden="true"><Share2 size={48} /></div>
+             <div className="text-xs font-black uppercase tracking-widest text-muted-text" id="pairing-code-label">Your pairing code</div>
+             <div className="text-3xl sm:text-4xl font-black tracking-tighter text-primary select-all" aria-labelledby="pairing-code-label" role="group">{pairingCode}</div>
              {fetchError ? (
                 <div className="space-y-1">
                   <button 
@@ -516,19 +525,19 @@ export function HandshakeView() {
                   </button>
                 </div>
               ) : (
-                <button onClick={() => { navigator.clipboard.writeText(pairingCode); addToast("Code copied!", "success"); }} className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current">
-                   <Copy size={10} /> copy code
+                <button type="button" onClick={() => { navigator.clipboard.writeText(pairingCode); addToast("Code copied!", "success"); }} className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current" aria-label="Copy pairing code">
+                   <Copy size={10} aria-hidden="true" /> copy code
                 </button>
               )}
           </div>
 
           <form onSubmit={handlePair}>
              <div className="space-y-3">
-                <p className="font-bold opacity-60 text-sm text-center">...or enter your partner's code:</p>
+                <p className="font-bold opacity-60 text-sm text-center" id="partner-code-hint">Or enter your partner&apos;s code:</p>
                 <div className="flex gap-2 justify-center">
-                   <input required type="text" placeholder="XXXXXX" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase())} className="w-full max-w-[200px] px-4 py-4 border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-xl text-center tracking-widest uppercase" />
-                   <RetroButton type="submit" disabled={loading || !partnerCode} className="w-16 h-16 shrink-0">
-                      {loading ? <Loader className="animate-spin" /> : <Check />}
+                   <input required type="text" inputMode="text" autoComplete="one-time-code" maxLength={12} placeholder="CODE" aria-labelledby="partner-code-hint" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} className="w-full max-w-[220px] px-4 py-4 border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-xl text-center tracking-widest uppercase" />
+                   <RetroButton type="submit" disabled={loading || partnerCode.length < 6} className="w-16 h-16 shrink-0" aria-label="Submit partner code">
+                      {loading ? <Loader className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
                    </RetroButton>
                 </div>
              </div>
@@ -540,13 +549,13 @@ export function HandshakeView() {
             <div className="flex flex-col gap-2 w-full">
               <RetroButton variant="white" onClick={onLogout} className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100">Terminate Session</RetroButton>
               
-              {isTestMode() && (
+              {isTestMode() && import.meta.env.DEV && (
                 <button 
                   type="button"
                   onClick={handleDebugBypass}
                   className="mt-2 text-[9px] font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest"
                 >
-                  [DEBUG] Bypass Handshake
+                  [DEV] Bypass Handshake
                 </button>
               )}
             </div>

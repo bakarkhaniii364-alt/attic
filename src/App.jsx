@@ -65,6 +65,7 @@ import SyncWatcher from './games/SyncWatcher.jsx';
 const ResetPasswordView = lazyWithRetry(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
 
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
+import { SeoManager } from './components/SeoManager.jsx';
 
 const AppLoader = () => null;
 
@@ -344,6 +345,7 @@ export default function App() {
               </div>
             )}
 
+        <SeoManager />
         <div className="app-glitch-wrapper flex-1 w-full flex flex-col items-center" data-hawkins={theme === 'hawkins'}>
           <Suspense fallback={<AppLoader />}>
             <Routes key={location.pathname}>
