@@ -290,20 +290,23 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
     return () => clearInterval(interval);
   }, [start, frames, duration]);
 
-  const frameId = (start + currentFrame).toString().padStart(3, '0');
   const scale = 4;
   const frameSize = 32 * scale;
+  const metadata = spriteMetadataRef.current;
 
   // Calculate sprite position for sprite sheet optimization
   const getSpritePosition = () => {
-    if (!useSpriteSheet || !spriteMetadataRef.current) return null;
-    const metadata = spriteMetadataRef.current;
+    if (!useSpriteSheet || !metadata) return null;
     const frameIndex = start + currentFrame;
     const col = frameIndex % metadata.tilesPerRow;
     const row = Math.floor(frameIndex / metadata.tilesPerRow);
+    const tileW = metadata.tileWidth * scale;
+    const tileH = metadata.tileHeight * scale;
     return {
-      bgX: -(col * 32 * scale),
-      bgY: -(row * 32 * scale),
+      bgX: -(col * tileW),
+      bgY: -(row * tileH),
+      bgWidth: metadata.spriteWidth * scale,
+      bgHeight: metadata.spriteHeight * scale,
     };
   };
 
@@ -351,7 +354,7 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
             backgroundImage: `url(${skinFolder}/_sprite.png)`,
             backgroundPosition: `${spritePos.bgX}px ${spritePos.bgY}px`,
             backgroundRepeat: 'no-repeat',
-            backgroundSize: 'auto',
+            backgroundSize: `${spritePos.bgWidth}px ${spritePos.bgHeight}px`,
             imageRendering: 'pixelated',
             userSelect: 'none',
             WebkitUserSelect: 'none',
