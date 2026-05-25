@@ -254,8 +254,7 @@ DROP FUNCTION IF EXISTS merge_app_state(text, text, jsonb);
 DROP FUNCTION IF EXISTS merge_app_state(uuid, text, jsonb);
 
 -- Safely merges data into a top-level key (e.g., couple_data)
--- Accepts text room_id and casts to uuid internally for flexibility
-CREATE OR REPLACE FUNCTION merge_app_state(p_room_id text, p_key text, p_value jsonb)
+CREATE OR REPLACE FUNCTION merge_app_state(p_room_id uuid, p_key text, p_value jsonb)
 RETURNS void AS $$
 BEGIN
   UPDATE app_state
@@ -265,7 +264,7 @@ BEGIN
     COALESCE(state->p_key, '{}'::jsonb) || p_value,
     true
   )
-  WHERE room_id = p_room_id::uuid;
+  WHERE room_id = p_room_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
