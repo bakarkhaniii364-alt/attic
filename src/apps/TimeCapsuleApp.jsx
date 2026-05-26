@@ -38,7 +38,12 @@ export function TimeCapsuleApp({ onClose, sfx }) {
        if (!el) return;
        try {
          const html2canvas = (await import('html2canvas')).default;
-         const canvas = await html2canvas(el, { backgroundColor: '#fdfbf7', scale: 2 });
+         const canvas = await html2canvas(el, { 
+           backgroundColor: '#fdfbf7', 
+           scale: 2,
+           useCORS: true,
+           allowTaint: false
+         });
          const a = document.createElement('a');
          a.href = canvas.toDataURL('image/png');
          a.download = `letter_${readingLetter.id}.png`;

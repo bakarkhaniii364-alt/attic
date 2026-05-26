@@ -122,6 +122,29 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mountedRef.current) return;
+      
+      // Handle token refresh
+      if (_event === 'TOKEN_REFRESHED' && session) {
+        console.log('[AUTH] Token refreshed');
+        setUser(session.user);
+        return;
+      }
+      
+      // Handle sign out
+      if (_event === 'SIGNED_OUT' || !session) {
+        setUser(null);
+        setUserId(null);
+        userIdRef.current = null;
+        setRoomId(null);
+        roomIdRef.current = null;
+        setPartnerId(null);
+        partnerIdRef.current = null;
+        setRoomLoading(false);
+        setHasInitialized(true);
+        setLoading(false);
+        return;
+      }
+      
       if (session) {
         const currentUserId = userIdRef.current;
         const currentRoomId = roomIdRef.current;
@@ -140,16 +163,6 @@ export function AuthProvider({ children }) {
           const hasRoomDetails = !!(currentRoomId && currentPartnerId);
           fetchRoomData(session.user.id, !hasRoomDetails);
         }
-      } else {
-        setUser(null);
-        setUserId(null);
-        userIdRef.current = null;
-        setRoomId(null);
-        roomIdRef.current = null;
-        setPartnerId(null);
-        partnerIdRef.current = null;
-        setRoomLoading(false);
-        setHasInitialized(true);
       }
       setLoading(false);
     });
