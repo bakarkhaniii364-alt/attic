@@ -68,25 +68,16 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   }, [board, xIsNext, p1Wins, p2Wins, pieceQueue, winLine, gameState, gameOverOverlay, myPlayerId, p1, p2]);
   
   // Broadcast listener for incoming moves
-  useEffect(() => {
-    if (!isMultiplayer) return;
-    const handleIncomingMove = (move) => {
-      if (move.sender === userId) return;
-      const state = gameStateRef.current;
-      handleMove(move.index, true);
-    };
-    
-    window.addEventListener(`broadcast_ttt_move_${roomId}`, (e) => handleIncomingMove(e.detail));
-    return () => window.removeEventListener(`broadcast_ttt_move_${roomId}`, handleIncomingMove);
-  }, [isMultiplayer, roomId, userId]);
-  
-  const sendMove = useBroadcast(`ttt_move_${roomId}`, () => {
-    // Listener callback - broadcast channel setup
+  const sendMove = useBroadcast(`ttt_move_${roomId}`, (move) => {
+    if (move.sender === userId) return;
+    handleMove(move.index, true);
   });
 
-  // Initialize multiplayer game state
+  // Initialize multiplayer game state on session startup
+  const didResetRef = useRef(false);
   useEffect(() => {
-    if (isMultiplayer && isHost && (!gameState || gameState.status === 'done' || (gameState.p1Wins >= winsRequired || gameState.p2Wins >= winsRequired))) {
+    if (isMultiplayer && isHost && !didResetRef.current) {
+      didResetRef.current = true;
       updateGameState({
         board: Array(size * size).fill(null),
         xIsNext: true,
@@ -97,7 +88,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
         status: 'playing'
       });
     }
-  }, [isMultiplayer, isHost, gameState, size]);
+  }, [isMultiplayer, isHost, size]);
 
   const calculateWinner = (squares) => {
     const minReq = size === 3 ? 3 : 4;

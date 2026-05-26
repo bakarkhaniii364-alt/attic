@@ -338,6 +338,14 @@ export default function App() {
               onGoArcade={() => navigateTo('activities')}
               onReadLater={handleReadLater}
               onMarkSeen={handleMarkSeen}
+              partnerName={partnerName}
+              partnerId={partnerId}
+              roomProfiles={roomProfiles}
+              sfxEnabled={sfxEnabled}
+              navigate={navigate}
+              toast={toast}
+              lobbyState={globalState?.arcade_lobby}
+              updateSyncState={updateSyncState}
             />
 
             <CallOverlay 
