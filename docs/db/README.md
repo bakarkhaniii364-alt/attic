@@ -8,11 +8,11 @@
 
 | Step | File | What it does |
 |------|------|----------------|
-| 1 | [`init.sql`](init.sql) | `app_state` + realtime |
-| 2 | [`auth_schema.sql`](auth_schema.sql) | Rooms, pairing RPCs, signup trigger |
-| 3 | [`migration_normalized.sql`](migration_normalized.sql) | Chat, assets, arcade tables |
-| 4 | [`storage_policies.sql`](storage_policies.sql) | Private bucket RLS |
-| 5 | [`security_hardening.sql`](security_hardening.sql) | Pairing rate limits + `highscores` RLS |
+| 1 | [`supabase/migrations/01_init.sql`](../../supabase/migrations/01_init.sql) | `app_state` + realtime |
+| 2 | [`supabase/migrations/02_auth_schema.sql`](../../supabase/migrations/02_auth_schema.sql) | Rooms, pairing RPCs, signup trigger |
+| 3 | [`supabase/migrations/03_migration_normalized.sql`](../../supabase/migrations/03_migration_normalized.sql) | Chat, assets, arcade tables |
+| 4 | [`supabase/migrations/05_storage_policies.sql`](../../supabase/migrations/05_storage_policies.sql) | Private bucket RLS |
+| 5 | [`supabase/migrations/04_security_hardening.sql`](../../supabase/migrations/04_security_hardening.sql) | Pairing rate limits + `highscores` RLS |
 
 ## Before step 4
 
