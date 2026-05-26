@@ -1,38 +1,46 @@
 # Attic
 
-A private, collaborative web app for couples. Share notes, chat in real-time, play games together, draw doodles, keep a video journal, watch lo-fi music together, and build shared memories in your personal digital attic.
+A private, real-time couples app. Each "attic" is a secure space for exactly **2 users** to share notes, chat, play games, make video calls, draw together, and build shared memories. All collaboration happens in real-time via Supabase and WebRTC.
 
 ## Features
 
-- **Messaging**: Real-time chat with message history
-- **Shared Documents**: Collaborative text editing with live cursor tracking
-- **Chess**: Play chess games together with move history
-- **Video Calls**: WebRTC-enabled peer-to-peer video calling
-- **Scrapbook**: Upload and organize shared photos and memories
-- **Doodles**: Draw together in real-time with a shared canvas
+- **Messaging**: Real-time chat with end-to-end encryption support
+- **Shared Documents**: Collaborative text editing with Yjs (CRDT) and live cursor tracking
+- **Chess**: Play chess together with move history and game state persistence
+- **Video/Audio Calls**: WebRTC peer-to-peer calling with Supabase Realtime signaling
+- **Scrapbook**: Upload and organize shared photos with cloud storage
+- **Doodles**: Draw together in real-time on a shared canvas
 - **Lo-Fi Music Player**: Listen to background music together
-- **Time Capsule**: Save moments and memories to revisit later
-- **Calendar**: Sync events and anniversaries
 - **Arcade Games**: Competitive mini-games with leaderboards
-- **Dream Journal**: Private journal entries with shared notes option
+- **Time Capsule**: Save and revisit moments together
+- **Calendar**: Sync events and anniversaries
+- **Dream Journal**: Personal or shared journal entries
+
+## Architecture
+
+- **2-user only**: Each "attic" = exactly 1 couple (creator + partner). All real-time features are peer-to-peer between these 2 users only.
+- **Signaling**: WebRTC offers/answers + ICE candidates flow through **Supabase Realtime channels** (no separate relay needed on Cloudflare).
+- **Collaborative Editing**: Yjs (CRDT) with IndexedDB persistence — survives page refreshes.
+- **Real-time Updates**: Supabase PostgreSQL changes streamed via Realtime subscriptions.
 
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite (ESM)
 - **Backend**: Supabase (PostgreSQL + Row-Level Security)
-- **Realtime**: Supabase Realtime (PostgreSQL changes)
+- **Realtime**: Supabase Realtime (signaling + subscriptions)
 - **Storage**: Supabase Storage (private buckets for media)
-- **P2P**: WebRTC with Yjs (CRDT for collaborative editing)
-- **Styling**: Tailwind CSS
+- **P2P**: WebRTC (native) + Yjs (CRDT for collaborative editing)
+- **Styling**: Tailwind CSS + PostCSS
 - **E2E Testing**: Playwright
-- **Deployment**: Vercel
+- **Deployment**: Cloudflare Pages
 
 ## Prerequisites
 
 - **Node.js** 18+ (check with `node --version`)
 - **npm** or **yarn**
 - A **Supabase project** (free tier works fine): [Create one](https://supabase.com)
-- A WebRTC TURN server (optional, for calling behind NAT) — [Metered.ca](https://metered.ca) is recommended
+- A **Cloudflare account** (free tier works): [Sign up](https://cloudflare.com)
+- Optional: A WebRTC TURN server for calling behind restrictive NAT ([Metered.ca](https://metered.ca))
 
 ## Local Setup
 
@@ -80,14 +88,6 @@ The app will be available at `http://localhost:5173`.
 
 ## Running Tests
 
-### WebSocket Relay (for local WebRTC testing)
-
-Some features (like video calls) require a WebSocket relay to establish peer connections. Start it in a separate terminal:
-
-```bash
-npm run test:relay
-```
-
 ### E2E Tests
 
 ```bash
@@ -99,14 +99,23 @@ Test files are in `tests/` directory.
 
 ## Deployment
 
-The project is configured for **Vercel**. The `vercel.json` file is already set up.
+The project deploys to **Cloudflare Pages** with Supabase for backend.
 
-### Deploy to Vercel
+### Deploy to Cloudflare Pages
 
-1. Push your repo to GitHub
-2. Connect your GitHub repo to [Vercel Dashboard](https://vercel.com)
-3. Add environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, etc.
-4. Deploy!
+1. **Connect GitHub**: In [Cloudflare Dashboard](https://dash.cloudflare.com), go to **Pages** → **Connect to Git** → authorize & select this repo
+2. **Build Settings**: 
+   - Build command: `npm run build`
+   - Build output directory: `dist`
+   - Node version: **18** (set in `wrangler.toml` or Pages settings)
+3. **Environment Variables**: In Pages → Settings → Environment Variables, add:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_SITE_URL`
+   - Optional: `VITE_TURN_URL`, `VITE_TURN_URL_SSL`, `VITE_TURN_USERNAME`, `VITE_TURN_PASSWORD`
+4. **Deploy**: Push to main branch → Cloudflare Pages auto-deploys
+
+**Routing**: The `public/_redirects` file handles SPA routing (all routes → `/index.html`).
 
 See [SECURITY_DEPLOYMENT.md](SECURITY_DEPLOYMENT.md) for production hardening tips.
 
@@ -114,11 +123,10 @@ See [SECURITY_DEPLOYMENT.md](SECURITY_DEPLOYMENT.md) for production hardening ti
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Start local dev server |
+| `npm run dev` | Start local dev server (http://localhost:5173) |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build locally |
 | `npm run test:e2e` | Run Playwright E2E tests |
-| `npm run test:relay` | Start WebSocket relay for testing |
 | `npm run lint` | Check code style with ESLint |
 | `npm run lint:fix` | Auto-fix code style issues |
 | `npm run security` | Run security hardening script |
