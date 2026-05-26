@@ -1285,8 +1285,8 @@ export function ChatView({ onClose, sfx }) {
             </div>
             <div className="flex flex-col bg-accent text-accent-text border-t-2 border-border relative">
               {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 z-[var(--z-overlay)] mb-2 animate-in slide-in-from-bottom-2">
-                  <div className="retro-border retro-shadow-dark overflow-hidden">
+                <div className={isMobile ? "fixed bottom-[80px] left-0 right-0 z-[9999] animate-in slide-in-from-bottom-2 flex justify-center px-4" : "absolute bottom-full left-0 z-[var(--z-overlay)] mb-2 animate-in slide-in-from-bottom-2"}>
+                  <div className="retro-border retro-shadow-dark overflow-hidden max-w-full">
                     <div className="bg-primary text-white px-2 py-1 flex justify-between items-center border-b-2 retro-border">
                       <span className="text-[10px] font-black uppercase tracking-widest">Select Emoji</span>
                       <button onClick={() => setShowEmojiPicker(false)}><X size={12} /></button>

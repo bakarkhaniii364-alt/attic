@@ -97,9 +97,15 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
         (async () => {
             if (!isMultiplayer || !roomId) return;
             try {
-                const { data, error } = await supabase.from('game_state').select('fen').eq('attic_id', roomId).single();
+                const { data, error } = await supabase
+                    .from('game_state')
+                    .select('fen, history')
+                    .eq('room_id', roomId)
+                    .eq('game', 'chess')
+                    .maybeSingle();
                 if (mounted && data?.fen) {
                     loadFen(data.fen);
+                    if (data.history) setHistory(data.history);
                 }
             } catch (e) {
                 console.warn('[CHESS] failed to load persisted game state', e);
@@ -143,15 +149,16 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
               if (isMultiplayer) {
                 sendMove({ fen: newFen, sender: userId });
                 setSyncedState({ fen: newFen, history: newHistory });
-                                try {
-                                    supabase.from('game_state').upsert({
-                                        attic_id: roomId,
-                                        game: 'chess',
-                                        fen: newFen,
-                                        turn: chess.turn(),
-                                        updated_at: new Date().toISOString()
-                                    }).then(({ error }) => { if (error) console.warn('[CHESS] persist error', error); });
-                                } catch (e) { console.warn('[CHESS] failed to persist game state', e); }
+                try {
+                    supabase.from('game_state').upsert({
+                        room_id: roomId,
+                        game: 'chess',
+                        fen: newFen,
+                        turn: chess.turn(),
+                        history: newHistory,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'room_id,game' }).then(({ error }) => { if (error) console.warn('[CHESS] persist error', error); });
+                } catch (e) { console.warn('[CHESS] failed to persist game state', e); }
               }
               
               if (chess.isCheckmate()) { playAudio('win', sfx); setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`); setScores(prev => incrementUserScore(prev, userId, 'chess', 1, myName || profile?.name || 'You')); onWin(); }

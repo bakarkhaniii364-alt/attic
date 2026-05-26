@@ -362,22 +362,11 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
           }}
         />
       ) : (
-        <img
-          src={`${skinFolder}/tile${(start + currentFrame).toString().padStart(3, '0')}.png`}
-          alt="pet"
-          draggable="false"
-          onDragStart={e => e.preventDefault()}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = '/assets/cat_1_9/tile0.png';
-          }}
+        <div
           style={{
             width: `${frameSize}px`,
             height: `${frameSize}px`,
-            imageRendering: 'pixelated',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            pointerEvents: 'none',
+            backgroundColor: 'transparent'
           }}
         />
       )}

@@ -427,3 +427,39 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE room_player_stats;
     END IF;
 END $$;
+
+-- ============================================================
+-- PERSISTENT GAME STATE
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.game_state (
+    room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+    game TEXT NOT NULL,
+    fen TEXT,
+    turn TEXT,
+    history JSONB,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (room_id, game)
+);
+
+ALTER TABLE public.game_state ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "room_members_only" ON public.game_state;
+CREATE POLICY "room_members_only" ON public.game_state
+    FOR ALL TO authenticated
+    USING (room_id IN (
+      SELECT id FROM public.rooms
+      WHERE creator_id = auth.uid() OR partner_id = auth.uid()
+    ));
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'game_state'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE game_state;
+    END IF;
+END $$;
