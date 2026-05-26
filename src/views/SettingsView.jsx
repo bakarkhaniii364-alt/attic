@@ -530,15 +530,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         sfx={localSfxEnabled}
       >
         {/* Navigation Bar */}
-        <div className="shrink-0 bg-border/5 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-3 items-center">
-         <div className="flex items-center gap-1.5 shrink-0">
-            <RetroButton onClick={goBack} disabled={historyIndex === 0} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronLeft size={16} /></RetroButton>
-            <RetroButton onClick={goForward} disabled={historyIndex === history.length - 1} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronRight size={16} /></RetroButton>
-            <RetroButton onClick={() => navigateTo('home')} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><RefreshCw size={16} /></RetroButton>
-         </div>
-         
-         <div className="flex-1 w-full bg-window retro-border px-3 py-1.5 flex items-center gap-2 text-[11px] font-bold overflow-hidden">
-            <span className="opacity-30 flex-shrink-0 font-black">Attic:</span>
+        <div className="shrink-0 bg-border/5 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-2 items-center">
+         <div className="flex flex-row items-center gap-2 w-full flex-1">
+           <div className="flex items-center gap-1 shrink-0">
+              <RetroButton onClick={goBack} disabled={historyIndex === 0} variant="white" className="p-1 !min-w-0 flex items-center justify-center"><ChevronLeft size={14} /></RetroButton>
+              <RetroButton onClick={goForward} disabled={historyIndex === history.length - 1} variant="white" className="p-1 !min-w-0 flex items-center justify-center"><ChevronRight size={14} /></RetroButton>
+              <RetroButton onClick={() => navigateTo('home')} variant="white" className="p-1 !min-w-0 flex items-center justify-center"><RefreshCw size={14} /></RetroButton>
+           </div>
+           
+           <div className="flex-1 w-full bg-window retro-border px-2 py-1 flex items-center gap-2 text-[10px] font-bold overflow-hidden">
+              <span className="opacity-30 flex-shrink-0 font-black">Attic:</span>
             <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
                <span className="hover:underline cursor-pointer" onClick={() => navigateTo('home')}>Control Panel</span>
                {currentView !== 'home' && (
@@ -548,7 +549,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  </>
                )}
             </div>
-         </div>
+             </div>
+          </div>
 
          <div className="w-full sm:w-44 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" size={12} />
@@ -576,8 +578,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
          <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
          <div className="flex gap-2">
-            <RetroButton onClick={handleCancel} variant="secondary" className="px-5 py-1 text-[10px]">CANCEL</RetroButton>
-            <RetroButton onClick={handleSave} variant="primary" className="px-6 py-1 text-[10px]">SAVE & APPLY</RetroButton>
+            <RetroButton onClick={handleCancel} variant="secondary" className="px-3 py-1 text-[10px] !font-sans !font-normal capitalize">Cancel</RetroButton>
+            <RetroButton onClick={handleSave} variant="primary" className="px-4 py-1 text-[10px] !font-sans !font-normal capitalize">Save & Apply</RetroButton>
          </div>
       </div>
     </RetroWindow>
