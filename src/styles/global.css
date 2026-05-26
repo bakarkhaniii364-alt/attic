@@ -60,9 +60,8 @@ img {
   background: transparent;
 }
 
-::-webkit-scrollbar { width: 12px; }
-::-webkit-scrollbar-track { background: var(--bg-window); border-left: 2px solid var(--border); }
-::-webkit-scrollbar-thumb { background: var(--primary); border: 2px solid var(--border); }
+::-webkit-scrollbar { width: 0px; background: transparent; }
+html { scrollbar-width: none; -ms-overflow-style: none; }
 
 @media (max-width: 640px) {
   body { font-size: 13px; }
@@ -99,7 +98,7 @@ textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3p
 .max-w-full-break { max-width: 100%; min-width: 0; }
 
 /* Overlays */
-.kiss-container { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
+.kiss-container { position: fixed; inset: 0; pointer-events: none; z-index: 999999; overflow: hidden; }
 .floating-heart { position: absolute; bottom: -10vh; animation: floatUp 4.5s ease-in-out forwards; will-change: transform, opacity; }
 
 .collaboration-cursor__caret { border-left-width: 2px; border-left-style: solid; border-right-width: 2px; border-right-style: solid; margin-left: -1px; margin-right: -1px; pointer-events: none; position: relative; word-break: normal; border-color: currentColor; }

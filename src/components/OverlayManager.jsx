@@ -17,13 +17,12 @@ export function OverlayManager({
       {showKiss && (
         <div className="kiss-container">
           {[...Array(60)].map((_, i) => {
-            const dist = 300 + Math.random() * 600;
             return (
               <div key={i} className="floating-heart" style={{ 
                 left: `${Math.random() * 100}vw`,
                 bottom: `-${10 + Math.random() * 20}vh`,
                 '--tx': `${(Math.random() - 0.5) * 400}px`, 
-                '--ty': `${-dist}px`, 
+                '--ty': `-${100 + Math.random() * 50}vh`, 
                 '--tr': `${(Math.random() - 0.5) * 500}deg`,
                 animationDelay: `${Math.random() * 2}s`, 
                 fontSize: `${1.5 + Math.random() * 3}rem` 

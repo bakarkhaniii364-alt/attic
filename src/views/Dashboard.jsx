@@ -276,14 +276,13 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           </button>
         </div>
 
-        {/* Dynamic, Smart Info Feed */}
-        <div className="feed-container flex flex-col gap-1.5 pt-2 border-t border-dashed border-border/40 mt-2 max-h-[160px] overflow-y-auto scrollbar-hide">
-          {dynamicFeedItems.length > 0 ? (
-            dynamicFeedItems.map((item, idx) => (
+        {/* Dynamic, Smart Info Feed — shows only the single most important alert */}
+        <div className="pt-2 border-t border-dashed border-border/40 mt-2">
+          {(() => {
+            const item = dynamicFeedItems[0] || fallbackItem;
+            return (
               <div 
-                key={item.id} 
                 className={`feed-item flex items-center justify-between gap-2 py-2 px-2.5 retro-border text-[11px] font-bold leading-tight ${item.bgClass}`}
-                style={{ animationDelay: `${idx * 80}ms` }}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="feed-icon-pulse">{item.icon}</span>
@@ -299,13 +298,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                   </RetroButton>
                 )}
               </div>
-            ))
-          ) : (
-            <div className={`feed-item flex items-center gap-2 py-2 px-2.5 retro-border text-[11px] font-bold leading-tight ${fallbackItem.bgClass}`}>
-              {fallbackItem.icon}
-              <span className="truncate lowercase">{fallbackItem.text}</span>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mt-2">

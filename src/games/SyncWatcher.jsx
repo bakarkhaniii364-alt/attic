@@ -260,6 +260,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     // For troubleshooting: temporarily consider sandbox not applied so iframe is rendered without sandbox attribute
     const [forceEmbed, setForceEmbed] = useState(false);
+    const [showCinemaSearch, setShowCinemaSearch] = useState(false);
     const trustedEmbedProviders = ['multiembed'];
     const providerSupportsSandbox = trustedEmbedProviders.includes(activeProvider);
     const providerAllowedEmbed = trustedEmbedProviders.includes(activeProvider) || forceEmbed;
@@ -392,6 +393,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 : `https://www.vidking.net/embed/movie/${resolvedItem.id}?color=e50914&autoPlay=true`;
             loadNewVideo(url, resolvedItem.title);
             setMode('cinema');
+            setShowCinemaSearch(false);
             appendSystemLog(`${myName} started playing Movie: ${resolvedItem.title}`);
         } else {
             setSelectedShow(resolvedItem);
@@ -510,6 +512,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         const epTitle = `${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}`;
         loadNewVideo(url, epTitle);
         setMode('cinema');
+        setShowCinemaSearch(false);
         appendSystemLog(`${myName} started playing TV: ${epTitle}`);
     };
 
@@ -806,11 +809,11 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                         ) : (
                             /* CINEMA MODE */
                             <div className="absolute inset-0 bg-main flex flex-col overflow-hidden">
-                                        {isCinemaPlayerUrl ? (
+                                        {isCinemaPlayerUrl && !showCinemaSearch ? (
                                     <>
                                         {/* Cinema Search Overlay Toggle */}
                                         <button 
-                                            onClick={() => { playAudio('click', sfx); setSyncedUrl(''); }} 
+                                            onClick={() => { playAudio('click', sfx); setShowCinemaSearch(true); }} 
                                             className="absolute top-3 left-3 z-30 px-3 py-1.5 bg-black/85 text-white font-black text-[10px] retro-border hover:bg-primary transition-colors flex items-center gap-1.5 uppercase tracking-widest shadow-lg"
                                         >
                                             <Search size={12} /> Search Cinema
@@ -826,11 +829,6 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                     referrerPolicy="no-referrer-when-downgrade"
                                                     allow="autoplay; fullscreen; picture-in-picture"
                                                 />
-                                                <div className="absolute top-2 left-2 z-40 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded retro-border pointer-events-none select-none">
-                                                    <div>provider: {activeProvider}</div>
-                                                    <div className="truncate" title={getLocalEmbedUrl(syncedUrl, activeProvider)}>src: {getLocalEmbedUrl(syncedUrl, activeProvider)}</div>
-                                                    <div>sandbox: {providerSupportsSandbox ? 'applied' : 'none'}</div>
-                                                </div>
                                             </>
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center">

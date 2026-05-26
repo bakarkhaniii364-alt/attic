@@ -3,13 +3,7 @@ import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.
 import { playAudio } from '../utils/audio.js';
 import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { Heart, LineChart } from 'lucide-react';
-
-const QUIZ_QUESTIONS = {
-   random: ["What is my favorite color?", "What food do I hate the most?", "What is my dream vacation destination?", "What's my go-to fast food order?", "What song always gets me dancing?", "Who is my celebrity crush?"],
-   deep: ["What is my biggest fear?", "When did I know I loved you?", "What is my happiest childhood memory?", "What is a trait I admire most in you?", "What always cheers me up when I'm sad?", "What is my ultimate career goal?"],
-   funny: ["What is my most embarrassing habit?", "If I were an animal, what would I be?", "Who would play me in a movie?", "What is my weirdest quirk?", "What irrational thing makes me angry?", "What meme represents my life?"],
-   spicy: ["What is my favorite physical feature of yours?", "Where is the craziest place we've done it?", "What is my secret fantasy?", "What outfit of yours do I love the most?", "What's my favorite way to be touched?", "What do I think is your sexiest quality?"]
-};
+import { getDailyQuizQuestions } from '../utils/daily.js';
 
 export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, userId, partnerId, isHost, roomId, config }) {
   const isMultiplayer = !!(roomId && partnerId);
@@ -26,7 +20,7 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
   useEffect(() => {
     if (isMultiplayer && isHost && !syncState) {
       const category = config?.category || 'random';
-      const pool = [...QUIZ_QUESTIONS[category]].sort(() => Math.random() - 0.5).slice(0, 5);
+      const pool = getDailyQuizQuestions(category);
       setSyncState({
         questions: pool,
         idx: 0,
@@ -58,11 +52,11 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
   // Non-multiplayer fallback (shouldn't happen but safety)
   const [localIdx, setLocalIdx] = useState(0);
   const [myAnswers, setMyAnswers] = useState([]);
-  const [theirAnswers] = useState(() => QUIZ_QUESTIONS.random.map(() => Math.random() > 0.5 ? 'A' : 'B'));
+  const [theirAnswers] = useState(() => getDailyQuizQuestions('random').map(() => Math.random() > 0.5 ? 'A' : 'B'));
 
   if (!isMultiplayer) {
     // Solo/local mode
-    const questions = QUIZ_QUESTIONS[config?.category || 'random'];
+    const questions = getDailyQuizQuestions(config?.category || 'random');
     const current = questions[localIdx];
     const myAnswer = myAnswers[localIdx];
     const matchCount = myAnswers.filter((a, i) => a === theirAnswers[i]).length;

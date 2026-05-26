@@ -74,3 +74,17 @@ export const compressImage = (base64Str, maxWidth = 150, maxHeight = 150, qualit
     img.onerror = () => resolve(base64Str);
   });
 };
+
+export async function isValidWord(word) {
+    if (!word) return false;
+    try {
+        const res = await fetch(`https://api.datamuse.com/words?sp=${word}&max=1`);
+        if (res.ok) {
+            const data = await res.json();
+            return data.length > 0 && data[0].word.toUpperCase() === word.toUpperCase();
+        }
+    } catch (e) {
+        console.warn('Word validation API failed, defaulting to accept', e);
+    }
+    return true; // Fallback: accept if API fails
+}

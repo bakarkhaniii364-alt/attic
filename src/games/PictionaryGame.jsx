@@ -171,6 +171,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   const isDrawerRef = useRef(isDrawer);
   const lastCursorSendRef = useRef(0);
+  const batchedMovesRef = useRef([]);
+  const batchTimerRef = useRef(null);
   useEffect(() => { isDrawerRef.current = isDrawer; }, [isDrawer]);
 
   // handleRemoteDraw MUST be defined before the useEffect that references it
@@ -179,25 +181,34 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const { x, y, type, color: pColor, tool: pTool, brushSize: pBrush } = payload;
       
-      if (type === 'clear') {
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-          return;
-      }
+      const applyDraw = (p) => {
+          const { x, y, type, color: pColor, tool: pTool, brushSize: pBrush } = p;
+          
+          if (type === 'clear') {
+              ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+              return;
+          }
 
-      ctx.strokeStyle = pTool === 'eraser' ? '#ffffff' : (pColor || '#000000'); 
-      ctx.lineWidth = pTool === 'eraser' ? (pBrush || 4) * 4 : (pBrush || 4); 
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.strokeStyle = pTool === 'eraser' ? '#ffffff' : (pColor || '#000000'); 
+          ctx.lineWidth = pTool === 'eraser' ? (pBrush || 4) * 4 : (pBrush || 4); 
+          ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-      if (type === 'down') {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-      } else if (type === 'move') {
-          ctx.lineTo(x, y);
-          ctx.stroke();
-      } else if (type === 'fill') {
-          floodFill(canvas, Math.floor(x), Math.floor(y), pColor || '#000000');
+          if (type === 'down') {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+          } else if (type === 'move') {
+              ctx.lineTo(x, y);
+              ctx.stroke();
+          } else if (type === 'fill') {
+              floodFill(canvas, Math.floor(x), Math.floor(y), pColor || '#000000');
+          }
+      };
+
+      if (payload.type === 'batch') {
+          payload.moves.forEach(applyDraw);
+      } else {
+          applyDraw(payload);
       }
   }, []); // no deps — uses refs for isDrawer
 
@@ -209,7 +220,18 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       ? sendData({ type: 'pictionary_draw', ...payload })
       : false;
     if (!dataSent || payload.type === 'clear' || payload.type === 'fill') {
-      sendDrawBroadcast(payload);
+      if (payload.type === 'move') {
+          batchedMovesRef.current.push(payload);
+          if (!batchTimerRef.current) {
+              batchTimerRef.current = setTimeout(() => {
+                  sendDrawBroadcast({ type: 'batch', moves: batchedMovesRef.current });
+                  batchedMovesRef.current = [];
+                  batchTimerRef.current = null;
+              }, 50); // Batch every 50ms (20fps fallback)
+          }
+      } else {
+          sendDrawBroadcast(payload);
+      }
     }
   }, [sendData, sendDrawBroadcast]);
 
@@ -440,7 +462,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     else if (p2Score > p1Score) winnerId = p2Id;
 
     return (
-      <RetroWindow title="game_over.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
+      <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Game Over`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
         <div className="flex flex-col items-center justify-center h-full text-center p-4">
           <h2 className="text-3xl font-black mb-4 uppercase tracking-widest text-[var(--primary)]">
             {winnerId ? (winnerId === userId ? 'YOU WON! 🏆' : `${partnerName} WON! 🎉`) : 'IT\'S A TIE! 🤝'}
@@ -473,7 +495,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   if (gameState === 'turn_end') {
     return (
-      <RetroWindow title="turn_summary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
+      <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Turn Summary`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
         <div className="flex flex-col items-center justify-center h-full text-center p-4">
           <Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/>
           <h2 className="text-2xl font-black mb-4 uppercase tracking-widest text-[var(--primary)]">
@@ -510,7 +532,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   if (gameState === 'prep') {
     return (
-      <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
+      <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Pictionary`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
         <div className="flex flex-col items-center justify-center h-full text-center p-4">
           <Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/>
           <h2 className="text-2xl font-black mb-1 uppercase tracking-widest text-[var(--primary)]">Pictionary</h2>
@@ -536,7 +558,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   if (gameState === 'word_selection') {
     return (
-      <RetroWindow title="pictionary.exe" className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
+      <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Pictionary`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[600px]" onClose={onBack} confirmOnClose sfx={sfx}>
         <div className="flex flex-col items-center justify-center h-full text-center p-4">
           <Brush size={48} className="text-[var(--primary)] mb-4 animate-bounce"/>
           <h2 className="text-2xl font-black mb-1 uppercase tracking-widest text-[var(--primary)]">Word Choice</h2>
@@ -564,7 +586,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   }
 
   return (
-    <RetroWindow title="pictionary.exe" className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Pictionary`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold">
          <span className={localTimeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {localTimeLeft}s</span>
          {gameState === 'drawing' ? (

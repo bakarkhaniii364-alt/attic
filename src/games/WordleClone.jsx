@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay, Confetti, ScoreboardCountdown } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { fetchDynamicWord, getScore } from '../utils/helpers.js';
+import { fetchDynamicWord, getScore, isValidWord } from '../utils/helpers.js';
+import { getDailyWord } from '../utils/daily.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 import { WORDS_FALLBACK } from '../constants/data.js';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -38,10 +39,19 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
       let isMounted = true; 
       if (config.mode === 'competitive') return; // Handled by setup phase
       if (config.category === 'custom' && config.customWord) {
-          setTargetWord(config.customWord.toUpperCase());
-      } else {
-          fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { if (isMounted) setTargetWord(w.toUpperCase()) }); 
-      }
+            setTargetWord(config.customWord.toUpperCase());
+        } else {
+            // Use deterministic daily word first
+            const dailyWord = getDailyWord(config.diff);
+            const used = JSON.parse(localStorage.getItem('wordle_used_words') || '[]');
+            if (used.includes(dailyWord)) {
+                // Fallback to dynamic fetch if already used
+                fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { if (isMounted) setTargetWord(w.toUpperCase()) });
+            } else {
+                setTargetWord(dailyWord);
+                localStorage.setItem('wordle_used_words', JSON.stringify([...used, dailyWord]));
+            }
+        }
       return () => { isMounted = false; }; 
   }, [config.category, config.diff, config.customWord, wordLen, config.mode]);
 
@@ -68,7 +78,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
       });
   };
 
-  const handleKeyPress = (key) => {
+  const handleKeyPress = async (key) => {
       if (gameStatus !== "playing" || animatingRow !== -1) return;
       
       const emptyIndex = boardState.findIndex(g => g === "");
@@ -76,12 +86,21 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
       if (key === 'ENTER') {
            if (currentGuess.length !== wordLen) {
-               setShakingRow(emptyIndex);
-               playAudio('click', sfx); 
-               setTimeout(() => setShakingRow(-1), 600);
-               return;
-           }
-           playAudio('click', sfx); 
+                setShakingRow(emptyIndex);
+                playAudio('click', sfx);
+                setTimeout(() => setShakingRow(-1), 600);
+                return;
+            }
+            // Validate guess against dictionary before proceeding
+            const valid = await isValidWord(currentGuess);
+            if (!valid) {
+                setShakingRow(emptyIndex);
+                alert('Not in word list');
+                playAudio('click', sfx);
+                setTimeout(() => setShakingRow(-1), 600);
+                return;
+            }
+            playAudio('click', sfx); 
            const newBoard = [...boardState]; 
            newBoard[emptyIndex] = currentGuess; 
            setBoardState(newBoard); 
