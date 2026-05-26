@@ -101,6 +101,35 @@ export function ChatProvider({ children }) {
   const partnerPubJwkY = roomProfiles[partnerId]?.e2ee_public_key?.y || null;
   const isSyncInitialized = sync?.isInitialized;
 
+  // Unified bulletproof key backup helper
+  const saveKeysAndBackup = useCallback(async (keys, recoveryKey) => {
+    try {
+      await saveLocalKeypair(userId, keys);
+      await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+      
+      const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+      const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
+
+      // 1. Update user_metadata in Supabase Auth (the ultimate backup source of truth)
+      await supabase.auth.updateUser({
+        data: {
+          e2ee_recovery_key: recoveryKey,
+          encrypted_private_key: encrypted,
+          e2ee_public_key: localPubJwk
+        }
+      });
+
+      // 2. Update room profiles in SyncContext (shared with partner for handshake)
+      await sync.updateSyncStateAtomic('room_profiles', userId, {
+        e2ee_public_key: localPubJwk,
+        encrypted_private_key: encrypted
+      });
+    } catch (err) {
+      console.error('[E2EE] saveKeysAndBackup failed:', err);
+      throw err;
+    }
+  }, [userId, sync]);
+
   // Initialize E2EE Cryptography & Exchange Keys
   useEffect(() => {
     if (!userId || !roomId || !isSyncInitialized) {
@@ -119,7 +148,7 @@ export function ChatProvider({ children }) {
 
         if (!e2eeInitRef.current) {
           const myProfile = roomProfiles[userId] || {};
-          const backupExists = !!myProfile.encrypted_private_key;
+          const backupExists = !!myProfile.encrypted_private_key || !!user?.user_metadata?.encrypted_private_key;
 
           if (!keys) {
             if (backupExists) {
@@ -127,14 +156,22 @@ export function ChatProvider({ children }) {
               const userRecoveryKey = user?.user_metadata?.e2ee_recovery_key;
               if (userRecoveryKey) {
                 try {
-                  const encryptedData = myProfile.encrypted_private_key;
-                  const pubJwk = myProfile.e2ee_public_key;
+                  const encryptedData = myProfile.encrypted_private_key || user?.user_metadata?.encrypted_private_key;
+                  const pubJwk = myProfile.e2ee_public_key || user?.user_metadata?.e2ee_public_key;
                   if (encryptedData && pubJwk) {
                     const privateKey = await decryptPrivateKey(encryptedData, userRecoveryKey);
                     const publicKey = await importPublicKeyJWK(pubJwk);
                     keys = { publicKey, privateKey };
                     await saveLocalKeypair(userId, keys);
                     await localforage.setItem(`e2ee_recovery_key_${userId}`, userRecoveryKey);
+                    
+                    // Heal database room profile if it was missing/erased
+                    if (!myProfile.encrypted_private_key) {
+                      await sync.updateSyncStateAtomic('room_profiles', userId, {
+                        e2ee_public_key: pubJwk,
+                        encrypted_private_key: encryptedData
+                      });
+                    }
                   }
                 } catch (err) {
                   console.error('[E2EE] Auto-restore from user_metadata failed:', err);
@@ -151,22 +188,8 @@ export function ChatProvider({ children }) {
             } else {
               // No backup exists. Generate a new key pair and create a backup.
               keys = await generateECDHKeypair();
-              await saveLocalKeypair(userId, keys);
-              
               const recoveryKey = generateRecoveryKey();
-              await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
-              const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
-              const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
-
-              await sync.updateSyncStateAtomic('room_profiles', userId, {
-                e2ee_public_key: localPubJwk,
-                encrypted_private_key: encrypted
-              });
-
-              // Automate it by writing recovery key to user metadata
-              await supabase.auth.updateUser({
-                data: { e2ee_recovery_key: recoveryKey }
-              });
+              await saveKeysAndBackup(keys, recoveryKey);
 
               if (isCurrent) {
                 setRecoveryKeyToShow(recoveryKey);
@@ -182,10 +205,19 @@ export function ChatProvider({ children }) {
 
             // If recovery key is in localforage but not in user_metadata, upload it
             const localRecoveryKey = await localforage.getItem(`e2ee_recovery_key_${userId}`);
-            if (localRecoveryKey && user && !user.user_metadata?.e2ee_recovery_key) {
-              await supabase.auth.updateUser({
-                data: { e2ee_recovery_key: localRecoveryKey }
-              });
+            if (localRecoveryKey && user && (!user.user_metadata?.e2ee_recovery_key || !user.user_metadata?.encrypted_private_key)) {
+              try {
+                const encrypted = await encryptPrivateKey(keys.privateKey, localRecoveryKey);
+                await supabase.auth.updateUser({
+                  data: { 
+                    e2ee_recovery_key: localRecoveryKey,
+                    encrypted_private_key: encrypted,
+                    e2ee_public_key: localPubJwk
+                  }
+                });
+              } catch (err) {
+                console.error('[E2EE] Uploading local recovery key to user_metadata failed:', err);
+              }
             }
 
             if (!backupExists || !isSameKey) {
@@ -195,19 +227,9 @@ export function ChatProvider({ children }) {
                 let isNewRecoveryKey = false;
                 if (!recoveryKey) {
                   recoveryKey = generateRecoveryKey();
-                  await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
                   isNewRecoveryKey = true;
                 }
-                const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
-                await sync.updateSyncStateAtomic('room_profiles', userId, {
-                  e2ee_public_key: localPubJwk,
-                  encrypted_private_key: encrypted
-                });
-
-                // Automate it by writing recovery key to user metadata
-                await supabase.auth.updateUser({
-                  data: { e2ee_recovery_key: recoveryKey }
-                });
+                await saveKeysAndBackup(keys, recoveryKey);
 
                 if (isCurrent && isNewRecoveryKey) {
                   setRecoveryKeyToShow(recoveryKey);
@@ -267,7 +289,7 @@ export function ChatProvider({ children }) {
     return () => {
       isCurrent = false;
     };
-  }, [userId, roomId, partnerId, isSyncInitialized, myPubJwkX, myPubJwkY, partnerPubJwkX, partnerPubJwkY, e2eeVersion, user]);
+  }, [userId, roomId, partnerId, isSyncInitialized, myPubJwkX, myPubJwkY, partnerPubJwkX, partnerPubJwkY, e2eeVersion, user, saveKeysAndBackup]);
 
   // Restore/Reset Callbacks
   const handleRestore = useCallback(async (e) => {
@@ -279,8 +301,8 @@ export function ChatProvider({ children }) {
 
     try {
       const myProfile = roomProfiles[userId] || {};
-      const encryptedData = myProfile.encrypted_private_key;
-      const pubJwk = myProfile.e2ee_public_key;
+      const encryptedData = myProfile.encrypted_private_key || user?.user_metadata?.encrypted_private_key;
+      const pubJwk = myProfile.e2ee_public_key || user?.user_metadata?.e2ee_public_key;
 
       if (!encryptedData || !pubJwk) {
         throw new Error('No backup found for this account.');
@@ -291,13 +313,7 @@ export function ChatProvider({ children }) {
       const publicKey = await importPublicKeyJWK(pubJwk);
 
       const keys = { publicKey, privateKey };
-      await saveLocalKeypair(userId, keys);
-      await localforage.setItem(`e2ee_recovery_key_${userId}`, formattedKey);
-
-      // Save to Supabase auth user metadata so next time/other devices are auto-restored
-      await supabase.auth.updateUser({
-        data: { e2ee_recovery_key: formattedKey }
-      });
+      await saveKeysAndBackup(keys, formattedKey);
 
       addToast('Chat history successfully unlocked!', 'success');
       setShowRestorePrompt(false);
@@ -315,7 +331,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsRestoring(false);
     }
-  }, [userId, roomProfiles, restoreKeyInput, addToast]);
+  }, [userId, roomProfiles, user, restoreKeyInput, addToast, saveKeysAndBackup]);
 
   const handleResetHistory = useCallback(async () => {
     setIsRestoring(true);
@@ -324,22 +340,8 @@ export function ChatProvider({ children }) {
 
     try {
       const keys = await generateECDHKeypair();
-      await saveLocalKeypair(userId, keys);
-
       const recoveryKey = generateRecoveryKey();
-      await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
-      const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
-      const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
-
-      await sync.updateSyncStateAtomic('room_profiles', userId, {
-        e2ee_public_key: localPubJwk,
-        encrypted_private_key: encrypted
-      });
-
-      // Update auth user metadata
-      await supabase.auth.updateUser({
-        data: { e2ee_recovery_key: recoveryKey }
-      });
+      await saveKeysAndBackup(keys, recoveryKey);
 
       addToast('Encryption keys reset successfully.', 'success');
       setShowRestorePrompt(false);
@@ -357,7 +359,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsRestoring(false);
     }
-  }, [userId, sync, addToast]);
+  }, [userId, saveKeysAndBackup, addToast]);
 
   // Keep sharedKeyRef synchronized for real-time listeners and callbacks
   useEffect(() => {

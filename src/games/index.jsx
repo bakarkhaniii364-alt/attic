@@ -206,10 +206,12 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   // Solo Bypass Handshake Listener
   useEffect(() => {
+    const isPlayerA = arcadeSession?.player_a_id === userId;
+    const partnerInLobby = isPlayerA ? !!arcadeSession?.player_b_id : !!arcadeSession?.player_a_id;
     const partnerIsOnline = partnerId && (onlineUsers?.[partnerId]?.status === 'active' || onlineUsers?.[partnerId]?.status === 'idle');
     
-    if (!partnerIsOnline && lobbyPhase === 'WAITING') {
-        console.log("🚦 [LOBBY] Solo Bypass: Partner offline. Bypassing database handshake...");
+    if (!partnerIsOnline && !partnerInLobby && lobbyPhase === 'WAITING') {
+        console.log("🚦 [LOBBY] Solo Bypass: Partner offline and not in lobby. Bypassing database handshake...");
         const timer = setTimeout(async () => {
           try {
             setLobbyPhase('STARTING');
@@ -222,7 +224,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         }, 800);
         return () => clearTimeout(timer);
     }
-  }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute]);
+  }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute, userId]);
   
   // Track Activity Status
   useEffect(() => {

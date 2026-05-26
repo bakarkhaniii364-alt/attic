@@ -358,7 +358,7 @@ BEGIN
         player_a_ready = CASE WHEN player_a_id = p_user_id THEN p_ready ELSE player_a_ready END,
         player_b_ready = CASE WHEN player_b_id = p_user_id THEN p_ready ELSE player_b_ready END,
         status = CASE 
-            WHEN NOT p_partner_online AND p_ready THEN 'starting' -- Solo bypass
+            WHEN NOT p_partner_online AND p_ready AND (player_a_id IS NULL OR player_b_id IS NULL) THEN 'starting' -- Solo bypass only if not both joined
             WHEN (player_a_id = p_user_id AND p_ready AND (player_b_ready OR player_b_id IS NULL)) OR 
                  (player_b_id = p_user_id AND p_ready AND (player_a_ready OR player_a_id IS NULL)) 
             THEN 'starting' -- Transition to starting first for countdown
