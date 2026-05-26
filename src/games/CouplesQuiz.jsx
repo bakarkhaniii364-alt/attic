@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
-import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
+import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { Heart, LineChart } from 'lucide-react';
 import { getDailyQuizQuestions } from '../utils/daily.js';
 

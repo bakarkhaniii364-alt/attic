@@ -21,15 +21,33 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
 
   // Shared passage selection (host picks)
   const [syncState, setSyncState] = useGlobalSync(`typing_${roomId}`, null);
-  
-  // Broadcast live progress (WPM + progress %) - transient, not persisted
-  const sendProgress = useBroadcast(`typing_progress_${roomId}`, (payload) => {
-    if (payload.sender !== userId) {
-      setPartnerProgress({ wpm: payload.wpm, progress: payload.progress, finished: payload.finished });
-    }
-  });
 
   const [partnerProgress, setPartnerProgress] = useState({ wpm: 0, progress: 0, finished: false });
+  
+  // State ref for broadcast listener
+  const progressStateRef = useRef({ userId, isMultiplayer, setPartnerProgress });
+  useEffect(() => {
+    progressStateRef.current = { userId, isMultiplayer, setPartnerProgress };
+  }, [userId, isMultiplayer]);
+  
+  // Broadcast listener for incoming progress
+  useEffect(() => {
+    if (!isMultiplayer) return;
+    const handleIncomingProgress = (payload) => {
+      const state = progressStateRef.current;
+      if (payload.sender !== state.userId) {
+        state.setPartnerProgress({ wpm: payload.wpm, progress: payload.progress, finished: payload.finished });
+      }
+    };
+    
+    window.addEventListener(`broadcast_typing_progress_${roomId}`, (e) => handleIncomingProgress(e.detail));
+    return () => window.removeEventListener(`broadcast_typing_progress_${roomId}`, handleIncomingProgress);
+  }, [isMultiplayer, roomId, userId]);
+  
+  // Broadcast live progress (WPM + progress %) - transient, not persisted
+  const sendProgress = useBroadcast(`typing_progress_${roomId}`, () => {
+    // Listener callback - broadcast channel setup
+  });
 
   // Initialize: host picks passage
   useEffect(() => {

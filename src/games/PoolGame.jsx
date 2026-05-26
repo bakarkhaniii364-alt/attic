@@ -172,13 +172,30 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
   const [gameState, setGameState] = useGlobalSync(`pool_${roomId}`, null);
   
-  // Low-latency shot animation cue (non-authoritative — just starts the visual on guest side)
-  const broadcastShotCue = useBroadcast(`pool_shot_${roomId}`, (payload) => {
-      if (isMultiplayer && payload.sender !== userId && !isHost) {
-         // Guest: apply the shot vector for visual animation only
-         // Authoritative positions will come from setGameState (useGlobalSync) after host settles
-         executeShot(payload.vx, payload.vy);
+  // State ref for broadcast listener
+  const shotStateRef = useRef({ userId, isHost, isMultiplayer, executeShot });
+  useEffect(() => {
+    shotStateRef.current = { userId, isHost, isMultiplayer, executeShot };
+  }, [userId, isHost, isMultiplayer, executeShot]);
+  
+  // Broadcast listener for incoming shots
+  useEffect(() => {
+    if (!isMultiplayer) return;
+    const handleIncomingShot = (payload) => {
+      const state = shotStateRef.current;
+      if (state.isMultiplayer && payload.sender !== state.userId && !state.isHost) {
+        // Guest: apply the shot vector for visual animation only
+        state.executeShot(payload.vx, payload.vy);
       }
+    };
+    
+    window.addEventListener(`broadcast_pool_shot_${roomId}`, (e) => handleIncomingShot(e.detail));
+    return () => window.removeEventListener(`broadcast_pool_shot_${roomId}`, handleIncomingShot);
+  }, [isMultiplayer, roomId, userId, isHost]);
+  
+  // Low-latency shot animation cue (non-authoritative — just starts the visual on guest side)
+  const broadcastShotCue = useBroadcast(`pool_shot_${roomId}`, () => {
+      // Listener callback - broadcast channel setup
   });
 
   // Init game - ONLY on first mount or when manually requested

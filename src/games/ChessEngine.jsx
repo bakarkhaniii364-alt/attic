@@ -22,20 +22,6 @@ const PUZZLES = [
 export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isMultiplayer, isHost, roomId, partnerName }) {
   // Multiplayer sync
   const [syncedState, setSyncedState] = useGlobalSync(`chess_${roomId}`, null);
-  const sendMove = useBroadcast(`chess_move_${roomId}`, (payload) => {
-    if (isMultiplayer && payload.sender !== userId) {
-      try {
-        chess.load(payload.fen);
-        setFen(payload.fen);
-        setHistory(chess.history({ verbose: true }));
-        setSelectedSq(null);
-        setValidMoves([]);
-        if (chess.isCheckmate()) {
-          setGameOverResult(`${chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`);
-        }
-      } catch(e) {}
-    }
-  });
 
   const [chess] = useState(new Chess());
   const [fen, setFen] = useState(chess.fen());
@@ -53,6 +39,40 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
   const [gameOverResult, setGameOverResult] = useState(null);
   
   const [showSettings, setShowSettings] = useState(false);
+
+  // State ref for accessing current game state in broadcast callback
+  const gameStateRef = useRef({ chess, fen, history, setFen, setHistory, setSelectedSq, setValidMoves, setGameOverResult });
+  
+  // Update ref when state changes
+  useEffect(() => {
+    gameStateRef.current = { chess, fen, history, setFen, setHistory, setSelectedSq, setValidMoves, setGameOverResult };
+  }, [chess, fen, history, gameOverResult]);
+  
+  // Broadcast listener for incoming moves
+  useEffect(() => {
+    if (!isMultiplayer) return;
+    const handleIncomingMove = (payload) => {
+      if (payload.sender === userId) return;
+      try {
+        const state = gameStateRef.current;
+        state.chess.load(payload.fen);
+        state.setFen(payload.fen);
+        state.setHistory(state.chess.history({ verbose: true }));
+        state.setSelectedSq(null);
+        state.setValidMoves([]);
+        if (state.chess.isCheckmate()) {
+          state.setGameOverResult(`${state.chess.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate!`);
+        }
+      } catch(e) {}
+    };
+    
+    window.addEventListener(`broadcast_chess_move_${roomId}`, (e) => handleIncomingMove(e.detail));
+    return () => window.removeEventListener(`broadcast_chess_move_${roomId}`, handleIncomingMove);
+  }, [isMultiplayer, roomId, userId]);
+  
+  const sendMove = useBroadcast(`chess_move_${roomId}`, () => {
+    // Listener callback - broadcast channel setup
+  });
 
   // Sync from DB (for reconnection / tab refresh)
   useEffect(() => {

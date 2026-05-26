@@ -94,6 +94,9 @@ export function useArcadeSession(roomId, gameId, userId) {
   }, [roomId, gameId, userId]);
 
   const updateGameState = useCallback(async (newState) => {
+    // Update local state immediately for zero-latency UI
+    setSession(prev => prev ? { ...prev, game_state: newState, updated_at: new Date().toISOString() } : null);
+    
     const { error } = await supabase
       .from('arcade_sessions')
       .update({ game_state: newState, updated_at: new Date().toISOString() })

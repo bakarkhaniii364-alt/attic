@@ -11,11 +11,6 @@ import { RefreshCw } from 'lucide-react';
 export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId, partnerName }) {
   const { roomId } = useAuth();
   const [syncedState, setSyncedState] = useGlobalSync(`tictactoe_${roomId}`, null);
-  const sendMove = useBroadcast(`ttt_move_${roomId}`, (move) => {
-    if (isMultiplayer && move.sender !== userId) {
-      handleMove(move.index, true);
-    }
-  });
 
   const size = config.size || 3;
   const p1 = config.p1Avatar || 'X';
@@ -63,6 +58,31 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   const [gameOverOverlay, setGameOverOverlay] = useState(false);
   const processedWinRef = useRef(false);
   const [stats, setLocalStats] = useLocalStorage('tictactoe_lifetime', { wins: 0, losses: 0, draws: 0 });
+
+  // State ref for broadcast listener
+  const gameStateRef = useRef({ board, xIsNext, p1Wins, p2Wins, pieceQueue, winLine, gameState, gameOverOverlay, myPlayerId, p1, p2 });
+  
+  // Update ref when state changes
+  useEffect(() => {
+    gameStateRef.current = { board, xIsNext, p1Wins, p2Wins, pieceQueue, winLine, gameState, gameOverOverlay, myPlayerId, p1, p2 };
+  }, [board, xIsNext, p1Wins, p2Wins, pieceQueue, winLine, gameState, gameOverOverlay, myPlayerId, p1, p2]);
+  
+  // Broadcast listener for incoming moves
+  useEffect(() => {
+    if (!isMultiplayer) return;
+    const handleIncomingMove = (move) => {
+      if (move.sender === userId) return;
+      const state = gameStateRef.current;
+      handleMove(move.index, true);
+    };
+    
+    window.addEventListener(`broadcast_ttt_move_${roomId}`, (e) => handleIncomingMove(e.detail));
+    return () => window.removeEventListener(`broadcast_ttt_move_${roomId}`, handleIncomingMove);
+  }, [isMultiplayer, roomId, userId]);
+  
+  const sendMove = useBroadcast(`ttt_move_${roomId}`, () => {
+    // Listener callback - broadcast channel setup
+  });
 
   // Initialize multiplayer game state
   useEffect(() => {
