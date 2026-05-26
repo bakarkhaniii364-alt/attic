@@ -123,4 +123,8 @@
   .pb-safe-navbar {
     padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important;
   }
+
+  .chat-input-textarea {
+    font-size: 11px !important;
+  }
 }

@@ -205,6 +205,35 @@ export function ChatView({ onClose, sfx }) {
   const readMsgIdsRef = useRef(new Set());
 
   const textareaRef = useRef(null);
+  const longPressTimers = useRef({});
+
+  const handleTouchStart = (msgId) => {
+    if (longPressTimers.current[msgId]) {
+      clearTimeout(longPressTimers.current[msgId]);
+    }
+    longPressTimers.current[msgId] = setTimeout(() => {
+      playAudio('click', sfx);
+      setActiveOptions(msgId);
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500);
+  };
+
+  const handleTouchEnd = (msgId) => {
+    if (longPressTimers.current[msgId]) {
+      clearTimeout(longPressTimers.current[msgId]);
+      delete longPressTimers.current[msgId];
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimers.current) {
+        Object.values(longPressTimers.current).forEach(clearTimeout);
+      }
+    };
+  }, []);
 
   // TYPING INDICATOR LOGIC
 
@@ -990,11 +1019,11 @@ export function ChatView({ onClose, sfx }) {
                     ) : (
                       <div className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
                     <div id={`msg-${msg.id}`} className={`flex items-end gap-2 max-w-[70%] relative transition-all duration-500 ${isHighlighted ? 'scale-105 brightness-110 z-30' : ''} ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
-                      {!msg.isDeleted && !isCallLog && (
+                      {!msg.isDeleted && !isCallLog && !isMobile && (
                         <div className={`
                           absolute top-1/2 -translate-y-1/2 transition-all duration-300 z-20
                           ${isMe ? '-left-10 md:group-hover:left-[-45px]' : '-right-10 md:group-hover:right-[-45px]'}
-                          opacity-100 md:opacity-0 md:group-hover:opacity-100
+                          opacity-0 md:group-hover:opacity-100
                         `}>
                           <button onClick={() => { playAudio('click', sfx); setActiveOptions(activeOptions === msg.id ? null : msg.id) }} className="options-trigger p-1.5 retro-border bg-window border-dashed text-main-text shadow-sm">
                             <MoreVertical size={14} />
@@ -1017,14 +1046,20 @@ export function ChatView({ onClose, sfx }) {
                         </div>
                       )}
 
-                      <div className={`
-                        relative flex flex-col group/bubble
-                        ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-3.5 retro-border retro-shadow-dark'} 
-                        ${msg.isDeleted ? 'bg-transparent border-dashed border-border/50 text-main-text/50 italic shadow-none' :
-                          isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
-                            isMe ? (noBubble ? '' : 'bg-primary text-[color:var(--text-on-primary)]') : (noBubble ? '' : 'bg-window text-main-text')}
-                        ${isHighlighted ? 'ring-4 ring-accent ring-opacity-50 animate-pulse' : ''}
-                      `}>
+                      <div
+                        onTouchStart={() => isMobile && handleTouchStart(msg.id)}
+                        onTouchEnd={() => isMobile && handleTouchEnd(msg.id)}
+                        onTouchMove={() => isMobile && handleTouchEnd(msg.id)}
+                        className={`
+                          relative flex flex-col group/bubble
+                          ${noBubble || isGameInvite ? 'p-0 bg-transparent' : 'p-2 sm:p-3.5 retro-border retro-shadow-dark'} 
+                          ${msg.isDeleted ? 'bg-transparent border-dashed border-border/50 text-main-text/50 italic shadow-none' :
+                            isCallLog ? 'bg-black/5 border-dashed italic shadow-none' :
+                              isMe ? (noBubble ? '' : 'bg-primary text-[color:var(--text-on-primary)]') : (noBubble ? '' : 'bg-window text-main-text')}
+                          ${isHighlighted ? 'ring-4 ring-accent ring-opacity-50 animate-pulse' : ''}
+                          ${isMobile ? 'active:scale-[0.98] select-none' : ''} transition-all duration-100
+                        `}
+                      >
                         {/* Reply Preview */}
                         {msg.replyTo && !msg.isDeleted && (
                           <div
@@ -1274,35 +1309,43 @@ export function ChatView({ onClose, sfx }) {
 
                       {/* Options Popup (Positioned to the side) */}
                       {activeOptions === msg.id && (
-                        <div className={`
-                          message-options-menu absolute z-[100] bg-window retro-border retro-shadow py-1.5 flex flex-col w-44 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text rounded-md shadow-2xl border-2
-                          ${isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]'}
-                          ${isNearBottom ? 'bottom-0' : 'top-0'} 
-                        `}>
-                          <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
-                          <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
-
-                          <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-border/10 text-[9px] font-black uppercase opacity-50">
-                            <Clock size={10} /> {msg.time}
-                          </div>
-
-                          <div className="flex items-center justify-around px-1 py-2 border-y-2 border-border/10 bg-border/5 my-1">
-                            {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
-                              <button key={emoji} onClick={() => {
-                                const rs = msg.reactions || [];
-                                syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
-                                setActiveOptions(null);
-                              }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-accent border-2 border-border' : ''}`}>{emoji}</button>
-                            ))}
-                          </div>
-
-                          {isMe && !msg.isDeleted && (
-                            <>
-                              {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
-                              <button onClick={() => { if (window.confirm("Delete this message?")) { syncDeleteMessage(msg.id); } setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
-                            </>
+                        <>
+                          {isMobile && (
+                            <div 
+                              className="fixed inset-0 bg-black/45 backdrop-blur-[2px] z-[999]"
+                              onClick={(e) => { e.stopPropagation(); setActiveOptions(null); }}
+                            />
                           )}
-                        </div>
+                          <div className={`
+                            message-options-menu absolute z-[1000] bg-window retro-border retro-shadow py-1.5 flex flex-col w-44 overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-main-text rounded-md shadow-2xl border-2
+                            ${isMobile ? 'left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 fixed border-4' : (isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]')}
+                            ${!isMobile && isNearBottom ? 'bottom-0' : 'top-0'} 
+                          `}>
+                            <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
+                            <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
+
+                            <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-border/10 text-[9px] font-black uppercase opacity-50">
+                              <Clock size={10} /> {msg.time}
+                            </div>
+
+                            <div className="flex items-center justify-around px-1 py-2 border-y-2 border-border/10 bg-border/5 my-1">
+                              {['❤️', '😂', '😢', '😮', '😡'].map(emoji => (
+                                <button key={emoji} onClick={() => {
+                                  const rs = msg.reactions || [];
+                                  syncUpdateMessage(msg.id, { reactions: rs.includes(emoji) ? rs.filter(e => e !== emoji) : [...rs, emoji] });
+                                  setActiveOptions(null);
+                                }} className={`text-base p-1 hover:scale-150 transition-transform active:scale-95 ${(msg.reactions || []).includes(emoji) ? 'bg-accent border-2 border-border' : ''}`}>{emoji}</button>
+                              ))}
+                            </div>
+
+                            {isMe && !msg.isDeleted && (
+                              <>
+                                {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
+                                <button onClick={() => { if (window.confirm("Delete this message?")) { syncDeleteMessage(msg.id); } setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
+                              </>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                       </div>
@@ -1406,19 +1449,19 @@ export function ChatView({ onClose, sfx }) {
                   <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-white/10 retro-border flex-shrink-0 ml-2"><X size={14} /></button>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex gap-2 items-end p-2 sm:p-3 relative bg-window z-50">
+              <form onSubmit={handleSend} className="flex gap-1.5 sm:gap-2 items-center p-1.5 sm:p-3 relative bg-window z-50">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
 
-                <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2 pb-0.5">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-[44px] h-[44px] flex items-center justify-center retro-border bg-window text-main-text hover:brightness-110 transition-all shrink-0">
-                    <Paperclip size={20} />
+                <div className="flex items-center gap-1 sm:gap-2 pr-1 sm:pr-2">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-[34px] h-[34px] sm:w-[44px] sm:h-[44px] flex items-center justify-center retro-border bg-window text-main-text hover:brightness-110 transition-all shrink-0">
+                    <Paperclip size={isMobile ? 15 : 20} />
                   </button>
-                  <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); }} className={`w-[44px] h-[44px] flex items-center justify-center retro-border transition-all shrink-0 ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:brightness-110'}`}>
-                    <Smile size={20} />
+                  <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); }} className={`w-[34px] h-[34px] sm:w-[44px] sm:h-[44px] flex items-center justify-center retro-border transition-all shrink-0 ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:brightness-110'}`}>
+                    <Smile size={isMobile ? 15 : 20} />
                   </button>
                 </div>
 
-                <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden min-h-[44px] mb-0.5">
+                <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden min-h-[34px] sm:min-h-[44px]">
                   <textarea
                     ref={textareaRef}
                     rows={1}
@@ -1427,18 +1470,18 @@ export function ChatView({ onClose, sfx }) {
                     onKeyDown={handleKeyDown}
                     placeholder={pendingFiles.length > 0 ? "Add a caption..." : "type a message..."}
                     disabled={isRecording || voicePreview !== null || isInputDisabled}
-                    className={`w-full p-2.5 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto text-main-text self-center ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
-                    style={{ minHeight: '44px', maxHeight: '120px' }}
+                    className={`w-full p-1.5 sm:p-2.5 focus:outline-none font-bold placeholder:font-normal text-xs sm:text-base chat-input-textarea resize-none overflow-y-auto text-main-text self-center ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
+                    style={{ minHeight: isMobile ? '34px' : '44px', maxHeight: '120px' }}
                   />
                 </div>
-                <div className="pb-0.5 flex shrink-0">
+                <div className="flex shrink-0">
                   {!input.trim() && !editingMsgId && voicePreview === null && pendingFiles.length === 0 ? (
-                    <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`w-[44px] h-[44px] flex items-center justify-center retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : (isRecording ? 'bg-[var(--color-danger)] text-[var(--text-on-danger)] shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
-                      <RetroIcon icon={Mic} size={20} className={isRecording ? 'animate-bounce' : ''} />
+                    <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`w-[34px] h-[34px] sm:w-[44px] sm:h-[44px] flex items-center justify-center retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : (isRecording ? 'bg-[var(--color-danger)] text-[var(--text-on-danger)] shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
+                      <RetroIcon icon={Mic} size={isMobile ? 15 : 20} className={isRecording ? 'animate-bounce' : ''} />
                     </button>
                   ) : (
-                    <button type="submit" disabled={isInputDisabled} className={`w-[44px] h-[44px] flex items-center justify-center flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
-                      <RetroIcon icon={Send} size={20} />
+                    <button type="submit" disabled={isInputDisabled} className={`w-[34px] h-[34px] sm:w-[44px] sm:h-[44px] flex items-center justify-center flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
+                      <RetroIcon icon={Send} size={isMobile ? 15 : 20} />
                     </button>
                   )}
                 </div>

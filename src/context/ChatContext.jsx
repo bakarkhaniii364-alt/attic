@@ -17,8 +17,14 @@ import {
   encryptFileMetadata, 
   decryptFileMetadata, 
   getLocalKeypair, 
-  saveLocalKeypair 
+  saveLocalKeypair,
+  generateRecoveryKey,
+  encryptPrivateKey,
+  decryptPrivateKey
 } from '../utils/crypto.js';
+import { RetroWindow, RetroInput, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
+import { Lock, Unlock, Key, Copy, Check, Loader, AlertTriangle } from 'lucide-react';
+
 
 const CACHE_VERSION = 'v6'; // Bumped for raw DB cache and E2EE support
 
@@ -72,14 +78,27 @@ export function ChatProvider({ children }) {
   const [sharedKey, setSharedKey] = useState(null);
   const sharedKeyRef = useRef(null);
 
+  // E2EE Backup & Restoration States
+  const [recoveryKeyToShow, setRecoveryKeyToShow] = useState(null);
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [restoreKeyInput, setRestoreKeyInput] = useState('');
+  const [restoreError, setRestoreError] = useState(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [hasCopiedRecovery, setHasCopiedRecovery] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const addToast = useToast();
+
   // Sync Room Profiles for Public Keys
   const roomProfiles = sync?.globalState?.room_profiles || {};
-  const myPubJwkStr = JSON.stringify(roomProfiles[userId]?.e2ee_public_key || null);
-  const partnerPubJwkStr = JSON.stringify(roomProfiles[partnerId]?.e2ee_public_key || null);
+  const myPubJwkX = roomProfiles[userId]?.e2ee_public_key?.x || null;
+  const myPubJwkY = roomProfiles[userId]?.e2ee_public_key?.y || null;
+  const partnerPubJwkX = roomProfiles[partnerId]?.e2ee_public_key?.x || null;
+  const partnerPubJwkY = roomProfiles[partnerId]?.e2ee_public_key?.y || null;
+  const isSyncInitialized = sync?.isInitialized;
 
   // Initialize E2EE Cryptography & Exchange Keys
   useEffect(() => {
-    if (!userId || !roomId) {
+    if (!userId || !roomId || !isSyncInitialized) {
       setSharedKey(null);
       return;
     }
@@ -88,18 +107,65 @@ export function ChatProvider({ children }) {
 
     const initE2EE = async () => {
       try {
+        const myProfile = roomProfiles[userId] || {};
+        const backupExists = !!myProfile.encrypted_private_key;
+
         // 1. Get or generate local ECDH keypair
         let keys = await getLocalKeypair(userId);
+
         if (!keys) {
-          keys = await generateECDHKeypair();
-          await saveLocalKeypair(userId, keys);
+          if (backupExists) {
+            // A backup exists on the database. Show the restore prompt.
+            if (isCurrent) {
+              setShowRestorePrompt(true);
+            }
+            return; // Halt initialization until restored or reset
+          } else {
+            // No backup exists. Generate a new key pair and create a backup.
+            keys = await generateECDHKeypair();
+            await saveLocalKeypair(userId, keys);
+            
+            const recoveryKey = generateRecoveryKey();
+            await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+            const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+            const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
+
+            await sync.updateSyncStateAtomic('room_profiles', userId, {
+              e2ee_public_key: localPubJwk,
+              encrypted_private_key: encrypted
+            });
+
+            if (isCurrent) {
+              setRecoveryKeyToShow(recoveryKey);
+            }
+          }
+        } else {
+          // Keys exist locally. Let's make sure they are backed up.
+          if (!backupExists) {
+            try {
+              const recoveryKey = generateRecoveryKey();
+              await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+              const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+              const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
+
+              await sync.updateSyncStateAtomic('room_profiles', userId, {
+                e2ee_public_key: localPubJwk,
+                encrypted_private_key: encrypted
+              });
+
+              if (isCurrent) {
+                setRecoveryKeyToShow(recoveryKey);
+              }
+            } catch (err) {
+              console.warn('[E2EE] Local key pair is non-extractable (legacy). Skipping automatic backup.');
+            }
+          }
         }
 
         if (!isCurrent) return;
 
         // 2. Export and publish local public key if not already matching in sync state
         const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
-        const myProfile = roomProfiles[userId] || {};
         const remotePubKey = myProfile.e2ee_public_key;
         
         const isSameKey = remotePubKey && 
@@ -107,9 +173,22 @@ export function ChatProvider({ children }) {
                           remotePubKey.y === localPubJwk.y;
 
         if (!isSameKey) {
-          await sync.updateSyncStateAtomic('room_profiles', userId, {
-            e2ee_public_key: localPubJwk
-          });
+          try {
+            const recoveryKey = generateRecoveryKey();
+            await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+            const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+            await sync.updateSyncStateAtomic('room_profiles', userId, {
+              e2ee_public_key: localPubJwk,
+              encrypted_private_key: encrypted
+            });
+            if (isCurrent) {
+              setRecoveryKeyToShow(recoveryKey);
+            }
+          } catch (e) {
+            await sync.updateSyncStateAtomic('room_profiles', userId, {
+              e2ee_public_key: localPubJwk
+            });
+          }
         }
 
         // 3. Derive shared key if partner public key is available
@@ -136,7 +215,78 @@ export function ChatProvider({ children }) {
     return () => {
       isCurrent = false;
     };
-  }, [userId, roomId, partnerId, myPubJwkStr, partnerPubJwkStr]);
+  }, [userId, roomId, partnerId, isSyncInitialized, myPubJwkX, myPubJwkY, partnerPubJwkX, partnerPubJwkY]);
+
+  // Restore/Reset Callbacks
+  const handleRestore = useCallback(async (e) => {
+    if (e) e.preventDefault();
+    if (!restoreKeyInput.trim()) return;
+
+    setIsRestoring(true);
+    setRestoreError(null);
+
+    try {
+      const myProfile = roomProfiles[userId] || {};
+      const encryptedData = myProfile.encrypted_private_key;
+      const pubJwk = myProfile.e2ee_public_key;
+
+      if (!encryptedData || !pubJwk) {
+        throw new Error('No backup found for this account.');
+      }
+
+      const privateKey = await decryptPrivateKey(encryptedData, restoreKeyInput.trim());
+      const publicKey = await importPublicKeyJWK(pubJwk);
+
+      const keys = { publicKey, privateKey };
+      await saveLocalKeypair(userId, keys);
+      await localforage.setItem(`e2ee_recovery_key_${userId}`, restoreKeyInput.trim().toUpperCase());
+
+      addToast('Chat history successfully unlocked!', 'success');
+      setShowRestorePrompt(false);
+      setRestoreKeyInput('');
+      setRestoreError(null);
+      setSharedKey(null);
+    } catch (err) {
+      console.error('[E2EE] Restore failed:', err);
+      setRestoreError('Invalid Recovery Key. Please double-check and try again.');
+      addToast('Failed to unlock chat history.', 'error');
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [userId, roomProfiles, restoreKeyInput, addToast]);
+
+  const handleResetHistory = useCallback(async () => {
+    setIsRestoring(true);
+    setRestoreError(null);
+    setShowResetConfirm(false);
+
+    try {
+      const keys = await generateECDHKeypair();
+      await saveLocalKeypair(userId, keys);
+
+      const recoveryKey = generateRecoveryKey();
+      await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+      const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+      const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
+
+      await sync.updateSyncStateAtomic('room_profiles', userId, {
+        e2ee_public_key: localPubJwk,
+        encrypted_private_key: encrypted
+      });
+
+      addToast('Encryption keys reset successfully.', 'success');
+      setShowRestorePrompt(false);
+      setRestoreKeyInput('');
+      setRestoreError(null);
+      setRecoveryKeyToShow(recoveryKey);
+      setSharedKey(null);
+    } catch (err) {
+      console.error('[E2EE] Reset failed:', err);
+      addToast('Failed to reset encryption keys.', 'error');
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [userId, sync, addToast]);
 
   // Keep sharedKeyRef synchronized for real-time listeners and callbacks
   useEffect(() => {
@@ -174,7 +324,7 @@ export function ChatProvider({ children }) {
           try {
             mapped.text = await decryptText(row.content, row.metadata.iv, currentSharedKey);
           } catch (e) {
-            console.error('[E2EE] Decrypt text failed:', e);
+            console.warn('[E2EE] Decrypt text failed (probably encrypted with a different key):', e.message);
             mapped.text = '🔒 Encrypted Message (Decryption failed)';
           }
         } else {
@@ -703,7 +853,147 @@ export function ChatProvider({ children }) {
     }
   }, [sendMessage]);
 
-  const value = { messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest };
+  const value = { messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory };
 
-  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+  return (
+    <ChatContext.Provider value={value}>
+      {children}
+
+      {/* 1. Recovery Key Setup/Generated Modal */}
+      {recoveryKeyToShow && (
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <RetroWindow 
+            title="e2ee_backup_setup.exe" 
+            className="w-full max-w-md shadow-2xl scale-up-15"
+            onClose={() => {
+              if (hasCopiedRecovery) {
+                setRecoveryKeyToShow(null);
+                setHasCopiedRecovery(false);
+              } else {
+                addToast("Please confirm you have saved your Recovery Key.", "warn");
+              }
+            }}
+          >
+            <div className="flex flex-col gap-5 py-2 text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse">
+                <Lock size={32} className="text-primary" />
+              </div>
+              <h1 className="text-xl font-black lowercase text-primary">Chat Encryption Active! 🔐</h1>
+              <p className="font-bold text-muted-text text-sm">
+                Attic uses End-to-End Encryption. Save this Recovery Key to prevent losing access to your chat history if you log in on another device or clear your browser.
+              </p>
+
+              <div className="bg-accent/20 border-2 border-border p-5 text-center space-y-3 relative overflow-hidden select-all">
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-text">Your E2EE Recovery Key</div>
+                <div className="text-2xl font-black tracking-tighter text-primary">{recoveryKeyToShow}</div>
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    navigator.clipboard.writeText(recoveryKeyToShow); 
+                    addToast("Recovery Key copied!", "success"); 
+                  }} 
+                  className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current"
+                >
+                  <Copy size={10} /> copy key
+                </button>
+              </div>
+
+              <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 p-3 rounded text-left text-xs font-bold text-amber-800">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <span>
+                  Keep this key safe. Nobody, including the Attic team, can recover this key or restore your chat history if it is lost.
+                </span>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer group mt-2 text-left">
+                <input 
+                  type="checkbox" 
+                  checked={hasCopiedRecovery}
+                  onChange={e => setHasCopiedRecovery(e.target.checked)}
+                  className="w-4 h-4 border-2 border-border accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-bold text-muted-text group-hover:text-main-text lowercase">I have securely saved my recovery key</span>
+              </label>
+
+              <RetroButton 
+                onClick={() => {
+                  setRecoveryKeyToShow(null);
+                  setHasCopiedRecovery(false);
+                }} 
+                disabled={!hasCopiedRecovery} 
+                className="w-full py-3 text-base mt-2"
+              >
+                Done
+              </RetroButton>
+            </div>
+          </RetroWindow>
+        </div>
+      )}
+
+      {/* 2. Recovery Key Restore Modal */}
+      {showRestorePrompt && (
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <RetroWindow 
+            title="e2ee_restore.exe" 
+            className="w-full max-w-md shadow-2xl scale-up-15"
+          >
+            <form onSubmit={handleRestore} className="flex flex-col gap-5 py-2 text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
+                <Unlock size={32} className="text-primary" />
+              </div>
+              <h1 className="text-xl font-black lowercase text-primary">unlock chat history 🔒</h1>
+              <p className="font-bold text-muted-text text-sm">
+                We detected existing encrypted chats, but your encryption keys are not on this device. Enter your Recovery Key to unlock them.
+              </p>
+
+              <RetroInput 
+                label="E2EE Recovery Key"
+                icon={Key}
+                placeholder="ATTIC-XXXX-XXXX-XXXX"
+                value={restoreKeyInput}
+                onChange={e => setRestoreKeyInput(e.target.value)}
+                error={restoreError}
+                required
+                autoFocus
+                disabled={isRestoring}
+              />
+
+              <RetroButton type="submit" disabled={isRestoring || !restoreKeyInput.trim()} className="w-full py-3 text-base">
+                {isRestoring ? <Loader className="animate-spin" /> : 'Restore History'}
+              </RetroButton>
+
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-border opacity-20"></div>
+                <span className="flex-shrink-0 mx-4 text-[10px] font-bold text-muted-text uppercase tracking-widest">or</span>
+                <div className="flex-grow border-t border-border opacity-20"></div>
+              </div>
+
+              <div className="space-y-2 text-left">
+                <p className="text-xs font-bold text-muted-text text-center">Lost your recovery key?</p>
+                <RetroButton 
+                  onClick={() => setShowResetConfirm(true)} 
+                  variant="secondary" 
+                  disabled={isRestoring}
+                  className="w-full py-2.5 text-xs font-bold"
+                >
+                  Reset Chat History
+                </RetroButton>
+              </div>
+            </form>
+          </RetroWindow>
+        </div>
+      )}
+
+      {/* 3. Confirm Reset Dialog */}
+      {showResetConfirm && (
+        <ConfirmDialog
+          title="Reset encryption keys?"
+          message="WARNING: Resetting your keys will generate a new recovery key, but all past encrypted messages will become permanently unreadable. This action cannot be undone."
+          showCancel={true}
+          onConfirm={handleResetHistory}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+    </ChatContext.Provider>
+  );
 }

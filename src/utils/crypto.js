@@ -10,7 +10,7 @@ export async function generateECDHKeypair() {
       name: "ECDH",
       namedCurve: "P-256"
     },
-    false, // Private key is non-extractable
+    true, // Private key is extractable for backup/restore
     ["deriveKey", "deriveBits"]
   );
 }
@@ -238,4 +238,90 @@ export async function getLocalKeypair(userId) {
  */
 export async function saveLocalKeypair(userId, keypair) {
   await localforage.setItem(`e2ee_keys_${userId}`, keypair);
+}
+
+/**
+ * Generates a cute, highly readable retro recovery key.
+ * Format: ATTIC-XXXX-XXXX-XXXX
+ */
+export function generateRecoveryKey() {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Exclude 0, 1, O, I for readability
+  let result = 'ATTIC-';
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 4; j++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    if (i < 2) result += '-';
+  }
+  return result;
+}
+
+/**
+ * Derives a 256-bit AES-GCM encryption key from a recovery passphrase.
+ */
+async function deriveKeyFromPassphrase(passphrase) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(passphrase.trim().toUpperCase());
+  const hash = await window.crypto.subtle.digest("SHA-256", data);
+  return await window.crypto.subtle.importKey(
+    "raw",
+    hash,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+/**
+ * Encrypts a private ECDH CryptoKey with a recovery key.
+ * Returns the ciphertext and iv as Base64 strings.
+ */
+export async function encryptPrivateKey(privateKey, passphrase) {
+  const privateKeyJwk = await window.crypto.subtle.exportKey("jwk", privateKey);
+  const jwkString = JSON.stringify(privateKeyJwk);
+  const aesKey = await deriveKeyFromPassphrase(passphrase);
+  const encoded = new TextEncoder().encode(jwkString);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const ciphertextBuffer = await window.crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    aesKey,
+    encoded
+  );
+  return {
+    ciphertext: bufferToBase64(ciphertextBuffer),
+    iv: bufferToBase64(iv)
+  };
+}
+
+/**
+ * Decrypts and imports an ECDH private CryptoKey from encrypted data using a recovery key.
+ */
+export async function decryptPrivateKey(encryptedData, passphrase) {
+  const { ciphertext, iv } = encryptedData;
+  const aesKey = await deriveKeyFromPassphrase(passphrase);
+  const ciphertextBuffer = base64ToUint8Array(ciphertext);
+  const ivBuffer = base64ToUint8Array(iv);
+  const decryptedBuffer = await window.crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: ivBuffer
+    },
+    aesKey,
+    ciphertextBuffer
+  );
+  const jwkString = new TextDecoder().decode(decryptedBuffer);
+  const privateKeyJwk = JSON.parse(jwkString);
+  return await window.crypto.subtle.importKey(
+    "jwk",
+    privateKeyJwk,
+    {
+      name: "ECDH",
+      namedCurve: "P-256"
+    },
+    true, // Extractable
+    ["deriveKey", "deriveBits"]
+  );
 }

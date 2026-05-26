@@ -93,7 +93,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   const isSmallModal = title && typeof title === 'string' && (title.endsWith('.msg') || title === 'Close' || title === 'Unsaved Changes' || title === 'confirm.exe');
   
   // Chat window should be full screen but should NOT have pb-safe-navbar since the bottom nav is hidden.
-  const isChatWindow = title && typeof title === 'string' && (title.toLowerCase().includes('chat') || title.toLowerCase().includes('message') || title.toLowerCase().includes('|'));
+  const isChatWindow = (title && typeof title === 'string' && (title.toLowerCase().includes('chat') || title.toLowerCase().includes('message') || title.toLowerCase().includes('|'))) || (typeof window !== 'undefined' && window.location.pathname.includes('/chat'));
   
   const fullscreenClass = isMobile && !isSmallModal && !isDashboardWindow 
     ? (isChatWindow ? 'h-[100dvh] border-none shadow-none rounded-none' : 'h-[100dvh] pb-safe-navbar border-none shadow-none rounded-none')

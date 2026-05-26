@@ -7,12 +7,14 @@ const {
   CloudLightning, Save, X, Bell, MessageSquare, Monitor, Brush, Palette, Gamepad2, 
   ShieldCheck, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Search, VolumeX, Info
 } = Lucide;
-import { useCall } from '../context/instances.js';
+import { useCall, useChat } from '../context/instances.js';
 import { RetroWindow, RetroButton, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { compressImage } from '../utils/helpers.js';
 import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 import { requestNotificationPermission, sendNativeNotification } from '../utils/notifications.js';
+import localforage from 'localforage';
+
 
 export function SettingsView({ compact = false, onClose, theme, setTheme, profile, setProfile, onLogout, onDelete, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, scores, userId, partnerId, coupleData, setCoupleData, streaks }) {
   const navigate = useNavigate();
@@ -23,6 +25,22 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     noiseSuppression, setNoiseSuppression,
     echoCancellation, setEchoCancellation
   } = useCall();
+
+  const { resetE2EEKeys } = useChat();
+  const [showRecoveryKey, setShowRecoveryKey] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState(null);
+  const [showResetE2eeConfirm, setShowResetE2eeConfirm] = useState(false);
+
+  const handleViewRecoveryKey = async () => {
+    try {
+      const key = await localforage.getItem(`e2ee_recovery_key_${userId}`);
+      setRecoveryKey(key);
+      setShowRecoveryKey(true);
+      playAudio('click', localSfxEnabled);
+    } catch (e) {
+      toast('Failed to read recovery key.', 'error');
+    }
+  };
 
   // Remember initial state for Cancel logic
   const initialTheme = useRef(theme);
@@ -243,6 +261,8 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       return (
         <div className="p-6 space-y-6">
            <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Security Settings</h4>
+           
+           {/* Password Management */}
            <div className="p-4 retro-border bg-window border-dashed">
               <h5 className="text-[11px] font-black uppercase mb-3">Password Management</h5>
               {!showChangePassword ? (
@@ -257,6 +277,26 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                    {passwordError && <p className="text-[9px] text-red-500 font-bold uppercase">{passwordError}</p>}
                 </form>
               )}
+           </div>
+
+           {/* Chat Encryption (E2EE) */}
+           <div className="p-4 retro-border bg-window border-dashed">
+              <h5 className="text-[11px] font-black uppercase mb-3">Chat Encryption (E2EE)</h5>
+              <div className="space-y-4 max-w-md">
+                 <div className="flex justify-between items-center text-xs font-bold">
+                    <span className="opacity-60">Status:</span>
+                    <span className="text-success uppercase tracking-wider flex items-center gap-1">
+                      <Lucide.ShieldCheck size={14} /> Active (Encrypted)
+                    </span>
+                 </div>
+                 <p className="text-[9.5px] font-bold opacity-60 leading-normal lowercase">
+                   Your chats are end-to-end encrypted. If you log in on another device or clear your browser data, you will need your Recovery Key to restore and read your chat history.
+                 </p>
+                 <div className="flex gap-3">
+                    <RetroButton onClick={handleViewRecoveryKey} variant="white" className="flex-1 py-2 text-[10px]">VIEW RECOVERY KEY</RetroButton>
+                    <RetroButton onClick={() => setShowResetE2eeConfirm(true)} variant="secondary" className="flex-1 py-2 text-[10px]">RESET ENCRYPTION</RetroButton>
+                 </div>
+              </div>
            </div>
         </div>
       );
@@ -548,6 +588,74 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         message="Are you sure you want to log out of the Attic?"
         onConfirm={() => { onLogout && onLogout(); }}
         onCancel={() => setShowLogoutConfirm(false)}
+        sfx={localSfxEnabled}
+      />
+    )}
+
+    {/* View Recovery Key Modal */}
+    {showRecoveryKey && (
+      <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <RetroWindow 
+          title="e2ee_recovery_key.exe" 
+          className="w-full max-w-sm shadow-2xl scale-up-15"
+          onClose={() => setShowRecoveryKey(false)}
+        >
+          <div className="flex flex-col gap-5 py-2 text-center">
+            <Lucide.Key size={32} className="text-primary mx-auto animate-pulse" />
+            <h5 className="text-sm font-black uppercase tracking-wide">Your E2EE Recovery Key</h5>
+            
+            {recoveryKey ? (
+              <div className="bg-accent/20 border-2 border-border p-4 text-center space-y-3 relative overflow-hidden select-all">
+                <div className="text-xl font-black tracking-tighter text-primary">{recoveryKey}</div>
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    navigator.clipboard.writeText(recoveryKey); 
+                    toast("Recovery Key copied!", "success"); 
+                  }} 
+                  className="text-[9px] font-black uppercase text-primary hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current"
+                >
+                  <Lucide.Copy size={10} /> copy key
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs font-bold text-red-500 uppercase">
+                No recovery key found on this device (legacy key pair). Click "Reset Encryption" below to generate a new key pair with a recovery backup.
+              </p>
+            )}
+
+            <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 p-3 rounded text-left text-[10px] font-bold text-amber-800">
+              <Lucide.AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <span>
+                Keep this key safe. Anyone who has this key can decrypt and read your Attic chat history.
+              </span>
+            </div>
+
+            <RetroButton onClick={() => setShowRecoveryKey(false)} variant="primary" className="w-full py-2.5 text-xs font-bold">
+              Close
+            </RetroButton>
+          </div>
+        </RetroWindow>
+      </div>
+    )}
+
+    {/* Reset Encryption Keys Dialog */}
+    {showResetE2eeConfirm && (
+      <ConfirmDialog
+        title="Reset E2EE Encryption?"
+        message="WARNING: Resetting your keys will generate a new recovery key. All past encrypted messages will become permanently unreadable. Use this if you are experiencing decryption errors."
+        showCancel={true}
+        onConfirm={async () => {
+          setShowResetE2eeConfirm(false);
+          toast('Resetting encryption...', 'info');
+          try {
+            await resetE2EEKeys();
+            setShowRecoveryKey(false);
+          } catch(e) {
+            toast('Reset failed', 'error');
+          }
+        }}
+        onCancel={() => setShowResetE2eeConfirm(false)}
         sfx={localSfxEnabled}
       />
     )}

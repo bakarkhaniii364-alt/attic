@@ -384,7 +384,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   );
 
   const petWindow = (
-    <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className={`w-full md:col-span-4 h-auto min-h-[10rem] order-3 md:order-none`} overflowVisible={true}>
+    <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className={`w-full md:col-span-4 h-auto min-h-[10rem] order-2 md:order-none`} overflowVisible={true}>
       <div className="flex flex-col items-center text-center h-full justify-between p-1">
         <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={!isPartnerOnline} externalAction={petAction} onPet={handlePet} onHit={handleHit} partnerName={partnerName} />
         
@@ -407,7 +407,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   );
 
   const timerWindow = (
-    <RetroWindow title="together.timer" className={`w-full md:col-span-4 h-auto order-2 md:order-none`}>
+    <RetroWindow title="together.timer" className={`w-full md:col-span-4 h-auto order-3 md:order-none`}>
       <div className="flex flex-col h-full justify-center gap-3">
         <AnniversaryTimer anniversary={coupleData.anniversary} />
         <CalendarReminder />
@@ -491,8 +491,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
       
 
       {welcomeWindow}
-      {timerWindow}
       {petWindow}
+      {timerWindow}
       {radioWindow}
       {statsWindow}
       {appsWindow}
