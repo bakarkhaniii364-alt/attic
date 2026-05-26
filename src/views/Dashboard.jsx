@@ -44,7 +44,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const partnerStatus = partnerProfile.status || 'offline';
 
   const { partnerStatusData, partnerStatusLabel } = useLastSeen();
-  const isPartnerOnline = partnerStatusData.status === 'active';
+  const isPartnerOnline = partnerStatusData.status === 'active' || partnerStatusData.status === 'idle';
   const isPartnerIdle = partnerStatusData.status === 'idle';
   const displayStatus = partnerStatusLabel;
 

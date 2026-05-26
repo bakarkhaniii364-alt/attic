@@ -82,7 +82,7 @@ export function useLastSeen() {
 
   const partnerStatusData = getLastSeen(partnerId);
   const partnerStatusLabel = formatStatus(partnerId);
-  const isPartnerOnline = partnerStatusData.status === 'active';
+  const isPartnerOnline = partnerStatusData.status === 'active' || partnerStatusData.status === 'idle';
 
   return { getLastSeen, formatStatus, partnerStatusData, partnerStatusLabel, isPartnerOnline };
 }

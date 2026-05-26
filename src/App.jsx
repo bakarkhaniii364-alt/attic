@@ -194,7 +194,7 @@ export default function App() {
     }
   }, [roomId, userId, uploadAsset, toast, sfxEnabled]);
 
-  const isPartnerOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
+  const isPartnerOnline = partnerId && (onlineUsers?.[partnerId]?.status === 'active' || onlineUsers?.[partnerId]?.status === 'idle');
   const navigateTo = (v) => { playAudio('click', sfxEnabled); navigate(v === 'dashboard' ? '/dashboard' : `/${v}`); };
 
   useEffect(() => {

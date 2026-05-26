@@ -141,7 +141,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const game = GAME_CATALOG[gameRoute];
 
-  const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
+  const partnerIsOnline = partnerId && (onlineUsers?.[partnerId]?.status === 'active' || onlineUsers?.[partnerId]?.status === 'idle');
 
   // Reset navigation when game changes
   useEffect(() => {
@@ -206,7 +206,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   // Solo Bypass Handshake Listener
   useEffect(() => {
-    const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
+    const partnerIsOnline = partnerId && (onlineUsers?.[partnerId]?.status === 'active' || onlineUsers?.[partnerId]?.status === 'idle');
     
     if (!partnerIsOnline && lobbyPhase === 'WAITING') {
         console.log("🚦 [LOBBY] Solo Bypass: Partner offline. Bypassing database handshake...");
@@ -619,7 +619,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     const playerA = isPlayerA ? userId : arcadeSession?.player_a_id;
     const playerB = isPlayerA ? arcadeSession?.player_b_id : userId;
     
-    const partnerIsOnline = partnerId && onlineUsers?.[partnerId]?.status === 'active';
+    const partnerIsOnline = partnerId && (onlineUsers?.[partnerId]?.status === 'active' || onlineUsers?.[partnerId]?.status === 'idle');
     const partnerInLobby = isPlayerA ? !!arcadeSession?.player_b_id : !!arcadeSession?.player_a_id;
     
     // Solo Bypass: If partner is offline, only my ready status matters for 'isReady'
