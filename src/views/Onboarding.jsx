@@ -397,7 +397,8 @@ export function HandshakeView() {
       setFetchError(false);
       setPairingCode('LOADING...');
       try {
-        const { data } = await supabase.rpc('get_my_room');
+        const { data, error } = await supabase.rpc('get_my_room');
+        if (error) throw error;
         if (data) {
           if (data.is_paired) {
             pairingTriggeredRef.current = true;

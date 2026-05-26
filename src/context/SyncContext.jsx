@@ -9,6 +9,7 @@ export function SyncProvider({ children }) {
   const { roomId, userId } = useAuth();
   const [globalState, setGlobalState] = useState({});
   const [isInitialized, setIsInitialized] = useState(false);
+  const [syncError, setSyncError] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState({});
   const [currentActivity, setCurrentActivity] = useState(null);
   const channelsRef = useRef({});
@@ -252,7 +253,15 @@ export function SyncProvider({ children }) {
         p_subkey: subkey,
         p_value: typeof value === 'object' ? value : JSON.stringify(value)
       }).then(({ error }) => {
-        if (error) console.error(`[SYNC] Atomic update failed for ${key}.${subkey}:`, error);
+        if (error) {
+          console.error(`[SYNC] Atomic update failed for ${key}.${subkey}:`, error);
+          setSyncError(error);
+        } else {
+          setSyncError(null);
+        }
+      }).catch((err) => {
+        console.error(`[SYNC] Atomic update exception for ${key}.${subkey}:`, err);
+        setSyncError(err);
       });
 
       return newState;
@@ -287,7 +296,15 @@ export function SyncProvider({ children }) {
         p_key: key,
         p_value: value
       }).then(({ error }) => {
-        if (error) console.error(`[SYNC] Merge failed for ${key}:`, error);
+        if (error) {
+          console.error(`[SYNC] Merge failed for ${key}:`, error);
+          setSyncError(error);
+        } else {
+          setSyncError(null);
+        }
+      }).catch((err) => {
+        console.error(`[SYNC] Merge exception for ${key}:`, err);
+        setSyncError(err);
       });
 
       return newState;
@@ -344,6 +361,7 @@ export function SyncProvider({ children }) {
     updateSyncStateAtomic,
     mergeSyncState,
     broadcast,
+    syncError,
     roomProfiles: globalState.room_profiles || {}
   }), [
     globalState,
@@ -354,7 +372,8 @@ export function SyncProvider({ children }) {
     updateSyncState,
     updateSyncStateAtomic,
     mergeSyncState,
-    broadcast
+    broadcast,
+    syncError
   ]);
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

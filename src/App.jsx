@@ -79,7 +79,8 @@ export default function App() {
 
   
   const { user, userId, roomId, partnerId, loading: authLoading, roomLoading, hasInitialized } = useAuth();
-  const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, mergeSyncState, roomProfiles, broadcast, isInitialized } = useSync();
+  const sync = useSync();
+  const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, mergeSyncState, roomProfiles, broadcast, isInitialized, syncError } = sync;
   const coupleData = globalState?.couple_data || {};
   const partnerProfile = roomProfiles?.[partnerId] || {};
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
@@ -284,6 +285,14 @@ export default function App() {
           }} 
           sfxEnabled={sfxEnabled} 
         />
+      )}
+      
+      {syncError && !isOnboarding && (
+        <div className="fixed top-4 right-4 z-[9999] bg-red-500 text-white px-4 py-2 text-xs font-bold shadow-xl animate-in fade-in slide-in-from-top-4 flex items-center gap-2 retro-border">
+          <X size={14} />
+          Sync error: {syncError.message || 'Connection lost'}
+          <button onClick={() => window.location.reload()} className="ml-2 underline hover:opacity-80">Reload</button>
+        </div>
       )}
       
       <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-0 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>

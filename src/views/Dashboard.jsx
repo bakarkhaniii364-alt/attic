@@ -72,6 +72,30 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     setDaysAway(getDaysSinceLastVisit(prev));
   }, []);
 
+  if (sync.syncError) {
+    return (
+      <div className="w-full flex items-center justify-center p-8 h-full min-h-[50vh] animate-in fade-in zoom-in duration-300">
+         <div className="bg-window retro-border p-8 text-center max-w-md border-red-500 retro-shadow-dark">
+            <h2 className="text-xl font-black mb-4 text-red-500 uppercase">Connection Interrupted</h2>
+            <p className="text-xs mb-6 font-bold opacity-80">{sync.syncError.message || 'Failed to synchronize couple data with the server.'}</p>
+            <RetroButton onClick={() => window.location.reload()} className="px-6 py-2 text-xs">Reconnect</RetroButton>
+         </div>
+      </div>
+    );
+  }
+
+  if (roomId && !partnerId) {
+    return (
+      <div className="w-full flex items-center justify-center p-8 h-full min-h-[50vh] animate-in fade-in zoom-in duration-300">
+         <div className="bg-window retro-border p-8 text-center max-w-md retro-shadow-dark">
+            <h2 className="text-xl font-black mb-4 uppercase">Waiting for Partner</h2>
+            <p className="text-xs mb-6 font-bold opacity-80">Your room is established, but your partner hasn't joined yet. They need your pairing code to enter.</p>
+            <RetroButton onClick={() => nav('handshake')} className="px-6 py-2 text-xs bg-primary">View Invite Code</RetroButton>
+         </div>
+      </div>
+    );
+  }
+
   const {
     dbStats, partnerWeather, unviewedDoodle,
     petCooldown, petAction, lastActionTime,

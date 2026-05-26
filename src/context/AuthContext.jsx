@@ -47,7 +47,13 @@ export function AuthProvider({ children }) {
       setRoomLoading(true);
     }
     try {
-      const { data: room } = await supabase.rpc('get_my_room');
+      // Race condition fix: ensure session exists before RPC
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return; 
+
+      const { data: room, error } = await supabase.rpc('get_my_room');
+      if (error) throw error;
+
       if (mountedRef.current) {
         if (room) {
           setRoomId(room.id);
@@ -123,15 +129,27 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mountedRef.current) return;
       
-      // Handle token refresh
-      if (_event === 'TOKEN_REFRESHED' && session) {
-        console.log('[AUTH] Token refreshed');
-        setUser(session.user);
-        return;
+      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+        if (session) {
+          const currentUserId = userIdRef.current;
+          const currentRoomId = roomIdRef.current;
+          const currentPartnerId = partnerIdRef.current;
+
+          setUser(session.user);
+          setUserId(session.user.id);
+          userIdRef.current = session.user.id;
+          
+          const isSameUser = currentUserId === session.user.id;
+          if (!isSameUser) {
+            fetchRoomData(session.user.id, true);
+          } else {
+            const hasRoomDetails = !!(currentRoomId && currentPartnerId);
+            fetchRoomData(session.user.id, !hasRoomDetails);
+          }
+        }
       }
       
-      // Handle sign out
-      if (_event === 'SIGNED_OUT' || !session) {
+      if (_event === 'SIGNED_OUT') {
         setUser(null);
         setUserId(null);
         userIdRef.current = null;
@@ -142,28 +160,10 @@ export function AuthProvider({ children }) {
         setRoomLoading(false);
         setHasInitialized(true);
         setLoading(false);
+        window.location.href = '/signin';
         return;
       }
       
-      if (session) {
-        const currentUserId = userIdRef.current;
-        const currentRoomId = roomIdRef.current;
-        const currentPartnerId = partnerIdRef.current;
-
-        setUser(session.user);
-        setUserId(session.user.id);
-        userIdRef.current = session.user.id;
-        
-        const isSameUser = currentUserId === session.user.id;
-        if (!isSameUser) {
-          // New login or identity change, show blocking loader
-          fetchRoomData(session.user.id, true);
-        } else {
-          // Same user, background check if already initialized, otherwise blocking loader
-          const hasRoomDetails = !!(currentRoomId && currentPartnerId);
-          fetchRoomData(session.user.id, !hasRoomDetails);
-        }
-      }
       setLoading(false);
     });
 

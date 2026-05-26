@@ -168,13 +168,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
   const handleExportData = async () => {
     toast('Compiling export...', 'info');
-    const { data: roomData } = await supabase.rpc('get_my_room');
-    const roomId = roomData?.id;
-    if (!roomId) return;
-    const { data: messages } = await supabase.from('chat_messages').select('*').eq('room_id', roomId);
-    const blob = new Blob([JSON.stringify(messages, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a'); link.href = url; link.download = 'attic_data.json'; link.click();
+    try {
+      const { data: roomData, error: roomError } = await supabase.rpc('get_my_room');
+      if (roomError) throw roomError;
+      const roomId = roomData?.id;
+      if (!roomId) {
+        toast('No active room found.', 'error');
+        return;
+      }
+      const { data: messages, error: msgError } = await supabase.from('chat_messages').select('*').eq('room_id', roomId);
+      if (msgError) throw msgError;
+      const blob = new Blob([JSON.stringify(messages, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = 'attic_data.json'; link.click();
+      toast('Export complete!', 'success');
+    } catch (err) {
+      toast('Export failed: ' + err.message, 'error');
+    }
   };
 
   const renderContent = () => {

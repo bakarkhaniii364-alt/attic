@@ -20,7 +20,15 @@ if (!supabaseUrl || !supabaseKey) {
 
 const realClient = createClient(
   supabaseUrl || 'http://localhost:54321',
-  supabaseKey || 'placeholder-anon-key'
+  supabaseKey || 'placeholder-anon-key',
+  {
+    auth: { 
+      persistSession: true, 
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    },
+    realtime: { params: { eventsPerSecond: 10 } },
+  }
 );
 
 const createMockProxy = (target) => {
