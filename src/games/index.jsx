@@ -434,22 +434,24 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
               })()
             )}
             
-            <div className="p-6 pb-0 shrink-0">
-               <button 
-                 onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate('/watch'); }}
-                 className="w-full flex items-center justify-between p-6 bg-[var(--bg-window)] border-2 border-[var(--secondary)] shadow-[4px_4px_0px_0px_var(--secondary)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
-               >
-                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-[var(--secondary)] text-white flex items-center justify-center retro-border shadow-sm shrink-0">
-                     <Monitor size={24} />
+            {isMobile && (
+              <div className="p-6 pb-0 shrink-0">
+                 <button 
+                   onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate('/watch'); }}
+                   className="w-full flex items-center justify-between p-6 bg-[var(--bg-window)] border-2 border-[var(--secondary)] shadow-[4px_4px_0px_0px_var(--secondary)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
+                 >
+                   <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 bg-[var(--secondary)] text-white flex items-center justify-center retro-border shadow-sm shrink-0">
+                       <Monitor size={24} />
+                     </div>
+                     <div>
+                       <h3 className="font-black text-xl mb-1 text-[var(--secondary)] tracking-tight">Watch Party</h3>
+                       <p className="text-sm text-[var(--text-main)] opacity-70 leading-tight font-medium">Sync YouTube & Movies together.</p>
+                     </div>
                    </div>
-                   <div>
-                     <h3 className="font-black text-xl mb-1 text-[var(--secondary)] tracking-tight">Watch Party</h3>
-                     <p className="text-sm text-[var(--text-main)] opacity-70 leading-tight font-medium">Sync YouTube & Movies together.</p>
-                   </div>
-                 </div>
-               </button>
-            </div>
+                 </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full">
             {Object.entries(GAME_CATALOG)
