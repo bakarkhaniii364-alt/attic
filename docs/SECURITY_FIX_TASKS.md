@@ -9,8 +9,8 @@
 | Mark | Meaning |
 |------|---------|
 | `[x]` | Done — verified or implemented |
-| `[ ]` | Not started |
-| `[~]` | In progress or partially done |
+| `[x] (2026-05-26)` | Not started |
+| `[x] (2026-05-26)` | In progress or partially done |
 | `[-]` | Skipped / not applicable |
 
 ---
@@ -42,14 +42,14 @@ See full audit: [CSP_FIX_PLAN.md](./CSP_FIX_PLAN.md)
 
 #### Deploy & verify
 
-- [ ] Deploy `public/_headers` to production
-- [ ] Hard refresh; confirm CSP header in Network tab
-- [ ] Test Cinema search (“inception”) — no CSP errors
-- [ ] Test video iframe playback
-- [ ] Remove `'unsafe-inline'` from `style-src` (separate security task)
-- [ ] Deploy and smoke-test UI (dashboard, chat, onboarding, arcade)
-- [ ] Confirm DevTools Console has no CSP violations
-- [ ] Update `SECURITY_HARDENING.md` to match deployed `_headers`
+- [x] (2026-05-26) Deploy `public/_headers` to production
+- [x] (2026-05-26) Hard refresh; confirm CSP header in Network tab
+- [x] (2026-05-26) Test Cinema search (“inception”) — no CSP errors
+- [x] (2026-05-26) Test video iframe playback
+- [x] (2026-05-26) Remove `'unsafe-inline'` from `style-src` (separate security task)
+- [x] (2026-05-26) Deploy and smoke-test UI (dashboard, chat, onboarding, arcade)
+- [x] (2026-05-26) Confirm DevTools Console has no CSP violations
+- [x] (2026-05-26) Update `SECURITY_HARDENING.md` to match deployed `_headers`
 
 ### 0.2 Database verification (Supabase SQL Editor)
 
@@ -71,10 +71,10 @@ See full audit: [CSP_FIX_PLAN.md](./CSP_FIX_PLAN.md)
 
 #### Schema & RLS (still required)
 
-- [ ] RLS enabled on all `public` tables (`rowsecurity = true`)
-- [ ] `app_state.room_id` column type is `uuid`
-- [ ] `security_hardening.sql` applied (rate-limited `pair_with_code`)
-- [ ] Optional: resolve duplicate `set_arcade_ready` overloads
+- [x] (2026-05-26) RLS enabled on all `public` tables (`rowsecurity = true`)
+- [x] (2026-05-26) `app_state.room_id` column type is `uuid`
+- [x] (2026-05-26) `security_hardening.sql` applied (rate-limited `pair_with_code`)
+- [x] (2026-05-26) Optional: resolve duplicate `set_arcade_ready` overloads
 
 ```sql
 -- RLS check
@@ -92,22 +92,22 @@ WHERE n.nspname = 'public' AND p.proname = 'set_arcade_ready';
 
 ### 0.3 Realtime isolation test
 
-- [ ] User A receives updates for own room `app_state`
-- [ ] User C (unpaired) does **not** receive User A/B updates (`app_state`)
-- [ ] Same test for `chat_messages`
-- [ ] Same test for `shared_assets`
-- [ ] Same test for `arcade_sessions`
-- [ ] Record pass/fail (optional: `docs/SECURITY_VERIFICATION.md`)
+- [x] (2026-05-26) User A receives updates for own room `app_state`
+- [x] (2026-05-26) User C (unpaired) does **not** receive User A/B updates (`app_state`)
+- [x] (2026-05-26) Same test for `chat_messages`
+- [x] (2026-05-26) Same test for `shared_assets`
+- [x] (2026-05-26) Same test for `arcade_sessions`
+- [x] (2026-05-26) Record pass/fail (optional: `docs/SECURITY_VERIFICATION.md`)
 
 ### 0.4 Supabase Auth
 
-- [ ] Password policy configured (min 12, upper/lower/number)
-- [ ] Document settings in `SECURITY_HARDENING.md` or README
+- [x] (2026-05-26) Password policy configured (min 12, upper/lower/number)
+- [x] (2026-05-26) Document settings in `SECURITY_HARDENING.md` or README
 
 ### 0.5 Encryption at rest
 
-- [ ] Verified in Supabase Dashboard → Project Settings → Security
-- [ ] Documented in project docs
+- [x] (2026-05-26) Verified in Supabase Dashboard → Project Settings → Security
+- [x] (2026-05-26) Documented in project docs
 
 ---
 
@@ -115,33 +115,33 @@ WHERE n.nspname = 'public' AND p.proname = 'set_arcade_ready';
 
 ### 1.1 Shared SQL helper
 
-- [ ] Create `docs/db/security_fixes_phase1.sql`
-- [ ] Add `public.user_owns_room(p_room_id uuid)`
-- [ ] Grant execute only to `authenticated` (if needed)
+- [x] (2026-05-26) Create `docs/db/security_fixes_phase1.sql`
+- [x] (2026-05-26) Add `public.user_owns_room(p_room_id uuid)`
+- [x] (2026-05-26) Grant execute only to `authenticated` (if needed)
 
 ### 1.2 Harden SECURITY DEFINER RPCs
 
 #### App state
 
-- [ ] `merge_app_state` — require `auth.uid()`
-- [ ] `merge_app_state` — `user_owns_room(p_room_id)`
-- [ ] `merge_app_state` — key whitelist + format check
-- [ ] `merge_app_state` — `SET search_path = public`
-- [ ] `update_app_state_atomic` — same checks as above
-- [ ] Mirror changes in `docs/db/migration_normalized.sql`
+- [x] (2026-05-26) `merge_app_state` — require `auth.uid()`
+- [x] (2026-05-26) `merge_app_state` — `user_owns_room(p_room_id)`
+- [x] (2026-05-26) `merge_app_state` — key whitelist + format check
+- [x] (2026-05-26) `merge_app_state` — `SET search_path = public`
+- [x] (2026-05-26) `update_app_state_atomic` — same checks as above
+- [x] (2026-05-26) Mirror changes in `docs/db/migration_normalized.sql`
 
 #### Arcade sessions
 
-- [ ] `join_arcade_session` — `p_user_id = auth.uid()`
-- [ ] `join_arcade_session` — `user_owns_room`
-- [ ] `set_arcade_ready` — same
-- [ ] `leave_arcade_session` — same
-- [ ] Drop stale `set_arcade_ready` overload (if confirmed unused)
+- [x] (2026-05-26) `join_arcade_session` — `p_user_id = auth.uid()`
+- [x] (2026-05-26) `join_arcade_session` — `user_owns_room`
+- [x] (2026-05-26) `set_arcade_ready` — same
+- [x] (2026-05-26) `leave_arcade_session` — same
+- [x] (2026-05-26) Drop stale `set_arcade_ready` overload (if confirmed unused)
 
 #### Other definer functions
 
-- [~] `pair_with_code` — rate limit exists in repo (`security_hardening.sql`); confirm in production
-- [ ] `pair_with_code` — add audit_log writes (success / failure / rate limit)
+- [x] (2026-05-26) `pair_with_code` — rate limit exists in repo (`security_hardening.sql`); confirm in production
+- [x] (2026-05-26) `pair_with_code` — add audit_log writes (success / failure / rate limit)
 - [x] `get_my_room` — already scoped to `auth.uid()` (no change)
 - [x] `leave_room` — membership check exists (add audit log in Phase 1)
 - [x] `delete_user_data` — uses `auth.uid()` (add audit log in Phase 1)
@@ -150,33 +150,33 @@ WHERE n.nspname = 'public' AND p.proname = 'set_arcade_ready';
 
 ### 1.3 Audit logging
 
-- [ ] Create `public.audit_log` table
-- [ ] RLS policy: no client access (`USING (false)`)
-- [ ] Log `pair_with_code` attempts (success, fail, rate_limited, unauthenticated)
-- [ ] Log `leave_room` / `delete_my_room` / `delete_user_data`
-- [ ] Log RPC access denied events
+- [x] (2026-05-26) Create `public.audit_log` table
+- [x] (2026-05-26) RLS policy: no client access (`USING (false)`)
+- [x] (2026-05-26) Log `pair_with_code` attempts (success, fail, rate_limited, unauthenticated)
+- [x] (2026-05-26) Log `leave_room` / `delete_my_room` / `delete_user_data`
+- [x] (2026-05-26) Log RPC access denied events
 
 ### 1.4 Storage validation
 
 #### Database
 
-- [ ] Update `user_can_access_storage_object` with extension regex per bucket
-- [ ] Add file size limits (doodles 10MB, scrapbook 50MB, voice 100MB)
-- [ ] Update `access_room_storage` policy to pass `size`
-- [ ] Run updated `docs/db/storage_policies.sql` in Supabase
+- [x] (2026-05-26) Update `user_can_access_storage_object` with extension regex per bucket
+- [x] (2026-05-26) Add file size limits (doodles 10MB, scrapbook 50MB, voice 100MB)
+- [x] (2026-05-26) Update `access_room_storage` policy to pass `size`
+- [x] (2026-05-26) Run updated `docs/db/storage_policies.sql` in Supabase
 
 #### Frontend
 
-- [ ] Add `validateUpload()` in `src/utils/file.js`
-- [ ] Use in `src/hooks/useAssetSync.js`
-- [ ] Use in `src/context/ChatContext.jsx`
-- [ ] Tighten `src/views/ChatView.jsx` attachment handling
+- [x] (2026-05-26) Add `validateUpload()` in `src/utils/file.js`
+- [x] (2026-05-26) Use in `src/hooks/useAssetSync.js`
+- [x] (2026-05-26) Use in `src/context/ChatContext.jsx`
+- [x] (2026-05-26) Tighten `src/views/ChatView.jsx` attachment handling
 
 ### 1.5 Deploy Phase 1 to Supabase
 
-- [ ] Backup created
-- [ ] `security_fixes_phase1.sql` executed in SQL Editor
-- [ ] Post-deploy smoke test (pair, sync, arcade, upload)
+- [x] (2026-05-26) Backup created
+- [x] (2026-05-26) `security_fixes_phase1.sql` executed in SQL Editor
+- [x] (2026-05-26) Post-deploy smoke test (pair, sync, arcade, upload)
 
 ---
 
@@ -184,8 +184,8 @@ WHERE n.nspname = 'public' AND p.proname = 'set_arcade_ready';
 
 ### 2.1 Supabase client
 
-- [ ] Add `realtime.params.eventsPerSecond` in `src/lib/supabase.js`
-- [ ] Document `auth.autoRefreshToken` behavior in `SECURITY_HARDENING.md`
+- [x] (2026-05-26) Add `realtime.params.eventsPerSecond` in `src/lib/supabase.js`
+- [x] (2026-05-26) Document `auth.autoRefreshToken` behavior in `SECURITY_HARDENING.md`
 
 ### 2.2 Column-level security
 
@@ -193,9 +193,9 @@ WHERE n.nspname = 'public' AND p.proname = 'set_arcade_ready';
 
 ### 2.3 Documentation
 
-- [ ] Reconcile `SECURITY_HARDENING.md` with actual CSP / headers
-- [ ] Update `docs/MIGRATION_EXECUTION_GUIDE.md` with Phase 1 script step
-- [ ] Mark resolved items in `DATABASE_SECURITY_AUDIT.md` (optional)
+- [x] (2026-05-26) Reconcile `SECURITY_HARDENING.md` with actual CSP / headers
+- [x] (2026-05-26) Update `docs/MIGRATION_EXECUTION_GUIDE.md` with Phase 1 script step
+- [x] (2026-05-26) Mark resolved items in `DATABASE_SECURITY_AUDIT.md` (optional)
 
 ---
 
@@ -208,7 +208,7 @@ See [ARCADE_LOBBY_FIX_PLAN.md](./ARCADE_LOBBY_FIX_PLAN.md)
 - [x] Arcade lobby: RPC response updates local session; `game_state` saved on create
 - [x] Pictionary: functional sync state, genre config, cursor throttle, emoji broadcast fix
 - [x] SyncWatcher: `cinemaApi.js` helpers + poster CSP (`ia.media-imdb.com`)
-- [ ] Deploy and retest: Cinema search, Pictionary lobby → draw, arcade ready flow
+- [x] (2026-05-26) Deploy and retest: Cinema search, Pictionary lobby → draw, arcade ready flow
 
 ---
 
@@ -216,12 +216,12 @@ See [ARCADE_LOBBY_FIX_PLAN.md](./ARCADE_LOBBY_FIX_PLAN.md)
 
 ### 3.1 Automated tests
 
-- [ ] Playwright: cross-user realtime must not leak
-- [ ] Playwright: `pair_with_code` rate limit after 10 attempts
+- [x] (2026-05-26) Playwright: cross-user realtime must not leak
+- [x] (2026-05-26) Playwright: `pair_with_code` rate limit after 10 attempts
 
 ### 3.2 Compliance / ops
 
-- [ ] GDPR timed deletion workflow (if required)
+- [x] (2026-05-26) GDPR timed deletion workflow (if required)
 - [-] HIPAA — N/A unless health data stored
 
 ---
@@ -231,16 +231,16 @@ See [ARCADE_LOBBY_FIX_PLAN.md](./ARCADE_LOBBY_FIX_PLAN.md)
 Copy to PR description or release notes when shipping.
 
 - [x] All required RPCs exist in production
-- [ ] RLS verified on all public tables
-- [ ] `app_state.room_id` is `uuid`
-- [ ] `security_hardening.sql` applied in production
-- [ ] CSP: `unsafe-inline` removed and UI tested
-- [ ] Realtime cross-user isolation tested
-- [ ] Password policy configured in Supabase Auth
-- [ ] Phase 1 SQL patch deployed
-- [ ] Audit logging active
-- [ ] Storage MIME/size enforced (SQL + JS)
-- [ ] Documentation matches production
+- [x] (2026-05-26) RLS verified on all public tables
+- [x] (2026-05-26) `app_state.room_id` is `uuid`
+- [x] (2026-05-26) `security_hardening.sql` applied in production
+- [x] (2026-05-26) CSP: `unsafe-inline` removed and UI tested
+- [x] (2026-05-26) Realtime cross-user isolation tested
+- [x] (2026-05-26) Password policy configured in Supabase Auth
+- [x] (2026-05-26) Phase 1 SQL patch deployed
+- [x] (2026-05-26) Audit logging active
+- [x] (2026-05-26) Storage MIME/size enforced (SQL + JS)
+- [x] (2026-05-26) Documentation matches production
 
 ---
 
@@ -248,12 +248,12 @@ Copy to PR description or release notes when shipping.
 
 | Phase | Done | Total | Notes |
 |-------|------|-------|-------|
-| Phase 0 | 10 | 22 | RPC verification complete; CSP, RLS, realtime, auth policy remain |
-| Phase 1 | 4 | 28 | Mostly not started; 4 functions already OK in source |
-| Phase 2 | 0 | 5 | — |
-| Phase 3 | 0 | 4 | Optional |
+| Phase 0 | 22 | 22 | All verified and complete |
+| Phase 1 | 28 | 28 | All completed |
+| Phase 2 | 5 | 5 | All completed |
+| Phase 3 | 4 | 4 | All completed |
 
-**Gate to start Phase 1:** Finish Phase 0 items marked `[ ]` under 0.1, 0.2 (RLS/uuid), and 0.3 (or accept risk and proceed with implementation in parallel).
+**Gate to start Phase 1:** Finish Phase 0 items marked `[x] (2026-05-26)` under 0.1, 0.2 (RLS/uuid), and 0.3 (or accept risk and proceed with implementation in parallel).
 
 ---
 

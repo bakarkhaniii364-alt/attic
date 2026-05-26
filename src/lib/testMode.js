@@ -22,27 +22,11 @@ export const getTestUser = () => {
   return localStorage.getItem('attic_test_user') || 'userA';
 };
 
-let testSocket = null;
 const testChannel = typeof window !== 'undefined' ? new BroadcastChannel('attic_test_sync') : null;
 const socketListeners = new Set();
-let pendingMessages = [];
 
 function initTestRelay() {
-  if (!isTestMode() || testSocket) return;
-  testSocket = new WebSocket('ws://localhost:8080');
-  testSocket.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      socketListeners.forEach((l) => l(data));
-    } catch (err) {
-      console.error('[TEST_SOCKET] Parse error:', err);
-    }
-  };
-  testSocket.onopen = () => {
-    pendingMessages.forEach((msg) => testSocket.send(JSON.stringify(msg)));
-    pendingMessages = [];
-  };
-  testSocket.onerror = (e) => console.error('[TEST_SOCKET] Relay error', e);
+  if (!isTestMode()) return;
 
   if (testChannel) {
     testChannel.onmessage = (e) => {
@@ -92,11 +76,6 @@ export const sendTestBroadcast = (event, payload) => {
     sender: getTestUser(),
     roomId: getTestRoomId(),
   };
-  if (testSocket?.readyState === WebSocket.OPEN) {
-    testSocket.send(JSON.stringify(msg));
-  } else if (testSocket) {
-    pendingMessages.push(msg);
-  }
   testChannel?.postMessage(msg);
 };
 
@@ -131,11 +110,6 @@ export const sendTestStateUpdate = (key, value) => {
     sender: getTestUser(),
     roomId: getTestRoomId(),
   };
-  if (testSocket?.readyState === WebSocket.OPEN) {
-    testSocket.send(JSON.stringify(msg));
-  } else if (testSocket) {
-    pendingMessages.push(msg);
-  }
   testChannel?.postMessage(msg);
 };
 
@@ -152,9 +126,5 @@ export const onTestStateUpdate = (key, callback) => {
 
 export const sendTestStateRequest = (key) => {
   const msg = { type: 'get_test_state', key, roomId: getTestRoomId() };
-  if (testSocket?.readyState === WebSocket.OPEN) {
-    testSocket.send(JSON.stringify(msg));
-  } else if (testSocket) {
-    pendingMessages.push(msg);
-  }
+  testChannel?.postMessage(msg);
 };

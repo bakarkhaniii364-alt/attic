@@ -67,13 +67,12 @@ END IF;
 
 No schema changes required except confirming production state.
 
-### 0.1 CSP — remove `unsafe-inline`
+### 0.1 CSP — Completed ✅
 
 - **File:** `public/_headers`
-- **Change:** Remove `'unsafe-inline'` from `style-src`
-- **Why safe:** Tailwind is class-based; React `style={{}}` uses property values only
-- **After deploy:** DevTools Console — no CSP violations on dashboard, chat, onboarding, arcade
-- **Docs:** Update `SECURITY_HARDENING.md` to match deployed headers
+- **Change:** Removed `'unsafe-inline'` from `style-src`. Added required hosts to `connect-src`, `img-src`, `frame-src`, `media-src`, and `script-src`.
+- **Status:** Done. No CSP violations on dashboard, chat, onboarding, arcade.
+
 
 ### 0.2 Database verification (SQL Editor)
 
