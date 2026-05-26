@@ -459,8 +459,8 @@ const createPC = useCallback(async (type) => {
 
       case 'ice': {
         const pc = pcRef.current;
-        if (!pc || !payload.candidate) return;
-        if (pc.remoteDescription) {
+        if (!payload.candidate) return;
+        if (pc && pc.remoteDescription) {
           try { await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)); } catch (_) {}
         } else {
           // Queue until remote description is set

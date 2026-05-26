@@ -102,28 +102,48 @@ export function ChatProvider({ children }) {
   const isSyncInitialized = sync?.isInitialized;
 
   // Unified bulletproof key backup helper
+  // Unified bulletproof key backup helper
   const saveKeysAndBackup = useCallback(async (keys, recoveryKey) => {
     try {
       await saveLocalKeypair(userId, keys);
-      await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
-      
-      const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
       const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
 
-      // 1. Update user_metadata in Supabase Auth (the ultimate backup source of truth)
-      await supabase.auth.updateUser({
-        data: {
-          e2ee_recovery_key: recoveryKey,
-          encrypted_private_key: encrypted,
-          e2ee_public_key: localPubJwk
-        }
-      });
+      let encrypted = null;
+      let hasBackup = false;
 
-      // 2. Update room profiles in SyncContext (shared with partner for handshake)
-      await sync.updateSyncStateAtomic('room_profiles', userId, {
-        e2ee_public_key: localPubJwk,
-        encrypted_private_key: encrypted
-      });
+      if (keys.privateKey && keys.privateKey.extractable) {
+        try {
+          await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+          encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+          hasBackup = true;
+        } catch (backupErr) {
+          console.warn('[E2EE] Failed to encrypt/backup private key:', backupErr);
+        }
+      } else {
+        console.warn('[E2EE] Local private key is non-extractable (legacy). Backup will be skipped.');
+      }
+
+      if (hasBackup && encrypted) {
+        // 1. Update user_metadata in Supabase Auth (the ultimate backup source of truth)
+        await supabase.auth.updateUser({
+          data: {
+            e2ee_recovery_key: recoveryKey,
+            encrypted_private_key: encrypted,
+            e2ee_public_key: localPubJwk
+          }
+        });
+
+        // 2. Update room profiles in SyncContext (shared with partner for handshake)
+        await sync.updateSyncStateAtomic('room_profiles', userId, {
+          e2ee_public_key: localPubJwk,
+          encrypted_private_key: encrypted
+        });
+      } else {
+        // Fallback: Publish public key only
+        await sync.updateSyncStateAtomic('room_profiles', userId, {
+          e2ee_public_key: localPubJwk
+        });
+      }
     } catch (err) {
       console.error('[E2EE] saveKeysAndBackup failed:', err);
       throw err;
@@ -203,20 +223,22 @@ export function ChatProvider({ children }) {
                               remotePubKey.x === localPubJwk.x && 
                               remotePubKey.y === localPubJwk.y;
 
-            // If recovery key is in localforage but not in user_metadata, upload it
+            // If recovery key is in localforage but not in user_metadata, upload it (safeguarded against legacy keys)
             const localRecoveryKey = await localforage.getItem(`e2ee_recovery_key_${userId}`);
             if (localRecoveryKey && user && (!user.user_metadata?.e2ee_recovery_key || !user.user_metadata?.encrypted_private_key)) {
-              try {
-                const encrypted = await encryptPrivateKey(keys.privateKey, localRecoveryKey);
-                await supabase.auth.updateUser({
-                  data: { 
-                    e2ee_recovery_key: localRecoveryKey,
-                    encrypted_private_key: encrypted,
-                    e2ee_public_key: localPubJwk
-                  }
-                });
-              } catch (err) {
-                console.error('[E2EE] Uploading local recovery key to user_metadata failed:', err);
+              if (keys.privateKey && keys.privateKey.extractable) {
+                try {
+                  const encrypted = await encryptPrivateKey(keys.privateKey, localRecoveryKey);
+                  await supabase.auth.updateUser({
+                    data: { 
+                      e2ee_recovery_key: localRecoveryKey,
+                      encrypted_private_key: encrypted,
+                      e2ee_public_key: localPubJwk
+                    }
+                  });
+                } catch (err) {
+                  console.error('[E2EE] Uploading local recovery key to user_metadata failed:', err);
+                }
               }
             }
 
