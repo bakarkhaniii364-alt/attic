@@ -232,6 +232,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         prevPartnerActivity.current = activity;
     }, [partnerId, roomProfiles, partnerName, appendSystemLog]);
 
+
     // TMDb API Key from Vite env (Optional)
     const tmdbKey = import.meta.env.VITE_TMDB_API_KEY || '';
 

@@ -72,11 +72,7 @@ export function useAppLogic({
         setTimeout(() => setPartnerOnlineModal(false), 4000);
       }
       
-      // Dispatch permanent system message for login
-      if (syncSendMessage) {
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        syncSendMessage(`${partnerName || 'Partner'} logged in on ${timeStr}`, 'system');
-      }
+
     }
     prevPartnerOnline.current = isPartnerOnline;
   }, [isPartnerOnline, notificationsEnabled, sfxEnabled, partnerName, syncSendMessage]);
