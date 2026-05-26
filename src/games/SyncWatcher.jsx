@@ -700,7 +700,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
 
     return (
-        <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+        <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[100dvh] md:h-[calc(100dvh-4rem)] max-h-none md:max-h-[850px] border-none md:border-solid flex flex-col shadow-none md:shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
             
             {/* Header Status Bar */}
             <div className="bg-border text-window p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 text-[10px] uppercase tracking-widest border-b-[3px] border-border">
@@ -1117,9 +1117,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                 value={inputUrl} 
                                 onChange={(e) => setInputUrl(e.target.value)} 
                                 placeholder="Paste YouTube or MP4 link..."
-                                className="flex-1 bg-main text-main-text font-bold border-[3px] border-border px-3 py-2 text-xs focus:outline-none focus:border-primary placeholder:opacity-50" 
+                                className="flex-1 bg-main text-main-text font-bold border-[3px] border-border px-3 py-2 text-xs focus:outline-none focus:border-primary placeholder:opacity-50 min-h-[44px]" 
                             />
-                            <RetroButton variant="primary" onClick={handleLoadUrl} className="px-6 text-xs font-bold flex items-center gap-2 shadow-sm">
+                            <RetroButton variant="primary" onClick={handleLoadUrl} className="px-6 text-xs font-bold flex items-center gap-2 shadow-sm min-h-[44px]">
                                 <LinkIcon size={14} /> Load
                             </RetroButton>
                         </div>
@@ -1169,9 +1169,9 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                             value={chatInput} 
                             onChange={e => setChatInput(e.target.value)} 
                             placeholder="Type a reaction..." 
-                            className="flex-1 p-2 border-[3px] border-border bg-main/50 text-main-text text-xs font-bold focus:outline-none focus:border-primary" 
+                            className="flex-1 p-2 border-[3px] border-border bg-main/50 text-main-text text-xs font-bold focus:outline-none focus:border-primary min-h-[44px]" 
                         />
-                        <RetroButton type="submit" variant="accent" className="px-4 text-xs font-black shadow-sm">Send</RetroButton>
+                        <RetroButton type="submit" variant="accent" className="px-4 text-xs font-black shadow-sm min-h-[44px]">Send</RetroButton>
                     </form>
                 </div>
             </div>

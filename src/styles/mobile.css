@@ -44,7 +44,7 @@
   }
 
   /* Larger touch targets */
-  button, .retro-button, .app-icon-mobile {
+  .app-icon-mobile, .btn-touch {
     min-width: 44px;
     min-height: 44px;
   }
@@ -118,5 +118,9 @@
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .pb-safe-navbar {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important;
   }
 }

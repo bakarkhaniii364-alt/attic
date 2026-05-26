@@ -8,6 +8,7 @@ import { playAudio } from '../utils/audio.js';
 import { supabase } from '../lib/supabase.js';
 import { useActiveLobbies } from '../hooks/useActiveLobbies.js';
 import { useSync } from '../context/instances.js';
+import { useMobile } from '../hooks/useMobile.js';
 
 // Games
 import { TicTacToe } from './TicTacToeGame.jsx';
@@ -88,6 +89,7 @@ const GAME_CATALOG = {
 };
 
 export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, syncedRoomId, onSaveToScrapbook, pictionaryState, setPictionaryState }) {
+  const isMobile = useMobile();
   const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -363,7 +365,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 1. Arcade Menu Phase
   if (currentPhase === 'menu') {
     return (
-      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl h-[calc(100dvh-4rem)] relative overflow-hidden flex flex-col" noPadding>
+      <RetroWindow title="activities_hub.exe" onClose={onClose} className={`w-full ${isMobile ? 'h-[100dvh] pb-[calc(56px+env(safe-area-inset-bottom))] border-none shadow-none' : 'max-w-5xl h-[calc(100dvh-4rem)]'} relative overflow-hidden flex flex-col`} noPadding>
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
            <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>Leaderboard</button>
@@ -431,6 +433,24 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                 );
               })()
             )}
+            
+            <div className="p-6 pb-0 shrink-0">
+               <button 
+                 onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate('/watch'); }}
+                 className="w-full flex items-center justify-between p-6 bg-[var(--bg-window)] border-2 border-[var(--secondary)] shadow-[4px_4px_0px_0px_var(--secondary)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
+               >
+                 <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-[var(--secondary)] text-white flex items-center justify-center retro-border shadow-sm shrink-0">
+                     <Monitor size={24} />
+                   </div>
+                   <div>
+                     <h3 className="font-black text-xl mb-1 text-[var(--secondary)] tracking-tight">Watch Party</h3>
+                     <p className="text-sm text-[var(--text-main)] opacity-70 leading-tight font-medium">Sync YouTube & Movies together.</p>
+                   </div>
+                 </div>
+               </button>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 overflow-y-auto h-full">
             {Object.entries(GAME_CATALOG)
               .filter(([id]) => !window.matchMedia('(max-width: 768px)').matches || id !== 'chess')
@@ -499,7 +519,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
 
       return (
-        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)] transition-all duration-300" noPadding>
+        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className={`w-full ${isMobile ? 'h-[100dvh] pb-[calc(56px+env(safe-area-inset-bottom))] border-none shadow-none' : 'max-w-md flex flex-col bg-[var(--bg-window)] transition-all duration-300'}`} noPadding>
           <div className="flex flex-col bg-[var(--bg-window)] text-[var(--text-main)]">
              <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
                  <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-widest" style={{ color: game.color || 'var(--primary)' }}>{game.title}</h1>
@@ -608,7 +628,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
     return (
       <>
-      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl bg-[var(--bg-window)]" noPadding>
+      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className={`w-full ${isMobile ? 'h-[100dvh] pb-[calc(56px+env(safe-area-inset-bottom))] border-none shadow-none' : 'max-w-2xl bg-[var(--bg-window)]'}`} noPadding>
          <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-[var(--bg-window)]">
             <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
             

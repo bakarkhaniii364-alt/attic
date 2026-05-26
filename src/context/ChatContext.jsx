@@ -100,10 +100,13 @@ export function ChatProvider({ children }) {
         // 2. Export and publish local public key if not already matching in sync state
         const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
         const myProfile = roomProfiles[userId] || {};
-        const myPubJwkStrLoc = myProfile.e2ee_public_key ? JSON.stringify(myProfile.e2ee_public_key) : null;
-        const localPubJwkStr = JSON.stringify(localPubJwk);
+        const remotePubKey = myProfile.e2ee_public_key;
+        
+        const isSameKey = remotePubKey && 
+                          remotePubKey.x === localPubJwk.x && 
+                          remotePubKey.y === localPubJwk.y;
 
-        if (myPubJwkStrLoc !== localPubJwkStr) {
+        if (!isSameKey) {
           await sync.updateSyncStateAtomic('room_profiles', userId, {
             e2ee_public_key: localPubJwk
           });

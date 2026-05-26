@@ -67,7 +67,7 @@ html { scrollbar-width: none; -ms-overflow-style: none; }
   body { font-size: 13px; }
   .retro-bg-window { width: 96% !important; margin: 0 auto; max-width: 100% !important; height: auto !important; max-height: calc(100dvh - 2rem); overflow-y: auto; }
   .bg-pattern-grid { padding: 0.5rem !important; }
-  button, .retro-button { min-height: 44px; font-size: 0.9rem !important; }
+  button, .retro-button { font-size: inherit; }
   .grid { gap: 0.5rem !important; }
 }
 

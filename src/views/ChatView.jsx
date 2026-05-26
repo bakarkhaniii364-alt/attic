@@ -731,9 +731,51 @@ export function ChatView({ onClose, sfx }) {
   const callHistory = safeHistory.filter(m => m.type === 'call_invite');
   const headerActions = (
     <div className="flex gap-1.5">
-      <button onClick={() => handleStartCall('audio')} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Voice Call"><Phone size={14} /></button>
-      <button onClick={() => handleStartCall('video')} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Video Call"><Video size={14} /></button>
+      <button 
+        onClick={() => handleStartCall('audio')} 
+        className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-window text-main-text" 
+        title="Voice Call"
+      >
+        <Phone size={14} />
+      </button>
+      <button 
+        onClick={() => handleStartCall('video')} 
+        className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-window text-main-text" 
+        title="Video Call"
+      >
+        <Video size={14} />
+      </button>
     </div>
+  );
+
+  const chatTitle = isMobile ? (
+    <div 
+      className="flex items-center gap-3 py-1 cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity"
+      onClick={() => {
+        playAudio('click', sfx);
+        setActiveSidebarTab('media');
+        setShowDetails(true);
+      }}
+    >
+      <div className="flex flex-col leading-none items-start justify-center">
+        <span className="font-black text-sm truncate tracking-tight">{partnerNickname}</span>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <div className={`w-1 h-1 rounded-full ${partnerStatusData?.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`} />
+          <span className="text-[7.5px] font-black opacity-60 uppercase tracking-widest">{partnerStatusLabel.substring(0, 18)}</span>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <span 
+      className="cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity"
+      onClick={() => {
+        playAudio('click', sfx);
+        setActiveSidebarTab('media');
+        setShowDetails(true);
+      }}
+    >
+      {partnerNickname} | {partnerStatusLabel.toLowerCase()}
+    </span>
   );
 
   // Main chat history feed uses safeHistory directly to prevent typing filter side-effects
@@ -824,11 +866,11 @@ export function ChatView({ onClose, sfx }) {
         />
       )}
       <RetroWindow
-        title={`${partnerNickname} | ${partnerStatusLabel.toLowerCase()}`}
+        title={chatTitle}
         onClose={onClose}
         headerActions={headerActions}
         onTitleClick={() => { playAudio('click', sfx); setShowDetails(!showDetails) }}
-        className={`w-full ${isMobile ? 'h-[100dvh] max-h-none border-none' : 'max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]'} flex flex-col transition-all duration-300 relative`}
+        className={`w-full ${isMobile ? 'h-[100dvh] pb-[env(safe-area-inset-bottom)] max-h-none border-none shadow-none' : 'max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px]'} flex flex-col transition-all duration-300 relative`}
         noPadding
         sfx={sfx}
       >
@@ -1364,19 +1406,19 @@ export function ChatView({ onClose, sfx }) {
                   <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-white/10 retro-border flex-shrink-0 ml-2"><X size={14} /></button>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex gap-2 items-center p-2 sm:p-3 relative">
+              <form onSubmit={handleSend} className="flex gap-2 items-end p-2 sm:p-3 relative bg-window z-50">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
 
-                <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 retro-border bg-window text-main-text hover:brightness-110 transition-all">
-                    <Paperclip size={18} />
+                <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2 pb-0.5">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-[44px] h-[44px] flex items-center justify-center retro-border bg-window text-main-text hover:brightness-110 transition-all shrink-0">
+                    <Paperclip size={20} />
                   </button>
-                  <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); }} className={`p-2 retro-border transition-all ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:brightness-110'}`}>
-                    <Smile size={18} />
+                  <button type="button" onClick={() => { setShowEmojiPicker(!showEmojiPicker); }} className={`w-[44px] h-[44px] flex items-center justify-center retro-border transition-all shrink-0 ${showEmojiPicker ? 'bg-accent text-accent-text' : 'bg-window text-main-text hover:brightness-110'}`}>
+                    <Smile size={20} />
                   </button>
                 </div>
 
-                <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden">
+                <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden min-h-[44px] mb-0.5">
                   <textarea
                     ref={textareaRef}
                     rows={1}
@@ -1385,25 +1427,26 @@ export function ChatView({ onClose, sfx }) {
                     onKeyDown={handleKeyDown}
                     placeholder={pendingFiles.length > 0 ? "Add a caption..." : "type a message..."}
                     disabled={isRecording || voicePreview !== null || isInputDisabled}
-                    className={`w-full p-2 sm:p-3 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto text-main-text ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
-                    style={{ minHeight: '44px', maxHeight: '72px' }}
+                    className={`w-full p-2.5 focus:outline-none font-bold placeholder:font-normal text-sm sm:text-base resize-none overflow-y-auto text-main-text self-center ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
+                    style={{ minHeight: '44px', maxHeight: '120px' }}
                   />
                 </div>
-                {!input.trim() && !editingMsgId && voicePreview === null && pendingFiles.length === 0 ? (
-                  <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`p-2 sm:p-3 retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : (isRecording ? 'bg-[var(--color-danger)] text-[var(--text-on-danger)] shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
-                    <RetroIcon icon={Mic} size={18} className={isRecording ? 'animate-bounce' : ''} />
-                  </button>
-                ) : (
-                  <button type="submit" disabled={isInputDisabled} className={`p-2 sm:p-3 flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
-                    <RetroIcon icon={Send} size={18} />
-                  </button>
-                )}
+                <div className="pb-0.5 flex shrink-0">
+                  {!input.trim() && !editingMsgId && voicePreview === null && pendingFiles.length === 0 ? (
+                    <button type="button" disabled={isInputDisabled} onMouseDown={handleMicDown} onMouseUp={handleMicUp} onMouseLeave={handleMicUp} onTouchStart={handleMicDown} onTouchEnd={handleMicUp} className={`w-[44px] h-[44px] flex items-center justify-center retro-outset transition-all flex-shrink-0 select-none ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : (isRecording ? 'bg-[var(--color-danger)] text-[var(--text-on-danger)] shadow-none translate-y-[2px]' : 'bg-window text-main-text hover:brightness-110')}`}>
+                      <RetroIcon icon={Mic} size={20} className={isRecording ? 'animate-bounce' : ''} />
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={isInputDisabled} className={`w-[44px] h-[44px] flex items-center justify-center flex-shrink-0 transition-all ${isInputDisabled ? 'opacity-50 cursor-not-allowed bg-[var(--bg-disabled)] text-[var(--text-disabled)]' : 'bg-primary text-primary-text retro-outset hover:brightness-110'}`}>
+                      <RetroIcon icon={Send} size={20} />
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
           </div>
           {showDetails && (
             <div className="flex flex-col w-full md:w-80 shrink-0 bg-main overflow-hidden relative border-l-2 border-border h-full">
-              <button onClick={() => setShowDetails(false)} className="md:hidden absolute top-4 right-4 p-2 bg-window retro-outset z-10"><RetroIcon icon={X} size={16} /></button>
               <div className="p-2 flex gap-1.5 bg-border shrink-0">
                 <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
                   <ImageIcon size={12} /> Media

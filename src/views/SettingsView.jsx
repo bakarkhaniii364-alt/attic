@@ -46,6 +46,13 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   const [localNoiseSuppression, setLocalNoiseSuppression] = useState(noiseSuppression);
   const [localEchoCancellation, setLocalEchoCancellation] = useState(echoCancellation);
   
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // View management
   const [currentView, setCurrentView] = useState('home'); 
   const [searchQuery, setSearchQuery] = useState('');
@@ -475,69 +482,75 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
 
   return (
     <>
-      <RetroWindow title="control_panel.exe" onClose={handleCancel} noPadding className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col relative overflow-hidden transition-none">
+      <RetroWindow 
+        title={isMobile ? "Profile & Settings" : "control_panel.exe"} 
+        onClose={handleCancel} 
+        noPadding 
+        className={`w-full ${isMobile ? 'h-[100dvh] pb-safe-navbar border-none shadow-none' : 'max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px]'} flex flex-col relative overflow-hidden transition-none`}
+        sfx={localSfxEnabled}
+      >
         {/* Navigation Bar */}
         <div className="shrink-0 bg-border/5 border-b-2 border-border p-2 flex flex-col sm:flex-row gap-3 items-center">
-           <div className="flex items-center gap-1.5 shrink-0">
-              <RetroButton onClick={goBack} disabled={historyIndex === 0} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronLeft size={16} /></RetroButton>
-              <RetroButton onClick={goForward} disabled={historyIndex === history.length - 1} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronRight size={16} /></RetroButton>
-              <RetroButton onClick={() => navigateTo('home')} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><RefreshCw size={16} /></RetroButton>
-           </div>
-           
-           <div className="flex-1 w-full bg-window retro-border px-3 py-1.5 flex items-center gap-2 text-[11px] font-bold overflow-hidden">
-              <span className="opacity-30 flex-shrink-0 font-black">Attic:</span>
-              <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
-                 <span className="hover:underline cursor-pointer" onClick={() => navigateTo('home')}>Control Panel</span>
-                 {currentView !== 'home' && (
-                   <>
-                     <span className="opacity-30">/</span>
-                     <span className="text-primary font-black uppercase tracking-tight">{categories.find(c => c.id === currentView)?.label}</span>
-                   </>
-                 )}
-              </div>
-           </div>
+         <div className="flex items-center gap-1.5 shrink-0">
+            <RetroButton onClick={goBack} disabled={historyIndex === 0} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronLeft size={16} /></RetroButton>
+            <RetroButton onClick={goForward} disabled={historyIndex === history.length - 1} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><ChevronRight size={16} /></RetroButton>
+            <RetroButton onClick={() => navigateTo('home')} variant="white" className="p-1.5 !min-w-0 flex items-center justify-center"><RefreshCw size={16} /></RetroButton>
+         </div>
+         
+         <div className="flex-1 w-full bg-window retro-border px-3 py-1.5 flex items-center gap-2 text-[11px] font-bold overflow-hidden">
+            <span className="opacity-30 flex-shrink-0 font-black">Attic:</span>
+            <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
+               <span className="hover:underline cursor-pointer" onClick={() => navigateTo('home')}>Control Panel</span>
+               {currentView !== 'home' && (
+                 <>
+                   <span className="opacity-30">/</span>
+                   <span className="text-primary font-black uppercase tracking-tight">{categories.find(c => c.id === currentView)?.label}</span>
+                 </>
+               )}
+            </div>
+         </div>
 
-           <div className="w-full sm:w-44 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" size={12} />
-              <input 
-                type="text" 
-                placeholder="Search..." 
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (currentView !== 'home') setCurrentView('home');
-                }}
-                className="w-full pl-8 pr-3 py-1.5 retro-border bg-window text-[10px] font-bold focus:outline-none"
-              />
-           </div>
-        </div>
+         <div className="w-full sm:w-44 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" size={12} />
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (currentView !== 'home') setCurrentView('home');
+              }}
+              className="w-full pl-8 pr-3 py-1.5 retro-border bg-window text-[10px] font-bold focus:outline-none"
+            />
+         </div>
+      </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-main/5">
-           <div key={localTheme} className="animate-in fade-in zoom-in-95 duration-500">
-              {renderContent()}
-           </div>
-        </div>
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-main/5">
+         <div key={localTheme} className="animate-in fade-in zoom-in-95 duration-500">
+            {renderContent()}
+         </div>
+      </div>
 
-        {/* Footer Area */}
-        <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
-           <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
-           <div className="flex gap-2">
-              <RetroButton onClick={handleCancel} variant="secondary" className="px-5 py-1 text-[10px]">CANCEL</RetroButton>
-              <RetroButton onClick={handleSave} variant="primary" className="px-6 py-1 text-[10px]">SAVE & APPLY</RetroButton>
-           </div>
-        </div>
-      </RetroWindow>
+      {/* Footer Area */}
+      <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
+         <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
+         <div className="flex gap-2">
+            <RetroButton onClick={handleCancel} variant="secondary" className="px-5 py-1 text-[10px]">CANCEL</RetroButton>
+            <RetroButton onClick={handleSave} variant="primary" className="px-6 py-1 text-[10px]">SAVE & APPLY</RetroButton>
+         </div>
+      </div>
+    </RetroWindow>
 
-      {showLogoutConfirm && (
-        <ConfirmDialog
-          title="logout.exe"
-          message="Are you sure you want to log out of the Attic?"
-          onConfirm={() => { onLogout && onLogout(); }}
-          onCancel={() => setShowLogoutConfirm(false)}
-          sfx={localSfxEnabled}
-        />
-      )}
-    </>
+    {showLogoutConfirm && (
+      <ConfirmDialog
+        title="logout.exe"
+        message="Are you sure you want to log out of the Attic?"
+        onConfirm={() => { onLogout && onLogout(); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+        sfx={localSfxEnabled}
+      />
+    )}
+  </>
   );
 }

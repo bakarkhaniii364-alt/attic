@@ -21,6 +21,7 @@ import { useAuth, useSync, useCall, useChat } from './context/instances.js';
 import { useAssetSync } from './hooks/useAssetSync.js';
 import { useAppLogic } from './hooks/useAppLogic.js';
 import { DesktopOnly } from './components/MobileOnly.jsx';
+import { MobileBottomNav } from './components/Navigation/MobileBottomNav.jsx';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { LegalView } from './views/LegalView.jsx';
@@ -63,6 +64,7 @@ const RelationshipResume = lazyWithRetry(() => import('./components/Features.jsx
 const ActivitiesHub = lazyWithRetry(() => import('./games/index.jsx').then(m => ({ default: m.ActivitiesHub })));
 import SyncWatcher from './games/SyncWatcher.jsx';
 const ResetPasswordView = lazyWithRetry(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
+const SpaceHub = lazyWithRetry(() => import('./views/SpaceHub.jsx').then(m => ({ default: m.SpaceHub })));
 
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 import { SeoManager } from './components/SeoManager.jsx';
@@ -78,7 +80,7 @@ export default function App() {
 
 
   
-  const { user, userId, roomId, partnerId, loading: authLoading, roomLoading, hasInitialized } = useAuth();
+  const { user, userId, roomId, partnerId, loading: authLoading, roomLoading, hasInitialized, logout } = useAuth();
   const sync = useSync();
   const { globalState, onlineUsers, updateSyncState, updateSyncStateAtomic, mergeSyncState, roomProfiles, broadcast, isInitialized, syncError } = sync;
   const coupleData = globalState?.couple_data || {};
@@ -402,6 +404,7 @@ export default function App() {
                 scores={globalState.game_scores}
                 userId={userId}
                 partnerId={partnerId}
+                onLogout={logout}
               /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
@@ -441,12 +444,14 @@ export default function App() {
                 setPictionaryState={(val) => updateSyncState('pictionary_state', val)}
                 onSaveToScrapbook={handleSaveToScrapbook}
               /></ProtectedRoute>} />
+              <Route path="/space" element={<ProtectedRoute><SpaceHub onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </div>
         </>
         )}
+        {!isOnboarding && hasInitialized && user && location.pathname !== '/chat' && <MobileBottomNav sfxEnabled={sfxEnabled} />}
       </div>
     </>
   );

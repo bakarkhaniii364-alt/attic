@@ -33,7 +33,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const { messages: chatHistory } = useChat();
   const toast = useToast();
   const isMobile = useMobile();
-  const [mobileTab, setMobileTab] = useState('home');
 
   const profile = globalState?.room_profiles?.[userId] || {};
   const partnerProfile = globalState?.room_profiles?.[partnerId] || {};
@@ -110,28 +109,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const petHappy = coupleData.petHappy ?? 60;
   const petName = coupleData.petName || 'pet';
 
-  const mobilePivot = (
-    <div className="sticky top-0 z-[600] bg-window border-b-2 border-border pt-8 pb-3 px-6 overflow-x-auto whitespace-nowrap scrollbar-hide flex items-center justify-between shrink-0 shadow-sm">
-      {[
-        { id: 'home', icon: <Heart size={24} fill={mobileTab === 'home' ? 'currentColor' : 'none'} /> },
-        { id: 'chat', icon: <MessageSquare size={24} fill={mobileTab === 'chat' ? 'currentColor' : 'none'} /> },
-        { id: 'apps', icon: <Grid3x3 size={24} /> },
-        { id: 'settings', icon: <SettingsIcon size={24} /> }
-      ].map(tab => (
-        <button 
-          key={tab.id} 
-          onClick={() => {
-            playAudio('click', sfxEnabled);
-            setMobileTab(tab.id);
-          }}
-          className={`transition-all duration-300 relative pb-2 ${mobileTab === tab.id ? 'text-primary scale-110' : 'opacity-20 hover:opacity-40'}`}
-        >
-          {tab.icon}
-          {mobileTab === tab.id && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full" />}
-        </button>
-      ))}
-    </div>
-  );
+  // Mobile nav pivot removed as it's now handled globally in App.jsx
 
   const dynamicFeedItems = [];
 
@@ -202,79 +180,157 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   };
 
   const welcomeWindow = (
-    <RetroWindow title="welcome.exe" className={isMobile ? "w-full" : "md:col-span-8 h-auto min-h-[10rem]"}>
+    <RetroWindow title="welcome.exe" className={`w-full md:col-span-8 h-auto min-h-[10rem] order-1 md:order-none`}>
       <div className="flex flex-col h-full justify-between gap-2 p-1">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            {profile.pfp ? <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl" aria-hidden="true">{profile.emoji}</div>}
-            <div>
-              <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
-                hi {myDisplayName}! {mood}
-              </h1>
+        {isMobile ? (
+          // Mobile layout: Greeting & Kiss button in row 1, Partner status split in row 2 (prevents horizontal scroll)
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center w-full">
+              <div className="flex items-center gap-2.5">
+                {profile.pfp ? (
+                  <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-10 h-10 retro-border retro-shadow-dark object-cover bg-white animate-in zoom-in duration-300" />
+                ) : (
+                  <div className="w-10 h-10 retro-border retro-bg-accent flex items-center justify-center text-xl" aria-hidden="true">{profile.emoji}</div>
+                )}
+                <h1 className="text-base font-black leading-none lowercase">
+                  hi {myDisplayName}! {mood}
+                </h1>
+              </div>
+              <RetroButton
+                onClick={handleSendKiss}
+                disabled={Date.now() - lastActionTime < 3000}
+                variant="primary"
+                className="h-8 px-2.5 text-xs font-black uppercase shrink-0"
+              >
+                <Heart size={12} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
+                <span>Kiss</span>
+              </RetroButton>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-3 mt-2 bg-black/5 p-1.5 retro-border border-dashed">
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    {partnerProfile.pfp ? (
-                      <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
-                    ) : (
-                      <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
-                    )}
-                    <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
+            <div className="flex items-center gap-2.5 w-full mt-1 border-t border-dashed border-border/30 pt-2">
+              <div className="relative shrink-0">
+                {partnerProfile.pfp ? (
+                  <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
+                ) : (
+                  <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
+                )}
+                <div className={`absolute -bottom-1 -right-1 w-2 h-2 border border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-black truncate">{partnerName}</p>
+                    <span className={`text-[8px] font-black uppercase px-1 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
+                      partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
+                      isPartnerOnline ? 'bg-success text-success-text border-success' : 
+                      isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
+                      'bg-disabled text-disabled-text border-disabled opacity-60'
+                    }`}>
+                      {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-xs font-black truncate max-w-[150px] leading-tight">
-                        {partnerName}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
-                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
-                          partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
-                          isPartnerOnline ? 'bg-success text-success-text border-success' : 
-                          isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
-                          'bg-disabled text-disabled-text border-disabled opacity-60'
-                        }`}>
-                          {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
-                        </span>
-                        <p className="text-[9px] font-bold opacity-60 truncate whitespace-nowrap">
-                          {(() => {
-                            if (partnerStatusData.activity) return partnerStatusData.activity;
-                            if (partnerStatusData.status === 'offline') {
-                              const parts = [];
-                              // 1. Last Seen
-                              if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
-                              // 2. Played Last
-                              if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
-                              // 3. Prompt / "Miss you" logic
-                              const lastSeenAt = partnerProfile.last_online_at || partnerProfile.updated_at;
-                              if (lastSeenAt) {
-                                const hoursAway = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
-                                if (hoursAway > 12) parts.push("Missing them?");
-                                else if (hoursAway > 3) parts.push("Send a nudge?");
-                              }
-                              return parts.length > 0 ? parts.join(' · ') : 'Resting...';
-                            }
-                            return displayStatus.toLowerCase();
-                          })()}
+                  <p className="text-[9px] font-bold opacity-60 truncate mt-0.5">
+                    {(() => {
+                      if (partnerStatusData.activity) return partnerStatusData.activity;
+                      if (partnerStatusData.status === 'offline') {
+                        const parts = [];
+                        if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
+                        if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
+                        return parts.length > 0 ? parts.join(' · ') : 'Resting...';
+                      }
+                      return displayStatus.toLowerCase();
+                    })()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Desktop layout
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              {profile.pfp ? <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl" aria-hidden="true">{profile.emoji}</div>}
+              <div>
+                <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
+                  hi {myDisplayName}! {mood}
+                </h1>
+
+                <div className={`flex flex-wrap items-center gap-3 mt-2 ${isMobile ? '' : 'bg-black/5 p-1.5 retro-border border-dashed'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      {partnerProfile.pfp ? (
+                        <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
+                      ) : (
+                        <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
+                      )}
+                      <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-xs font-black truncate max-w-[150px] leading-tight">
+                          {partnerName}
                         </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
+                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
+                            partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
+                            isPartnerOnline ? 'bg-success text-success-text border-success' : 
+                            isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
+                            'bg-disabled text-disabled-text border-disabled opacity-60'
+                          }`}>
+                            {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
+                          </span>
+                          <p className="text-[9px] font-bold opacity-60 truncate whitespace-nowrap">
+                            {(() => {
+                              if (partnerStatusData.activity) return partnerStatusData.activity;
+                              if (partnerStatusData.status === 'offline') {
+                                const parts = [];
+                                // 1. Last Seen
+                                if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
+                                // 2. Played Last
+                                if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
+                                // 3. Prompt / "Miss you" logic
+                                const lastSeenAt = partnerProfile.last_online_at || partnerProfile.updated_at;
+                                if (lastSeenAt) {
+                                  const hoursAway = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
+                                  if (hoursAway > 12) parts.push("Missing them?");
+                                  else if (hoursAway > 3) parts.push("Send a nudge?");
+                                }
+                                return parts.length > 0 ? parts.join(' · ') : 'Resting...';
+                              }
+                              return displayStatus.toLowerCase();
+                            })()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+            {isMobile ? (
+              <RetroButton
+                onClick={handleSendKiss}
+                disabled={Date.now() - lastActionTime < 3000}
+                variant="primary"
+                className="h-9 px-3 text-xs font-black uppercase shrink-0"
+              >
+                <Heart size={14} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
+                <span>Kiss</span>
+              </RetroButton>
+            ) : (
+              <button 
+                type="button"
+                onClick={handleSendKiss} 
+                disabled={Date.now() - lastActionTime < 3000}
+                aria-label={`Send a kiss to ${partnerName}`}
+                className={`p-1.5 w-14 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
+              >
+                <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
+                <span className="text-[9px] font-bold mt-0.5 uppercase">Kiss</span>
+              </button>
+            )}
           </div>
-          <button 
-            type="button"
-            onClick={handleSendKiss} 
-            disabled={Date.now() - lastActionTime < 3000}
-            aria-label={`Send a kiss to ${partnerName}`}
-            className={`p-1.5 w-14 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
-          >
-            <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
-            <span className="text-[9px] font-bold mt-0.5 uppercase">Kiss</span>
-          </button>
-        </div>
+        )}
 
         {/* Dynamic, Smart Info Feed — shows only the single most important alert */}
         <div className="pt-2 border-t border-dashed border-border/40 mt-2">
@@ -282,7 +338,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             const item = dynamicFeedItems[0] || fallbackItem;
             return (
               <div 
-                className={`feed-item flex items-center justify-between gap-2 py-2 px-2.5 retro-border text-[11px] font-bold leading-tight ${item.bgClass}`}
+                className={`feed-item flex items-center justify-between gap-2 py-2 leading-tight ${isMobile ? 'border-b border-dashed border-border/30 bg-transparent text-main-text text-xs' : `px-2.5 retro-border text-[11px] font-bold ${item.bgClass}`}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="feed-icon-pulse">{item.icon}</span>
@@ -291,7 +347,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 {item.action && (
                   <RetroButton
                     type="button"
-                    className="text-[9px] py-0.5 px-2.5 shrink-0 bg-window text-main-text font-black retro-shadow-sm hover:-translate-y-px active:translate-y-0 transition-transform"
+                    variant="primary"
+                    className={`${isMobile ? 'h-8 px-3 text-xs' : 'text-[9px] py-0.5 px-2.5 bg-window text-main-text'} shrink-0 font-black uppercase`}
                     onClick={item.action.onClick}
                   >
                     {item.action.label}
@@ -307,30 +364,32 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             {partnerWeather && (
               <>
                 <span className="text-lg leading-none">{partnerWeather.emoji}</span>
-                <p className="text-[10px] font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
+                <p className="text-xs font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
               </>
             )}
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
-              <SettingsIcon size={10} /> Control Panel
-            </button>
-            <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
-              <LogOut size={10} /> Logout
-            </button>
-          </div>
+          {!isMobile && (
+            <div className="flex gap-2">
+              <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
+                <SettingsIcon size={10} /> Control Panel
+              </button>
+              <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
+                <LogOut size={10} /> Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </RetroWindow>
   );
 
   const petWindow = (
-    <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className={isMobile ? "w-full" : "md:col-span-4 h-auto min-h-[10rem]"} overflowVisible={true}>
+    <RetroWindow title={`${coupleData.petName || 'pet'}.tamagotchi`} className={`w-full md:col-span-4 h-auto min-h-[10rem] order-3 md:order-none`} overflowVisible={true}>
       <div className="flex flex-col items-center text-center h-full justify-between p-1">
         <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={!isPartnerOnline} externalAction={petAction} onPet={handlePet} onHit={handleHit} partnerName={partnerName} />
         
         <div className="w-full px-3 mt-1">
-          <div className="retro-border bg-black/5 p-1 flex gap-1 h-5">
+          <div className={`${isMobile ? 'bg-black/5' : 'retro-border bg-black/5'} p-1 flex gap-1 h-4`}>
             {[...Array(10)].map((_, i) => (
               <div 
                 key={i} 
@@ -341,14 +400,14 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         </div>
 
         <div className="flex gap-2 w-full mt-2 px-2">
-          <RetroButton variant="secondary" className="flex-1 py-1 text-[10px] font-black uppercase" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
+          <RetroButton variant="secondary" className={`flex-1 ${isMobile ? 'h-9 text-xs' : 'py-1 text-[10px]'} font-black uppercase`} disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
         </div>
       </div>
     </RetroWindow>
   );
 
   const timerWindow = (
-    <RetroWindow title="together.timer" className={isMobile ? "w-full" : "md:col-span-4 h-auto"}>
+    <RetroWindow title="together.timer" className={`w-full md:col-span-4 h-auto order-2 md:order-none`}>
       <div className="flex flex-col h-full justify-center gap-3">
         <AnniversaryTimer anniversary={coupleData.anniversary} />
         <CalendarReminder />
@@ -357,13 +416,13 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   );
 
   const radioWindow = (
-    <RetroWindow title="radio.sys" className={isMobile ? "window-screen" : "md:col-span-4 h-auto min-h-[12rem]"} noPadding>
+    <RetroWindow title="radio.sys" className={`w-full md:col-span-4 h-auto min-h-[12rem] ${isMobile ? 'hidden' : 'flex'}`} noPadding>
       <DashboardRadio radioState={radioState} setRadioState={setRadioState} />
     </RetroWindow>
   );
 
   const statsContent = (
-    <div className="flex flex-col h-full p-2 text-[11px] font-black uppercase tracking-wider text-main-text space-y-1">
+    <div className={`flex flex-col h-full p-2 ${isMobile ? 'text-xs' : 'text-[11px]'} font-black uppercase tracking-wider text-main-text space-y-1.5`}>
       <div className="flex justify-between border-b border-dashed border-border/30 pb-1">
         <span>Current Streak</span>
         <span className="text-primary">{streaks.count || 0} Days</span>
@@ -391,13 +450,13 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   );
 
   const statsWindow = (
-    <RetroWindow title="stats.sys" className={isMobile ? "window-screen" : "md:col-span-4 h-auto"}>
+    <RetroWindow title="stats.sys" className={`w-full md:col-span-4 h-auto order-4 md:order-none`}>
       {statsContent}
     </RetroWindow>
   );
 
   const appsWindow = (
-    <RetroWindow title="applications" className={isMobile ? "window-screen" : "md:col-span-12"}>
+    <RetroWindow title="applications" className={`w-full md:col-span-12 ${isMobile ? 'hidden' : 'flex'}`}>
       <div className={`grid ${isMobile ? 'grid-cols-3 gap-8' : 'grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-6 sm:gap-8'} p-4`}>
         <AppIcon icon={<MessageSquare size={28} />} label="Chat"     color="#3b82f6" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
         <AppIcon icon={<Gamepad2     size={28} />} label="Arcade"   color="#a855f7" onClick={() => nav('activities')} />
@@ -418,94 +477,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     </RetroWindow>
   );
 
-  if (isMobile) {
-    return (
-      <div className="w-full flex flex-col min-h-[100dvh] bg-window relative overflow-hidden">
-        {mobilePivot}
-        <div className="flex-1 overflow-y-auto pb-8">
-          {mobileTab === 'home' && (
-            <div className="flex flex-col gap-4 p-4 animate-in slide-in-from-right-8 duration-300">
-               {/* Simplified Home Layout */}
-               <div className="space-y-1">
-                  <h1 className="text-3xl font-black lowercase tracking-tighter">hi {myDisplayName}! {mood}</h1>
-                   <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : isPartnerIdle ? 'bg-yellow-400' : 'bg-gray-400'}`} />
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-80">{partnerName} is {partnerStatusData.status}</p>
-                    </div>
-                    <p className="text-[9px] font-bold opacity-40 mt-0.5 truncate whitespace-nowrap">
-                      {(() => {
-                        if (partnerStatusData.activity) return `Playing ${partnerStatusData.activity}`;
-                        if (partnerStatusData.status === 'offline') {
-                          const parts = [];
-                          if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
-                          if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
-                          return parts.join(' · ');
-                        }
-                        return partnerStatusData.label.toLowerCase();
-                      })()}
-                    </p>
-                   </div>
-               </div>
-
-               <div className="space-y-4">
-                  {welcomeWindow}
-                  {petWindow}
-                  {timerWindow}
-                  <RetroWindow title="system_stats" className="w-full">
-                    {statsContent}
-                  </RetroWindow>
-               </div>
-            </div>
-          )}
-          {mobileTab === 'chat' && (
-            <div className="h-[calc(100dvh-100px)] flex flex-col animate-in slide-in-from-right-8 duration-300">
-              <Suspense fallback={<div className="p-8 bg-window text-main-text font-bold text-center">Loading...</div>}>
-                <ChatView onClose={() => setMobileTab('home')} isMobile={true} />
-              </Suspense>
-            </div>
-          )}
-          {mobileTab === 'apps' && (
-            <div className="animate-in slide-in-from-right-8 duration-300">
-              {appsWindow}
-            </div>
-          )}
-          {mobileTab === 'settings' && (
-            <div className="animate-in slide-in-from-right-8 duration-300">
-              <Suspense fallback={<div className="p-8 bg-window text-main-text font-bold text-center">Loading...</div>}>
-                <SettingsView 
-                  onClose={() => setMobileTab('home')}
-                  theme={theme} setTheme={setTheme}
-                  profile={profile} setProfile={(p) => updateSyncStateAtomic('room_profiles', userId, p)}
-                  onLogout={logout}
-                  sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled}
-                  notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
-                  weather={weather} setWeather={setWeather}
-                  scores={scores}
-                  userId={userId} partnerId={partnerId}
-                  coupleData={coupleData} setCoupleData={(d) => mergeSyncState('couple_data', d)}
-                  streaks={streaks}
-                />
-              </Suspense>
-            </div>
-          )}
-        </div>
-
-        {showLogoutConfirm && (
-          <ConfirmDialog
-            title="logout.exe"
-            message="Are you sure you want to log out?"
-            onConfirm={logout}
-            onCancel={() => setShowLogoutConfirm(false)}
-            sfx={sfxEnabled}
-          />
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8">
+    <div className={`max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
       {unreadDoodles.length > 0 && (
         <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
           <div className="animate-in zoom-in-50 spin-in-6 duration-500 cursor-pointer hover:scale-110 transition-transform flex flex-col items-center" onClick={() => nav('doodle')}>
@@ -518,8 +491,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
       
 
       {welcomeWindow}
-      {petWindow}
       {timerWindow}
+      {petWindow}
       {radioWindow}
       {statsWindow}
       {appsWindow}

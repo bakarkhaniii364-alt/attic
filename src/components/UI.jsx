@@ -79,9 +79,29 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
     onClose();
   };
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Check if we should render fullscreen on mobile.
+  // We identify dashboard windows by checking if the title is one of the dashboard modules.
+  const isDashboardWindow = title && typeof title === 'string' && ['welcome.exe', 'together.timer', 'stats.sys', 'applications', 'radio.sys', 'chat_feed'].some(w => title.toLowerCase().includes(w) || title.toLowerCase().endsWith(w));
+  // If the window is a confirmation dialog or a smaller layout modal (like received_doodle.msg or doodle_sent.msg or reading_letter.msg), we keep its layout.
+  const isSmallModal = title && typeof title === 'string' && (title.endsWith('.msg') || title === 'Close' || title === 'Unsaved Changes' || title === 'confirm.exe');
+  
+  // Chat window should be full screen but should NOT have pb-safe-navbar since the bottom nav is hidden.
+  const isChatWindow = title && typeof title === 'string' && (title.toLowerCase().includes('chat') || title.toLowerCase().includes('message') || title.toLowerCase().includes('|'));
+  
+  const fullscreenClass = isMobile && !isSmallModal && !isDashboardWindow 
+    ? (isChatWindow ? 'h-[100dvh] border-none shadow-none rounded-none' : 'h-[100dvh] pb-safe-navbar border-none shadow-none rounded-none')
+    : '';
+
   return (
     <>
-      <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col transform-gpu ${className}`}>
+      <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col transform-gpu ${fullscreenClass} ${className}`}>
         <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
           <div className={`relative z-10 flex gap-2 items-center flex-1 ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
             <div className="flex flex-col gap-[3px] w-5 flex-shrink-0">
@@ -95,7 +115,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           <div className="relative z-10 flex items-center gap-1.5">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="hidden md:flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-red-600 text-white" style={{ color: 'white' }}>
+              <button onClick={handleCloseClick} aria-label="Close" className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-red-600 text-white" style={{ color: 'white' }}>
                 <X size={14} />
               </button>
             )}
