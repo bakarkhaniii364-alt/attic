@@ -235,6 +235,12 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     // TMDb API Key from Vite env (Optional)
     const tmdbKey = import.meta.env.VITE_TMDB_API_KEY || '';
 
+    useEffect(() => {
+        if (!tmdbKey) {
+            console.warn('TMDB key not set — cinema will use fallback providers only');
+        }
+    }, [tmdbKey]);
+
     // Embed URL parsing & derived state
     const parsedEmbed = parseEmbedUrl(syncedUrl);
     const isCinemaPlayerUrl = !!parsedEmbed;
@@ -817,7 +823,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                     className="w-full h-full border-none bg-black"
                                                     title="Cinema Player"
                                                     allowFullScreen
-                                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                                    referrerPolicy="no-referrer-when-downgrade"
+                                                    allow="autoplay; fullscreen; picture-in-picture"
                                                 />
                                                 <div className="absolute top-2 left-2 z-40 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded retro-border pointer-events-none select-none">
                                                     <div>provider: {activeProvider}</div>
@@ -871,7 +878,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                 <div className="flex flex-col sm:flex-row gap-4 bg-window p-4 border-[3px] border-border shadow-sm">
                                                     <div className="w-24 shrink-0 aspect-[2/3] bg-black/20 retro-border overflow-hidden flex items-center justify-center">
                                                         {selectedShow.poster ? (
-                                                            <img src={selectedShow.poster} alt={selectedShow.title} className="w-full h-full object-cover" />
+                                                            <img src={selectedShow.poster} alt={selectedShow.title} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" font-family="sans-serif" font-size="14" fill="%23999" text-anchor="middle" dy=".3em">No Image</text></svg>'; }} />
                                                         ) : (
                                                             <Tv size={32} className="opacity-30" />
                                                         )}
@@ -990,7 +997,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                             >
                                                                 <div className="aspect-[2/3] w-full bg-black/10 mb-2 relative overflow-hidden retro-border flex items-center justify-center">
                                                                     {item.poster ? (
-                                                                        <img src={item.poster} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                                                        <img src={item.poster} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" onError={(e) => { e.target.onerror = null; e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" font-family="sans-serif" font-size="14" fill="%23999" text-anchor="middle" dy=".3em">No Image</text></svg>'; }} />
                                                                     ) : (
                                                                         item.type === 'movie' ? <Film size={32} className="opacity-30" /> : <Tv size={32} className="opacity-30" />
                                                                     )}

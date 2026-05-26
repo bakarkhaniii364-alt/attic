@@ -11,41 +11,55 @@ export async function fetchJson(url, options = {}) {
 }
 
 export async function searchTVmaze(query) {
-  const data = await fetchJson(
-    `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(query)}`
-  );
-  if (!Array.isArray(data)) return [];
-  return data.map((item) => ({
-    id: item.show.id,
-    title: item.show.name,
-    year: item.show.premiered ? new Date(item.show.premiered).getFullYear() : 'N/A',
-    poster: item.show.image?.medium || item.show.image?.original || '',
-    type: 'tv',
-    imdbId: item.show.externals?.imdb || '',
-    summary: item.show.summary,
-  }));
+  try {
+    const data = await fetchJson(
+      `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(query)}`
+    );
+    if (!Array.isArray(data)) return [];
+    return data.map((item) => ({
+      id: item.show.id,
+      title: item.show.name,
+      year: item.show.premiered ? new Date(item.show.premiered).getFullYear() : 'N/A',
+      poster: item.show.image?.medium || item.show.image?.original || '',
+      type: 'tv',
+      imdbId: item.show.externals?.imdb || '',
+      summary: item.show.summary,
+    }));
+  } catch (err) {
+    console.error('TVmaze search failed:', err);
+    return [];
+  }
 }
 
 export async function searchIMDbProxy(query) {
-  const data = await fetchJson(
-    `https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(query)}`,
-    {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; AtticArcade/1.0)',
-      },
+  try {
+    const data = await fetchJson(
+      `https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; AtticArcade/1.0)',
+        },
+      }
+    );
+    if (!data?.ok || !Array.isArray(data.description)) return [];
+    return data.description.map((item) => ({
+      id: item['#IMDB_ID'],
+      title: item['#TITLE'],
+      year: item['#YEAR'] || 'N/A',
+      poster: item['#IMG_POSTER'] || '',
+      type:
+        item['#TYPE'] === 'tvSeries' || item['#TYPE'] === 'tvMiniSeries' ? 'tv' : 'movie',
+      actors: item['#ACTORS'],
+    }));
+  } catch (err) {
+    console.error('IMDb proxy search failed, falling back to TMDB:', err);
+    const tmdbKey = import.meta.env.VITE_TMDB_API_KEY;
+    if (tmdbKey) {
+      return searchTMDB(query, tmdbKey);
     }
-  );
-  if (!data?.ok || !Array.isArray(data.description)) return [];
-  return data.description.map((item) => ({
-    id: item['#IMDB_ID'],
-    title: item['#TITLE'],
-    year: item['#YEAR'] || 'N/A',
-    poster: item['#IMG_POSTER'] || '',
-    type:
-      item['#TYPE'] === 'tvSeries' || item['#TYPE'] === 'tvMiniSeries' ? 'tv' : 'movie',
-    actors: item['#ACTORS'],
-  }));
+    return [];
+  }
 }
 
 export async function searchTMDB(query, apiKey) {

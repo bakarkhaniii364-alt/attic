@@ -60,7 +60,46 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
   const [selectedCards, setSelectedCards] = useState([]);
   
   const trueCenterPile = useRef([]);
-  const broadcast = useBroadcast(`bluff_events_${roomId}`);
+  const gameStateRef = useRef(gameState);
+  
+  // Update gameStateRef whenever gameState changes
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  
+  // Broadcast senders with listeners embedded
+  const sendDeal = useBroadcast(`bluff_deal_${roomId}`, (msg) => {
+    if (isMultiplayer && msg.to === myId && msg.type === 'deal') {
+      setMyHand(msg.hand);
+    }
+  });
+  
+  const sendPlayCards = useBroadcast(`bluff_play_${roomId}`, (msg) => {
+    if (isMultiplayer && isHost && msg.type === 'play_cards') {
+      trueCenterPile.current.push(...msg.cards);
+    }
+  });
+  
+  const sendTakePile = useBroadcast(`bluff_take_${roomId}`, (msg) => {
+    if (msg.to === myId) {
+      setMyHand(prev => [...prev, ...msg.cards].sort((a,b) => RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank)));
+      playAudio('error', sfx);
+    }
+  });
+  
+  const sendPassTurn = useBroadcast(`bluff_pass_${roomId}`, (msg) => {
+    if (isHost && isMultiplayer && msg.type === 'pass_turn') {
+      setGameState(prev => ({
+        ...prev,
+        turn: oppId,
+        targetRankIdx: (prev.targetRankIdx + 1) % 13,
+        phase: 'action'
+      }));
+    }
+  });
+  
+  // Listener for bluff call messages - will be processed by effect below
+  const sendCallBluff = useBroadcast(`bluff_call_${roomId}`, () => {
+    // Listener callback handled via effect
+  });
 
   // Initialization (Host)
   useEffect(() => {
@@ -73,7 +112,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
         setMyHand(h1);
         
         if (isMultiplayer) {
-           broadcast({ type: 'deal', to: oppId, hand: h2 });
+           sendDeal({ type: 'deal', to: oppId, hand: h2 });
         } else {
            trueCenterPile.current.aiHand = h2;
         }
@@ -90,26 +129,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
         });
       }, 2000);
     }
-  }, [isHost, gameState, myId, oppId, setGameState, isMultiplayer, broadcast]);
-
-  // Handle incoming broadcasts
-  useEffect(() => {
-     if (!isMultiplayer) return;
-     const unsub = broadcast(msg => {
-         if (msg.to !== myId && msg.to !== 'all') return;
-         
-         if (msg.type === 'deal') {
-             setMyHand(msg.hand);
-         } else if (msg.type === 'play_cards' && isHost) {
-             // Host receives P2's hidden cards
-             trueCenterPile.current.push(...msg.cards);
-         } else if (msg.type === 'take_pile') {
-             setMyHand(prev => [...prev, ...msg.cards].sort((a,b) => RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank)));
-             playAudio('error', sfx);
-         }
-     });
-     return () => unsub && unsub();
-  }, [broadcast, isMultiplayer, myId, isHost, sfx]);
+  }, [isHost, gameState, myId, oppId, setGameState, isMultiplayer, sendDeal]);
 
   const handlePlayCards = () => {
      if (selectedCards.length === 0 || selectedCards.length > 4) return;
@@ -122,7 +142,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
      if (isHost) {
          trueCenterPile.current.push(...cardsToPlay);
      } else {
-         broadcast({ type: 'play_cards', to: oppId, cards: cardsToPlay });
+         sendPlayCards({ type: 'play_cards', to: oppId, cards: cardsToPlay });
      }
 
      const newHandsCount = { ...gameState.handsCount, [myId]: gameState.handsCount[myId] - cardsToPlay.length };
@@ -135,9 +155,6 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
          phase: 'reaction'
      });
   };
-
-  const gameStateRef = useRef(gameState);
-  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   const processBluffCall = useCallback((callerId, lastPlayerId) => {
      const currentGS = gameStateRef.current;
@@ -159,7 +176,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
          trueCenterPile.current.aiHand = [...(trueCenterPile.current.aiHand || []), ...pileToTake];
          playAudio('success', sfx);
      } else if (isMultiplayer) {
-         broadcast({ type: 'take_pile', to: loser, cards: pileToTake });
+         sendTakePile({ type: 'take_pile', to: loser, cards: pileToTake });
      }
 
      setGameState({
@@ -172,36 +189,33 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
              loser
          }
      });
-  }, [myId, isMultiplayer, broadcast, setGameState, sfx]);
+  }, [myId, isMultiplayer, sendTakePile, setGameState, sfx]);
+  
+  // Store processBluffCall in ref so it can be accessed by broadcast listeners
+  const processBluffCallRef = useRef(processBluffCall);
+  useEffect(() => { processBluffCallRef.current = processBluffCall; }, [processBluffCall]);
+  
+  // Listen for bluff call messages from opponent
+  useEffect(() => {
+    const handleBluffCall = (event) => {
+      const msg = event.detail || event;
+      if (isHost && isMultiplayer && msg && msg.type === 'call_bluff') {
+        processBluffCallRef.current(oppId, myId);
+      }
+    };
+    window.addEventListener('sync_broadcast', handleBluffCall);
+    return () => window.removeEventListener('sync_broadcast', handleBluffCall);
+  }, [isHost, isMultiplayer, oppId, myId]);
 
   const handleCallBluff = () => {
      if (!isHost) {
          // Ask host to process
-         broadcast({ type: 'call_bluff', to: oppId });
+         sendCallBluff({ type: 'call_bluff', to: oppId });
          // We must rely on state syncing from host
      } else {
-         processBluffCall(myId, oppId);
+         processBluffCallRef.current(myId, oppId);
      }
   };
-
-  // Host listener for P2 bluff call
-  useEffect(() => {
-     if (isHost && isMultiplayer) {
-         const unsub = broadcast(msg => {
-             if (msg.type === 'call_bluff') {
-                 processBluffCall(oppId, myId);
-             } else if (msg.type === 'pass_turn') {
-                 setGameState(prev => ({
-                     ...prev,
-                     turn: oppId,
-                     targetRankIdx: (prev.targetRankIdx + 1) % 13,
-                     phase: 'action'
-                 }));
-             }
-         });
-         return () => unsub && unsub();
-     }
-  }, [broadcast, isHost, isMultiplayer, oppId, myId, gameState]);
 
   const handlePass = () => {
      playAudio('click', sfx);
@@ -213,7 +227,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
              phase: 'action'
          });
      } else {
-         broadcast({ type: 'pass_turn', to: oppId });
+         sendPassTurn({ type: 'pass_turn', to: oppId });
      }
   };
 
