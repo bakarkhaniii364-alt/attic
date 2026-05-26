@@ -43,6 +43,10 @@ export default defineConfig(({ mode }) => ({
     sourcemap: mode !== 'production',
     chunkSizeWarningLimit: 1000,
       rollupOptions: {
+      input: {
+        main: './index.html',
+        mobile: './m/index.html'
+      },
       output: {
         manualChunks(id) {
           if (!id) return;

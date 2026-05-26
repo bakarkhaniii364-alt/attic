@@ -3,7 +3,12 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <script>
+    if (/Mobi|Android|iPhone|iPad|IEMobile/i.test(navigator.userAgent) && !window.location.pathname.startsWith('/m/')) {
+      window.location.replace('/m/');
+    }
+  </script>
   <meta name="description"
     content="Attic is a private space for couples — encrypted chat, shared scrapbooks, games, and calls. Just the two of you." />
   <meta name="theme-color" content="#e94560" />
