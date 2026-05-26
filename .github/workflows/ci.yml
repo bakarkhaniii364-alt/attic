@@ -30,13 +30,6 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       
-      - name: Start WebSocket relay server
-        run: npm run test:relay &
-        continue-on-error: true
-      
-      - name: Wait for relay server to start
-        run: sleep 2
-      
       - name: Run Playwright tests
         run: npx playwright test
       
