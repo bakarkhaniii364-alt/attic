@@ -70,7 +70,7 @@ const CardUI = ({ card, onClick, className = "", hidden = false }) => {
   );
 };
 
-export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer, config, userId, setScores, sfx, onWin }) {
+export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer, config, userId, setScores, sfx, onWin, partnerName }) {
   const { sendData } = useCall();
   const { roomId } = useAuth();
   const [gameState, setGameState] = useGlobalSync(`uno_${roomId}`, null);

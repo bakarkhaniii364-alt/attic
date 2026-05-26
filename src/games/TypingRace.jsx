@@ -16,7 +16,7 @@ const PASSAGES = [
   "Grow old along with me! The best is yet to be, the last of life, for which the first was made.",
 ];
 
-export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId, isHost, roomId }) {
+export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId, isHost, roomId, partnerName }) {
   const isMultiplayer = !!(roomId && partnerId);
 
   // Shared passage selection (host picks)

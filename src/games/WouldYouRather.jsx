@@ -22,7 +22,7 @@ const QUESTIONS = [
   { q: "Would you rather give up coffee or give up sweets?", a: "☕ Coffee", b: "🍬 Sweets" },
 ];
 
-export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile, userId, partnerId, isHost, roomId }) {
+export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile, userId, partnerId, isHost, roomId, partnerName }) {
   const isMultiplayer = !!(roomId && partnerId);
 
   // Shared state: current question index + both answers (null until chosen)

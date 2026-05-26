@@ -5,7 +5,7 @@ import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { Heart, LineChart } from 'lucide-react';
 import { getDailyQuizQuestions } from '../utils/daily.js';
 
-export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, userId, partnerId, isHost, roomId, config }) {
+export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, userId, partnerId, isHost, roomId, config, partnerName }) {
   const isMultiplayer = !!(roomId && partnerId);
   
   // Persistent shared state: questions, index, both answers, scores

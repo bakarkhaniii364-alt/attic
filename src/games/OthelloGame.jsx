@@ -138,7 +138,7 @@ const getBestMove = (board, player, diff) => {
   return bestMove || moves[0];
 };
 
-export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId }) {
+export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, partnerName }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myColor = isMultiplayer ? (userId > partnerId ? BLACK : WHITE) : BLACK;
   const aiColor = WHITE;

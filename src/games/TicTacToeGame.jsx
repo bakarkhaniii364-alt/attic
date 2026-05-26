@@ -8,7 +8,7 @@ import { useGlobalSync, useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useAuth } from '../context/instances.js';
 import { RefreshCw } from 'lucide-react';
 
-export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {
+export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId, partnerName }) {
   const { roomId } = useAuth();
   const [syncedState, setSyncedState] = useGlobalSync(`tictactoe_${roomId}`, null);
   const sendMove = useBroadcast(`ttt_move_${roomId}`, (move) => {

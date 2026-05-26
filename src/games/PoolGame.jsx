@@ -140,7 +140,7 @@ const solveCollision = (b1, b2, onCueHit, onBallHit) => {
   if (speed > 1.5 && onBallHit) onBallHit(speed);
 };
 
-export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook }) {
+export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook, partnerName }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myPlayerId = isMultiplayer ? userId : 'p1';
   const oppPlayerId = isMultiplayer ? partnerId : 'p2';

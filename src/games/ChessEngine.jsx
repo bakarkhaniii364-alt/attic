@@ -19,7 +19,7 @@ const PUZZLES = [
     "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", // Ruy lopez
 ];
 
-export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isMultiplayer, isHost, roomId }) {
+export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isMultiplayer, isHost, roomId, partnerName }) {
   // Multiplayer sync
   const [syncedState, setSyncedState] = useGlobalSync(`chess_${roomId}`, null);
   const sendMove = useBroadcast(`chess_move_${roomId}`, (payload) => {

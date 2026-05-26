@@ -8,7 +8,7 @@ import { useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useCall } from '../context/instances.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
-export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, pictionaryState, setPictionaryState, isHost }) {
+export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, pictionaryState, setPictionaryState, isHost, partnerName }) {
   const p1Id = isHost ? userId : (partnerId || userId);
   const p2Id = isHost ? (partnerId || userId) : userId;
 
@@ -39,7 +39,6 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const stateToUse = pictionaryState || defaultState;
   const { gameState, drawerId, word, displayWord, currentCanvas } = stateToUse;
   const isDrawer = userId === drawerId;
-  const partnerName = profile?.partnerNickname || 'Partner';
 
   const [guess, setGuess] = useState('');
   const [hotCold, setHotCold] = useState('');

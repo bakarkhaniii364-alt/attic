@@ -7,7 +7,7 @@ import { PenTool, Eraser, Lightbulb, Pause, Play, AlertCircle, RefreshCw } from 
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { generateSudoku } from '../utils/sudokuGenerator.js';
 
-export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId }) {
+export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerName }) {
   const [board, setBoard] = useState([]);
   const [solution, setSolution] = useState([]);
   const [selected, setSelected] = useState(null);

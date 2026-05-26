@@ -14,7 +14,7 @@ const KEYBOARD = [
   ['ENTER','Z','X','C','V','B','N','M','DEL']
 ];
 
-export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId }) {
+export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerName }) {
   const [targetWord, setTargetWord] = useState(""); 
   const wordLen = config.customWord ? config.customWord.length : (config.diff === 'easy' ? 4 : config.diff === 'medium' ? 5 : 6);
   const maxGuesses = 6;

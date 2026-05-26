@@ -13,7 +13,7 @@ const DECKS = {
     food: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝']
 };
 
-export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, isHost, roomId }) {
+export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, isHost, roomId, partnerName }) {
   const { assets } = useAssetSync(roomId || 'global', 'scrapbook');
   
   const isRemoteCompetitive = config?.mode === 'competitive' && roomId && partnerId;

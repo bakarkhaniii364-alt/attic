@@ -48,7 +48,7 @@ function isGameOver(grid) {
 function getScore2048(grid) { let s = 0; for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) s += grid[r][c]; return s; }
 const TILE_COLORS = { 0: 'var(--bg-main)', 2: 'var(--bg-window)', 4: 'var(--accent)', 8: 'var(--secondary)', 16: 'var(--primary)', 32: '#f97316', 64: '#ef4444', 128: '#eab308', 256: '#a855f7', 512: '#ec4899', 1024: '#14b8a6', 2048: '#fbbf24' };
 
-export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId }) {
+export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId, partnerName }) {
   const [grid, setGrid] = useState(createGrid);
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(() => parseInt(localStorage.getItem('2048_best') || '0'));

@@ -5,7 +5,7 @@ import { useGlobalSync } from '../hooks/useSupabaseSync.js';
 import { Search, HelpCircle, Check, X, Send, Trophy, Skull } from 'lucide-react';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
 
-export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId, isHost, roomId }) {
+export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShareToChat, profile, myName, userId, partnerId, isHost, roomId, partnerName }) {
   const isMultiplayer = !!(roomId && partnerId);
   const [syncState, setSyncState] = useGlobalSync(`twentyq_${roomId}`, null);
   

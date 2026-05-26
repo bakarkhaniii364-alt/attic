@@ -49,7 +49,7 @@ const CardUI = ({ card, onClick, selected, hidden = false }) => {
   );
 };
 
-export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId }) {
+export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, partnerName }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myId = isMultiplayer ? userId : 'p1';
   const oppId = isMultiplayer ? partnerId : 'ai';
