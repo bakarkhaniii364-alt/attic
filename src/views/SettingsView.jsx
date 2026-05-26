@@ -331,141 +331,14 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
     if (currentView === 'aesthetics') {
       const weatherOptions = [
         { id: 'clear', label: 'Clear', icon: <Sun size={12} className="text-amber-500" /> },
-        { id: 'clouds', label: 'Clouds', icon: <Cloud size={12} className="text-blue-400" /> },
         { id: 'rain', label: 'Rain', icon: <CloudRain size={12} className="text-indigo-400" /> },
         { id: 'snow', label: 'Snow', icon: <Snowflake size={12} className="text-sky-300" /> },
         { id: 'thunder', label: 'Thunder', icon: <Zap size={12} className="text-yellow-400" /> },
         { id: 'storm', label: 'Storm', icon: <CloudLightning size={12} className="text-purple-400" /> },
       ];
 
-      const renderMiniWeather = (w) => {
-        if (w === 'rain' || w === 'storm') {
-          return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-60">
-              {[...Array(6)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="absolute w-[1.5px] h-[12px] bg-primary rounded-full" 
-                  style={{
-                    left: `${15 + i * 15}%`,
-                    top: `-15px`,
-                    transform: 'rotate(15deg)',
-                    animation: `fall ${0.5 + Math.random() * 0.4}s linear infinite`,
-                    animationDelay: `${Math.random() * 0.5}s`
-                  }}
-                />
-              ))}
-              <style>{`
-                @keyframes fall {
-                  0% { top: -15px; }
-                  100% { top: 100%; }
-                }
-              `}</style>
-            </div>
-          );
-        }
-        if (w === 'snow') {
-          return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-80">
-              {[...Array(6)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="absolute w-[3px] h-[3px] bg-main-text/40 rounded-full" 
-                  style={{
-                    left: `${10 + i * 18}%`,
-                    top: `-10px`,
-                    animation: `drift ${2 + Math.random() * 1.5}s linear infinite`,
-                    animationDelay: `${Math.random() * 1.5}s`
-                  }}
-                />
-              ))}
-              <style>{`
-                @keyframes drift {
-                  0% { top: -10px; transform: translateX(0); }
-                  50% { transform: translateX(5px); }
-                  100% { top: 100%; transform: translateX(-5px); }
-                }
-              `}</style>
-            </div>
-          );
-        }
-        if (w === 'clouds') {
-          return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30 flex items-center justify-around">
-              <Cloud size={20} className="text-main-text animate-pulse" style={{ animationDuration: '6s' }} />
-              <Cloud size={14} className="text-main-text animate-pulse" style={{ animationDuration: '4s' }} />
-            </div>
-          );
-        }
-        if (w === 'thunder' || w === 'storm') {
-          return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden animate-flash">
-              <Zap size={20} className="text-accent absolute left-1/3 top-1/4 opacity-40 animate-bounce" />
-              <style>{`
-                @keyframes flash {
-                  0%, 95%, 100% { background-color: transparent; }
-                  96%, 98% { background-color: rgba(255, 255, 255, 0.15); }
-                }
-                .animate-flash {
-                  animation: flash 5s infinite;
-                }
-              `}</style>
-            </div>
-          );
-        }
-        if (w === 'clear') {
-          return (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-60">
-              {[...Array(4)].map((_, i) => (
-                <Sparkle 
-                  key={i} 
-                  size={6} 
-                  className="absolute text-accent animate-ping" 
-                  style={{
-                    left: `${20 + i * 20}%`,
-                    top: `${25 + i * 15}%`,
-                    animationDuration: `2s`,
-                    animationDelay: `${i * 0.4}s`
-                  }}
-                />
-              ))}
-            </div>
-          );
-        }
-        return null;
-      };
-
       return (
         <div className="p-4 space-y-6">
-           {/* Interactive mockup CRT preview window */}
-           <div className="relative overflow-hidden h-36 retro-border bg-window flex flex-col p-2 select-none shadow-md">
-              {/* Pattern backdrop */}
-              <div 
-                className={`absolute inset-0 bg-pattern-${localCoupleData.settings?.bgPattern || 'grid'} pointer-events-none`} 
-                style={{ opacity: localCoupleData.settings?.bgPatternOpacity !== undefined ? localCoupleData.settings?.bgPatternOpacity : 0.22 }} 
-              />
-              
-              {/* Render mini weather simulation */}
-              {renderMiniWeather(localWeather)}
-
-              {/* Fake Window Header */}
-              <div className="relative z-10 flex items-center justify-between bg-header text-on-header px-2 py-0.5 retro-border border-b text-[8px] font-black uppercase tracking-widest">
-                <span className="flex items-center gap-1">📺 realtime_preview.exe</span>
-                <div className="flex gap-0.5">
-                  <div className="w-2 h-2 bg-border border border-window"></div>
-                  <div className="w-2 h-2 bg-border border border-window"></div>
-                </div>
-              </div>
-
-              {/* Fake Window Content */}
-              <div className="relative z-10 flex-1 flex items-center justify-center bg-window/50 backdrop-blur-[1px] retro-border border-dashed m-1.5 p-2 text-center">
-                 <div className="space-y-0.5">
-                   <p className="text-[9px] font-black uppercase tracking-wider text-main-text">Theme Mode: <span className="text-primary font-black">{localTheme}</span></p>
-                   <p className="text-[8px] font-bold opacity-60 uppercase text-main-text">Atmosphere: <span className="text-primary font-black">{localWeather}</span></p>
-                   <p className="text-[8px] font-bold opacity-45 uppercase text-main-text">Wallpaper Pattern: <span className="text-primary font-black">{localCoupleData.settings?.bgPattern || 'grid'}</span> ({Math.round((localCoupleData.settings?.bgPatternOpacity !== undefined ? localCoupleData.settings?.bgPatternOpacity : 0.22) * 100)}%)</p>
-                 </div>
-              </div>
-           </div>
 
            <div>
               <h4 className="text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2"><Sun size={12}/> Atmosphere</h4>
