@@ -121,7 +121,7 @@
   }
 
   .pb-safe-navbar {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom) + 24px) !important;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom) + 4px) !important;
   }
 
   .chat-input-textarea {

@@ -88,7 +88,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   // Check if we should render fullscreen on mobile.
   // We identify dashboard windows by checking if the title is one of the dashboard modules.
-  const isDashboardWindow = title && typeof title === 'string' && ['welcome.exe', 'together.timer', 'stats.sys', 'applications', 'radio.sys', 'chat_feed'].some(w => title.toLowerCase().includes(w) || title.toLowerCase().endsWith(w));
+  const isDashboardWindow = title && typeof title === 'string' && ['welcome.exe', 'together.timer', 'stats.sys', 'applications', 'radio.sys', 'chat_feed', 'tamagotchi', 'space.sys', 'settings.exe'].some(w => title.toLowerCase().includes(w) || title.toLowerCase().endsWith(w));
   // If the window is a confirmation dialog or a smaller layout modal (like received_doodle.msg or doodle_sent.msg or reading_letter.msg), we keep its layout.
   const isSmallModal = title && typeof title === 'string' && (title.endsWith('.msg') || title === 'Close' || title === 'Unsaved Changes' || title === 'confirm.exe');
   
@@ -101,7 +101,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   return (
     <>
-      <div className={`glass-window retro-border-thick retro-shadow-dark flex flex-col transform-gpu ${fullscreenClass} ${className}`}>
+      <div className={`glass-window bg-window retro-border-thick retro-shadow-dark flex flex-col transform-gpu ${fullscreenClass} ${className}`}>
         <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
           <div className={`relative z-10 flex gap-2 items-center flex-1 ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
             <div className="flex flex-col gap-[3px] w-5 flex-shrink-0">
@@ -344,13 +344,13 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
             <div className="flex items-center justify-center gap-3 pb-3 border-b-2 border-dashed border-border">
               {isSolo ? (
                  <div className="flex items-center gap-2">
-                    {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full border-2 border-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full border-2 border-border bg-accent text-accent-text flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
+                    {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-none border-2 border-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-none border-2 border-border bg-accent text-accent-text flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
                     <span className="font-bold text-sm truncate max-w-[100px]">{playerName} <span className="opacity-50">(Solo)</span></span>
                  </div>
               ) : (
                  <>
                     <div className="flex items-center gap-2 flex-1 justify-end">
-                      {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-full border-2 border-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-full border-2 border-border bg-accent text-accent-text flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
+                      {localProfile?.pfp ? <img src={localProfile.pfp} alt="" className="w-8 h-8 rounded-none border-2 border-border object-cover bg-white shrink-0" /> : <div className="w-8 h-8 rounded-none border-2 border-border bg-accent text-accent-text flex items-center justify-center text-sm shrink-0">{localProfile?.emoji || '😊'}</div>}
                       <span className="font-bold text-sm truncate max-w-[100px]">{playerName}</span>
                     </div>
                     <span className="text-xs opacity-50 font-black uppercase tracking-widest px-2 py-1 bg-border text-window shrink-0 border-2 border-border">VS</span>

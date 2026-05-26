@@ -78,6 +78,11 @@ export function ChatProvider({ children }) {
   const [sharedKey, setSharedKey] = useState(null);
   const sharedKeyRef = useRef(null);
 
+  // E2EE Initialization Guards
+  const e2eeInitRef = useRef(false); // Tracks if local keys have been initialized this session
+  const derivedKeyInputsRef = useRef(null); // Tracks the partner key fingerprint used for last derivation
+  const [e2eeVersion, setE2eeVersion] = useState(0); // Incremented to force re-initialization (e.g., after restore)
+
   // E2EE Backup & Restoration States
   const [recoveryKeyToShow, setRecoveryKeyToShow] = useState(null);
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
@@ -100,6 +105,8 @@ export function ChatProvider({ children }) {
   useEffect(() => {
     if (!userId || !roomId || !isSyncInitialized) {
       setSharedKey(null);
+      e2eeInitRef.current = false;
+      derivedKeyInputsRef.current = null;
       return;
     }
 
@@ -107,42 +114,25 @@ export function ChatProvider({ children }) {
 
     const initE2EE = async () => {
       try {
-        const myProfile = roomProfiles[userId] || {};
-        const backupExists = !!myProfile.encrypted_private_key;
-
-        // 1. Get or generate local ECDH keypair
+        // --- PHASE 1: Local key initialization (runs once per session) ---
         let keys = await getLocalKeypair(userId);
 
-        if (!keys) {
-          if (backupExists) {
-            // A backup exists on the database. Show the restore prompt.
-            if (isCurrent) {
-              setShowRestorePrompt(true);
-            }
-            return; // Halt initialization until restored or reset
-          } else {
-            // No backup exists. Generate a new key pair and create a backup.
-            keys = await generateECDHKeypair();
-            await saveLocalKeypair(userId, keys);
-            
-            const recoveryKey = generateRecoveryKey();
-            await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
-            const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
-            const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
+        if (!e2eeInitRef.current) {
+          const myProfile = roomProfiles[userId] || {};
+          const backupExists = !!myProfile.encrypted_private_key;
 
-            await sync.updateSyncStateAtomic('room_profiles', userId, {
-              e2ee_public_key: localPubJwk,
-              encrypted_private_key: encrypted
-            });
-
-            if (isCurrent) {
-              setRecoveryKeyToShow(recoveryKey);
-            }
-          }
-        } else {
-          // Keys exist locally. Let's make sure they are backed up.
-          if (!backupExists) {
-            try {
+          if (!keys) {
+            if (backupExists) {
+              // A backup exists on the database. Show the restore prompt.
+              if (isCurrent) {
+                setShowRestorePrompt(true);
+              }
+              return; // Halt initialization until restored or reset
+            } else {
+              // No backup exists. Generate a new key pair and create a backup.
+              keys = await generateECDHKeypair();
+              await saveLocalKeypair(userId, keys);
+              
               const recoveryKey = generateRecoveryKey();
               await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
               const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
@@ -156,53 +146,76 @@ export function ChatProvider({ children }) {
               if (isCurrent) {
                 setRecoveryKeyToShow(recoveryKey);
               }
-            } catch (err) {
-              console.warn('[E2EE] Local key pair is non-extractable (legacy). Skipping automatic backup.');
             }
+          } else {
+            // Keys exist locally. Ensure they're backed up and published.
+            const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
+            const remotePubKey = myProfile.e2ee_public_key;
+            const isSameKey = remotePubKey && 
+                              remotePubKey.x === localPubJwk.x && 
+                              remotePubKey.y === localPubJwk.y;
+
+            if (!backupExists || !isSameKey) {
+              try {
+                // Reuse existing recovery key from localforage if available
+                let recoveryKey = await localforage.getItem(`e2ee_recovery_key_${userId}`);
+                let isNewRecoveryKey = false;
+                if (!recoveryKey) {
+                  recoveryKey = generateRecoveryKey();
+                  await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
+                  isNewRecoveryKey = true;
+                }
+                const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
+                await sync.updateSyncStateAtomic('room_profiles', userId, {
+                  e2ee_public_key: localPubJwk,
+                  encrypted_private_key: encrypted
+                });
+                if (isCurrent && isNewRecoveryKey) {
+                  setRecoveryKeyToShow(recoveryKey);
+                }
+              } catch (err) {
+                console.warn('[E2EE] Local key pair is non-extractable (legacy). Publishing public key only.');
+                await sync.updateSyncStateAtomic('room_profiles', userId, {
+                  e2ee_public_key: localPubJwk
+                });
+              }
+            }
+          }
+
+          if (isCurrent) {
+            e2eeInitRef.current = true;
           }
         }
 
         if (!isCurrent) return;
 
-        // 2. Export and publish local public key if not already matching in sync state
-        const localPubJwk = await exportPublicKeyJWK(keys.publicKey);
-        const remotePubKey = myProfile.e2ee_public_key;
-        
-        const isSameKey = remotePubKey && 
-                          remotePubKey.x === localPubJwk.x && 
-                          remotePubKey.y === localPubJwk.y;
-
-        if (!isSameKey) {
-          try {
-            const recoveryKey = generateRecoveryKey();
-            await localforage.setItem(`e2ee_recovery_key_${userId}`, recoveryKey);
-            const encrypted = await encryptPrivateKey(keys.privateKey, recoveryKey);
-            await sync.updateSyncStateAtomic('room_profiles', userId, {
-              e2ee_public_key: localPubJwk,
-              encrypted_private_key: encrypted
-            });
-            if (isCurrent) {
-              setRecoveryKeyToShow(recoveryKey);
-            }
-          } catch (e) {
-            await sync.updateSyncStateAtomic('room_profiles', userId, {
-              e2ee_public_key: localPubJwk
-            });
-          }
+        // --- PHASE 2: Derive shared key (re-runs when partner key changes) ---
+        if (!keys) {
+          keys = await getLocalKeypair(userId);
         }
+        if (!keys) return; // Still no keys (waiting for restore)
 
-        // 3. Derive shared key if partner public key is available
         if (partnerId) {
           const partnerProfile = roomProfiles[partnerId] || {};
           const partnerPubJwk = partnerProfile.e2ee_public_key;
           if (partnerPubJwk) {
+            // Only re-derive if the partner key inputs actually changed
+            const inputFingerprint = `${partnerPubJwk.x}:${partnerPubJwk.y}`;
+            if (derivedKeyInputsRef.current === inputFingerprint && sharedKeyRef.current) {
+              // Same inputs, skip re-derivation
+              return;
+            }
             const partnerPubKey = await importPublicKeyJWK(partnerPubJwk);
             const derived = await deriveSharedKey(keys.privateKey, partnerPubKey);
             if (isCurrent) {
+              derivedKeyInputsRef.current = inputFingerprint;
               setSharedKey(derived);
             }
           } else {
-            if (isCurrent) setSharedKey(null);
+            if (isCurrent) {
+              derivedKeyInputsRef.current = null;
+              setSharedKey(null);
+            }
           }
         }
       } catch (err) {
@@ -215,7 +228,7 @@ export function ChatProvider({ children }) {
     return () => {
       isCurrent = false;
     };
-  }, [userId, roomId, partnerId, isSyncInitialized, myPubJwkX, myPubJwkY, partnerPubJwkX, partnerPubJwkY]);
+  }, [userId, roomId, partnerId, isSyncInitialized, myPubJwkX, myPubJwkY, partnerPubJwkX, partnerPubJwkY, e2eeVersion]);
 
   // Restore/Reset Callbacks
   const handleRestore = useCallback(async (e) => {
@@ -245,7 +258,11 @@ export function ChatProvider({ children }) {
       setShowRestorePrompt(false);
       setRestoreKeyInput('');
       setRestoreError(null);
+      // Force re-derivation by resetting guards and bumping version
+      e2eeInitRef.current = false;
+      derivedKeyInputsRef.current = null;
       setSharedKey(null);
+      setE2eeVersion(v => v + 1);
     } catch (err) {
       console.error('[E2EE] Restore failed:', err);
       setRestoreError('Invalid Recovery Key. Please double-check and try again.');
@@ -279,7 +296,11 @@ export function ChatProvider({ children }) {
       setRestoreKeyInput('');
       setRestoreError(null);
       setRecoveryKeyToShow(recoveryKey);
+      // Force re-derivation by resetting guards and bumping version
+      e2eeInitRef.current = false;
+      derivedKeyInputsRef.current = null;
       setSharedKey(null);
+      setE2eeVersion(v => v + 1);
     } catch (err) {
       console.error('[E2EE] Reset failed:', err);
       addToast('Failed to reset encryption keys.', 'error');

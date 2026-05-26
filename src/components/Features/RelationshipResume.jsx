@@ -38,10 +38,10 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
                 <p className="font-bold opacity-60 uppercase text-[10px] tracking-[0.3em] font-sans">Established {anniversary || 'The Beginning'}</p>
              </div>
              <div className="flex -space-x-4">
-                <div className="w-16 h-16 rounded-full border-4 border-black bg-white overflow-hidden shadow-lg z-10">
+                <div className="w-16 h-16 border-4 border-black bg-white overflow-hidden shadow-lg z-10">
                    <img src={profile?.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`} className="w-full h-full object-cover" alt="me" />
                 </div>
-                <div className="w-16 h-16 rounded-full border-4 border-black bg-white overflow-hidden shadow-lg">
+                <div className="w-16 h-16 border-4 border-black bg-white overflow-hidden shadow-lg">
                    <img src={partnerProfile?.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${partnerId}`} className="w-full h-full object-cover" alt="partner" />
                 </div>
              </div>

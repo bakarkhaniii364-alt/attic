@@ -1036,9 +1036,9 @@ export function ChatView({ onClose, sfx }) {
                         <div className="w-8 h-8 flex-shrink-0 flex items-end order-first">
                           {isGroupEnd ? (
                             senderPfp ? (
-                              <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-full" />
+                              <img src={senderPfp} alt={senderName} className="w-8 h-8 retro-border object-cover bg-white rounded-none" />
                             ) : (
-                              <div className="w-8 h-8 retro-border flex items-center justify-center text-[10px] rounded-full retro-bg-secondary">
+                              <div className="w-8 h-8 retro-border flex items-center justify-center text-[10px] rounded-none retro-bg-secondary">
                                 {senderEmoji}
                               </div>
                             )
@@ -1356,7 +1356,7 @@ export function ChatView({ onClose, sfx }) {
               <div ref={messagesEndRef} className="h-4" />
               {isPartnerTyping && (
                 <div className="flex items-center gap-2 mb-4 animate-in fade-in duration-300">
-                  <div className="w-8 h-8 rounded-full bg-secondary border-2 border-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
+                  <div className="w-8 h-8 rounded-none bg-secondary border-2 border-border flex items-center justify-center text-sm">{partnerProfile.emoji || '☕'}</div>
                   <div className="bg-window border-2 border-border px-3 py-2 text-[10px] font-bold text-main-text flex gap-1 items-center">
                     {partnerNickname} is typing
                     <span className="flex gap-0.5">

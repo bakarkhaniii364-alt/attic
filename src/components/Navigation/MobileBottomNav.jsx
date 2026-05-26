@@ -43,7 +43,7 @@ export function MobileBottomNav({ sfxEnabled }) {
               className="flex-1 flex flex-col items-center justify-center min-h-[44px] min-w-[44px] relative active:scale-95 transition-transform"
             >
               {tab.isAvatar ? (
-                <div className={`w-[28px] h-[28px] rounded-full overflow-hidden border-[1.5px] ${isActive ? 'border-primary' : 'border-transparent'}`}>
+                <div className={`w-[28px] h-[28px] overflow-hidden border-[1.5px] ${isActive ? 'border-primary' : 'border-transparent'}`}>
                   {myPfp ? (
                     <img src={myPfp} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
@@ -55,7 +55,6 @@ export function MobileBottomNav({ sfxEnabled }) {
               ) : (
                 <div className={`flex flex-col items-center gap-[2px] ${isActive ? 'text-primary' : 'text-main-text opacity-50'}`}>
                   <Icon size={24} strokeWidth={isActive ? 2 : 1.5} fill={isActive && tab.id === 'home' ? 'currentColor' : 'none'} />
-                  <span className="text-[10px] font-bold leading-none">{tab.label}</span>
                 </div>
               )}
             </button>
