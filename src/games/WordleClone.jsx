@@ -347,7 +347,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
 
                              const isSpecial = key === 'ENTER' || key === 'DEL';
                              return (
-                                 <button key={key} onClick={() => handleKeyPress(key)} className={`h-12 sm:h-14 retro-border font-bold rounded flex items-center justify-center text-sm sm:text-base active:scale-95 transition-transform ${isSpecial ? 'px-3 sm:px-4 text-xs' : 'flex-1'} ${keyClass}`}>
+                                 <button key={key} onClick={() => handleKeyPress(key)} className={`h-12 sm:h-14 w-10 sm:w-11 retro-border font-bold rounded flex items-center justify-center text-sm sm:text-base active:scale-95 transition-transform ${isSpecial ? 'col-span-1.5 sm:col-span-1.5 text-xs' : ''} ${keyClass}`}>
                                      {key}
                                  </button>
                              )

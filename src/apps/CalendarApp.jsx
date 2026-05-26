@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
+import { DayDetailsModal } from '../components/DayDetailsModal.jsx';
 import { useSync } from '../context/instances.js';
 import { playAudio } from '../utils/audio.js';
 
@@ -9,9 +10,8 @@ export function CalendarApp({ onClose, sfx }) {
   const { globalState, updateSyncState } = useSync();
   const events = globalState.calendar_events || [];
   const setEvents = (newEvents) => updateSyncState('calendar_events', newEvents);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [newTitle, setNewTitle] = useState('');
-  const [newColor, setNewColor] = useState('var(--primary)');
+  const [selectedDayForModal, setSelectedDayForModal] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -27,13 +27,24 @@ export function CalendarApp({ onClose, sfx }) {
   const getDateStr = (day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const getEventsForDay = (day) => events.filter(e => e.date === getDateStr(day));
 
-  const addEvent = () => {
-    if (!newTitle.trim() || !selectedDay) return;
+  const handleDayClick = (day) => {
     playAudio('click', sfx);
-    setEvents([...events, { id: Date.now(), date: getDateStr(selectedDay), title: newTitle, color: newColor }]);
-    setNewTitle('');
+    setSelectedDayForModal(day);
+    setShowModal(true);
   };
-  const removeEvent = (id) => { playAudio('click', sfx); setEvents(events.filter(e => e.id !== id)); };
+
+  const handleAddEvent = (title, color) => {
+    if (!title.trim() || !selectedDayForModal) return;
+    setEvents([...events, { id: Date.now(), date: getDateStr(selectedDayForModal), title, color }]);
+  };
+
+  const handleUpdateEvent = (id, title, color) => {
+    setEvents(events.map(e => e.id === id ? { ...e, title, color } : e));
+  };
+
+  const handleDeleteEvent = (id) => {
+    setEvents(events.filter(e => e.id !== id));
+  };
 
   const blanks = Array.from({ length: firstDayOfWeek }, (_, i) => i);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -54,7 +65,11 @@ export function CalendarApp({ onClose, sfx }) {
           const dayEvents = getEventsForDay(d);
           const isToday = isCurrentMonth && today.getDate() === d;
           return (
-            <div key={d} onClick={() => { playAudio('click', sfx); setSelectedDay(d); }} className={`retro-border p-1 flex flex-col cursor-pointer transition-colors ${isToday ? 'ring-2 ring-[var(--primary)] retro-bg-accent' : dayEvents.length > 0 ? 'retro-bg-window' : 'retro-bg-window hover:bg-[var(--accent)]'} ${selectedDay === d ? 'retro-shadow-dark' : ''}`}>
+            <div 
+              key={d} 
+              onClick={() => handleDayClick(d)}
+              className={`retro-border p-1 flex flex-col cursor-pointer transition-colors ${isToday ? 'ring-2 ring-[var(--primary)] retro-bg-accent' : dayEvents.length > 0 ? 'retro-bg-window' : 'retro-bg-window hover:bg-[var(--accent)]'}`}
+            >
               <span className={`font-bold text-xs ${isToday ? 'text-[var(--primary)]' : ''}`}>{d}</span>
               {dayEvents.slice(0, 2).map(ev => (
                 <div key={ev.id} className="w-full h-1 rounded-full mt-auto" style={{ backgroundColor: ev.color || 'var(--primary)' }}></div>
@@ -63,27 +78,23 @@ export function CalendarApp({ onClose, sfx }) {
           );
         })}
       </div>
-      {selectedDay && (
-        <div className="mt-3 p-3 retro-border retro-bg-accent border-dashed">
-          <h3 className="font-bold text-sm mb-2">{monthName.split(' ')[0]} {selectedDay}</h3>
-          {getEventsForDay(selectedDay).map(ev => (
-            <div key={ev.id} className="flex items-center gap-2 mb-1 text-sm">
-              <div className="w-3 h-3 rounded-full retro-border" style={{ backgroundColor: ev.color }}></div>
-              <span className="flex-1 font-bold">{ev.title}</span>
-              <button onClick={() => removeEvent(ev.id)} className="text-red-500 hover:text-red-700 text-xs font-bold">✕</button>
-            </div>
-          ))}
-          <div className="flex gap-2 mt-2">
-            <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addEvent()} placeholder="Add event..." className="flex-1 p-1 retro-border retro-bg-window text-[var(--text-main)] text-sm focus:outline-none" />
-            <select value={newColor} onChange={e => setNewColor(e.target.value)} className="p-1 retro-border retro-bg-window text-[var(--text-main)] text-xs font-bold">
-              <option value="var(--primary)" className="bg-[var(--bg-window)] text-[var(--text-main)]">❤️</option>
-              <option value="var(--secondary)" className="bg-[var(--bg-window)] text-[var(--text-main)]">💙</option>
-              <option value="#4ade80" className="bg-[var(--bg-window)] text-[var(--text-main)]">💚</option>
-              <option value="#f59e0b" className="bg-[var(--bg-window)] text-[var(--text-main)]">🧡</option>
-            </select>
-            <RetroButton onClick={addEvent} className="px-3 py-1 text-xs">Add</RetroButton>
-          </div>
-        </div>
+
+      {showModal && selectedDayForModal && (
+        <DayDetailsModal
+          date={getDateStr(selectedDayForModal)}
+          dayEvents={getEventsForDay(selectedDayForModal)}
+          onClose={() => setShowModal(false)}
+          onAddEvent={handleAddEvent}
+          onUpdateEvent={handleUpdateEvent}
+          onDeleteEvent={handleDeleteEvent}
+          sfx={sfx}
+          colorOptions={[
+            { value: 'var(--primary)', label: '❤️', name: 'red' },
+            { value: 'var(--secondary)', label: '💙', name: 'blue' },
+            { value: '#4ade80', label: '💚', name: 'green' },
+            { value: '#f59e0b', label: '🧡', name: 'orange' }
+          ]}
+        />
       )}
     </RetroWindow>
   );
