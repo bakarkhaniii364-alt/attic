@@ -50,32 +50,34 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
              <section className="space-y-8">
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans"><Star size={14}/> Core Metrics</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans">💕 Our Timeline</h2>
                    <ul className="space-y-3 font-bold text-sm">
                       <li className="flex justify-between border-b border-gray-100 pb-1">
-                        <span className="opacity-60">Days Synchronized</span>
-                        <span>{daysTogether} Days</span>
+                        <span className="opacity-60">Days of Magic</span>
+                        <span>{daysTogether} ✨</span>
                       </li>
                       <li className="flex justify-between border-b border-gray-100 pb-1">
-                        <span className="opacity-60">Total Arcade Games</span>
-                        <span>{totalGames} Played</span>
+                        <span className="opacity-60">Games Shared</span>
+                        <span>{totalGames} 🎮</span>
                       </li>
                       <li className="flex justify-between border-b border-gray-100 pb-1">
-                        <span className="opacity-60">Current Domination</span>
-                        <span className="text-primary">{winnerName}</span>
+                        <span className="opacity-60">Winning Heart</span>
+                        <span className="text-primary">{winnerName} 🏆</span>
                       </li>
                    </ul>
                 </div>
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans"><Trophy size={14}/> Arcade Performance</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans">🎮 Victory Counter</h2>
                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 border-2 border-black bg-gray-50 text-center">
+                      <div className="p-3 border-2 border-black bg-pink-100 text-center">
                          <p className="text-[9px] font-black uppercase opacity-50 font-sans">{profile?.name || 'You'}</p>
-                         <p className="text-xl font-black font-sans">{myWins} <span className="text-[10px] opacity-40">WINS</span></p>
+                         <p className="text-2xl font-black font-sans">{myWins}</p>
+                         <p className="text-[9px] opacity-40 font-sans">💪 Victories</p>
                       </div>
-                      <div className="p-3 border-2 border-black bg-gray-50 text-center">
+                      <div className="p-3 border-2 border-black bg-purple-100 text-center">
                          <p className="text-[9px] font-black uppercase opacity-50 font-sans">{partnerName}</p>
-                         <p className="text-xl font-black font-sans">{partnerWins} <span className="text-[10px] opacity-40">WINS</span></p>
+                         <p className="text-2xl font-black font-sans">{partnerWins}</p>
+                         <p className="text-[9px] opacity-40 font-sans">💪 Victories</p>
                       </div>
                    </div>
                 </div>
@@ -83,7 +85,7 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
              
              <section className="space-y-8">
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans"><Trophy size={14}/> Top Disciplines</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans">⭐ Favorite Games</h2>
                    <div className="space-y-2">
                       {Object.entries(scores || {})
                          .sort(([, a], [, b]) => (Object.values(b).reduce((x, y) => x + y, 0)) - (Object.values(a).reduce((x, y) => x + y, 0)))
@@ -102,36 +104,23 @@ export function RelationshipResume({ onClose, profile, coupleData = {}, scores =
                    </div>
                 </div>
                 <div>
-                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans"><Calendar size={14}/> Significant Dates</h2>
+                   <h2 className="font-black uppercase text-xs border-b-2 border-black mb-4 pb-1 flex items-center gap-2 font-sans">📅 Our Dates</h2>
                    <div className="space-y-4">
                       <div className="flex justify-between items-end border-b border-gray-100 pb-1">
-                         <p className="text-[10px] font-black uppercase opacity-40 font-sans">Handshake Completed</p>
-                         <p className="font-bold text-sm">{anniversary || 'Ancient History'}</p>
+                         <p className="text-[10px] font-black uppercase opacity-40 font-sans">First Connection 💫</p>
+                         <p className="font-bold text-sm">{anniversary || 'Once Upon a Time'}</p>
                       </div>
                       <div className="flex justify-between items-end border-b border-gray-100 pb-1">
-                         <p className="text-[10px] font-black uppercase opacity-40 font-sans">Resume Generation</p>
+                         <p className="text-[10px] font-black uppercase opacity-40 font-sans">Resume Created 📝</p>
                          <p className="font-bold text-sm">{new Date().toISOString().split('T')[0]}</p>
                       </div>
                    </div>
                 </div>
-                <div className="p-6 bg-gray-100 border-2 border-black text-center relative">
-                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2 border-2 border-black text-[8px] font-black uppercase tracking-widest font-sans">Executive Summary</div>
-                   <p className="italic leading-relaxed text-sm">
-                      "A digital bond authenticated through persistent play, communication, and synchronization."
-                   </p>
-                </div>
              </section>
           </div>
 
-          <div className="mt-16 flex justify-around border-t-4 border-black pt-8">
-             <div className="text-center">
-                <div className="h-px w-32 bg-black mb-2 mx-auto"></div>
-                <p className="text-[10px] font-black uppercase tracking-widest font-sans">Authorized: {profile?.name || 'You'}</p>
-             </div>
-             <div className="text-center">
-                <div className="h-px w-32 bg-black mb-2 mx-auto"></div>
-                <p className="text-[10px] font-black uppercase tracking-widest font-sans">Authorized: {partnerName}</p>
-             </div>
+          <div className="mt-12 text-center border-t-4 border-black pt-8 pb-4">
+             <p className="text-xs font-bold opacity-50 uppercase tracking-widest">Made with 💕 in the Attic</p>
           </div>
        </div>
        <DesktopOnly>
