@@ -101,7 +101,25 @@ export default function App() {
   const { isPartnerTyping } = useTypingIndicator(userId, partnerId);
 
   const [theme, setTheme] = useLocalStorage('app_theme', 'matcha');
-  const [weather, setWeather] = useState('clear'); 
+  const [localStoredWeather, setLocalStoredWeather] = useLocalStorage('app_weather', 'clear');
+  const [previewWeather, setPreviewWeather] = useState(null);
+  const [previewBgPattern, setPreviewBgPattern] = useState(null);
+  const [previewBgPatternOpacity, setPreviewBgPatternOpacity] = useState(null);
+
+  const weather = coupleData.settings?.weather || localStoredWeather || 'clear';
+  const setWeather = useCallback((newWeather) => {
+    setLocalStoredWeather(newWeather);
+    if (roomId) {
+      mergeSyncState('couple_data', {
+        ...coupleData,
+        settings: {
+          ...coupleData.settings,
+          weather: newWeather
+        }
+      });
+    }
+  }, [roomId, coupleData, mergeSyncState, setLocalStoredWeather]);
+
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
   const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('notifications_enabled', true);
   const [triggerShake] = useState(false); 
@@ -298,9 +316,9 @@ export default function App() {
       )}
       
       <div className={`retro-everywhere min-h-[100dvh] w-full mesh-bg flex flex-col relative ${isOnboarding ? '' : 'items-center p-0 sm:p-4 md:p-8'} ${triggerShake ? 'animate-shake' : ''} ${hasInitialized ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-        <div className={`absolute inset-0 bg-pattern-${coupleData.settings?.bgPattern || 'grid'} pointer-events-none`} style={{ opacity: 'var(--bg-pattern-opacity, 0.22)' }} />
-        {!isOnboarding && <LivingBackground weather={weather} />}
-        {!isOnboarding && <WeatherOverlay weather={weather} />}
+        <div className={`absolute inset-0 bg-pattern-${previewBgPattern || coupleData.settings?.bgPattern || 'grid'} pointer-events-none`} style={{ opacity: previewBgPatternOpacity !== null ? previewBgPatternOpacity : (coupleData.settings?.bgPatternOpacity !== undefined ? coupleData.settings.bgPatternOpacity : 'var(--bg-pattern-opacity, 0.22)') }} />
+        {!isOnboarding && <LivingBackground weather={previewWeather || weather} />}
+        {!isOnboarding && <WeatherOverlay weather={previewWeather || weather} />}
         <Confetti active={confetti} />
 
         {hasInitialized && (
@@ -385,6 +403,9 @@ export default function App() {
               <Route path="/settings" element={<ProtectedRoute><SettingsView 
                 theme={theme} setTheme={setTheme} 
                 weather={weather} setWeather={setWeather} 
+                setPreviewWeather={setPreviewWeather}
+                setPreviewBgPattern={setPreviewBgPattern}
+                setPreviewBgPatternOpacity={setPreviewBgPatternOpacity}
                 sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
                 notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} 
                 profile={roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }} 
