@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
-import { WebrtcProvider } from 'y-webrtc'
+import YSupabaseProvider from '../lib/y-supabase-provider.js'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { RetroWindow } from '../components/UI.jsx'
 
@@ -20,16 +20,14 @@ export function SharedNotes({ onClose, sfx, roomId, userId, userName, userColor 
     
     // Set up local indexeddb persistence
     const indexeddbProvider = new IndexeddbPersistence(roomIdentifier, ydoc);
-    indexeddbProvider.on('synced', () => {
-      setIsLoaded(true);
-    });
+    indexeddbProvider.on('synced', () => setIsLoaded(true));
 
-    const webrtcProvider = new WebrtcProvider(roomIdentifier, ydoc);
-    setProvider(webrtcProvider);
+    const supaProvider = new YSupabaseProvider(roomIdentifier, ydoc, { user: { name: userName, color: userColor } });
+    setProvider(supaProvider);
     
     return () => {
-      webrtcProvider.destroy();
-      indexeddbProvider.destroy();
+      try { supaProvider.destroy(); } catch (_) {}
+      try { indexeddbProvider.destroy(); } catch (_) {}
     }
   }, [roomId, ydoc]);
 
