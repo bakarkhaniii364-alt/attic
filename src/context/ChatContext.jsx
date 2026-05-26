@@ -172,12 +172,19 @@ export function ChatProvider({ children }) {
 
           if (!keys) {
             if (backupExists) {
+              let latestUser = user;
+              try {
+                const { data } = await supabase.auth.getUser();
+                if (data?.user) latestUser = data.user;
+              } catch (e) {
+                console.warn('[E2EE] Failed to fetch latest user metadata:', e);
+              }
               // Check if recovery key is in user_metadata first for automation
-              const userRecoveryKey = user?.user_metadata?.e2ee_recovery_key;
+              const userRecoveryKey = latestUser?.user_metadata?.e2ee_recovery_key;
               if (userRecoveryKey) {
                 try {
-                  const encryptedData = myProfile.encrypted_private_key || user?.user_metadata?.encrypted_private_key;
-                  const pubJwk = myProfile.e2ee_public_key || user?.user_metadata?.e2ee_public_key;
+                  const encryptedData = myProfile.encrypted_private_key || latestUser?.user_metadata?.encrypted_private_key;
+                  const pubJwk = myProfile.e2ee_public_key || latestUser?.user_metadata?.e2ee_public_key;
                   if (encryptedData && pubJwk) {
                     const privateKey = await decryptPrivateKey(encryptedData, userRecoveryKey);
                     const publicKey = await importPublicKeyJWK(pubJwk);
@@ -361,15 +368,104 @@ export function ChatProvider({ children }) {
     setShowResetConfirm(false);
 
     try {
+      // 1. Fetch all existing messages from the database for migration
+      let existingMsgs = [];
+      if (roomId) {
+        const { data } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('room_id', roomId);
+        if (data) existingMsgs = data;
+      }
+
+      // 2. Decrypt all encrypted messages using the CURRENT shared key
+      const currentSharedKey = sharedKeyRef.current;
+      const decryptedMessages = [];
+      if (currentSharedKey && existingMsgs.length > 0) {
+        for (const msg of existingMsgs) {
+          if (msg.metadata?.is_encrypted) {
+            try {
+              if (msg.type === 'text') {
+                const plaintext = await decryptText(msg.content, msg.metadata.iv, currentSharedKey);
+                decryptedMessages.push({ id: msg.id, type: 'text', plaintext });
+              } else if (msg.metadata.encrypted_media_meta) {
+                const { fileKey, fileIv } = await decryptFileMetadata(
+                  msg.metadata.encrypted_media_meta.ciphertext,
+                  msg.metadata.encrypted_media_meta.iv,
+                  currentSharedKey
+                );
+                decryptedMessages.push({ id: msg.id, type: 'media', fileKey, fileIv, originalMeta: msg.metadata });
+              }
+            } catch (err) {
+              console.warn('[E2EE] Failed to decrypt message during migration:', msg.id, err);
+            }
+          }
+        }
+      }
+
+      // 3. Generate new keys
       const keys = await generateECDHKeypair();
       const recoveryKey = generateRecoveryKey();
       await saveKeysAndBackup(keys, recoveryKey);
+
+      // 4. Derive new shared key with the partner's public key (if available)
+      let newSharedKey = null;
+      if (partnerId) {
+        const partnerProfile = roomProfiles[partnerId] || {};
+        const partnerPubJwk = partnerProfile.e2ee_public_key;
+        if (partnerPubJwk) {
+          const partnerPubKey = await importPublicKeyJWK(partnerPubJwk);
+          newSharedKey = await deriveSharedKey(keys.privateKey, partnerPubKey);
+        }
+      }
+
+      // 5. Re-encrypt decrypted messages with the new shared key and update the database!
+      if (newSharedKey && decryptedMessages.length > 0) {
+        for (const item of decryptedMessages) {
+          if (item.type === 'text') {
+            try {
+              const encrypted = await encryptText(item.plaintext, newSharedKey);
+              const originalMsg = existingMsgs.find(m => m.id === item.id);
+              await supabase
+                .from('chat_messages')
+                .update({
+                  content: encrypted.ciphertext,
+                  metadata: {
+                    ...(originalMsg?.metadata || {}),
+                    iv: encrypted.iv,
+                    is_encrypted: true
+                  }
+                })
+                .eq('id', item.id);
+            } catch (encryptErr) {
+              console.error('[E2EE] Re-encryption of message failed:', item.id, encryptErr);
+            }
+          } else if (item.type === 'media') {
+            try {
+              const encryptedMeta = await encryptFileMetadata(item.fileKey, item.fileIv, newSharedKey);
+              await supabase
+                .from('chat_messages')
+                .update({
+                  metadata: {
+                    ...item.originalMeta,
+                    encrypted_media_meta: encryptedMeta,
+                    is_encrypted: true
+                  }
+                })
+                .eq('id', item.id);
+            } catch (encryptErr) {
+              console.error('[E2EE] Re-encryption of media metadata failed:', item.id, encryptErr);
+            }
+          }
+        }
+      }
 
       addToast('Encryption keys reset successfully.', 'success');
       setShowRestorePrompt(false);
       setRestoreKeyInput('');
       setRestoreError(null);
       setRecoveryKeyToShow(recoveryKey);
+      
       // Force re-derivation by resetting guards and bumping version
       e2eeInitRef.current = false;
       derivedKeyInputsRef.current = null;
@@ -381,7 +477,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsRestoring(false);
     }
-  }, [userId, saveKeysAndBackup, addToast]);
+  }, [roomId, userId, partnerId, roomProfiles, saveKeysAndBackup, addToast]);
 
   // Keep sharedKeyRef synchronized for real-time listeners and callbacks
   useEffect(() => {

@@ -31,7 +31,7 @@ export function useAppLogic({
   const processedInvites = useRef(new Set());
   const prevPartnerOnline = useRef(false);
   const prevChatLength = useRef(0);
-  const isPartnerOnline = partnerId && (onlineUsers[partnerId]?.status === 'active' || onlineUsers[partnerId]?.status === 'idle');
+  const isPartnerOnline = partnerId && onlineUsers[partnerId]?.status === 'active';
 
   // Activity Tracking
   useEffect(() => {

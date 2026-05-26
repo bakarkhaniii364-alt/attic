@@ -789,7 +789,11 @@ export function ChatView({ onClose, sfx }) {
       <div className="flex flex-col leading-none items-start justify-center">
         <span className="font-black text-sm truncate tracking-tight">{partnerNickname}</span>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <div className={`w-1 h-1 rounded-full ${partnerStatusData?.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`} />
+          <div className={`w-2 h-2 rounded-full ${
+            partnerStatusData?.status === 'active' ? 'bg-success' : 
+            partnerStatusData?.status === 'idle' ? 'bg-warning' : 
+            'bg-disabled'
+          }`} />
           <span className="text-[7.5px] font-black opacity-60 uppercase tracking-widest">{partnerStatusLabel.substring(0, 18)}</span>
         </div>
       </div>
@@ -984,12 +988,14 @@ export function ChatView({ onClose, sfx }) {
                 const marginClass = isGroupEnd ? "mb-6" : "mb-2";
 
                 if (msg.type === 'call_invite' && msg.status === 'ringing') return null;
+                if (msg.type === 'system' && (!msg.text || !msg.text.trim())) return null;
                 const isCallLog = msg.type === 'call_invite';
                 const isPureEmoji = msg.type === 'text' && msg.text && /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])+$/.test(msg.text.trim());
                 const isPureImage = (msg.type === 'image' || msg.type === 'image_group') && !msg.text;
                 const isGameInvite = msg.type === 'game_invite' || msg.type === 'watchparty_invite' || msg.type === 'watchparty_summary';
                 const noBubble = (isPureEmoji || isPureImage) && !msg.isDeleted;
                 const isHighlighted = highlightedMessageId === msg.id;
+                const hasReplies = safeHistory.some(m => m.replyTo && m.replyTo.id === msg.id && !m.isDeleted);
 
                 return (
                   <React.Fragment key={msg.id}>
@@ -1267,6 +1273,43 @@ export function ChatView({ onClose, sfx }) {
                                </div>
                              )}
                           </>
+                        )}
+
+                        {/* Thread/Replies indicator */}
+                        {hasReplies && !msg.isDeleted && (
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playAudio('click', sfx);
+                              const replies = safeHistory.filter(m => m.replyTo && m.replyTo.id === msg.id && !m.isDeleted);
+                              if (replies.length > 0) {
+                                const firstEl = document.getElementById(`msg-${replies[0].id}`);
+                                if (firstEl) {
+                                  firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                                replies.forEach(r => {
+                                  const el = document.getElementById(`msg-${r.id}`);
+                                  if (el) {
+                                    el.classList.add('animate-shake');
+                                    el.classList.add('ring-4', 'ring-accent', 'ring-opacity-50');
+                                    setTimeout(() => {
+                                      el.classList.remove('animate-shake', 'ring-4', 'ring-accent', 'ring-opacity-50');
+                                    }, 1500);
+                                  }
+                                });
+                              }
+                            }}
+                            className={`flex items-center gap-1.5 mt-1.5 mb-1 cursor-pointer select-none hover:text-accent font-black text-[9px] uppercase tracking-tighter transition-colors ${
+                              isMe ? 'justify-end text-primary-text/80' : 'justify-start text-main-text/60'
+                            }`}
+                            title="Show replies"
+                          >
+                            <Reply size={11} className="transform scale-x-[-1]" />
+                            <span>
+                              {safeHistory.filter(m => m.replyTo && m.replyTo.id === msg.id && !m.isDeleted).length} reply
+                              {safeHistory.filter(m => m.replyTo && m.replyTo.id === msg.id && !m.isDeleted).length > 1 ? 'ies' : ''}
+                            </span>
+                          </div>
                         )}
 
                         {/* Inline Timestamp and Read Receipts */}
