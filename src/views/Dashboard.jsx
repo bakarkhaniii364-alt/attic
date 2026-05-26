@@ -16,8 +16,6 @@ import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 import { useLastSeen } from '../hooks/useLastSeen.js';
 import { useMobile } from '../hooks/useMobile.js';
 import {
-  RetentionNudges,
-  WelcomeBackBanner,
   recordVisit,
   getDaysSinceLastVisit,
 } from '../components/Dashboard/RetentionNudges.jsx';
@@ -135,27 +133,73 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     </div>
   );
 
-  const retentionBlock = (
-    <>
-      {!welcomeDismissed && daysAway >= 1 && (
-        <WelcomeBackBanner
-          partnerName={partnerName}
-          daysAway={daysAway}
-          onDismiss={() => setWelcomeDismissed(true)}
-        />
-      )}
-      <RetentionNudges
-        streakCount={streaks.count || 0}
-        unreadChatCount={unreadChatCount}
-        dailyAnswers={dailyAnswers}
-        userId={userId}
-        partnerName={partnerName}
-        onOpenChat={() => nav('chat')}
-        onOpenDailyQuestion={() => nav('daily-q')}
-        excludeDaily={!isMobile}
-      />
-    </>
-  );
+  const dynamicFeedItems = [];
+
+  if (!welcomeDismissed && daysAway >= 1) {
+    dynamicFeedItems.push({
+      id: 'welcome',
+      icon: <Sparkles size={14} className="text-secondary shrink-0" fill="currentColor" />,
+      text: `welcome back! ${partnerName} missed you${daysAway > 1 ? ` (${daysAway} days)` : ''}.`,
+      bgClass: 'bg-secondary/15 border-secondary/30 text-secondary-text',
+      action: {
+        label: 'Dismiss',
+        onClick: () => {
+          playAudio('click', sfxEnabled);
+          setWelcomeDismissed(true);
+        },
+      }
+    });
+  }
+
+  if (unreadChatCount > 0) {
+    dynamicFeedItems.push({
+      id: 'chat',
+      icon: <MessageSquare size={14} className="text-primary shrink-0" fill="currentColor" />,
+      text: unreadChatCount === 1 
+        ? `${partnerName} sent you a message.` 
+        : `${unreadChatCount} new messages from ${partnerName}.`,
+      bgClass: 'bg-primary/15 border-primary/30 text-primary-text',
+      action: {
+        label: 'Open',
+        onClick: () => {
+          playAudio('click', sfxEnabled);
+          nav('chat');
+        },
+      }
+    });
+  }
+
+  if (!dailyAnswers?.[todayKey()]?.[userId]) {
+    dynamicFeedItems.push({
+      id: 'daily-q',
+      icon: <Heart size={14} className="text-primary shrink-0" fill="currentColor" />,
+      text: "Today's couple question is waiting — answer together.",
+      bgClass: 'bg-accent/15 border-accent/30 text-accent-text',
+      action: {
+        label: 'Answer',
+        onClick: () => {
+          playAudio('click', sfxEnabled);
+          nav('daily-q');
+        },
+      }
+    });
+  }
+
+  if (streaks.count >= 3) {
+    dynamicFeedItems.push({
+      id: 'streak',
+      icon: <Flame size={14} className="text-orange-500 shrink-0" fill="currentColor" />,
+      text: `${streaks.count}-day streak — keep showing up for ${partnerName}!`,
+      bgClass: 'bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400',
+    });
+  }
+
+  const fallbackItem = {
+    id: 'all-clear',
+    icon: <Sparkles size={14} className="text-success shrink-0" />,
+    text: "you're all caught up! send a doodle or play a game to connect.",
+    bgClass: 'bg-success/10 border-success/30 text-success-text border-dashed'
+  };
 
   const welcomeWindow = (
     <RetroWindow title="welcome.exe" className={isMobile ? "w-full" : "md:col-span-8 h-auto min-h-[10rem]"}>
@@ -232,21 +276,37 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           </button>
         </div>
 
-        {!dailyAnswers?.[todayKey()]?.[userId] && (
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-2 font-bold min-w-0">
-              <Sparkles size={16} className="text-primary shrink-0" />
-              <span className="text-[10px] leading-tight">Today's couple question is waiting — answer together.</span>
+        {/* Dynamic, Smart Info Feed */}
+        <div className="feed-container flex flex-col gap-1.5 pt-2 border-t border-dashed border-border/40 mt-2 max-h-[160px] overflow-y-auto scrollbar-hide">
+          {dynamicFeedItems.length > 0 ? (
+            dynamicFeedItems.map((item, idx) => (
+              <div 
+                key={item.id} 
+                className={`feed-item flex items-center justify-between gap-2 py-2 px-2.5 retro-border text-[11px] font-bold leading-tight ${item.bgClass}`}
+                style={{ animationDelay: `${idx * 80}ms` }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="feed-icon-pulse">{item.icon}</span>
+                  <span className="truncate lowercase">{item.text}</span>
+                </div>
+                {item.action && (
+                  <RetroButton
+                    type="button"
+                    className="text-[9px] py-0.5 px-2.5 shrink-0 bg-window text-main-text font-black retro-shadow-sm hover:-translate-y-px active:translate-y-0 transition-transform"
+                    onClick={item.action.onClick}
+                  >
+                    {item.action.label}
+                  </RetroButton>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className={`feed-item flex items-center gap-2 py-2 px-2.5 retro-border text-[11px] font-bold leading-tight ${fallbackItem.bgClass}`}>
+              {fallbackItem.icon}
+              <span className="truncate lowercase">{fallbackItem.text}</span>
             </div>
-            <RetroButton
-              type="button"
-              className="text-[9px] py-1 px-2.5 shrink-0"
-              onClick={() => nav('daily-q')}
-            >
-              Answer
-            </RetroButton>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mt-2">
           <div className="flex items-center gap-2">
@@ -395,7 +455,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                </div>
 
                <div className="space-y-4">
-                  {retentionBlock}
                   {welcomeWindow}
                   {petWindow}
                   {timerWindow}
@@ -463,7 +522,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         </div>
       )}
       
-      <div className="md:col-span-12">{retentionBlock}</div>
+
       {welcomeWindow}
       {petWindow}
       {timerWindow}

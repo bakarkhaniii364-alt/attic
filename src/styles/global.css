@@ -123,3 +123,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .opacity-40, .opacity-50, .opacity-60 { opacity: 0.75 !important; }
 .opacity-70 { opacity: 0.85 !important; }
 .message-options-menu, .options-menu, .context-menu { border: 2px solid var(--border) !important; }
+
+/* ════ DYNAMIC FEED ANIMATIONS ════ */
+@keyframes feedSlideIn {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes feedIconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.feed-item {
+  animation: feedSlideIn 0.35s ease-out both;
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.feed-item:hover {
+  box-shadow: 3px 3px 0px 0px var(--border) !important;
+  transform: translateY(-1px);
+}
+
+.feed-icon-pulse {
+  display: inline-flex;
+  animation: feedIconPulse 2.5s ease-in-out infinite;
+}
+
+.feed-container::-webkit-scrollbar { width: 4px; }
+.feed-container::-webkit-scrollbar-track { background: transparent; }
+.feed-container::-webkit-scrollbar-thumb { background: var(--border); }
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
