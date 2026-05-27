@@ -567,12 +567,6 @@ const createPC = useCallback(async (type) => {
     return () => window.removeEventListener('online', onOnline);
   }, []);
 
-  // Test mode
-  useEffect(() => {
-    if (!isTestMode()) return;
-    return onTestBroadcast('call_signal', handleSignal);
-  }, [handleSignal]);
-
   useEffect(() => {
     const h = ({ detail: { event, payload } }) => { if (event === 'call_signal') handleSignal(payload); };
     window.addEventListener('sync_broadcast', h);

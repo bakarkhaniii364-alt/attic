@@ -11,7 +11,9 @@ export const canUseTestMode = () => isDev || testModeExplicitlyEnabled;
 export const isTestMode = () => {
   if (!canUseTestMode() || typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
-  return params.get('test_mode') === 'true' || localStorage.getItem('attic_test_mode') === 'true';
+  return params.get('test_mode') === 'true' || 
+         sessionStorage.getItem('attic_test_mode') === 'true' || 
+         localStorage.getItem('attic_test_mode') === 'true';
 };
 
 export const getTestUser = () => {
@@ -19,14 +21,33 @@ export const getTestUser = () => {
   const params = new URLSearchParams(window.location.search);
   const urlUser = params.get('user');
   if (urlUser) return urlUser;
-  return localStorage.getItem('attic_test_user') || 'userA';
+  return sessionStorage.getItem('attic_test_user') || 
+         localStorage.getItem('attic_test_user') || 
+         'userA';
 };
 
+let testSocket = null;
+let pendingMessages = [];
 const testChannel = typeof window !== 'undefined' ? new BroadcastChannel('attic_test_sync') : null;
 const socketListeners = new Set();
 
 function initTestRelay() {
-  if (!isTestMode()) return;
+  if (!isTestMode() || testSocket) return;
+  
+  testSocket = new WebSocket('ws://localhost:8080');
+  testSocket.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      socketListeners.forEach((l) => l(data));
+    } catch (err) {
+      console.error('[TEST_SOCKET] Parse error:', err);
+    }
+  };
+  testSocket.onopen = () => {
+    pendingMessages.forEach((msg) => testSocket.send(JSON.stringify(msg)));
+    pendingMessages = [];
+  };
+  testSocket.onerror = (e) => console.error('[TEST_SOCKET] Relay error', e);
 
   if (testChannel) {
     testChannel.onmessage = (e) => {
@@ -76,6 +97,11 @@ export const sendTestBroadcast = (event, payload) => {
     sender: getTestUser(),
     roomId: getTestRoomId(),
   };
+  if (testSocket?.readyState === WebSocket.OPEN) {
+    testSocket.send(JSON.stringify(msg));
+  } else if (testSocket) {
+    pendingMessages.push(msg);
+  }
   testChannel?.postMessage(msg);
 };
 
@@ -110,6 +136,11 @@ export const sendTestStateUpdate = (key, value) => {
     sender: getTestUser(),
     roomId: getTestRoomId(),
   };
+  if (testSocket?.readyState === WebSocket.OPEN) {
+    testSocket.send(JSON.stringify(msg));
+  } else if (testSocket) {
+    pendingMessages.push(msg);
+  }
   testChannel?.postMessage(msg);
 };
 
@@ -126,5 +157,10 @@ export const onTestStateUpdate = (key, callback) => {
 
 export const sendTestStateRequest = (key) => {
   const msg = { type: 'get_test_state', key, roomId: getTestRoomId() };
+  if (testSocket?.readyState === WebSocket.OPEN) {
+    testSocket.send(JSON.stringify(msg));
+  } else if (testSocket) {
+    pendingMessages.push(msg);
+  }
   testChannel?.postMessage(msg);
 };

@@ -40,6 +40,14 @@ export async function importPublicKeyJWK(jwk) {
 
 /**
  * Derives a shared 256-bit AES-GCM key using local private key and partner's public key.
+ *
+ * NOTE: ECDH shared secret derivation must be identical on both sides.
+ * The derived AES-GCM target key uses the following signature:
+ * - name: "ECDH", public: partnerPublicKey
+ * - privateKey (local)
+ * - name: "AES-GCM", length: 256 (the target key type)
+ * - extractable: false (target key cannot be exported)
+ * - keyUsages: ["encrypt", "decrypt"] (usages of the target key, NOT "deriveKey" / "deriveBits")
  */
 export async function deriveSharedKey(privateKey, partnerPublicKey) {
   return await window.crypto.subtle.deriveKey(
@@ -53,7 +61,7 @@ export async function deriveSharedKey(privateKey, partnerPublicKey) {
       length: 256
     },
     false, // Derived AES key is non-extractable
-    ["encrypt", "decrypt"]
+    ["encrypt", "decrypt"] // Target key usages (Accidentally putting 'deriveKey' here is a common bug)
   );
 }
 
@@ -106,18 +114,28 @@ export async function encryptText(text, derivedKey) {
  * Decrypts ciphertext (Base64) using the derived shared key and IV (Base64).
  */
 export async function decryptText(ciphertextBase64, ivBase64, derivedKey) {
-  const ciphertext = base64ToUint8Array(ciphertextBase64);
-  const iv = base64ToUint8Array(ivBase64);
-  const decryptedBuffer = await window.crypto.subtle.decrypt(
-    {
-      name: "AES-GCM",
-      iv: iv
-    },
-    derivedKey,
-    ciphertext
-  );
-  return new TextDecoder().decode(decryptedBuffer);
+  try {
+    const ciphertext = base64ToUint8Array(ciphertextBase64);
+    const iv = base64ToUint8Array(ivBase64);
+    const decryptedBuffer = await window.crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: iv
+      },
+      derivedKey,
+      ciphertext
+    );
+    return new TextDecoder().decode(decryptedBuffer);
+  } catch (err) {
+    if (err instanceof DOMException || err.name === 'OperationError') {
+      console.warn("[E2EE] Decryption tag mismatch or operation error (DOMException):", err);
+    } else {
+      console.error("[E2EE] Unexpected decryption error:", err);
+    }
+    throw err; // Propagate the error so the caller's try-catch catches it and shows the placeholder UI
+  }
 }
+
 
 /**
  * Generates a random 256-bit AES-GCM file key.
@@ -241,45 +259,45 @@ export async function saveLocalKeypair(userId, keypair) {
 }
 
 /**
- * Generates a cute, highly readable retro recovery key.
- * Format: ATTIC-XXXX-XXXX-XXXX
+ * Derives a 256-bit AES-GCM wrapping key from a numeric PIN using PBKDF2.
+ * @param {string} pin - The user's numeric PIN.
+ * @param {Uint8Array} salt - A random 16-byte salt unique to the user.
  */
-export function generateRecoveryKey() {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Exclude 0, 1, O, I for readability
-  let result = 'ATTIC-';
-  for (let i = 0; i < 3; i++) {
-    for (let j = 0; j < 4; j++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    if (i < 2) result += '-';
-  }
-  return result;
-}
-
-/**
- * Derives a 256-bit AES-GCM encryption key from a recovery passphrase.
- */
-async function deriveKeyFromPassphrase(passphrase) {
+export async function deriveKeyFromPin(pin, salt) {
   const encoder = new TextEncoder();
-  const data = encoder.encode(passphrase.trim().toUpperCase());
-  const hash = await window.crypto.subtle.digest("SHA-256", data);
-  return await window.crypto.subtle.importKey(
+  const pinData = encoder.encode(pin);
+  
+  // Import raw PIN as key material for PBKDF2
+  const baseKey = await window.crypto.subtle.importKey(
     "raw",
-    hash,
-    { name: "AES-GCM" },
+    pinData,
+    { name: "PBKDF2" },
     false,
+    ["deriveKey", "deriveBits"]
+  );
+  
+  // Derive the 256-bit AES-GCM key with 310,000 iterations
+  return await window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 310000,
+      hash: "SHA-256"
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false, // wrapping key is non-extractable
     ["encrypt", "decrypt"]
   );
 }
 
 /**
- * Encrypts a private ECDH CryptoKey with a recovery key.
+ * Encrypts a private ECDH CryptoKey with a pre-derived PBKDF2 wrapping key.
  * Returns the ciphertext and iv as Base64 strings.
  */
-export async function encryptPrivateKey(privateKey, passphrase) {
+export async function encryptPrivateKey(privateKey, aesWrappingKey) {
   const privateKeyJwk = await window.crypto.subtle.exportKey("jwk", privateKey);
   const jwkString = JSON.stringify(privateKeyJwk);
-  const aesKey = await deriveKeyFromPassphrase(passphrase);
   const encoded = new TextEncoder().encode(jwkString);
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const ciphertextBuffer = await window.crypto.subtle.encrypt(
@@ -287,7 +305,7 @@ export async function encryptPrivateKey(privateKey, passphrase) {
       name: "AES-GCM",
       iv: iv
     },
-    aesKey,
+    aesWrappingKey,
     encoded
   );
   return {
@@ -297,11 +315,10 @@ export async function encryptPrivateKey(privateKey, passphrase) {
 }
 
 /**
- * Decrypts and imports an ECDH private CryptoKey from encrypted data using a recovery key.
+ * Decrypts and imports an ECDH private CryptoKey from encrypted data using a pre-derived wrapping key.
  */
-export async function decryptPrivateKey(encryptedData, passphrase) {
+export async function decryptPrivateKey(encryptedData, aesWrappingKey) {
   const { ciphertext, iv } = encryptedData;
-  const aesKey = await deriveKeyFromPassphrase(passphrase);
   const ciphertextBuffer = base64ToUint8Array(ciphertext);
   const ivBuffer = base64ToUint8Array(iv);
   const decryptedBuffer = await window.crypto.subtle.decrypt(
@@ -309,7 +326,7 @@ export async function decryptPrivateKey(encryptedData, passphrase) {
       name: "AES-GCM",
       iv: ivBuffer
     },
-    aesKey,
+    aesWrappingKey,
     ciphertextBuffer
   );
   const jwkString = new TextDecoder().decode(decryptedBuffer);
@@ -325,3 +342,4 @@ export async function decryptPrivateKey(encryptedData, passphrase) {
     ["deriveKey", "deriveBits"]
   );
 }
+

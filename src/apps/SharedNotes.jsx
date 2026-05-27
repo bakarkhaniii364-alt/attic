@@ -97,36 +97,7 @@ export function SharedNotes({ onClose, sfx, roomId, userId, userName, userColor 
       confirmOnClose={true}
       hasUnsavedChanges={() => editor?.getText().trim() !== ''}
     >
-      <style>{`
-        .ruled-notepad {
-          background-color: #fff9e6; /* Retro yellow/cream legal pad background */
-          background-image: 
-            /* Red margin line on the left */
-            linear-gradient(to right, transparent 50px, #ff6b6b 50px, #ff6b6b 51px, transparent 51px),
-            /* Light blue horizontal lines spaced exactly 28px */
-            linear-gradient(to bottom, transparent 27px, #d6e4ff 27px, #d6e4ff 28px);
-          background-size: 100% 100%, 100% 28px;
-          background-attachment: local;
-          padding-left: 65px; /* Margin text offset */
-          padding-right: 25px;
-          padding-top: 14px;
-          padding-bottom: 28px;
-          line-height: 28px;
-          font-family: 'Space Mono', Courier, monospace;
-          font-size: 14px;
-          color: #3e2723; /* Dark brown retro ink color */
-        }
-        .ruled-notepad .ProseMirror {
-          outline: none;
-          min-height: 400px;
-          line-height: 28px !important;
-        }
-        .ruled-notepad .ProseMirror p {
-          margin: 0 !important;
-          line-height: 28px !important;
-          min-height: 28px;
-        }
-      `}</style>
+
 
       <div className="flex flex-col h-full bg-white">
         <div className="p-3 border-b-2 border-dashed border-[var(--border)] bg-[var(--bg-window)] flex items-center justify-between">

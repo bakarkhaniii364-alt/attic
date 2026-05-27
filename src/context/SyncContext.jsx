@@ -106,7 +106,7 @@ export function SyncProvider({ children }) {
             setGlobalState(prev => ({ ...prev, [payload.key]: payload.value }));
           }
         })
-        .on('broadcast', {}, ({ event, payload }) => {
+        .on('broadcast', { event: '*' }, ({ event, payload }) => {
           // Centralized event bus for non-state broadcasts (kisses, doodle alerts, etc.)
           if (event !== 'state_update') {
             console.log(`[SYNC] Broadcast Received: ${event}`, payload);
@@ -194,10 +194,10 @@ export function SyncProvider({ children }) {
         channelsRef.current[channelId].send({
           type: 'broadcast',
           event: 'state_update',
-          payload: { key, value, senderId: userId }
+          payload: { key, value: resolved, senderId: userId }
         });
       }
-      if (isTestMode()) sendTestStateUpdate(key, value);
+      if (isTestMode()) sendTestStateUpdate(key, resolved);
 
       // Debounced DB Push
       if (pendingUpdateRef.current) clearTimeout(pendingUpdateRef.current);
@@ -212,7 +212,7 @@ export function SyncProvider({ children }) {
       }, 1000);
 
       // Cache small key locally immediately
-      localforage.setItem(`sync_${key}`, value).catch(() => {});
+      localforage.setItem(`sync_${key}`, resolved).catch(() => {});
 
       return newState;
     });

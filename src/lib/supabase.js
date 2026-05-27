@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { isTestMode } from './testMode.js';
+import { isTestMode, onTestStateUpdate, sendTestStateUpdate } from './testMode.js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  // In production we prefer to warn rather than throw so the site can still
-  // render (with degraded functionality) if env vars are not present.
   if (import.meta.env.PROD) {
     console.error(
       '[Attic] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Copy .env.example to .env and set your Supabase credentials.'
@@ -31,6 +29,18 @@ const realClient = createClient(
   }
 );
 
+// Simulated database memory for active lobbies in test mode
+let mockSessions = [];
+const realtimeCallbacks = [];
+
+if (typeof window !== 'undefined' && isTestMode()) {
+  onTestStateUpdate('arcade_sessions', (val) => {
+    mockSessions = val || [];
+    // Trigger all registered mock realtime channels to notify React hooks
+    realtimeCallbacks.forEach(cb => cb(mockSessions));
+  });
+}
+
 const createMockProxy = (target) => {
   return new Proxy(target, {
     get(obj, prop) {
@@ -54,30 +64,185 @@ const createMockProxy = (target) => {
             }),
           };
         }
-        if (prop === 'from' || prop === 'rpc' || prop === 'channel') {
-          return (...args) => {
+        if (prop === 'rpc') {
+          return async (name, params) => {
+            if (name === 'join_arcade_session') {
+              const { p_room_id, p_game_id, p_user_id } = params;
+              let session = mockSessions.find(s => s.room_id === p_room_id && s.game_id === p_game_id);
+              if (!session) {
+                session = {
+                  id: `session-${p_game_id}-${p_room_id}`,
+                  room_id: p_room_id,
+                  game_id: p_game_id,
+                  player_a_id: p_user_id,
+                  player_b_id: null,
+                  player_a_ready: false,
+                  player_b_ready: false,
+                  status: 'waiting',
+                  game_state: {}
+                };
+                mockSessions.push(session);
+              } else {
+                if (!session.player_a_id) {
+                  session.player_a_id = p_user_id;
+                } else if (session.player_a_id !== p_user_id && !session.player_b_id) {
+                  session.player_b_id = p_user_id;
+                }
+              }
+              sendTestStateUpdate('arcade_sessions', mockSessions);
+              return { data: session, error: null };
+            }
+            
+            if (name === 'set_arcade_ready') {
+              const { p_room_id, p_game_id, p_user_id, p_ready } = params;
+              const session = mockSessions.find(s => s.room_id === p_room_id && s.game_id === p_game_id);
+              if (session) {
+                if (session.player_a_id === p_user_id) session.player_a_ready = p_ready;
+                if (session.player_b_id === p_user_id) session.player_b_ready = p_ready;
+                if (session.player_a_ready && (session.player_b_ready || !session.player_b_id)) {
+                  session.status = 'starting';
+                }
+                sendTestStateUpdate('arcade_sessions', mockSessions);
+              }
+              return { data: session, error: null };
+            }
+
+            if (name === 'leave_arcade_session') {
+              const { p_room_id, p_game_id, p_user_id } = params;
+              const session = mockSessions.find(s => s.room_id === p_room_id && s.game_id === p_game_id);
+              if (session) {
+                if (session.player_a_id === p_user_id) {
+                  session.player_a_id = null;
+                  session.player_a_ready = false;
+                }
+                if (session.player_b_id === p_user_id) {
+                  session.player_b_id = null;
+                  session.player_b_ready = false;
+                }
+                if (!session.player_a_id && !session.player_b_id) {
+                  mockSessions = mockSessions.filter(s => !(s.room_id === p_room_id && s.game_id === p_game_id));
+                } else {
+                  session.status = 'waiting';
+                }
+                sendTestStateUpdate('arcade_sessions', mockSessions);
+              }
+              return { data: null, error: null };
+            }
+
+            return { data: null, error: null };
+          };
+        }
+        if (prop === 'channel') {
+          return (channelName) => {
+            let activeWrapper = null;
+            const chain = () => ({
+              on: (eventConfig, filterConfig, callback) => {
+                if (eventConfig === 'postgres_changes' && filterConfig?.table === 'arcade_sessions') {
+                  activeWrapper = (sessions) => {
+                    const prefix = 'arcade_session_';
+                    const activeLobbiesPrefix = 'active_lobbies_';
+                    if (channelName.startsWith(prefix)) {
+                      const content = channelName.substring(prefix.length);
+                      const lastUnderscore = content.lastIndexOf('_');
+                      if (lastUnderscore !== -1) {
+                        const rId = content.substring(0, lastUnderscore);
+                        const gId = content.substring(lastUnderscore + 1);
+                        const session = sessions.find(s => s.room_id === rId && s.game_id === gId);
+                        if (session) {
+                          callback({
+                            eventType: 'UPDATE',
+                            new: session
+                          });
+                        }
+                      }
+                    } else if (channelName.startsWith(activeLobbiesPrefix)) {
+                      const rId = channelName.substring(activeLobbiesPrefix.length);
+                      callback({
+                        eventType: 'UPDATE'
+                      });
+                    }
+                  };
+                  realtimeCallbacks.push(activeWrapper);
+                }
+                return chain();
+              },
+              subscribe: () => chain(),
+              unsubscribe: () => {
+                if (activeWrapper) {
+                  const idx = realtimeCallbacks.indexOf(activeWrapper);
+                  if (idx !== -1) realtimeCallbacks.splice(idx, 1);
+                }
+              }
+            });
+            return chain();
+          };
+        }
+        if (prop === 'from') {
+          return (tableName) => {
+            if (tableName === 'arcade_sessions') {
+              let filterRoomId = null;
+              let filterGameId = null;
+              const chain = () => ({
+                select: () => chain(),
+                update: (fields) => {
+                  mockSessions.forEach(s => {
+                    if ((!filterRoomId || s.room_id === filterRoomId) && (!filterGameId || s.game_id === filterGameId)) {
+                      Object.assign(s, fields);
+                    }
+                  });
+                  sendTestStateUpdate('arcade_sessions', mockSessions);
+                  return chain();
+                },
+                eq: (col, val) => {
+                  if (col === 'room_id') filterRoomId = val;
+                  if (col === 'game_id') filterGameId = val;
+                  return chain();
+                },
+                maybeSingle: () => {
+                  return {
+                    then(resolve) {
+                      const session = mockSessions.find(s => 
+                        (!filterRoomId || s.room_id === filterRoomId) && 
+                        (!filterGameId || s.game_id === filterGameId)
+                      ) || null;
+                      resolve({ data: session, error: null });
+                    }
+                  };
+                },
+                then(resolve) {
+                  const filtered = mockSessions.filter(s => 
+                    (!filterRoomId || s.room_id === filterRoomId) && 
+                    (!filterGameId || s.game_id === filterGameId)
+                  );
+                  resolve({ data: filtered, error: null });
+                }
+              });
+              return chain();
+            }
+
             let isSingle = false;
-            let insertedData = null;
-            const chain = (lastInsert) => ({
-              select: () => chain(lastInsert),
+            let lastInsert = null;
+            const chain = (inserted) => ({
+              select: () => chain(inserted),
               insert: (data) => chain(data),
               update: (data) => chain(data),
-              delete: () => chain(lastInsert),
-              eq: () => chain(lastInsert),
-              order: () => chain(lastInsert),
-              limit: () => chain(lastInsert),
-              lt: () => chain(lastInsert),
-              match: () => chain(lastInsert),
-              on: () => chain(lastInsert),
-              subscribe: () => chain(lastInsert),
-              track: () => chain(lastInsert),
+              delete: () => chain(inserted),
+              eq: () => chain(inserted),
+              order: () => chain(inserted),
+              limit: () => chain(inserted),
+              lt: () => chain(inserted),
+              match: () => chain(inserted),
+              on: () => chain(inserted),
+              subscribe: () => chain(inserted),
+              track: () => chain(inserted),
               unsubscribe: () => {},
               send: () => Promise.resolve({ error: null }),
-              single: () => { isSingle = true; return chain(lastInsert); },
+              single: () => { isSingle = true; return chain(inserted); },
+              maybeSingle: () => { isSingle = true; return chain(inserted); },
               then(resolve, reject) {
-                const result = isSingle && lastInsert
-                  ? { id: `mock-${Date.now()}`, created_at: new Date().toISOString(), ...lastInsert }
-                  : (isSingle ? null : (prop === 'rpc' ? null : []));
+                const result = isSingle && inserted
+                  ? { id: `mock-${Date.now()}`, created_at: new Date().toISOString(), ...inserted }
+                  : (isSingle ? null : []);
                 return Promise.resolve({ data: result, error: null }).then(resolve, reject);
               },
             });

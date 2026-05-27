@@ -32,6 +32,11 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   useEffect(() => {
     if (isMultiplayer && syncedState) {
       setLocalGameState(syncedState);
+      // If remote state resets to 'playing', dismiss any lingering game-over overlay
+      if (syncedState.status === 'playing') {
+        setGameOverOverlay(false);
+        processedWinRef.current = false;
+      }
     }
   }, [syncedState, isMultiplayer]);
 
@@ -245,9 +250,11 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
       p1Wins: 0,
       p2Wins: 0,
       pieceQueue: [],
-      winLine: null
+      winLine: null,
+      status: 'playing'
     });
-    setGameOverOverlay(false); 
+    setGameOverOverlay(false);
+    processedWinRef.current = false;
   };
 
   if (gameOverOverlay) {

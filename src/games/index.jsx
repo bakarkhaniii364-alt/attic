@@ -104,7 +104,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   const { session: arcadeSession, joinSession, setReady, leaveSession, updateGameState } = useArcadeSession(syncedRoomId, gameRoute, userId);
-  const { setCurrentActivity, updateSyncStateAtomic } = useSync();
+  const { setCurrentActivity, updateSyncStateAtomic, updateSyncState } = useSync();
 
   useEffect(() => {
      if (view === 'scores' && syncedRoomId) {
@@ -281,6 +281,27 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       setIsNavigatingLobby(true);
       setLobbyPhase('IDLE');
       try {
+        // Clear any stale game state so the board always starts fresh
+        const gameStateKeys = {
+          tictactoe: `tictactoe_${syncedRoomId}`,
+          pictionary: 'pictionary_state',
+          memory: `memory_${syncedRoomId}`,
+          chess: `chess_${syncedRoomId}`,
+          othello: `othello_${syncedRoomId}`,
+          pool: `pool_${syncedRoomId}`,
+          uno: `uno_${syncedRoomId}`,
+          bluff: `bluff_${syncedRoomId}`,
+          typing: `typing_${syncedRoomId}`,
+          wyr: `wyr_${syncedRoomId}`,
+          twentyq: `twentyq_${syncedRoomId}`,
+          quiz: `quiz_${syncedRoomId}`,
+          wordle: `wordle_${syncedRoomId}`,
+        };
+        const stateKey = gameStateKeys[gameRoute];
+        if (stateKey) {
+          updateSyncState(stateKey, null);
+        }
+
         const gameConfig = buildRemoteGameConfig(mode);
         await joinSession();
         await updateGameState(gameConfig);

@@ -298,32 +298,7 @@ export function DashboardRadio({ radioState, setRadioState }) {
                 </div>
             </div>
         </div>
-                    <style>{`
-                        .chunky-slider {
-                            -webkit-appearance: none;
-                            background: rgba(0,0,0,0.1);
-                            border-radius: 2px;
-                        }
-                        .chunky-slider::-webkit-slider-thumb {
-                            -webkit-appearance: none;
-                            height: 12px;
-                            width: 8px;
-                            background: var(--primary);
-                            border: 1px solid white;
-                            border-radius: 1px;
-                            box-shadow: 1px 1px 0px rgba(0,0,0,0.2);
-                            cursor: pointer;
-                        }
-                        .chunky-slider::-moz-range-thumb {
-                            height: 12px;
-                            width: 8px;
-                            background: var(--primary);
-                            border: 1px solid white;
-                            border-radius: 1px;
-                            box-shadow: 1px 1px 0px rgba(0,0,0,0.2);
-                            cursor: pointer;
-                        }
-                    `}</style>
+
 
         <div className="absolute bottom-4 right-4 w-1/2 opacity-5 pointer-events-none text-9xl -mb-10 text-[var(--border)]"><Radio/></div>
       </div>

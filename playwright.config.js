@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     permissions: ['camera', 'microphone'],
     launchOptions: {
@@ -26,10 +26,16 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev -- --port 5173 --host 127.0.0.1',
-      url: 'http://127.0.0.1:5173',
+      command: 'npm run dev -- --port 5173 --host localhost',
+      url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
+    },
+    {
+      command: 'node tests/ws-relay.js',
+      port: 8080,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30000,
     }
   ],
 });

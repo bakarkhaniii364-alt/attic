@@ -3,10 +3,10 @@ import { canUseTestMode } from './lib/testMode.js';
 if (typeof window !== 'undefined' && canUseTestMode()) {
   const params = new URLSearchParams(window.location.search);
   if (params.get('test_mode') === 'true') {
-    window.localStorage.setItem('attic_test_mode', 'true');
+    window.sessionStorage.setItem('attic_test_mode', 'true');
     const user = params.get('user');
     if (user) {
-      window.localStorage.setItem('attic_test_user', user);
+      window.sessionStorage.setItem('attic_test_user', user);
     }
   }
 }
