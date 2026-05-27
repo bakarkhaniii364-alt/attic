@@ -138,7 +138,7 @@ const getBestMove = (board, player, diff) => {
   return bestMove || moves[0];
 };
 
-export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, partnerName }) {
+export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, partnerName, myName }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myColor = isMultiplayer ? (userId > partnerId ? BLACK : WHITE) : BLACK;
   const aiColor = WHITE;
@@ -261,18 +261,18 @@ export function OthelloGame({ config, sfx, userId, partnerId, setScores, onWin, 
   const { b: countB, w: countW } = countPieces(board);
 
   return (
-    <RetroWindow title="othello.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={isMultiplayer ? "Othello — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Othello — vs AI"} onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="flex flex-col items-center justify-center p-4 min-h-[60vh] bg-[var(--bg-main)]">
         
         <div className="flex items-center justify-between w-full max-w-sm mb-6 bg-[var(--bg-window)] p-4 retro-border retro-shadow-dark">
           <div className={`flex flex-col items-center ${currentTurn === BLACK ? 'animate-pulse scale-110' : 'opacity-50'}`}>
             <div className="w-8 h-8 bg-black rounded-full shadow-[2px_2px_0_0_rgba(0,0,0,0.5)] border-2 border-black mb-1"></div>
-            <span className="font-black text-[10px] uppercase">{isMultiplayer ? (myColor === BLACK ? 'You' : 'P2') : 'You'} : {countB}</span>
+            <span className="font-black text-[10px] uppercase">{isMultiplayer ? (myColor === BLACK ? 'You' : partnerName || 'Partner') : 'You'} : {countB}</span>
           </div>
           <div className="font-black text-xl tracking-widest uppercase">vs</div>
           <div className={`flex flex-col items-center ${currentTurn === WHITE ? 'animate-pulse scale-110' : 'opacity-50'}`}>
             <div className="w-8 h-8 bg-white rounded-full shadow-[2px_2px_0_0_rgba(0,0,0,0.5)] border-2 border-black mb-1"></div>
-            <span className="font-black text-[10px] uppercase">{isMultiplayer ? (myColor === WHITE ? 'You' : 'P2') : 'AI'} : {countW}</span>
+            <span className="font-black text-[10px] uppercase">{isMultiplayer ? (myColor === WHITE ? 'You' : partnerName || 'Partner') : 'AI'} : {countW}</span>
           </div>
         </div>
 

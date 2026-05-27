@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import localforage from 'localforage';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 import { useAuth, useSync } from './instances.js';
 import { isTestMode, sendTestStateUpdate, onTestStateUpdate } from '../lib/testMode.js';
@@ -68,6 +69,8 @@ async function getOrDecryptMedia(row, sharedKey) {
 
 export function ChatProvider({ children }) {
   const { roomId, userId, partnerId, user } = useAuth();
+  const location = useLocation();
+  const isOnChatRoute = location.pathname === '/chat';
   const sync = useSync();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,8 +177,8 @@ export function ChatProvider({ children }) {
                 console.warn('[E2EE] Failed to fetch latest user metadata:', e);
               }
               
-              // Check if recovery key/PIN is in user_metadata first for automation
-              const userPin = latestUser?.user_metadata?.e2ee_pin || latestUser?.user_metadata?.e2ee_recovery_key;
+              // Forced manual entry on new device/browser (never auto-restore from metadata)
+              const userPin = null;
               const saltBase64 = myProfile.e2ee_salt || latestUser?.user_metadata?.e2ee_salt;
               const encryptedData = myProfile.encrypted_private_key || latestUser?.user_metadata?.encrypted_private_key;
               const pubJwk = myProfile.e2ee_public_key || latestUser?.user_metadata?.e2ee_public_key;
@@ -204,23 +207,8 @@ export function ChatProvider({ children }) {
                 }
               }
 
-              if (!privateKeyRef.current) {
-                // A backup exists on the database. In test mode, try auto-restoring with default PIN.
-                if (isTestMode() && saltBase64 && encryptedData) {
-                  try {
-                    const saltBytes = base64ToUint8Array(saltBase64);
-                    const wrappingKey = await deriveKeyFromPin("123456", saltBytes);
-                    const privateKey = await decryptPrivateKey(encryptedData, wrappingKey);
-                    privateKeyRef.current = privateKey;
-                    if (isCurrent) {
-                      setIsE2EEReady(true);
-                    }
-                  } catch (e) {
-                    console.warn('[E2EE] Test auto-restore with default PIN failed:', e);
-                  }
-                }
-              }
-
+              // No auto-restore even in test mode. Force user input.
+              
               if (!privateKeyRef.current) {
                 // A backup exists on the database. Show the PIN restore prompt.
                 if (isCurrent) {
@@ -229,13 +217,9 @@ export function ChatProvider({ children }) {
                 return; // Halt initialization until restored or reset
               }
             } else {
-              // No backup exists. In test mode, auto-setup with default PIN. Otherwise, prompt user.
+              // No backup exists. Prompt user to setup PIN.
               if (isCurrent) {
-                if (isTestMode()) {
-                  setTimeout(() => handleCreatePin("123456"), 0);
-                } else {
-                  setShowPinSetupPrompt(true);
-                }
+                setShowPinSetupPrompt(true);
               }
               return; // Halt initialization until PIN is setup
             }
@@ -320,13 +304,6 @@ export function ChatProvider({ children }) {
         privateKeyRef.current = privateKey;
         setIsE2EEReady(true);
 
-        // Backup the entered PIN to user metadata so they don't have to re-enter on subsequent loads/tests
-        await supabase.auth.updateUser({
-          data: {
-            e2ee_pin: pin
-          }
-        });
-
         addToast('Chat history successfully unlocked!', 'success');
         setShowRestorePrompt(false);
         setRestoreKeyInput('');
@@ -354,13 +331,6 @@ export function ChatProvider({ children }) {
       try {
         const keys = await generateECDHKeypair();
         await saveKeysAndBackup(keys, pin);
-        
-        // Also save to user metadata for auto-restore next time (for automation/testing purposes)
-        await supabase.auth.updateUser({
-          data: {
-            e2ee_pin: pin
-          }
-        });
 
         addToast('Chat PIN successfully created! Chat history is now encrypted.', 'success');
         setShowPinSetupPrompt(false);
@@ -377,6 +347,47 @@ export function ChatProvider({ children }) {
       }
     }, 50);
   }, [saveKeysAndBackup, addToast]);
+
+  const changePin = useCallback(async (newPin) => {
+    if (!privateKeyRef.current) {
+      addToast('Chat must be unlocked to change PIN.', 'error');
+      return false;
+    }
+    setIsDeriving(true);
+    return new Promise((resolve) => {
+      setTimeout(async () => {
+        try {
+          const saltBytes = window.crypto.getRandomValues(new Uint8Array(16));
+          const saltBase64 = bufferToBase64(saltBytes);
+
+          const wrappingKey = await deriveKeyFromPin(newPin, saltBytes);
+          const encrypted = await encryptPrivateKey(privateKeyRef.current, wrappingKey);
+
+          await supabase.auth.updateUser({
+            data: {
+              encrypted_private_key: encrypted,
+              e2ee_salt: saltBase64,
+              e2ee_pin: newPin
+            }
+          });
+
+          await sync.updateSyncStateAtomic('room_profiles', userId, {
+            encrypted_private_key: encrypted,
+            e2ee_salt: saltBase64
+          });
+
+          addToast('Chat PIN changed successfully!', 'success');
+          resolve(true);
+        } catch (err) {
+          console.error('[E2EE] changePin failed:', err);
+          addToast('Failed to change PIN.', 'error');
+          resolve(false);
+        } finally {
+          setIsDeriving(false);
+        }
+      }, 50);
+    });
+  }, [userId, sync, addToast]);
 
   const handleResetHistory = useCallback(async () => {
     setIsRestoring(true);
@@ -412,7 +423,8 @@ export function ChatProvider({ children }) {
    */
   const mapMessage = useCallback(async (row) => {
     const isTemp = String(row.id).startsWith('temp-');
-    const isEncrypted = !!row.metadata?.is_encrypted && !isTemp;
+    const isDeleted = !!row.metadata?.isDeleted;
+    const isEncrypted = !!row.metadata?.is_encrypted && !isTemp && !isDeleted;
     const currentSharedKey = sharedKeyRef.current;
 
     const mapped = {
@@ -431,7 +443,9 @@ export function ChatProvider({ children }) {
       clientId: row.metadata?.client_id || null
     };
 
-    if (row.type === 'text') {
+    if (isDeleted) {
+      mapped.text = 'This message was deleted';
+    } else if (row.type === 'text') {
       if (isEncrypted) {
         if (currentSharedKey) {
           try {
@@ -782,6 +796,40 @@ export function ChatProvider({ children }) {
     const isArray = Array.isArray(idOrIds);
     if (isArray && idOrIds.length === 0) return;
 
+    if (isTestMode()) {
+      const ids = isArray ? idOrIds : [idOrIds];
+      setMessages(prev => {
+        return prev.map(m => {
+          if (ids.includes(m.id)) {
+            const updatedMetadata = {
+              ...(m.metadata || {}),
+              ...updates,
+              client_id: m.clientId || m.metadata?.client_id
+            };
+            const updatedRow = {
+              id: m.id,
+              room_id: m.room_id || roomId,
+              sender_id: m.sender_id || m.sender,
+              type: m.type,
+              content: updates.text !== undefined ? updates.text : m.content,
+              metadata: updatedMetadata,
+              created_at: m.created_at || new Date().toISOString()
+            };
+            sendTestStateUpdate('chat_message_update', updatedRow);
+            return {
+              ...m,
+              ...updates,
+              metadata: updatedMetadata,
+              status: updatedMetadata.status || m.status,
+              readAt: updatedMetadata.readAt || m.readAt
+            };
+          }
+          return m;
+        });
+      });
+      return;
+    }
+
     // Supabase JS update replaces JSONB. We must merge it manually.
     // Fetch the existing message(s) first.
     const { data: existingRows } = await supabase
@@ -801,7 +849,7 @@ export function ChatProvider({ children }) {
         delete mergedMetadata.text; // Text doesn't belong in metadata
         
         const currentSharedKey = sharedKeyRef.current;
-        if (currentSharedKey) {
+        if (currentSharedKey && !updates.isDeleted) {
           try {
             const encrypted = await encryptText(finalContent, currentSharedKey);
             finalContent = encrypted.ciphertext;
@@ -970,14 +1018,14 @@ export function ChatProvider({ children }) {
     }
   }, [sendMessage]);
 
-  const value = { messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory };
+  const value = { messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory, changePin };
 
   return (
     <ChatContext.Provider value={value}>
       {children}
 
       {/* 1. E2EE PIN Setup Modal */}
-      {showPinSetupPrompt && (
+      {showPinSetupPrompt && isOnChatRoute && (
         <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <RetroWindow 
             title="e2ee_pin_setup.exe" 
@@ -1089,7 +1137,7 @@ export function ChatProvider({ children }) {
       )}
 
       {/* 2. E2EE PIN Restore Modal */}
-      {showRestorePrompt && (
+      {showRestorePrompt && isOnChatRoute && (
         <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <RetroWindow 
             title="e2ee_restore.exe" 

@@ -95,6 +95,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const location = useLocation();
   
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showPartnerLeftModal, setShowPartnerLeftModal] = useState(false);
   const [lobbyPhase, setLobbyPhase] = useState('IDLE'); // IDLE, WAITING, STARTING
   const [isNavigatingLobby, setIsNavigatingLobby] = useState(false);
   const { lobbies: activeLobbies } = useActiveLobbies(syncedRoomId);
@@ -105,6 +106,40 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
   const { session: arcadeSession, joinSession, setReady, leaveSession, updateGameState } = useArcadeSession(syncedRoomId, gameRoute, userId);
   const { setCurrentActivity, updateSyncStateAtomic, updateSyncState } = useSync();
+
+  const game = GAME_CATALOG[gameRoute];
+
+  // Determine current active phase (MUST be defined before useEffects)
+  let currentPhase = 'menu';
+  if (gameRoute && game) {
+      if (localPlayConfig) {
+          currentPhase = 'playing_local';
+        } else if (isNavigatingLobby) {
+          // If navigating, always show the lobby (Phase 3)
+          // We handle the null session inside Phase 3 gracefully.
+          if (arcadeSession?.status === 'playing') {
+              currentPhase = 'playing_remote';
+          } else {
+              currentPhase = 'lobby';
+          }
+      } else if (arcadeSession && arcadeSession.status === 'playing') {
+          // If refreshing mid-game, go straight back to active board
+          currentPhase = 'playing_remote';
+      } else {
+          // Default: Always show the setup page (solo vs partner)
+          currentPhase = 'details';
+      }
+  }
+
+  useEffect(() => {
+    if (currentPhase === 'playing_remote' && arcadeSession) {
+      const isPlayerA = arcadeSession.player_a_id === userId;
+      const partnerInSession = isPlayerA ? arcadeSession.player_b_id : arcadeSession.player_a_id;
+      if (!partnerInSession) {
+        setShowPartnerLeftModal(true);
+      }
+    }
+  }, [arcadeSession, currentPhase, userId]);
 
   useEffect(() => {
      if (view === 'scores' && syncedRoomId) {
@@ -139,7 +174,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const [selectedDiff, setSelectedDiff] = useState('medium');
   const [selectedOptions, setSelectedOptions] = useState({ matchType: 1 });
 
-  const game = GAME_CATALOG[gameRoute];
+
 
   const partnerIsOnline = partnerId && (onlineUsers?.[partnerId]?.status === 'active' || onlineUsers?.[partnerId]?.status === 'idle');
 
@@ -161,27 +196,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     }
   }, [location.state?.autoJoin, gameRoute, game, joinSession, navigate, location.pathname]);
 
-  // Determine current active phase (MUST be defined before useEffects)
-  let currentPhase = 'menu';
-  if (gameRoute && game) {
-      if (localPlayConfig) {
-          currentPhase = 'playing_local';
-        } else if (isNavigatingLobby) {
-          // If navigating, always show the lobby (Phase 3)
-          // We handle the null session inside Phase 3 gracefully.
-          if (arcadeSession?.status === 'playing' || lobbyPhase === 'STARTING') {
-              currentPhase = 'playing_remote';
-          } else {
-              currentPhase = 'lobby';
-          }
-      } else if (arcadeSession && arcadeSession.status === 'playing') {
-          // If refreshing mid-game, go straight back to active board
-          currentPhase = 'playing_remote';
-      } else {
-          // Default: Always show the setup page (solo vs partner)
-          currentPhase = 'details';
-      }
-  }
+
 
   // Cleanup logic
 
@@ -225,6 +240,45 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         return () => clearTimeout(timer);
     }
   }, [lobbyPhase, partnerId, onlineUsers, arcadeSession, syncedRoomId, gameRoute, userId]);
+
+  // Auto start when both players are ready in remote lobby
+  useEffect(() => {
+    if (currentPhase === 'lobby' && arcadeSession && arcadeSession.status === 'idle') {
+      const isPlayerA = arcadeSession.player_a_id === userId;
+      const partnerInLobby = isPlayerA ? !!arcadeSession.player_b_id : !!arcadeSession.player_a_id;
+      
+      if (partnerInLobby && arcadeSession.player_a_ready && arcadeSession.player_b_ready) {
+        console.log("🚦 [LOBBY] Both players ready! Auto starting...");
+        if (isPlayerA) {
+          supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute)
+            .then(({ error }) => {
+              if (error) console.error("Failed to automatically start game:", error);
+            });
+        }
+      }
+    }
+  }, [arcadeSession, currentPhase, userId, syncedRoomId, gameRoute]);
+
+  // Keep the global 'arcade_lobby' sync state in sync with the current active arcadeSession
+  useEffect(() => {
+    if (currentPhase === 'lobby' && arcadeSession) {
+      const players = [];
+      if (arcadeSession.player_a_id) players.push(arcadeSession.player_a_id);
+      if (arcadeSession.player_b_id) players.push(arcadeSession.player_b_id);
+      
+      const nextLobbyState = {
+        gameId: gameRoute,
+        players,
+        status: arcadeSession.status === 'starting' || arcadeSession.status === 'playing' ? 'playing' : 'waiting',
+        config: arcadeSession.game_state
+      };
+      
+      updateSyncState('arcade_lobby', nextLobbyState);
+    } else if (currentPhase === 'menu' || !gameRoute) {
+      // Clear lobby state when not in lobby
+      updateSyncState('arcade_lobby', { players: [], gameId: null, status: 'idle', config: null });
+    }
+  }, [arcadeSession, currentPhase, gameRoute, updateSyncState]);
   
   // Track Activity Status
   useEffect(() => {
@@ -668,7 +722,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                     <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-2 border-2 border-primary">
                         <User size={24} className="text-primary" />
                     </div>
-                    <span className="text-[10px] font-black uppercase opacity-40">Player 1</span>
+                    <span className="text-[10px] font-black uppercase opacity-40">P1</span>
                     <span className="text-sm font-black truncate">{myName || 'You'}</span>
                     <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${!arcadeSession ? 'bg-gray-400 opacity-50' : (isPlayerA ? (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'))}`}>
                         {!arcadeSession ? 'SYNCING...' : (isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING'))}
@@ -685,7 +739,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 border-2 ${partnerInLobby ? 'bg-accent/20 border-accent' : 'bg-border/10 border-dashed border-border'}`}>
                         {partnerInLobby ? <User size={24} className="text-accent" /> : <Monitor size={24} className="opacity-20" />}
                     </div>
-                    <span className="text-[10px] font-black uppercase opacity-40">Player 2</span>
+                    <span className="text-[10px] font-black uppercase opacity-40">P2</span>
                     <span className={`text-sm font-black truncate ${!partnerInLobby ? 'opacity-30' : ''}`}>
                         {partnerInLobby ? (partnerName || 'Partner') : (arcadeSession ? 'WAITING...' : 'SYNCING...')}
                     </span>
@@ -701,52 +755,32 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                 </div>
             </div>
 
-            {arcadeSession && (lobbyPhase === 'STARTING' || arcadeSession.status === 'starting') ? (
-                <div className="py-4">
-                    <ScoreboardCountdown count={3} onComplete={async () => {
-                        console.log("🚦 [LOBBY] Countdown complete. Finalizing status to 'playing'...");
-                        if (isPlayerA) {
-                            await supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute);
-                        }
-                    }} sfx={sfx} />
-                </div>
-            ) : lobbyPhase === 'WAITING' ? (
-               <div className="flex flex-col items-center gap-4">
-                  <p className="text-sm font-bold text-green-600 animate-pulse uppercase">
-                    Synchronizing Handshake...
-                  </p>
-                  <p className="text-[10px] uppercase tracking-widest opacity-60">Ready Signal Sent</p>
-               </div>
-            ) : (
-               <div className="flex flex-col gap-4 w-full max-w-xs">
-                 <RetroButton 
-                   variant="accent" 
-                   disabled={!partnerInLobby}
-                   onClick={async () => {
-                     console.log("🚦 [LOBBY] 1. 'I'm Ready' clicked. isPartnerOnline:", partnerIsOnline);
-                     setLobbyPhase('WAITING');
-                     try {
-                        await setReady(true, partnerIsOnline);
-                        console.log("🚦 [LOBBY] 2. Ready signal sent to DB.");
-                     } catch (e) {
-                        console.error("🛑 [LOBBY] Handshake signal rejected by DB:", e);
-                        if (!partnerIsOnline) setLobbyPhase('STARTING');
-                     }
-                   }} 
-                   className={`w-full py-3 ${!partnerInLobby ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                 >
-                   {partnerInLobby ? "I'm Ready!" : "Waiting for partner..."}
-                 </RetroButton>
-                 
-                 <RetroButton 
-                   variant="secondary"
-                   onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} 
-                   className="w-full py-2 text-xs"
-                 >
-                    {partnerInLobby ? "Ping Partner" : "Resend Invite"}
-                 </RetroButton>
-               </div>
-            )}
+            <div className="flex flex-col gap-4 w-full max-w-xs">
+              <RetroButton 
+                variant={amIReady ? 'primary' : 'accent'} 
+                disabled={!partnerInLobby}
+                onClick={async () => {
+                  const nextReady = !amIReady;
+                  console.log(`🚦 [LOBBY] Toggle ready to ${nextReady}`);
+                  try {
+                     await setReady(nextReady, partnerIsOnline);
+                  } catch (e) {
+                     console.error("Failed to toggle ready:", e);
+                  }
+                }}
+                className="w-full py-3 font-black uppercase text-sm"
+              >
+                {amIReady ? "✓ You are Ready" : "Click to Ready"}
+              </RetroButton>
+              
+              <RetroButton 
+                variant="secondary"
+                onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} 
+                className="w-full py-2 text-xs"
+              >
+                 {partnerInLobby ? "Ping Partner" : "Resend Invite"}
+              </RetroButton>
+            </div>
          </div>
       </RetroWindow>
       {showLeaveConfirm && (
@@ -758,6 +792,17 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           showSave={false} 
           sfx={sfx}
         />
+      )}
+      {showPartnerLeftModal && (
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <RetroWindow title="partner_left.exe" onClose={() => setShowPartnerLeftModal(false)} className="w-full max-w-sm">
+            <p className="font-bold text-sm mb-6">Your partner has left the game mid-game. Would you like to stay or leave?</p>
+            <div className="flex gap-2">
+              <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); setShowPartnerLeftModal(false); }}>Stay</RetroButton>
+              <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); setShowPartnerLeftModal(false); leaveLobby(); }}>Leave Game</RetroButton>
+            </div>
+          </RetroWindow>
+        </div>
       )}
       </>
     );

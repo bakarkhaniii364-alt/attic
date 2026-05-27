@@ -424,7 +424,7 @@ export function ScoreboardCountdown({ count = 3, onComplete, sfx }) {
   }, [current, onComplete, sfx]);
 
   return (
-    <div className="fixed inset-0 z-[var(--z-boot)] flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none animate-in fade-in">
+    <div className="fixed inset-0 z-[var(--z-boot)] flex items-center justify-center bg-black/40 pointer-events-none animate-in fade-in">
       <div className="relative w-80 h-80 bg-window retro-border-thick retro-shadow-dark flex flex-col items-center justify-between p-6 overflow-hidden animate-in zoom-in duration-300 select-none" style={{ backgroundColor: 'var(--bg-window)' }}>
         <div className="font-black text-xs sm:text-sm uppercase tracking-[0.3em] text-center text-main-text select-none animate-pulse opacity-70">
           🎮 Game will start in
@@ -643,7 +643,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
 
         {/* Delete Confirmation Overlay */}
         {showDeleteConfirm && (
-          <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in">
              <div className="bg-window retro-border-thick retro-shadow-dark p-6 max-w-[280px] w-full flex flex-col gap-4 animate-in zoom-in-95">
                 <div className="flex items-center gap-2 text-red-600 mb-2">
                    <AlertTriangle size={20} />
@@ -822,7 +822,7 @@ export function RetroMediaPlayer({ url, type = 'video', className = "", autoPlay
           </div>
         </>
       ) : (
-        <div className="w-full flex items-center gap-3 p-3 bg-window/40 rounded-xl relative overflow-hidden backdrop-blur-sm">
+        <div className="w-full flex items-center gap-3 p-3 bg-window/40 rounded-xl relative overflow-hidden">
            <button 
             onClick={togglePlay} 
             className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all flex-shrink-0 z-10"

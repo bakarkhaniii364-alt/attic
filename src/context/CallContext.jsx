@@ -106,7 +106,8 @@ export function CallProvider({ children }) {
   // ── Timer: starts exactly when ICE connects ───────────────────────────────
   useEffect(() => {
     if (callStatus === 'connected') {
-      setCallDuration(0);
+      setCallDuration(1);
+      callDurationRef.current = 1;
       callTimerRef.current = setInterval(() => setCallDuration(d => {
         const next = d + 1;
         callDurationRef.current = next;
@@ -117,6 +118,8 @@ export function CallProvider({ children }) {
     }
     return () => { if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; } };
   }, [callStatus]);
+
+  // Test Mode Auto-Connect logic removed to allow real WebRTC signaling to finish and trigger ICE connected state naturally
 
   // ── cleanupCall ───────────────────────────────────────────────────────────
   const cleanupCall = useCallback(() => {
@@ -400,6 +403,7 @@ const createPC = useCallback(async (type) => {
           sendSignal({ action: 'offer', sdp: pc.localDescription, callType: payload.callType });
         } catch (e) {
           console.error('[Call] offer creation failed:', e);
+          sendSignal({ action: 'ended' });
           cleanupCall();
         } finally {
           makingOfferRef.current = false;
@@ -438,7 +442,9 @@ const createPC = useCallback(async (type) => {
           sendSignal({ action: 'answer', sdp: pc.localDescription });
         } catch (e) {
           console.error('[Call] offer handling failed:', e);
+          sendSignal({ action: 'ended' });
           cleanupCall();
+          alert('Could not access microphone/camera. Please check browser permissions.');
         }
         break;
       }
@@ -674,7 +680,9 @@ const createPC = useCallback(async (type) => {
       sendSignal({ action: 'accepted', callType: incoming.type });
     } catch (err) {
       console.error('[Call] acceptCall failed:', err);
+      sendSignal({ action: 'ended' });
       cleanupCall();
+      alert('Could not access microphone/camera. Please check browser permissions.');
     }
   }, [incomingCall, sendSignal, cleanupCall, echoCancellation, noiseSuppression]);
 

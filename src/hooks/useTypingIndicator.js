@@ -1,41 +1,30 @@
-import { useState, useRef } from 'react';
-import { useBroadcast } from './useSupabaseSync.js';
+import { useRef } from 'react';
+import { useGlobalSync } from './useSupabaseSync.js';
 
 export function useTypingIndicator(userId, partnerId) {
-  const [isTypingLocal, setIsTypingLocal] = useState(false);
-  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+  const [myTyping, setMyTyping] = useGlobalSync(`typing_${userId}`, false);
+  const [partnerTyping] = useGlobalSync(`typing_${partnerId}`, false);
   const typingTimeoutRef = useRef(null);
 
-  const sendTyping = useBroadcast('typing', (payload) => {
-    if (payload.userId === partnerId) {
-      setIsPartnerTyping(payload.isTyping);
-    }
-  });
-
   const handleTyping = () => {
-    if (!isTypingLocal) {
-      setIsTypingLocal(true);
-      sendTyping({ userId, isTyping: true });
+    if (!myTyping) {
+      setMyTyping(true);
     }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      setIsTypingLocal(false);
-      sendTyping({ userId, isTyping: false });
+      setMyTyping(false);
     }, 1500);
   };
 
   const stopTyping = () => {
-    if (isTypingLocal) {
-      setIsTypingLocal(false);
-      sendTyping({ userId, isTyping: false });
-    }
+    setMyTyping(false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
 
   return {
-    isTypingLocal,
-    isPartnerTyping,
+    isTypingLocal: myTyping,
+    isPartnerTyping: !!partnerTyping,
     handleTyping,
     stopTyping
   };

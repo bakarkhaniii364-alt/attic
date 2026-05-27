@@ -164,7 +164,7 @@ export function ScrapbookApp({ onClose, images: propImages = [], sfx, userId, ro
                 </div>
               );
             })}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[var(--border)] text-[var(--text-on-border)] px-6 py-2 rounded-full font-bold text-xs backdrop-blur-md border border-[var(--border-light)] pointer-events-none z-[100]">DRAG PHOTOS TO CREATE A COLLAGE ❤️</div>
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[var(--border)] text-[var(--text-on-border)] px-6 py-2 rounded-full font-bold text-xs border border-[var(--border-light)] pointer-events-none z-[100]">DRAG PHOTOS TO CREATE A COLLAGE ❤️</div>
           </div>
           )}
        </div>

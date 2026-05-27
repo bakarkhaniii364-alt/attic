@@ -21,7 +21,7 @@ export function DoodleReceiverModal({ doodleData, partnerName, onClose, onScrapb
   };
   
   return (
-    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/60 flex items-center justify-center p-4">
       <RetroWindow title={`doodle_from_${(partnerName || 'partner').toLowerCase()}.exe`} onClose={onClose} className="max-w-md w-full">
         <div className="flex flex-col items-center p-4 bg-white retro-border shadow-inner">
           <img src={doodleData} alt="Received Doodle" className="w-full aspect-square object-contain bg-gray-50 border-2 border-dashed border-gray-300 mb-6" style={{ imageRendering: 'pixelated' }} />

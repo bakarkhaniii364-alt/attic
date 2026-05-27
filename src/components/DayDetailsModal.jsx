@@ -55,7 +55,7 @@ export function DayDetailsModal({ date, dayEvents, onClose, onAddEvent, onUpdate
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-300">
       <RetroWindow 
         title={`day_${formattedDate.toLowerCase().replace(/\s+/g, '_')}.exe`} 
         onClose={onClose}

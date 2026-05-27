@@ -63,7 +63,7 @@ export function KeyboardShortcuts({
   const appShortcuts  = SHORTCUTS.filter(s => s.category === 'app');
 
   return (
-    <div className="fixed inset-0 z-[990] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+    <div className="fixed inset-0 z-[990] bg-black/50 flex items-center justify-center p-4"
          onClick={() => setShowPanel(false)}>
       <div className="bg-window retro-border-thick shadow-[6px_6px_0px_var(--border)] w-full max-w-md animate-in zoom-in-95 fade-in duration-200"
            onClick={e => e.stopPropagation()}>

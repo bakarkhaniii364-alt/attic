@@ -206,7 +206,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
       <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-center justify-center p-4 flex-1 overflow-y-auto relative">
 
         {paused && (
-          <div className="absolute inset-0 z-50 backdrop-blur-md bg-black/40 flex items-center justify-center flex-col text-white">
+          <div className="absolute inset-0 z-50 bg-black/40 flex items-center justify-center flex-col text-white">
             <Pause size={64} className="mb-4 animate-pulse opacity-80" />
             <h2 className="text-3xl font-bold tracking-widest uppercase">Paused</h2>
             <RetroButton onClick={() => setPaused(false)} className="mt-6 px-12 py-3 text-lg">Resume</RetroButton>

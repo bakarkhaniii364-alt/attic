@@ -22,10 +22,16 @@ export function getStaticIceServers() {
   ];
 }
 
+import { isTestMode } from '../lib/testMode.js';
+
 /**
  * Fetches fresh TURN credentials from Cloudflare if configured.
  */
 export async function getFullIceServers() {
+  if (isTestMode()) {
+    return getStaticIceServers();
+  }
+
   const WORKER_URL = 'https://attic-turn-creds.damiyanw96.workers.dev/ice-servers';
   
   let cfServers = [];

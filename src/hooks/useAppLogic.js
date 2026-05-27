@@ -85,29 +85,37 @@ export function useAppLogic({
       m.sender === partnerId
     );
     const latestInvite = pendingInvites[pendingInvites.length - 1];
-    if (latestInvite && !processedInvites.current.has(latestInvite.id) && gameInvite?.id !== latestInvite.id) {
-      processedInvites.current.add(latestInvite.id);
+    if (latestInvite) {
       const gId = latestInvite.metadata?.gameId || latestInvite.gameId;
-      setGameInvite({ ...latestInvite, gameId: gId, metadata: { ...(latestInvite.metadata || {}), gameId: gId } });
-      if (notificationsEnabled) {
-        playAudio('notif', sfxEnabled);
-        sendNativeNotification(`${partnerName || 'Partner'} sent a game invite!`, { body: `Join them for ${gId}` });
+      if (gId && location.pathname.includes(gId)) {
+        processedInvites.current.add(latestInvite.id);
+        return;
+      }
+      if (!processedInvites.current.has(latestInvite.id) && gameInvite?.id !== latestInvite.id) {
+        processedInvites.current.add(latestInvite.id);
+        setGameInvite({ ...latestInvite, gameId: gId, metadata: { ...(latestInvite.metadata || {}), gameId: gId } });
+        if (notificationsEnabled) {
+          playAudio('notif', sfxEnabled);
+          sendNativeNotification(`${partnerName || 'Partner'} sent a game invite!`, { body: `Join them for ${gId}` });
+        }
       }
     }
-  }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id, notificationsEnabled]);
+  }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id, notificationsEnabled, location.pathname]);
 
   useEffect(() => {
     if (lobbyState?.gameId && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status === 'waiting') {
       if (!(lobbyState?.players || []).includes(userId) && gameInvite?.id !== lobbyState.gameId) {
-        setGameInvite({
-          id: lobbyState.gameId,
-          gameId: lobbyState.gameId,
-          mode: lobbyState.config?.mode || '1v1_remote',
-          metadata: { gameId: lobbyState.gameId }
-        });
+        if (!location.pathname.includes(lobbyState.gameId)) {
+          setGameInvite({
+            id: lobbyState.gameId,
+            gameId: lobbyState.gameId,
+            mode: lobbyState.config?.mode || '1v1_remote',
+            metadata: { gameId: lobbyState.gameId }
+          });
+        }
       }
     }
-  }, [lobbyState, partnerId, userId, gameInvite?.id]);
+  }, [lobbyState, partnerId, userId, gameInvite?.id, location.pathname]);
 
   // Chat Notifications
   useEffect(() => {
@@ -147,7 +155,7 @@ export function useAppLogic({
       }
       if (payload.action === 'invite' && payload.sender !== userId) {
         const isRecent = !payload.timestamp || (Date.now() - payload.timestamp < 30000);
-        if (isRecent) {
+        if (isRecent && !location.pathname.includes(payload.gameId)) {
            setGameInvite(payload);
            toast(`🎮 ${partnerName} invited you to play!`, 'actionable');
            playAudio('notif', sfxEnabled);

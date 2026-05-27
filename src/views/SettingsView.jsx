@@ -261,7 +261,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
            <div className="flex flex-col sm:flex-row gap-6 items-start">
               <div className="relative group mx-auto sm:mx-0 shrink-0">
                  {localProfile?.pfp ? <img src={localProfile?.pfp} alt="Avatar" className="w-20 h-20 rounded-none border-4 border-border object-cover" /> : <div className="w-20 h-20 rounded-none border-4 border-border bg-primary flex items-center justify-center text-4xl">{localProfile?.emoji}</div>}
-                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-none opacity-0 group-hover:opacity-100 cursor-pointer backdrop-blur-sm transition-opacity"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
+                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-none opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"><ImageIcon size={20}/><input type="file" accept="image/*" onChange={handlePfpUpload} className="hidden" /></label>
               </div>
              <div className="flex-1 w-full space-y-3">
                <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Name</label><input type="text" value={localProfile.name || ''} onChange={(e) => setLocalProfile({...localProfile, name: e.target.value})} className="w-full p-1.5 retro-border bg-window focus:outline-none font-bold text-xs" /></div>
@@ -383,7 +383,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                         )}
                      </div>
                      
-                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5 bg-window/40 backdrop-blur-[1px] relative z-0 transition-colors duration-500">
+                     <div className="border-2 border-dashed border-main-text/20 p-2 h-12 flex flex-col gap-1.5 bg-window/40 relative z-0 transition-colors duration-500">
                         <div className="flex gap-1.5 h-full">
                            <div className="flex-[2] bg-primary border border-black/10 rounded-sm shadow-sm transition-transform duration-500 group-hover:scale-105"></div>
                            <div className="flex-1 bg-secondary border border-black/10 rounded-sm shadow-sm transition-transform duration-500 group-hover:scale-95"></div>

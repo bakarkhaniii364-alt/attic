@@ -11,8 +11,13 @@ export const CHANNELS = [
     { name: "Cozy Jazz Cafe", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" }
 ];
 
+import { isTestMode } from '../lib/testMode.js';
+
 // ── RETRO AUDIO VISUALIZER ──
 function RetroVisualizer({ audioRef, isPlaying }) {
+    if (isTestMode()) {
+        return <div className="w-[60px] h-[20px] bg-transparent opacity-80 mix-blend-screen" />;
+    }
     const canvasRef = useRef(null);
     const animationRef = useRef(null);
     const contextRef = useRef(null);

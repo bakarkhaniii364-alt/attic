@@ -147,6 +147,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const incomingSeek = useRef(0);
     const hasAnnouncedJoin = useRef(false);
     const prevPartnerActivity = useRef(null);
+    const pendingSyncRef = useRef(null);
 
     const appendSystemLog = useCallback((text) => {
         const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, sender: 'SYSTEM', text };
@@ -208,6 +209,18 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         appendSystemLog(`${myName} switched to ${newMode === 'video' ? 'Video' : 'Cinema'} mode`);
     };
 
+    const handlePlayerReady = () => {
+        if (pendingSyncRef.current) {
+            const { time, playing } = pendingSyncRef.current;
+            console.log(`[SYNC] Applying pending sync time: ${time}s, playing: ${playing}`);
+            incomingSeek.current += 1;
+            playerRef.current.seekTo(time, 'seconds');
+            setPlayedSeconds(time);
+            setPlaying(playing);
+            pendingSyncRef.current = null;
+        }
+    };
+
     const formatTime = (sec) => {
         if (isNaN(sec) || sec === null || sec === undefined || sec === 0) return "0:00";
         const date = new Date(sec * 1000);
@@ -226,11 +239,19 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     useEffect(() => {
         const activity = partnerId ? roomProfiles?.[partnerId]?.activity : null;
-        if (prevPartnerActivity.current !== null && activity === 'Watching SyncWatcher' && prevPartnerActivity.current !== 'Watching SyncWatcher') {
-            appendSystemLog(`${partnerName} joined the watch party`);
+        if (prevPartnerActivity.current !== null) {
+            if (activity === 'Watching SyncWatcher' && prevPartnerActivity.current !== 'Watching SyncWatcher') {
+                appendSystemLog(`${partnerName} joined the watch party`);
+            } else if (activity !== 'Watching SyncWatcher' && prevPartnerActivity.current === 'Watching SyncWatcher') {
+                appendSystemLog(`${partnerName} left the watch party`);
+            }
         }
         prevPartnerActivity.current = activity;
     }, [partnerId, roomProfiles, partnerName, appendSystemLog]);
+
+    useEffect(() => {
+        broadcast('watcher_join', { sender: userId });
+    }, [broadcast, userId]);
 
 
     // TMDb API Key from Vite env (Optional)
@@ -543,7 +564,29 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         if (playerRef.current) {
             const currentTime = playerRef.current.getCurrentTime() || 0;
             const newTime = Math.max(0, currentTime + seconds);
+            incomingSeek.current += 1;
             playerRef.current.seekTo(newTime, 'seconds');
+            setPlayedSeconds(newTime);
+            if (duration > 0) setPlayedFraction(newTime / duration);
+            broadcast('watcher_control', { action: 'SEEK_SECONDS', time: newTime });
+            const direction = seconds > 0 ? 'forward' : 'backward';
+            appendSystemLog(`${myName} skipped ${direction} by ${Math.abs(seconds)}s`);
+        }
+    };
+
+    const handleReplay = () => {
+        playAudio('click', sfx);
+        if (playerRef.current) {
+            incomingSeek.current += 1;
+            playerRef.current.seekTo(0, 'seconds');
+            setPlayedSeconds(0);
+            setPlayedFraction(0);
+            broadcast('watcher_control', { action: 'SEEK_SECONDS', time: 0 });
+            if (!playing) {
+                setPlaying(true);
+                broadcast('watcher_control', { action: 'PLAY' });
+            }
+            appendSystemLog(`${myName} replayed the video`);
         }
     };
 
@@ -640,6 +683,23 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 setHearts(prev => [...prev, newHeart]);
                 setTimeout(() => setHearts(prev => prev.filter(h => h.id !== newHeart.id)), 2000);
             }
+            if (event === 'watcher_join' && payload.sender !== userId) {
+                if (playerRef.current) {
+                    const ct = playerRef.current.getCurrentTime() || 0;
+                    broadcast('watcher_sync_state', { time: ct, playing: playing, url: syncedUrl });
+                }
+            }
+            if (event === 'watcher_sync_state') {
+                console.log('[SYNC] Received watcher_sync_state:', payload);
+                if (playerRef.current) {
+                    incomingSeek.current += 1;
+                    playerRef.current.seekTo(payload.time, 'seconds');
+                    setPlayedSeconds(payload.time);
+                    setPlaying(payload.playing);
+                } else {
+                    pendingSyncRef.current = { time: payload.time, playing: payload.playing };
+                }
+            }
             if (event === 'watcher_pulse' && playerRef.current && playing) {
                 const ct = playerRef.current.getCurrentTime();
                 const diff = Math.abs(ct - payload.time);
@@ -674,7 +734,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
         window.addEventListener('sync_broadcast', handleBroadcast);
         return () => window.removeEventListener('sync_broadcast', handleBroadcast);
-    }, [playing]); // need playing in deps for the pulse listener logic
+    }, [playing, syncedUrl, userId, broadcast]); // need playing in deps for the pulse listener logic
 
     const sendChat = (e) => {
         e.preventDefault();
@@ -801,6 +861,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                         }
                                     }}
                                     onError={() => setLoadError('URL blocked by owner. Try a different YouTube link.')}
+                                    onReady={handlePlayerReady}
                                     width="100%"
                                     height="100%"
                                     style={{ position: 'absolute', top: 0, left: 0 }}
@@ -1051,34 +1112,35 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                             </div>
 
                             {/* Media Buttons */}
-                            <div className="flex justify-between items-center bg-black/5 p-2 rounded-xl border border-black/10 shadow-inner mt-2">
-                                <div className="flex gap-2 sm:gap-3 items-center">
-                                    <RetroButton onClick={handlePlayPause} className="w-12 h-12 p-0 flex items-center justify-center bg-primary text-white border-primary hover:scale-105 transition-all shadow-md !rounded-full" title={playing ? "Pause" : "Play"}>
-                                        {playing ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
+                            <div className="flex justify-between items-center bg-main p-2 border-[3px] border-border mt-2 shadow-sm">
+                                <div className="flex gap-1.5 sm:gap-2 items-center">
+                                    <RetroButton onClick={handlePlayPause} className="w-9 h-9 p-0 flex items-center justify-center bg-primary text-white border-primary hover:brightness-110 shadow-sm !rounded-none" title={playing ? "Pause" : "Play"}>
+                                        {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
                                     </RetroButton>
-                                    <div className="flex gap-1 bg-white/60 p-1 rounded-full border border-black/10 shadow-sm">
-                                        <RetroButton onClick={() => handleSkip(-5)} className="w-10 h-10 p-0 flex items-center justify-center text-main-text hover:text-primary transition-colors !bg-transparent !border-none !shadow-none" title="Back 5s">
-                                            <RotateCcw size={18} />
-                                        </RetroButton>
-                                        <RetroButton onClick={() => handleSkip(5)} className="w-10 h-10 p-0 flex items-center justify-center text-main-text hover:text-primary transition-colors !bg-transparent !border-none !shadow-none" title="Forward 5s">
-                                            <RotateCw size={18} />
-                                        </RetroButton>
-                                    </div>
+                                    <RetroButton onClick={handleReplay} className="w-9 h-9 p-0 flex items-center justify-center bg-window text-main-text border-border hover:bg-main shadow-sm !rounded-none" title="Replay">
+                                        <RotateCcw size={15} />
+                                    </RetroButton>
+                                    <RetroButton onClick={() => handleSkip(-10)} className="w-9 h-9 p-0 flex items-center justify-center bg-window text-main-text border-border hover:bg-main shadow-sm !rounded-none" title="Back 10s">
+                                        <span className="text-[8px] font-black leading-none">-10s</span>
+                                    </RetroButton>
+                                    <RetroButton onClick={() => handleSkip(10)} className="w-9 h-9 p-0 flex items-center justify-center bg-window text-main-text border-border hover:bg-main shadow-sm !rounded-none" title="Forward 10s">
+                                        <span className="text-[8px] font-black leading-none">+10s</span>
+                                    </RetroButton>
                                     
-                                    <div className="hidden sm:flex items-center gap-2 ml-2 text-main-text bg-white/60 px-3 py-2 rounded-full border border-black/10 shadow-sm">
-                                        <button onClick={() => setMuted(!muted)} className="hover:text-primary transition-colors focus:outline-none">
-                                            {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                    <div className="hidden sm:flex items-center gap-2 ml-2 text-main-text bg-window px-2.5 py-1.5 border-[2px] border-border shadow-sm !rounded-none">
+                                        <button onClick={() => setMuted(!muted)} className="hover:text-primary transition-colors focus:outline-none flex items-center justify-center">
+                                            {muted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
                                         </button>
-                                        <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} onChange={(e) => {setVolume(parseFloat(e.target.value)); setMuted(false);}} className="w-24 accent-primary h-1.5 bg-black/20 rounded-full appearance-none outline-none cursor-pointer" />
+                                        <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} onChange={(e) => {setVolume(parseFloat(e.target.value)); setMuted(false);}} className="w-20 accent-primary h-1.5 bg-black/20 rounded-full appearance-none outline-none cursor-pointer" />
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2">
-                                    <RetroButton onClick={sendReaction} className="w-12 h-12 p-0 flex items-center justify-center text-pink-500 hover:bg-pink-50 transition-colors bg-white border border-pink-200 shadow-sm !rounded-full" title="Send Love">
-                                        <Heart size={22} fill="currentColor" />
+                                <div className="flex gap-1.5">
+                                    <RetroButton onClick={sendReaction} className="w-9 h-9 p-0 flex items-center justify-center text-pink-500 hover:bg-pink-50 transition-colors bg-white border border-pink-200 shadow-sm !rounded-none" title="Send Love">
+                                        <Heart size={16} fill="currentColor" />
                                     </RetroButton>
-                                    <RetroButton onClick={toggleFullscreen} className="w-12 h-12 p-0 flex items-center justify-center text-main-text hover:text-primary transition-colors bg-white border border-black/10 shadow-sm !rounded-full" title="Fullscreen">
-                                        <Maximize2 size={20} />
+                                    <RetroButton onClick={toggleFullscreen} className="w-9 h-9 p-0 flex items-center justify-center text-main-text hover:text-primary transition-colors bg-white border border-black/10 shadow-sm !rounded-none" title="Fullscreen">
+                                        <Maximize2 size={16} />
                                     </RetroButton>
                                 </div>
                             </div>
@@ -1094,17 +1156,17 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                 <RetroButton 
                                     onClick={() => handleNextPrevEpisode(-1)} 
                                     disabled={currentEpisode <= 1} 
-                                    className="px-5 py-2.5 text-sm font-black flex items-center gap-2 hover:bg-main transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed !rounded-xl"
+                                    className="px-4 py-2 text-xs font-black flex items-center gap-2 hover:bg-main transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed !rounded-none"
                                     title="Previous Episode"
                                 >
-                                    <RotateCcw size={14} /> Previous
+                                    <RotateCcw size={12} /> Previous
                                 </RetroButton>
                                 <RetroButton 
                                     onClick={() => handleNextPrevEpisode(1)} 
-                                    className="px-5 py-2.5 text-sm font-black flex items-center gap-2 bg-primary text-white border-primary hover:scale-105 transition-all shadow-md !rounded-xl"
+                                    className="px-4 py-2 text-xs font-black flex items-center gap-2 bg-primary text-white border-primary hover:brightness-110 transition-all shadow-sm !rounded-none"
                                     title="Next Episode"
                                 >
-                                    Next Episode <RotateCw size={14} />
+                                    Next Episode <RotateCw size={12} />
                                 </RetroButton>
                             </div>
                         </div>

@@ -480,7 +480,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   return (
     <div className={`max-w-5xl w-full grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 relative z-10 pb-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
       {unreadDoodles.length > 0 && (
-        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/40 flex flex-col items-center justify-center p-4">
           <div className="animate-in zoom-in-50 spin-in-6 duration-500 cursor-pointer hover:scale-110 transition-transform flex flex-col items-center" onClick={() => nav('doodle')}>
             <div className="relative"><Mail size={120} className="text-window drop-shadow-2xl" fill="var(--primary)" /><div className="absolute inset-0 flex items-center justify-center animate-pulse"><Heart size={40} className="text-white" fill="white" /></div></div>
             <div className="text-center font-bold text-main-text mt-6 bg-accent text-accent-text retro-border retro-shadow-dark px-6 py-2 text-lg">You have a new doodle!</div>

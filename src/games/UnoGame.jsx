@@ -70,7 +70,7 @@ const CardUI = ({ card, onClick, className = "", hidden = false }) => {
   );
 };
 
-export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer, config, userId, setScores, sfx, onWin, partnerName }) {
+export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer, config, userId, setScores, sfx, onWin, partnerName, myName }) {
   const { sendData } = useCall();
   const { roomId } = useAuth();
   const [gameState, setGameState] = useGlobalSync(`uno_${roomId}`, null);
@@ -420,7 +420,7 @@ export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer
   }
 
   return (
-    <RetroWindow title="retro_uno.exe" onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={isMultiplayer ? "Retro Uno — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Retro Uno — vs CPU"} onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
       <div className="flex w-[800px] h-[600px] max-w-full max-h-[85vh] bg-main text-main-text font-mono select-none overflow-hidden touch-none relative">
         
          {/* Sidebar */}
@@ -463,7 +463,7 @@ export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer
              </div>
 
              <div className="absolute top-4 right-4 bg-window border-2 border-border px-3 py-1 text-xs font-bold shadow-[2px_2px_0_var(--border)]">
-                 CPU: {oppHand.length}
+                 {isMultiplayer ? partnerName || 'Partner' : 'CPU'}: {oppHand.length}
              </div>
 
              {/* Center Play Area */}
@@ -516,7 +516,7 @@ export function UnoGame({ onBack, isHost, myPlayerId, oppPlayerId, isMultiplayer
 
          {/* Color Picker Modal */}
          {showColorPicker && (
-              <div className="absolute inset-0 bg-black/60 z-[1000] flex justify-center items-center backdrop-blur-sm">
+              <div className="absolute inset-0 bg-black/60 z-[1000] flex justify-center items-center">
                   <div className="bg-window border-2 border-border p-[20px] sm:p-[30px] shadow-retro max-w-[350px] w-[90%] text-center">
                       <h2 className="text-[20px] sm:text-[24px] font-black uppercase mb-[20px] text-main-text">Select Color</h2>
                       <div className="grid grid-cols-2 gap-[10px]">

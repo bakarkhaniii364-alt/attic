@@ -498,7 +498,7 @@ export function PremiumCallHub({
         <div className="flex items-center gap-2 min-w-0 truncate">
           <div className={`w-2 h-2 shrink-0 rounded-full ${isReconnecting ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
           {type === 'video' ? <Video size={13} className="shrink-0 text-pink-300"/> : <Phone size={13} className="shrink-0 text-cyan-300"/>}
-          <span className="text-[11px] font-black uppercase tracking-widest truncate">{partnerName}</span>
+          <span className="text-[11px] font-black uppercase tracking-widest truncate">{type === 'video' ? 'VIDEO CALL' : 'AUDIO CALL'} - {partnerName}</span>
           <span className="opacity-40 text-xs shrink-0">|</span>
           <span className="text-[11px] font-bold opacity-70 shrink-0">{isRinging ? '···' : isReconnecting ? '⚠' : timer}</span>
           {isPartnerTyping && !isRinging && (
@@ -520,7 +520,7 @@ export function PremiumCallHub({
               <Minimize2 size={14}/>
             </button>
           )}
-          <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-red-600 text-white hover:bg-red-700 transition-all" title="End Call">
+          <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-red-600 text-white hover:bg-red-700 transition-all" title="Hang Up">
             <PhoneOff size={14}/>
           </button>
         </div>
@@ -721,8 +721,9 @@ export function PremiumCallHub({
           <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
 
           <button onClick={onEndCall} 
-                  className="p-2.5 sm:p-3 retro-border-thick shadow-[3px_3px_0_var(--border)] sm:shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call (Shift+E)">
+                  className="p-2.5 sm:p-3 retro-border-thick shadow-[3px_3px_0_var(--border)] sm:shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call">
             <PhoneOff size={isMobile ? 18 : 22} className="rotate-[135deg]"/>
+            <span style={{ display: 'none' }}>End</span>
           </button>
         </div>
       </div>

@@ -140,7 +140,7 @@ const solveCollision = (b1, b2, onCueHit, onBallHit) => {
   if (speed > 1.5 && onBallHit) onBallHit(speed);
 };
 
-export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook, partnerName }) {
+export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook, partnerName, myName }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myPlayerId = isMultiplayer ? userId : 'p1';
   const oppPlayerId = isMultiplayer ? partnerId : 'p2';
@@ -210,7 +210,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               message: "Break!"
           });
       }
-  }, [isHost, isMultiplayer]); // Run once on mount
+  }, [isHost, isMultiplayer, gameState, myPlayerId, oppPlayerId, setGameState]); // Run when mount or key states update
 
   const handleManualReset = () => {
     if (!isHost && isMultiplayer) return;
@@ -781,7 +781,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   const oppType = gameState.assignments[oppPlayerId];
 
   return (
-    <RetroWindow title="retro_pool.exe" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={isMultiplayer ? "Retro Pool — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Retro Pool — vs AI"} onClose={onBack} confirmOnClose sfx={sfx} noPadding>
         <div className="flex flex-col md:flex-row w-full h-[80vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
             
             {/* Side Panel */}
@@ -806,7 +806,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
                     <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === oppPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
                         <div className="font-black uppercase text-xl mb-1 flex justify-between items-center">
-                            <span>{isMultiplayer ? 'P2' : 'AI'}</span>
+                            <span>{isMultiplayer ? partnerName || 'Partner' : 'AI'}</span>
                             <span className="text-sm font-bold opacity-80">{gameState?.points?.[oppPlayerId] || 0} pts</span>
                         </div>
                         <div className="font-bold flex items-center gap-2">
@@ -854,7 +854,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                         YOU: {engineRef.current.balls.filter(b => !b.active && b.type === myType).length}
                     </div>
                     <div className="bg-white/90 p-2 retro-border text-xs font-bold">
-                        OPP: {engineRef.current.balls.filter(b => !b.active && b.type === oppType).length}
+                        {isMultiplayer ? partnerName || 'Partner' : 'OPP'}: {engineRef.current.balls.filter(b => !b.active && b.type === oppType).length}
                     </div>
                 </div>
 
@@ -878,7 +878,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                          YOU: {myType || 'open'}
                      </div>
                      <div className={gameState?.turn === oppPlayerId ? "text-[var(--primary)]" : "opacity-50"}>
-                         OPP: {oppType || 'open'}
+                         {isMultiplayer ? partnerName || 'Partner' : 'OPP'}: {oppType || 'open'}
                      </div>
                 </div>
             </div>

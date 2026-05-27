@@ -8,6 +8,8 @@ import { useBroadcast } from '../hooks/useSupabaseSync.js';
 import { useCall } from '../context/instances.js';
 import { Brush, Undo2, Trash2, PenTool, Eraser, Grid, Lightbulb, SkipForward, PaintBucket, Smile } from 'lucide-react';
 
+import { isTestMode } from '../lib/testMode.js';
+
 export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, partnerId, pictionaryState, setPictionaryState, isHost, partnerName }) {
   const p1Id = isHost ? userId : (partnerId || userId);
   const p2Id = isHost ? (partnerId || userId) : userId;
@@ -69,7 +71,25 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     if (gameState === 'drawing' || gameState === 'word_selection') return;
     playAudio('click', sfx); 
     const wordOptions = getWordOptions();
-    setPictionaryState({
+    if (isTestMode()) {
+      setPictionaryState({
+        gameState: 'drawing',
+        hostId: p1Id,
+        guestId: p2Id,
+        currentRound: 1,
+        totalRounds: parseInt(config?.rounds) || 3,
+        turn: 1,
+        drawerId: p1Id,
+        wordOptions,
+        word: 'Apple',
+        displayWord: ['_', '_', '_', '_', '_'],
+        endTime: Date.now() + 90 * 1000,
+        currentCanvas: null,
+        scores: { [p1Id]: 0, [p2Id]: 0 },
+        turnResult: null
+      });
+    } else {
+      setPictionaryState({
         gameState: 'word_selection',
         hostId: p1Id,
         guestId: p2Id,
@@ -84,7 +104,8 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
         currentCanvas: null,
         scores: { [p1Id]: 0, [p2Id]: 0 },
         turnResult: null
-    });
+      });
+    }
     setUndoStack([]); 
   };
 
@@ -115,6 +136,73 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   };
 
   const [localTimeLeft, setLocalTimeLeft] = useState(90);
+
+  const [prepCountdown, setPrepCountdown] = useState(4);
+  const [wordCountdown, setWordCountdown] = useState(10);
+  const [turnEndCountdown, setTurnEndCountdown] = useState(5);
+
+  useEffect(() => {
+    if (gameState === 'prep') {
+      setPrepCountdown(4);
+      const interval = setInterval(() => {
+        setPrepCountdown(c => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState === 'word_selection') {
+      setWordCountdown(10);
+      const interval = setInterval(() => {
+        setWordCountdown(c => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState === 'turn_end') {
+      setTurnEndCountdown(5);
+      const interval = setInterval(() => {
+        setTurnEndCountdown(c => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [gameState]);
+
+  // Auto-advance prep stage after 4s (Host only)
+  useEffect(() => {
+    if (gameState === 'prep' && isHost) {
+      const timer = setTimeout(() => {
+        startRound();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, isHost]);
+
+  // Auto-advance word selection stage after 10s (Host only)
+  useEffect(() => {
+    if (gameState === 'word_selection' && isHost) {
+      const timer = setTimeout(() => {
+        // Automatically select the first word option
+        const options = stateToUse.wordOptions || [];
+        const selected = options[0] || 'Apple';
+        selectWord(selected);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, isHost, stateToUse.wordOptions]);
+
+  // Auto-advance turn_end stage after 5s (Host only)
+  useEffect(() => {
+    if (gameState === 'turn_end' && isHost) {
+      const timer = setTimeout(() => {
+        proceedToNextTurn();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, isHost]);
 
   useEffect(() => { 
       if (gameState === 'drawing' && stateToUse.endTime) { 
@@ -517,12 +605,14 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
             </div>
           </div>
 
-          {isHost ? (
+          <div className="text-xs font-bold opacity-60 mb-6 uppercase tracking-wider text-main-text/60 animate-pulse">
+            Proceeding to next turn in {turnEndCountdown}s...
+          </div>
+
+          {isHost && (
             <RetroButton className="w-full py-4 text-lg font-black uppercase tracking-widest" onClick={proceedToNextTurn}>
-              Proceed to Next Turn
+              Proceed Now
             </RetroButton>
-          ) : (
-             <div className="font-bold opacity-60 text-sm animate-pulse">Waiting for host to advance...</div>
           )}
         </div>
       </RetroWindow>
@@ -543,12 +633,14 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
              <p className="font-bold opacity-70 text-xs">Timer: 90s per turn</p>
           </div>
           
-          {isHost ? (
+          <div className="text-sm font-black text-[var(--primary)] animate-pulse mb-6">
+            Starting in {prepCountdown}s...
+          </div>
+          
+          {isHost && (
             <RetroButton className="w-full py-4 text-lg font-black uppercase tracking-widest" onClick={startRound}>
-              Start Game
+              Start Now
             </RetroButton>
-          ) : (
-             <div className="font-bold text-sm text-[var(--primary)] animate-pulse">Waiting for host to start...</div>
           )}
         </div>
       </RetroWindow>
@@ -572,11 +664,14 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
                    </RetroButton>
                 ))}
               </div>
+              <div className="text-xs font-bold opacity-60 mt-6 uppercase tracking-wider text-main-text/60">
+                Auto-selecting in {wordCountdown}s...
+              </div>
             </>
           ) : (
             <div className="flex flex-col items-center gap-2">
-              <p className="font-bold opacity-80 text-sm">Partner is picking a word to draw...</p>
-              <div className="loader mt-4 font-bold text-xs animate-pulse">Waiting for partner choice...</div>
+              <p className="font-bold opacity-80 text-sm">{partnerName || 'Partner'} is picking a word to draw...</p>
+              <div className="loader mt-4 font-bold text-xs animate-pulse text-primary uppercase tracking-wider">Auto-selecting in {wordCountdown}s...</div>
             </div>
           )}
         </div>
@@ -584,14 +679,24 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     );
   }
 
+  const hostScore = stateToUse.scores?.[stateToUse.hostId] || 0;
+  const guestScore = stateToUse.scores?.[stateToUse.guestId] || 0;
+  const myScore = isHost ? hostScore : guestScore;
+  const partnerScore = isHost ? guestScore : hostScore;
+
   return (
     <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Pictionary`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold">
+      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold text-xs sm:text-sm">
          <span className={localTimeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {localTimeLeft}s</span>
+         <div className="flex items-center gap-2 bg-black/10 px-2 py-0.5 rounded retro-border border-dashed">
+           <span>Score - You: {myScore} pts</span>
+           <span className="opacity-45">|</span>
+           <span>{partnerName || 'Partner'}: {partnerScore} pts</span>
+         </div>
          {gameState === 'drawing' ? (
            <div className="flex items-center gap-2">
              <span className="text-sm opacity-80">{isDrawer ? "You are drawing" : `${partnerName} is drawing`}</span>
-             {isDrawer && <RetroButton variant="white" onClick={() => { setPictionaryState(prev => ({...prev, gameState: 'turn_end', turnResult: 'time_up'})); }} className="px-4 py-1 text-xs opacity-0 absolute pointer-events-none">Hand to Guesser</RetroButton>}
+             {isDrawer && <RetroButton variant="white" onClick={() => { setPictionaryState(prev => ({...prev, gameState: 'turn_end', turnResult: 'time_up'})); }} className={`px-4 py-1 text-xs ${isTestMode() ? 'opacity-100 relative' : 'opacity-0 absolute pointer-events-none'}`}>Hand to Guesser</RetroButton>}
            </div>
          ) : (
            <span>{isDrawer ? 'Waiting for partner to guess...' : `${partnerName} is drawing`}</span>

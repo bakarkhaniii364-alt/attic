@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RetroWindow, RetroButton, ShareOutcomeOverlay } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, ShareOutcomeOverlay, ConfirmDialog } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { getScore } from '../utils/helpers.js';
 import { incrementUserScore } from '../utils/userDataHelpers.js';
@@ -11,6 +11,26 @@ import { RefreshCw } from 'lucide-react';
 export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat, onSaveToScrapbook, profile, myName, userId, isHost, isMultiplayer, myPlayerId, oppPlayerId, partnerName }) {
   const { roomId } = useAuth();
   const [syncedState, setSyncedState] = useGlobalSync(`tictactoe_${roomId}`, null);
+  
+  // Restart handshake states
+  const [showMyRestartModal, setShowMyRestartModal] = useState(false);
+  const [waitingForPartnerRestart, setWaitingForPartnerRestart] = useState(false);
+  const [showPartnerRestartModal, setShowPartnerRestartModal] = useState(false);
+
+  const sendRestartAction = useBroadcast(`ttt_restart_${roomId}`, (action) => {
+    if (action.sender === userId) return;
+    if (action.type === 'request_restart') {
+      setShowPartnerRestartModal(true);
+    } else if (action.type === 'accept_restart') {
+      performLocalReset();
+      setWaitingForPartnerRestart(false);
+      setShowPartnerRestartModal(false);
+    } else if (action.type === 'decline_restart') {
+      setWaitingForPartnerRestart(false);
+      setShowPartnerRestartModal(false);
+      alert(`${partnerName || 'Partner'} declined the restart request.`);
+    }
+  });
 
   const size = config.size || 3;
   const p1 = config.p1Avatar || 'X';
@@ -242,8 +262,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     handleMove(i, false);
   };
   
-  const resetSeries = () => { 
-    playAudio('click', sfx); 
+  const performLocalReset = () => {
     updateGameState({
       board: Array(size*size).fill(null),
       xIsNext: true,
@@ -257,10 +276,19 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     processedWinRef.current = false;
   };
 
+  const resetSeries = () => { 
+    playAudio('click', sfx); 
+    if (isMultiplayer) {
+      setShowMyRestartModal(true);
+    } else {
+      performLocalReset();
+    }
+  };
+
   if (gameOverOverlay) {
     const overallWinner = p1Wins >= winsRequired ? p1 : p2;
     return ( 
-        <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {resetSeries(); onBack();}} onRematch={resetSeries} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined} /> 
+        <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {performLocalReset(); onBack();}} onRematch={resetSeries} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined} /> 
     );
   }
 
@@ -271,7 +299,9 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     return <div className="absolute bg-[var(--primary)] retro-border shadow-[0_0_15px_var(--primary)] z-10 pointer-events-none rounded-full animate-in zoom-in-0" style={style}></div>;
   };
 
-  const oppName = config.mode === '1v1_local' || config.mode === 'memory' ? `P2 (${p2})` : `AI (${p2})`;
+  const oppName = isMultiplayer 
+    ? `${partnerName || 'Partner'} (${p2})` 
+    : (config.mode === '1v1_local' || config.mode === 'memory' ? `P2 (${p2})` : `AI (${p2})`);
 
   const renderCrowns = (wins) => {
       let crowns = [];
@@ -285,6 +315,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   const cellSize = size === 3 ? 'w-20 h-20 sm:w-24 sm:h-24 text-4xl' : size === 4 ? 'w-16 h-16 sm:w-20 sm:h-20 text-3xl' : 'w-12 h-12 sm:w-16 sm:h-16 text-2xl';
 
   return (
+    <>
     <RetroWindow title={`${myName || 'You'} vs ${isMultiplayer ? (partnerName || 'Partner') : 'AI'} - TicTacToe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[750px]" onClose={onBack} confirmOnClose sfx={sfx}>
       <div className="flex flex-col items-center pb-8 pt-4">
         
@@ -322,6 +353,58 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
         <RetroButton className="mt-8 px-6 py-3 text-sm opacity-80 border-dashed" onClick={resetSeries}><RefreshCw size={14} className="inline mr-2" /> restart series</RetroButton>
       </div>
     </RetroWindow>
+
+    {showMyRestartModal && (
+      <ConfirmDialog
+        title="restart_series.exe"
+        message="Are you sure you want to request a game series restart?"
+        showCancel={true}
+        onConfirm={() => {
+          setShowMyRestartModal(false);
+          setWaitingForPartnerRestart(true);
+          sendRestartAction({ type: 'request_restart', sender: userId });
+        }}
+        onCancel={() => setShowMyRestartModal(false)}
+        sfx={sfx}
+      />
+    )}
+
+    {waitingForPartnerRestart && (
+      <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <RetroWindow title="waiting.exe" onClose={() => {
+          setWaitingForPartnerRestart(false);
+          sendRestartAction({ type: 'decline_restart', sender: userId });
+        }} className="w-full max-w-sm">
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            <span className="text-sm font-bold animate-pulse text-primary">WAITING FOR PARTNER...</span>
+            <p className="text-xs opacity-75 font-medium">Sent a request to restart the series to {partnerName || 'partner'}.</p>
+            <RetroButton variant="secondary" className="mt-4 px-6 py-2" onClick={() => {
+              setWaitingForPartnerRestart(false);
+              sendRestartAction({ type: 'decline_restart', sender: userId });
+            }}>Cancel Request</RetroButton>
+          </div>
+        </RetroWindow>
+      </div>
+    )}
+
+    {showPartnerRestartModal && (
+      <ConfirmDialog
+        title="restart_requested.exe"
+        message={`Your partner ${partnerName || ''} wants to restart the game series. Restart?`}
+        showCancel={true}
+        onConfirm={() => {
+          performLocalReset();
+          sendRestartAction({ type: 'accept_restart', sender: userId });
+          setShowPartnerRestartModal(false);
+        }}
+        onCancel={() => {
+          sendRestartAction({ type: 'decline_restart', sender: userId });
+          setShowPartnerRestartModal(false);
+        }}
+        sfx={sfx}
+      />
+    )}
+    </>
   );
 }
 

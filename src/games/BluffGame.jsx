@@ -49,7 +49,7 @@ const CardUI = ({ card, onClick, selected, hidden = false }) => {
   );
 };
 
-export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, partnerName }) {
+export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, partnerName, myName }) {
   const isMultiplayer = config.mode === '1v1_remote';
   const myId = isMultiplayer ? userId : 'p1';
   const oppId = isMultiplayer ? partnerId : 'ai';
@@ -338,13 +338,13 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
   const sortedMyHand = [...myHand].sort((a,b) => RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank));
 
   return (
-    <RetroWindow title="bluff.exe" onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={isMultiplayer ? "Retro Bluff — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Retro Bluff — vs AI"} onClose={() => { setGameState(null); onBack(); }} confirmOnClose sfx={sfx} noPadding>
       <div className="flex flex-col items-center justify-between p-4 w-[800px] h-[600px] max-w-full max-h-[85vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
         
          {/* Opponent Info */}
         <div className="w-full flex justify-between items-start px-4">
             <div className="bg-[var(--bg-window)] text-[var(--text-main)] font-bold text-xs px-3 py-2 retro-border uppercase flex flex-col items-center retro-shadow-dark">
-                <span>{isMultiplayer ? 'Partner' : 'AI'}</span>
+                <span>{isMultiplayer ? partnerName || 'Partner' : 'AI'}</span>
                 <span className="text-xl text-[var(--secondary)]">{handsCount[oppId]} Cards</span>
             </div>
             
@@ -357,9 +357,9 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
         {/* Action Prompts */}
         <div className="w-full flex flex-col items-center justify-center mt-4">
              {phase === 'action' && isMyTurn && <div className="text-xl sm:text-3xl font-black text-[var(--primary)] uppercase animate-bounce text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 retro-shadow-dark">YOUR TURN: Play {targetRank}s</div>}
-             {phase === 'action' && !isMyTurn && <div className="text-lg font-black opacity-70 uppercase text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 shadow-inner">Opponent is choosing {targetRank}s...</div>}
+             {phase === 'action' && !isMyTurn && <div className="text-lg font-black opacity-70 uppercase text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 shadow-inner">{isMultiplayer ? partnerName || 'Partner' : 'Opponent'} is choosing {targetRank}s...</div>}
              {phase === 'reaction' && lastPlay && lastPlay.player !== myId && <div className="text-xl sm:text-3xl font-black text-[var(--primary)] uppercase animate-pulse text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 retro-shadow-dark">CALL BLUFF or PASS?</div>}
-             {phase === 'reaction' && lastPlay && lastPlay.player === myId && <div className="text-lg font-black opacity-70 uppercase text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 shadow-inner">Waiting for opponent to react...</div>}
+             {phase === 'reaction' && lastPlay && lastPlay.player === myId && <div className="text-lg font-black opacity-70 uppercase text-center bg-[var(--bg-window)] retro-border-thick px-6 py-2 shadow-inner">Waiting for {isMultiplayer ? partnerName || 'Partner' : 'opponent'} to react...</div>}
         </div>
 
         {/* Center Play Area */}
@@ -373,8 +373,8 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
                         {revealResult.cardsRevealed.map((c, i) => <CardUI key={i} card={c} />)}
                     </div>
                     <p className="font-bold text-sm uppercase mb-4 text-center">
-                        {revealResult.caller === myId ? 'You' : 'Opponent'} called bluff.<br/>
-                        {revealResult.loser === myId ? 'You take' : 'Opponent takes'} the pile!
+                        {revealResult.caller === myId ? 'You' : isMultiplayer ? partnerName || 'Partner' : 'Opponent'} called bluff.<br/>
+                        {revealResult.loser === myId ? 'You take' : isMultiplayer ? (partnerName || 'Partner') + ' takes' : 'Opponent takes'} the pile!
                     </p>
                     <RetroButton onClick={advanceAfterReveal} className="px-8 py-2">Continue</RetroButton>
                 </div>
@@ -447,7 +447,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
         {winner && (
           <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
             outcome={winner === myId ? 'win' : 'loss'}
-            score={winner === myId ? 'You emptied your hand!' : 'Opponent emptied their hand!'}
+            score={winner === myId ? 'You emptied your hand!' : isMultiplayer ? `${partnerName || 'Partner'} emptied their hand!` : 'Opponent emptied their hand!'}
             gameName="Retro Bluff"
             onClose={() => onBack()}
           />

@@ -30,18 +30,6 @@ export function useGlobalSync(key, initialValue) {
 
   // Sync localState with globalState
   useEffect(() => {
-    if (isTestMode()) {
-      const cached = localStorage.getItem(`attic_test_${key}`);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (JSON.stringify(parsed) !== JSON.stringify(localStateRef.current)) {
-            localStateRef.current = parsed;
-            setLocalState(parsed);
-          }
-        } catch (e) {}
-      }
-    }
     if (globalState && globalState[key] !== undefined) {
       if (JSON.stringify(globalState[key]) !== JSON.stringify(localStateRef.current)) {
         localStateRef.current = globalState[key];
@@ -75,19 +63,8 @@ export function useGlobalSync(key, initialValue) {
             localStateRef.current = val;
             setLocalState(val);
         });
-        const handleStorage = (e) => {
-          if (e.key === `attic_test_${key}` && e.newValue) {
-            try {
-              const parsed = JSON.parse(e.newValue);
-              localStateRef.current = parsed;
-              setLocalState(parsed);
-            } catch (err) {}
-          }
-        };
-        window.addEventListener('storage', handleStorage);
         return () => {
           un1();
-          window.removeEventListener('storage', handleStorage);
         };
     }
   }, [key]);

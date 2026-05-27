@@ -34,21 +34,10 @@ export function OverlayManager({
 
 
 
-      {gameInvite && (
-        <GameInviteModal 
-          invite={gameInvite} partnerName={partnerName}
-          onAccept={async () => {
-            setGameInvite(null);
-            const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-            navigate(`/activities/${gId}`, { state: { autoJoin: true } });
-          }}
-          onDecline={() => setGameInvite(null)}
-          sfx={sfxEnabled}
-        />
-      )}
+
 
       {watchpartyInvite && (
-        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-300">
           <RetroWindow title="watchparty_invite.exe" onClose={() => setWatchpartyInvite(null)} className="max-w-sm w-full">
             <div className="p-6 text-center">
                <div className="w-16 h-16 bg-primary text-white rounded-lg retro-border flex items-center justify-center mx-auto mb-4">

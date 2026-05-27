@@ -295,13 +295,13 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
   }
 
   return (
-    <RetroWindow title={`chess_${config.mode}.exe`} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+    <RetroWindow title={isMultiplayer ? "Chess — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Chess — vs AI"} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 relative overflow-hidden">
          <div className="w-full h-1 bg-red-400 absolute bottom-0 left-0"><div className="h-full bg-green-400 transition-all" style={{width: `${Math.max(0, Math.min(100, evalPerc))}%`}}></div></div>
          {isMultiplayer ? (
            <span className={`font-black uppercase text-sm px-2 py-0.5 rounded ${chess.turn() === myColor ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-white opacity-70'}`}>
-             {chess.turn() === myColor ? '⚡ Your Turn' : '⏳ Partner\'s Turn'}
+             {chess.turn() === myColor ? '⚡ Your Turn' : '⏳ ' + (partnerName || 'Partner') + "'s Turn"}
            </span>
          ) : (
            <span><Crosshair size={14} className="inline mr-1"/> Eval: {getMaterialDiff() > 0 ? '+'+getMaterialDiff() : getMaterialDiff()}</span>

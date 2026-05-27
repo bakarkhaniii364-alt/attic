@@ -1,7 +1,7 @@
 import {
   X, Send, Paperclip, Smile, Mic, Trash2, Pin, Edit2, Reply, Image as ImageIcon,
   Gamepad2, Check, Clock, Ban, Phone, PhoneOff, Video, Download, Play, Monitor,
-  Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search, Film
+  Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search, Film, Settings, Lock
 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
@@ -138,7 +138,7 @@ export function ChatView({ onClose, sfx }) {
   const isMobile = useMobile();
   const { userId, partnerId, roomId } = useAuth();
   const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
-  const { messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest } = useChat();
+  const { messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, changePin } = useChat();
   const { startCall } = useCall();
   const { uploadAsset } = useAssetSync(roomId);
   const [openReactMsgId, setOpenReactMsgId] = useState(null);
@@ -171,6 +171,10 @@ export function ChatView({ onClose, sfx }) {
 
   const [showDetails, setShowDetails] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('media');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinChangeError, setPinChangeError] = useState('');
+  const [isChangingPin, setIsChangingPin] = useState(false);
 
   const {
     isRecording, recordingTime, voicePreview, voicePreviewUrl, voiceBase64,
@@ -203,6 +207,55 @@ export function ChatView({ onClose, sfx }) {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const readMsgIdsRef = useRef(new Set());
+  const [deleteTargetMessage, setDeleteTargetMessage] = useState(null);
+  const [deletedForMeIds, setDeletedForMeIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`deleted_for_me_${roomId}`) || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const handleDeleteForMe = (msgId) => {
+    const nextList = [...deletedForMeIds, msgId];
+    setDeletedForMeIds(nextList);
+    localStorage.setItem(`deleted_for_me_${roomId}`, JSON.stringify(nextList));
+  };
+
+  const [isWindowFocused, setIsWindowFocused] = useState(document.hasFocus());
+  const [isNearBottom, setIsNearBottom] = useState(true);
+
+  useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true);
+    const handleBlur = () => setIsWindowFocused(false);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (replyingTo || editingMsgId) {
+      const focusTextarea = () => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const len = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(len, len);
+        }
+      };
+      focusTextarea();
+      const t1 = setTimeout(focusTextarea, 50);
+      const t2 = setTimeout(focusTextarea, 150);
+      const t3 = setTimeout(focusTextarea, 300);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+  }, [replyingTo, editingMsgId, activeOptions]);
 
   const textareaRef = useRef(null);
   const longPressTimers = useRef({});
@@ -248,7 +301,8 @@ export function ChatView({ onClose, sfx }) {
     handleTyping();
   };
 
-  const safeHistory = Array.isArray(chatHistory) ? chatHistory : [];
+  const rawHistory = Array.isArray(chatHistory) ? chatHistory : [];
+  const safeHistory = rawHistory.filter(m => !deletedForMeIds.includes(m.id));
 
   const handleKeyDown = (e) => {
     // Send on Enter (but allow Shift+Enter for new lines)
@@ -265,6 +319,13 @@ export function ChatView({ onClose, sfx }) {
         setEditingMsgId(last.id);
         setInput(last.text);
         e.preventDefault();
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            const len = last.text.length;
+            textareaRef.current.setSelectionRange(len, len);
+          }
+        }, 50);
       }
     }
     if (e.key === 'Escape') {
@@ -277,7 +338,8 @@ export function ChatView({ onClose, sfx }) {
 
   // Safe Mark-as-Read Effect
   useEffect(() => {
-    if (!Array.isArray(chatHistory)) return;
+    if (!Array.isArray(chatHistory) || !isWindowFocused) return;
+    if (!isNearBottom) return;
 
     const unreadFromPartner = chatHistory.filter(m =>
       m.sender === partnerId &&
@@ -297,7 +359,7 @@ export function ChatView({ onClose, sfx }) {
         syncUpdateMessage(idsToUpdate, { status: 'read', readAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
       }
     }
-  }, [chatHistory, partnerId, isNormalized, syncUpdateMessage]);
+  }, [chatHistory, partnerId, isNormalized, syncUpdateMessage, isWindowFocused, isNearBottom]);
 
   // Search Effect
   useEffect(() => {
@@ -368,6 +430,15 @@ export function ChatView({ onClose, sfx }) {
       loadNewer();
     }
 
+    // Auto-load older messages when scrolled near the top
+    if (scrollTop < 50 && syncHasMore) {
+      syncLoadMore();
+      setViewLimit(p => p + 50);
+    }
+
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 150;
+    setIsNearBottom(nearBottom);
+
     // Dial update based on which date we are in:
     if (isWatchWinderOpen) {
       const container = e.target;
@@ -431,6 +502,32 @@ export function ChatView({ onClose, sfx }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeOptions]);
+
+  const handlePinChange = async (e) => {
+    if (e) e.preventDefault();
+    setPinChangeError('');
+    if (newPin.length < 6) {
+      setPinChangeError('PIN must be at least 6 digits.');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinChangeError('PINs do not match.');
+      return;
+    }
+    setIsChangingPin(true);
+    playAudio('click', sfx);
+    try {
+      const success = await changePin(newPin);
+      if (success) {
+        setNewPin('');
+        setConfirmPin('');
+      }
+    } catch (err) {
+      setPinChangeError('Failed to change PIN.');
+    } finally {
+      setIsChangingPin(false);
+    }
+  };
 
   const handleStartCall = (type) => {
     playAudio('click', sfx);
@@ -908,7 +1005,7 @@ export function ChatView({ onClose, sfx }) {
         sfx={sfx}
       >
         {isDragging && (
-          <div className="absolute inset-0 z-[200] bg-primary/20 backdrop-blur-md border-4 border-dashed border-primary flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300 pointer-events-none"
+          <div className="absolute inset-0 z-[200] bg-primary/20 border-4 border-dashed border-primary flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300 pointer-events-none"
             style={{ backgroundColor: 'rgba(var(--color-primary-rgb), 0.1)' }}>
             <div className="w-24 h-24 bg-primary text-white rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(var(--color-primary-rgb),0.5)] animate-bounce">
               <Upload size={48} />
@@ -929,25 +1026,20 @@ export function ChatView({ onClose, sfx }) {
                 onScroll={handleChatScroll}
               >
 
-              <div className="text-center text-xs font-bold opacity-50 mb-6 border-b-2 border-border inline-block mx-auto pb-1 mt-2 text-main-text">-- connection secured --</div>
+              <div className="flex flex-col items-center gap-1 mt-2 mb-6 w-full text-center select-none shrink-0">
+                <div className="text-[10px] sm:text-xs font-bold opacity-50 text-main-text max-w-sm lowercase leading-relaxed">
+                  this is the beginning of your private, secure retro room history with {partnerNickname}. say hello!
+                </div>
+                <div className="text-[10px] sm:text-xs font-bold opacity-50 text-main-text lowercase">
+                  -- connection secured --
+                </div>
+              </div>
               {isHistoricalView && (
                 <div className="sticky top-4 z-[100] flex justify-center mb-4">
                   <button onClick={handleJumpToPresent} className="bg-primary text-white px-4 py-2 rounded-full retro-border shadow-xl font-bold text-xs uppercase hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
                     <History size={14} /> Jump to Present
                   </button>
                 </div>
-              )}
-              {syncHasMore && (
-                <button
-                  onClick={() => {
-                    playAudio('click', sfx);
-                    syncLoadMore();
-                    setViewLimit(p => p + 50);
-                  }}
-                  className="mx-auto my-4 px-4 py-2 bg-accent text-accent-text border-2 border-border font-bold text-xs uppercase hover:-translate-y-0.5 transition-transform"
-                >
-                  ↑ Load Older Messages
-                </button>
               )}
               {safeHistory.slice(-viewLimit).map((msg, index) => {
                 const visibleMsgs = safeHistory.slice(-viewLimit);
@@ -1009,7 +1101,7 @@ export function ChatView({ onClose, sfx }) {
                             setWatchWinderInitialDate(msg.created_at);
                             setIsWatchWinderOpen(true);
                           }}
-                          className="retro-date-divider-btn bg-window/50 hover:bg-accent hover:text-accent-text transition-colors duration-150 backdrop-blur-sm px-4 py-1 retro-border rounded-full shadow-sm text-[10px] font-black uppercase text-main-text/60 tracking-widest cursor-pointer select-none"
+                          className="retro-date-divider-btn bg-window/50 hover:bg-accent hover:text-accent-text transition-colors duration-150 px-4 py-1 retro-border rounded-full shadow-sm text-[10px] font-black uppercase text-main-text/60 tracking-widest cursor-pointer select-none"
                           title="Wind back in time"
                         >
                           {dividerText}
@@ -1086,7 +1178,25 @@ export function ChatView({ onClose, sfx }) {
 
                         {/* Content Types */}
                         {msg.isDeleted ? (
-                          <span className="flex items-center gap-2 text-main-text/40 italic px-2 py-1"><Ban size={12} /> message deleted</span>
+                          <div 
+                            className="flex flex-col gap-1 px-1 py-0.5 select-none"
+                            title={`Sent on ${msg.time}, Deleted on ${msg.metadata?.deletedAt || 'unknown'}`}
+                          >
+                            <span className="flex items-center gap-2 text-main-text/40 italic"><Ban size={12} /> message deleted</span>
+                            <div className="flex items-center justify-end gap-1 opacity-45 text-[8px] font-bold uppercase tracking-tighter mt-1">
+                              <span>Deleted {msg.metadata?.deletedAt || msg.time}</span>
+                              <span className="flex -space-x-1.5 ml-1" title={msg.metadata?.wasReadBeforeDelete ? "Seen before deletion" : "Deleted before seen"}>
+                                {msg.metadata?.wasReadBeforeDelete ? (
+                                  <>
+                                    <Check size={10} className="text-green-300 drop-shadow-md" />
+                                    <Check size={10} className="text-green-300 drop-shadow-md" />
+                                  </>
+                                ) : (
+                                  <Check size={10} className="opacity-70" />
+                                )}
+                              </span>
+                            </div>
+                          </div>
                         ) : (
                           <>
                             {msg.type === 'text' && <span className={`${isPureEmoji ? 'text-4xl sm:text-5xl' : 'break-words whitespace-pre-wrap max-w-full-break block [word-break:break-word] overflow-hidden'}`}>{formatMessage(msg.text, msg.isEdited)}</span>}
@@ -1355,7 +1465,7 @@ export function ChatView({ onClose, sfx }) {
                         <>
                           {isMobile && (
                             <div 
-                              className="fixed inset-0 bg-black/45 backdrop-blur-[2px] z-[999]"
+                              className="fixed inset-0 bg-black/45 z-[999]"
                               onClick={(e) => { e.stopPropagation(); setActiveOptions(null); }}
                             />
                           )}
@@ -1364,7 +1474,17 @@ export function ChatView({ onClose, sfx }) {
                             ${isMobile ? 'left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 fixed border-4' : (isMe ? 'right-[calc(100%+12px)]' : 'left-[calc(100%+12px)]')}
                             ${!isMobile && isNearBottom ? 'bottom-0' : 'top-0'} 
                           `}>
-                            <button onClick={() => { setReplyingTo(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
+                            <button onClick={() => {
+                               setReplyingTo(msg);
+                               setActiveOptions(null);
+                               setTimeout(() => {
+                                 if (textareaRef.current) {
+                                   textareaRef.current.focus();
+                                   const len = textareaRef.current.value.length;
+                                   textareaRef.current.setSelectionRange(len, len);
+                                 }
+                               }, 50);
+                             }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
                             <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
 
                             <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-border/10 text-[9px] font-black uppercase opacity-50">
@@ -1381,11 +1501,22 @@ export function ChatView({ onClose, sfx }) {
                               ))}
                             </div>
 
-                            {isMe && !msg.isDeleted && (
-                              <>
-                                {msg.type === 'text' && <button onClick={() => { setEditingMsgId(msg.id); setInput(msg.text); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>}
-                                <button onClick={() => { if (window.confirm("Delete this message?")) { syncDeleteMessage(msg.id); } setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
-                              </>
+                            {isMe && !msg.isDeleted && msg.type === 'text' && (
+                              <button onClick={() => {
+                                 setEditingMsgId(msg.id);
+                                 setInput(msg.text);
+                                 setActiveOptions(null);
+                                 setTimeout(() => {
+                                   if (textareaRef.current) {
+                                     textareaRef.current.focus();
+                                     const len = msg.text.length;
+                                     textareaRef.current.setSelectionRange(len, len);
+                                   }
+                                 }, 50);
+                               }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Edit2 size={14} className="text-green-600" /> Edit</button>
+                            )}
+                            {!msg.isDeleted && (
+                              <button onClick={() => { setDeleteTargetMessage(msg); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-red-100 text-red-600 text-left transition-colors"><Trash2 size={14} /> Delete</button>
                             )}
                           </div>
                         </>
@@ -1533,15 +1664,18 @@ export function ChatView({ onClose, sfx }) {
           </div>
           {showDetails && (
             <div className="flex flex-col w-full md:w-80 shrink-0 bg-main overflow-hidden relative border-l-2 border-border h-full">
-              <div className="p-2 flex gap-1.5 bg-border shrink-0">
-                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <ImageIcon size={12} /> Media
+              <div className="p-2 flex gap-1 bg-border shrink-0 overflow-x-auto whitespace-nowrap">
+                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <ImageIcon size={10} /> Media
                 </button>
-                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'calls' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <History size={12} /> Calls
+                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'calls' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <History size={10} /> Calls
                 </button>
-                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-2 text-[10px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1.5 ${activeSidebarTab === 'search' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <Search size={12} /> Search
+                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'search' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <Search size={10} /> Search
+                </button>
+                <button onClick={() => setActiveSidebarTab('settings')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'settings' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
+                  <Settings size={10} /> Settings
                 </button>
               </div>
               <div className="p-4 flex-1 overflow-hidden flex flex-col min-h-0">
@@ -1688,6 +1822,75 @@ export function ChatView({ onClose, sfx }) {
                     </div>
                   </div>
                 )}
+
+                {activeSidebarTab === 'settings' && (
+                  <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-6 min-h-0 text-main-text">
+                    <div>
+                      <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2">
+                        <RetroIcon icon={Settings} size={16} /> Chat Settings
+                      </h3>
+                      <form onSubmit={handlePinChange} className="flex flex-col gap-4 bg-window p-3 retro-outset">
+                        <div className="flex items-center gap-2 mb-1 border-b border-border border-dashed pb-2">
+                          <Lock size={14} className="text-primary flex-shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-wider">Change Chat PIN</span>
+                        </div>
+                        <p className="text-[10px] font-bold opacity-60 leading-relaxed">
+                          Update the 6-digit numeric PIN used to secure E2EE chat history on your devices.
+                        </p>
+                        
+                        <div className="flex flex-col gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold uppercase tracking-wider opacity-60">New PIN</label>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={6}
+                              value={newPin}
+                              onChange={(e) => {
+                                setNewPin(e.target.value.replace(/\D/g, ''));
+                                setPinChangeError('');
+                              }}
+                              placeholder="6-digit PIN"
+                              className="w-full bg-window text-main-text font-black text-center tracking-[0.2em] border-2 border-border px-2 py-1.5 text-xs focus:outline-none focus:border-primary"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold uppercase tracking-wider opacity-60">Confirm New PIN</label>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={6}
+                              value={confirmPin}
+                              onChange={(e) => {
+                                setConfirmPin(e.target.value.replace(/\D/g, ''));
+                                setPinChangeError('');
+                              }}
+                              placeholder="Confirm PIN"
+                              className="w-full bg-window text-main-text font-black text-center tracking-[0.2em] border-2 border-border px-2 py-1.5 text-xs focus:outline-none focus:border-primary"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {pinChangeError && (
+                          <p className="text-red-600 text-[10px] font-black text-center">{pinChangeError}</p>
+                        )}
+
+                        <RetroButton 
+                          type="submit" 
+                          disabled={isChangingPin || newPin.length < 6 || confirmPin.length < 6}
+                          className="w-full py-2 text-xs font-black"
+                        >
+                          {isChangingPin ? 'Updating...' : 'Update PIN'}
+                        </RetroButton>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1708,6 +1911,73 @@ export function ChatView({ onClose, sfx }) {
           />
         )}
       </RetroWindow>
+
+      {deleteTargetMessage && (
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <RetroWindow 
+            title="delete_message.exe" 
+            onClose={() => setDeleteTargetMessage(null)} 
+            className="w-full max-w-sm"
+          >
+            <div className="flex flex-col gap-4">
+              <p className="font-bold text-sm">
+                {deleteTargetMessage.sender === userId 
+                  ? "Would you like to delete this message for everyone or just for you?" 
+                  : "This will only delete the message from your end. Your partner will still be able to see it."}
+              </p>
+              {deleteTargetMessage.sender === userId && (
+                <p className="text-xs opacity-75 font-medium leading-relaxed">
+                  Deleting for everyone will replace this message with a "message deleted" placeholder. Deleting for you will remove it from your screen.
+                </p>
+              )}
+              <div className="flex flex-col gap-2 mt-2">
+                {deleteTargetMessage.sender === userId && (
+                  <RetroButton 
+                    variant="primary" 
+                    onClick={() => {
+                      playAudio('click', sfx);
+                      syncUpdateMessage(deleteTargetMessage.id, { 
+                        isDeleted: true, 
+                        text: 'message deleted',
+                        metadata: {
+                          ...deleteTargetMessage.metadata,
+                          deletedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          wasReadBeforeDelete: deleteTargetMessage.status === 'read'
+                        }
+                      });
+                      setDeleteTargetMessage(null);
+                    }}
+                    className="w-full py-2 font-black uppercase text-xs text-white"
+                  >
+                    Delete for Everyone
+                  </RetroButton>
+                )}
+                <RetroButton 
+                  variant="white" 
+                  onClick={() => {
+                    playAudio('click', sfx);
+                    handleDeleteForMe(deleteTargetMessage.id);
+                    setDeleteTargetMessage(null);
+                  }}
+                  className="w-full py-2 font-black uppercase text-xs"
+                >
+                  Delete for Me
+                </RetroButton>
+                <RetroButton 
+                  variant="secondary" 
+                  onClick={() => {
+                    playAudio('click', sfx);
+                    setDeleteTargetMessage(null);
+                  }}
+                  className="w-full py-2 font-black uppercase text-xs"
+                >
+                  Cancel
+                </RetroButton>
+              </div>
+            </div>
+          </RetroWindow>
+        </div>
+      )}
     </>
   );
 }
