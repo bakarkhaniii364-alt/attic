@@ -15,6 +15,8 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const colorInputRef = useRef(null);
+  const gridRef = useRef(null);
+  const drawingRef = useRef(false);
 
   // Local History State
   const [history, setHistory] = useState([]);
@@ -93,6 +95,57 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
     setDirty(true);
   };
 
+  const paintRef = useRef(paint);
+  const handlePointerUpRef = useRef(handlePointerUp);
+
+  useEffect(() => {
+    paintRef.current = paint;
+    handlePointerUpRef.current = handlePointerUp;
+  }, [paint, handlePointerUp]);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      drawingRef.current = true;
+      setIsDrawing(true);
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (target && target.dataset.r !== undefined && target.dataset.c !== undefined) {
+        paintRef.current(parseInt(target.dataset.r), parseInt(target.dataset.c));
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      if (!drawingRef.current) return;
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (target && target.dataset.r !== undefined && target.dataset.c !== undefined) {
+        paintRef.current(parseInt(target.dataset.r), parseInt(target.dataset.c));
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      e.preventDefault();
+      drawingRef.current = false;
+      setIsDrawing(false);
+      handlePointerUpRef.current();
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
+
   const clear = () => { 
     playAudio('click', sfx); 
     const newGrid = Array(SIZE).fill(null).map(() => Array(SIZE).fill('#ffffff'));
@@ -160,19 +213,21 @@ export function PixelArtApp({ onClose, sfx, onSaveToScrapbook, userId }) {
         <RetroButton onClick={handleExport} className="px-3 py-1 text-xs retro-border"><Download size={12} className="mr-1 inline"/>Save</RetroButton>
       </div>
       
-      <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+      <div className="flex-1 flex items-center justify-center p-1 sm:p-4 overflow-auto touch-none">
         <div 
-          className={`retro-border retro-shadow-dark aspect-square w-full max-w-[480px] grid select-none cursor-crosshair`} 
-          style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, cursor: tool === 'bucket' ? 'cell' : 'crosshair' }}
-          onMouseLeave={handlePointerUp}
-          onMouseUp={handlePointerUp}
+          ref={gridRef}
+          className={`retro-border retro-shadow-dark aspect-square w-full min-w-[340px] sm:min-w-[400px] max-w-[480px] grid select-none mx-auto`} 
+          style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, cursor: tool === 'bucket' ? 'cell' : 'crosshair', touchAction: 'none' }}
+          onMouseLeave={() => { drawingRef.current = false; handlePointerUp(); }}
+          onMouseUp={() => { drawingRef.current = false; handlePointerUp(); }}
         >
           {localGrid.map((row, r) => row.map((c, ci) => (
             <div key={`${r}-${ci}`}
               style={{ backgroundColor: c, border: '0.5px solid rgba(0,0,0,0.05)' }}
-              onMouseDown={() => { setIsDrawing(true); paint(r, ci); }}
-              onMouseEnter={() => { if (isDrawing) paint(r, ci); }}
-              onTouchStart={(e) => { e.preventDefault(); paint(r, ci); }}
+              onMouseDown={() => { drawingRef.current = true; setIsDrawing(true); paint(r, ci); }}
+              onMouseEnter={() => { if (drawingRef.current) paint(r, ci); }}
+              data-r={r}
+              data-c={ci}
             />
           )))}
         </div>

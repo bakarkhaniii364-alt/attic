@@ -1,7 +1,9 @@
 import { useSync } from '../../context/instances.js';
+import { useNavigate } from 'react-router-dom';
 
 export function CalendarReminder() {
   const { globalState } = useSync();
+  const navigate = useNavigate();
   const events = globalState?.calendar_events || [];
   const now = new Date();
   
@@ -14,8 +16,11 @@ export function CalendarReminder() {
   const next = upcoming[0];
   
   if (!next) return (
-    <div className="border-t border-dashed border-border pt-2 mt-2 text-[10px] font-bold opacity-40 uppercase tracking-widest text-center">
-      No upcoming events
+    <div 
+      onClick={() => navigate('/calendar')}
+      className="border-t border-dashed border-border pt-2 mt-2 text-[10px] font-bold opacity-50 uppercase tracking-widest text-center cursor-pointer hover:opacity-100 hover:text-primary transition-all underline decoration-dashed"
+    >
+      No upcoming events in calendar.
     </div>
   );
 

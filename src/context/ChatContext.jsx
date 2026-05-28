@@ -62,7 +62,7 @@ async function getOrDecryptMedia(row, sharedKey) {
     decryptedMediaCache.set(row.id, url);
     return url;
   } catch (err) {
-    console.error('[E2EE] Media decryption failed:', err);
+    console.debug('[E2EE] Media decryption failed:', err);
     return '';
   }
 }
@@ -463,7 +463,7 @@ export function ChatProvider({ children }) {
           try {
             mapped.text = await decryptText(row.content, row.metadata.iv, currentSharedKey);
           } catch (e) {
-            console.warn('[E2EE] Decrypt text failed (probably encrypted with a different key):', e.message);
+            console.debug('[E2EE] Decrypt text failed (probably encrypted with a different key):', e.message);
             mapped.text = '🔒 Encrypted Message (Decryption failed)';
           }
         } else {
@@ -935,23 +935,67 @@ export function ChatProvider({ children }) {
     setLoading(false);
   }, [roomId, mapMessage]);
 
-  const searchMessages = useCallback(async (query, page = 0, limit = 20) => {
-    if (!roomId || !query) return { data: [], hasMore: false };
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', roomId)
-      .textSearch('content', query, { type: 'websearch', config: 'english' })
-      .order('created_at', { ascending: false })
-      .range(page * limit, (page + 1) * limit - 1);
+  const searchMessages = useCallback(async (query, page = 0, limit = 20, filters = {}) => {
+    if (!roomId) return { data: [], hasMore: false };
+    const { byMe, byPartner, hasMedia } = filters;
+    const isE2EEActive = !!sharedKeyRef.current;
+
+    if (query && isE2EEActive) {
+      // In-memory decryption search for E2EE text search (up to 1000 messages)
+      let q = supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', roomId);
+
+      if (byMe) q = q.eq('sender_id', userId);
+      if (byPartner) q = q.eq('sender_id', partnerId);
+      if (hasMedia) q = q.in('type', ['image', 'video', 'audio', 'voice', 'file']);
+
+      const { data, error } = await q
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        console.error('[CHAT] E2EE Search error:', error);
+        return { data: [], hasMore: false };
+      }
+
+      const resolvedData = await Promise.all(data.map(row => mapMessage(row)));
+      const filtered = resolvedData.filter(m => {
+        if (!query) return true;
+        return m.text && m.text.toLowerCase().includes(query.toLowerCase());
+      });
+
+      const paginated = filtered.slice(page * limit, (page + 1) * limit);
+      return { data: paginated, hasMore: filtered.length > (page + 1) * limit };
+    } else {
+      // Standard database search (either no text query or non-E2EE)
+      let q = supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', roomId);
+
+      if (byMe) q = q.eq('sender_id', userId);
+      if (byPartner) q = q.eq('sender_id', partnerId);
+      if (hasMedia) q = q.in('type', ['image', 'video', 'audio', 'voice', 'file']);
       
-    if (error) {
-      console.error('[CHAT] Search error:', error);
-      return { data: [], hasMore: false };
+      if (query) {
+        q = q.textSearch('content', query, { type: 'websearch', config: 'english' });
+      }
+
+      const { data, error } = await q
+        .order('created_at', { ascending: false })
+        .range(page * limit, (page + 1) * limit - 1);
+
+      if (error) {
+        console.error('[CHAT] Search error:', error);
+        return { data: [], hasMore: false };
+      }
+
+      const resolvedData = await Promise.all(data.map(row => mapMessage(row)));
+      return { data: resolvedData, hasMore: data.length === limit };
     }
-    const resolvedData = await Promise.all(data.map(row => mapMessage(row)));
-    return { data: resolvedData, hasMore: data.length === limit };
-  }, [roomId, mapMessage]);
+  }, [roomId, userId, partnerId, mapMessage]);
 
   const jumpToMessage = useCallback(async (createdAt) => {
     if (!roomId || !createdAt) return [];

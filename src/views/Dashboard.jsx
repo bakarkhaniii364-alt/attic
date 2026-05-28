@@ -111,65 +111,86 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
 
   // Mobile nav pivot removed as it's now handled globally in App.jsx
 
-  const dynamicFeedItems = [];
+  const draftKey = `attic_chat_draft_${userId}`;
+  const hasDraft = !!localStorage.getItem(draftKey);
+  const unreadMessages = (chatHistory || []).filter(m => m.sender === partnerId && (!m.status || m.status !== 'read'));
+  const lastUnreadMessage = unreadMessages.length > 0 ? unreadMessages[unreadMessages.length - 1] : null;
 
-  if (!welcomeDismissed && daysAway >= 1) {
-    dynamicFeedItems.push({
-      id: 'welcome',
-      icon: <Sparkles size={14} className="text-secondary shrink-0" fill="currentColor" />,
-      text: `welcome back! ${partnerName} missed you${daysAway > 1 ? ` (${daysAway} days)` : ''}.`,
-      bgClass: 'bg-secondary/15 border-secondary/30 text-secondary-text',
-      action: {
-        label: 'Dismiss',
-        onClick: () => {
-          playAudio('click', sfxEnabled);
-          setWelcomeDismissed(true);
-        },
-      }
-    });
-  }
+  let quickActionItem = null;
 
-  if (unreadChatCount > 0) {
-    dynamicFeedItems.push({
-      id: 'chat',
-      icon: <MessageSquare size={14} className="text-primary shrink-0" fill="currentColor" />,
-      text: unreadChatCount === 1 
-        ? `${partnerName} sent you a message.` 
-        : `${unreadChatCount} new messages from ${partnerName}.`,
-      bgClass: 'bg-primary/15 border-primary/30 text-primary-text',
+  if (hasDraft) {
+    quickActionItem = {
+      id: 'draft',
+      icon: <Pen size={14} className="text-primary shrink-0" fill="currentColor" />,
+      text: "Finish your draft message",
+      bgClass: 'bg-primary/15 border-primary/30 text-main-text',
       action: {
-        label: 'Open',
+        label: 'Finish',
         onClick: () => {
           playAudio('click', sfxEnabled);
           nav('chat');
         },
       }
-    });
-  }
-
-  if (!dailyAnswers?.[todayKey()]?.[userId]) {
-    dynamicFeedItems.push({
-      id: 'daily-q',
-      icon: <Heart size={14} className="text-primary shrink-0" fill="currentColor" />,
-      text: "Today's couple question is waiting — answer together.",
-      bgClass: 'bg-accent/15 border-accent/30 text-accent-text',
+    };
+  } else if (lastUnreadMessage) {
+    let msgText = `${partnerName} sent a message`;
+    if (lastUnreadMessage.type === 'text') {
+      msgText = `${partnerName} said "${lastUnreadMessage.text}"`;
+    } else if (lastUnreadMessage.type === 'image') {
+      msgText = `${partnerName} sent an image`;
+    } else if (lastUnreadMessage.type === 'video') {
+      msgText = `${partnerName} sent a video`;
+    } else if (lastUnreadMessage.type === 'voice') {
+      msgText = `${partnerName} sent a voice note`;
+    }
+    
+    quickActionItem = {
+      id: 'chat',
+      icon: <MessageSquare size={14} className="text-primary shrink-0" fill="currentColor" />,
+      text: msgText,
+      bgClass: 'bg-primary/15 border-primary/30 text-main-text',
       action: {
-        label: 'Answer',
+        label: 'Reply',
         onClick: () => {
           playAudio('click', sfxEnabled);
-          nav('daily-q');
+          nav('chat');
         },
       }
-    });
-  }
-
-  if (streaks.count >= 3) {
-    dynamicFeedItems.push({
-      id: 'streak',
-      icon: <Flame size={14} className="text-orange-500 shrink-0" fill="currentColor" />,
-      text: `${streaks.count}-day streak — keep showing up for ${partnerName}!`,
-      bgClass: 'bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400',
-    });
+    };
+  } else {
+    const today = todayKey();
+    const myAnswer = dailyAnswers?.[today]?.[userId];
+    const partnerAnswer = dailyAnswers?.[today]?.[partnerId];
+    
+    if (!myAnswer) {
+      quickActionItem = {
+        id: 'daily-q',
+        icon: <Heart size={14} className="text-accent shrink-0" fill="currentColor" />,
+        text: "Today's couple question is waiting — answer together.",
+        bgClass: 'bg-accent/15 border-accent/30 text-main-text',
+        action: {
+          label: 'Answer',
+          onClick: () => {
+            playAudio('click', sfxEnabled);
+            nav('daily-q');
+          },
+        }
+      };
+    } else if (myAnswer && !partnerAnswer) {
+      quickActionItem = {
+        id: 'daily-q-waiting',
+        icon: <Clock size={14} className="text-warning shrink-0" fill="currentColor" />,
+        text: `Waiting for ${partnerName}'s answer to couple question.`,
+        bgClass: 'bg-warning/15 border-warning/30 text-main-text',
+      };
+    } else if (myAnswer && partnerAnswer && streaks.count > 0) {
+      quickActionItem = {
+        id: 'streak',
+        icon: <Flame size={14} className="text-orange-500 shrink-0" fill="currentColor" />,
+        text: `You are on your ${streaks.count} day streak! Keep showing up for ${partnerName}`,
+        bgClass: 'bg-orange-500/10 border-orange-500/30 text-main-text',
+      };
+    }
   }
 
   const fallbackItem = {
@@ -180,7 +201,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   };
 
   const welcomeWindow = (
-    <RetroWindow title="welcome.exe" className={`w-full md:col-span-8 h-auto min-h-[10rem] order-1 md:order-none`}>
+    <RetroWindow title="welcome.exe" className={`w-full md:col-span-8 h-auto min-h-[14rem] order-1 md:order-none`}>
       <div className="flex flex-col h-full justify-between gap-2 p-1">
         {isMobile ? (
           // Mobile layout: Greeting & Kiss button in row 1, Partner status split in row 2 (prevents horizontal scroll)
@@ -335,20 +356,20 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         {/* Dynamic, Smart Info Feed — shows only the single most important alert */}
         <div className="pt-2 border-t border-dashed border-border/40 mt-2">
           {(() => {
-            const item = dynamicFeedItems[0] || fallbackItem;
+            const item = quickActionItem || fallbackItem;
             return (
               <div 
-                className={`feed-item flex items-center justify-between gap-2 py-2 leading-tight ${isMobile ? 'border-b border-dashed border-border/30 bg-transparent text-main-text text-xs' : `px-2.5 retro-border text-[11px] font-bold ${item.bgClass}`}`}
+                className={`feed-item flex ${isMobile ? 'flex-col' : 'items-center justify-between'} gap-2 py-2 leading-tight ${isMobile ? 'border-b border-dashed border-border/30 bg-transparent text-main-text text-xs' : `px-2.5 retro-border text-[11px] font-bold ${item.bgClass}`}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="feed-icon-pulse">{item.icon}</span>
-                  <span className="truncate lowercase">{item.text}</span>
+                  <span className={`lowercase ${isMobile ? 'whitespace-normal' : 'truncate'}`}>{item.text}</span>
                 </div>
                 {item.action && (
                   <RetroButton
                     type="button"
                     variant="primary"
-                    className={`${isMobile ? 'h-8 px-3 text-xs' : 'text-[9px] py-0.5 px-2.5 bg-window text-main-text'} shrink-0 font-black uppercase`}
+                    className={`${isMobile ? 'h-10 w-full px-3 text-xs mt-2' : 'text-[9px] py-0.5 px-2.5 bg-window text-main-text'} shrink-0 font-black uppercase`}
                     onClick={item.action.onClick}
                   >
                     {item.action.label}
@@ -388,8 +409,9 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
       <div className="flex flex-col items-center text-center h-full justify-between p-1">
         <PixelPet skin={petSkin} happy={petHappy} isPartnerAfk={!isPartnerOnline} externalAction={petAction} onPet={handlePet} onHit={handleHit} partnerName={partnerName} />
         
-        <div className="w-full px-3 mt-1">
-          <div className={`${isMobile ? 'bg-black/5' : 'retro-border bg-black/5'} p-1 flex gap-1 h-4`}>
+        <div className="w-full px-3 mt-1 text-left">
+          <span className="text-[10px] font-black uppercase opacity-60 mb-1 block">Health</span>
+          <div className={`${isMobile ? 'bg-black/5' : 'retro-border bg-black/5'} p-[1px] flex gap-[1px] h-2`}>
             {[...Array(10)].map((_, i) => (
               <div 
                 key={i} 
@@ -407,7 +429,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   );
 
   const timerWindow = (
-    <RetroWindow title="together.timer" className={`w-full md:col-span-4 h-auto order-3 md:order-none`}>
+    <RetroWindow title="together.timer" className={`w-full md:col-span-4 h-auto min-h-[14rem] order-3 md:order-none`}>
       <div className="flex flex-col h-full justify-center gap-3">
         <AnniversaryTimer anniversary={coupleData.anniversary} />
         <CalendarReminder />

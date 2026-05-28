@@ -2,10 +2,7 @@
 @media (max-width: 768px) {
   /* ─── GLOBAL FIXES ─── */
   body, #root {
-    overflow-x: hidden;
-    width: 100vw;
-    position: relative;
-    font-size: 12px !important; /* Standard small phone text */
+    font-size: 14px !important; /* Bumped to ~14px for readability */
   }
 
   /* Hide Scrollbars globally on mobile */
@@ -17,12 +14,25 @@
     scrollbar-width: none !important;
   }
 
-  /* Reduce overall paddings */
-  .p-4 { padding: 12px !important; }
-  .p-6 { padding: 16px !important; }
-  .p-8 { padding: 20px !important; }
-  .gap-4 { gap: 12px !important; }
-  .gap-6 { gap: 16px !important; }
+  /* Reduce overall paddings to Facebook-density (tighter vertical, consistent 14-16px horizontal) */
+  .p-4 { padding: 10px 14px !important; }
+  .p-6 { padding: 12px 14px !important; }
+  .p-8 { padding: 14px 16px !important; }
+  .gap-4 { gap: 10px !important; }
+  .gap-6 { gap: 14px !important; }
+  
+  /* Buttons - Increased touch targets & font size for readability */
+  .retro-button {
+     padding-top: 13px !important;
+     padding-bottom: 13px !important;
+     font-size: 15px !important;
+     font-weight: bold !important;
+  }
+  
+  /* Section title hierarchy */
+  h1 { font-size: 16px !important; }
+  h2, .name-label { font-size: 14px !important; }
+  .section-label { font-size: 11px !important; text-transform: uppercase; }
 
   /* ─── WINDOWS ─── */
   .retro-border-thick { border-width: 3px !important; }

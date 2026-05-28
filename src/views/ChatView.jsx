@@ -4,6 +4,11 @@ import {
   Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search, Film, Settings, Lock, AlertTriangle, Unlock, Key, Loader
 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
 import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer, RetroInput, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { PocketWatchWinder } from '../components/PocketWatchWinder.jsx';
@@ -118,18 +123,159 @@ function VoiceMessagePlayer({ duration, audioUrl, isMe }) {
   );
 }
 
+export function toTrollCase(text) {
+  if (!text) return '';
+  return text.split(' ').map(word => {
+    const hasLorI = /[li]/i.test(word);
+    
+    let optALost = 0; // starts with lowercase
+    let optBLost = 0; // starts with uppercase
+    
+    const chars = word.split('');
+    let letterIndex = 0;
+    
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      if (/[a-zA-Z]/.test(char)) {
+        const isLorI = /[li]/i.test(char);
+        if (isLorI) {
+          if (letterIndex % 2 === 1) {
+            optALost++; // Option A would capitalize this
+          } else {
+            optBLost++; // Option B would capitalize this
+          }
+        }
+        letterIndex++;
+      }
+    }
+    
+    const startWithUpper = optBLost <= optALost;
+    
+    let currentLetterIdx = 0;
+    return chars.map(char => {
+      if (/[a-zA-Z]/.test(char)) {
+        const isUpper = startWithUpper ? (currentLetterIdx % 2 === 0) : (currentLetterIdx % 2 === 1);
+        currentLetterIdx++;
+        
+        if (/[li]/i.test(char)) {
+          return char.toLowerCase();
+        }
+        
+        return isUpper ? char.toUpperCase() : char.toLowerCase();
+      }
+      return char;
+    }).join('');
+  }).join(' ');
+}
+
+export function htmlToMarkdown(html) {
+  if (!html) return '';
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  
+  function serializeNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const tagName = node.tagName.toLowerCase();
+      let childrenContent = '';
+      node.childNodes.forEach(child => {
+        childrenContent += serializeNode(child);
+      });
+      
+      switch (tagName) {
+        case 'strong':
+        case 'b':
+          return `**${childrenContent}**`;
+        case 'em':
+        case 'i':
+          return `*${childrenContent}*`;
+        case 'del':
+        case 'strike':
+        case 's':
+          return `~~${childrenContent}~~`;
+        case 'sub':
+          return `$x_{${childrenContent}}$`;
+        case 'sup':
+          return `$x^{${childrenContent}}$`;
+        case 'pre':
+          if (node.classList.contains('latex-eq')) {
+            return `$$\n${childrenContent}\n$$`;
+          }
+          return childrenContent;
+        case 'br':
+          return '\n';
+        case 'div':
+        case 'p':
+          return `\n${childrenContent}`;
+        default:
+          return childrenContent;
+      }
+    }
+    return '';
+  }
+  
+  let markdown = '';
+  doc.body.childNodes.forEach(node => {
+    markdown += serializeNode(node);
+  });
+  
+  return markdown.replace(/^\n+/, '').replace(/\n+$/, '');
+}
+
+export function markdownToHtml(md) {
+  if (!md) return '';
+  let html = md;
+  // Escape HTML entities to prevent raw HTML execution while editing
+  html = html
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Bold: **text** or __text__
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  
+  // Italic: *text* or _text_
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+  
+  // Strikethrough: ~~text~~
+  html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  
+  // Subscript: $x_{text}$
+  html = html.replace(/\$x_\{([^}]+)\}\$/g, '<sub>$1</sub>');
+  
+  // Superscript: $x^{text}$
+  html = html.replace(/\$x\^\{([^}]+)\}\$/g, '<sup>$1</sup>');
+  
+  // LaTeX Equation: $$equation$$
+  html = html.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, '<pre class="latex-eq">$1</pre>');
+
+  // Newlines
+  html = html.replace(/\n/g, '<br>');
+  
+  return html;
+}
+
 function formatMessage(text, isEdited) {
   if (!text) return null;
-  const parts = text.split(/(\*.*?\*|_.*?_)/g);
   return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith('*') && part.endsWith('*')) return <strong key={i}>{part.slice(1, -1)}</strong>;
-        if (part.startsWith('_') && part.endsWith('_')) return <em key={i}>{part.slice(1, -1)}</em>;
-        return part;
-      })}
+    <div className="markdown-body">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={{
+          p: ({node, ...props}) => <span {...props} />, 
+          a: ({node, ...props}) => <a {...props} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" />,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
       {isEdited && <em className="text-[9px] opacity-40 ml-1.5 font-normal">(edited)</em>}
-    </>
+    </div>
   );
 }
 
@@ -147,6 +293,20 @@ export function ChatView({ onClose, sfx }) {
   const { startCall } = useCall();
   const { uploadAsset } = useAssetSync(roomId);
   const [openReactMsgId, setOpenReactMsgId] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  
+  const searchInputRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    const lastFocused = sessionStorage.getItem('attic_last_focus');
+    if (lastFocused === 'search' && searchInputRef.current) {
+      searchInputRef.current.focus();
+    } else if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
 
   const profile = globalState?.room_profiles?.[userId] || {};
   const partnerProfile = globalState?.room_profiles?.[partnerId] || {};
@@ -158,6 +318,42 @@ export function ChatView({ onClose, sfx }) {
   const isInputDisabled = false;
   const navigate = useNavigate();
   const draftKey = `attic_chat_draft_${userId}`;
+
+  // Formatting Toolbar State
+  const [showFormatToolbar, setShowFormatToolbar] = useState(false);
+  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
+
+  const handleTextSelect = (e) => {
+    const start = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+    if (start !== end && start !== undefined) {
+       setSelectionRange({ start, end });
+       setShowFormatToolbar(true);
+    } else {
+       setShowFormatToolbar(false);
+    }
+  };
+
+  const applyFormatting = (prefix, suffix = prefix) => {
+    if (selectionRange.start === selectionRange.end) return;
+    const text = input;
+    const before = text.substring(0, selectionRange.start);
+    const selected = text.substring(selectionRange.start, selectionRange.end);
+    const after = text.substring(selectionRange.end);
+    
+    setInput(before + prefix + selected + suffix + after);
+    setShowFormatToolbar(false);
+    
+    setTimeout(() => {
+       if (textareaRef.current) {
+         textareaRef.current.focus();
+         textareaRef.current.setSelectionRange(
+           selectionRange.start + prefix.length,
+           selectionRange.end + prefix.length
+         );
+       }
+    }, 50);
+  };
   const [input, setInput] = useState(() => {
     try {
       return localStorage.getItem(draftKey) || '';
@@ -198,6 +394,7 @@ export function ChatView({ onClose, sfx }) {
   const [activeOptions, setActiveOptions] = useState(null);
   const [viewLimit, setViewLimit] = useState(50);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState({ byMe: false, byPartner: false, hasMedia: false });
   const [searchResults, setSearchResults] = useState([]);
   const [searchPage, setSearchPage] = useState(0);
   const [searchHasMore, setSearchHasMore] = useState(false);
@@ -261,8 +458,6 @@ export function ChatView({ onClose, sfx }) {
       };
     }
   }, [replyingTo, editingMsgId, activeOptions]);
-
-  const textareaRef = useRef(null);
   const longPressTimers = useRef({});
 
   const handleTouchStart = (msgId) => {
@@ -371,7 +566,7 @@ export function ChatView({ onClose, sfx }) {
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.trim()) {
         setIsSearching(true);
-        const { data, hasMore } = await searchMessages(searchQuery, searchPage, 10);
+        const { data, hasMore } = await searchMessages(searchQuery, searchPage, 10, searchFilters);
         setSearchResults(data);
         setSearchHasMore(hasMore);
         setIsSearching(false);
@@ -383,7 +578,7 @@ export function ChatView({ onClose, sfx }) {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, searchPage, searchMessages]);
+  }, [searchQuery, searchPage, searchFilters, searchMessages]);
 
   const handleJumpToMessage = async (msgId, createdAt) => {
     const loadedMsgs = await jumpToMessage(createdAt);
@@ -1799,12 +1994,54 @@ export function ChatView({ onClose, sfx }) {
                   </button>
                 </div>
 
+                {showFormatToolbar && (
+                  <div className="absolute -top-12 left-0 right-0 mx-auto w-max bg-window retro-border shadow-lg z-50 flex gap-1 p-1 animate-in fade-in zoom-in-95 duration-200">
+                    <button type="button" onClick={() => applyFormatting('**')} className="w-8 h-8 flex items-center justify-center font-serif font-bold hover:bg-accent hover:text-accent-text transition-colors" title="Bold">B</button>
+                    <button type="button" onClick={() => applyFormatting('*')} className="w-8 h-8 flex items-center justify-center font-serif italic hover:bg-accent hover:text-accent-text transition-colors" title="Italic">I</button>
+                    <button type="button" onClick={() => applyFormatting('~~')} className="w-8 h-8 flex items-center justify-center font-serif line-through hover:bg-accent hover:text-accent-text transition-colors" title="Strikethrough">S</button>
+                    <button type="button" onClick={() => applyFormatting('$x_{', '}$')} className="w-8 h-8 flex items-center justify-center font-serif text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Subscript">x₂</button>
+                    <button type="button" onClick={() => applyFormatting('$x^{', '}$')} className="w-8 h-8 flex items-center justify-center font-serif text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Superscript">x²</button>
+                    <button type="button" onClick={() => applyFormatting('$$ \n', '\n$$')} className="w-8 h-8 flex items-center justify-center font-serif font-black hover:bg-accent hover:text-accent-text transition-colors" title="LaTeX Equation">∑</button>
+                    <div className="w-px bg-border mx-1 my-1"></div>
+                    <button type="button" onClick={() => {
+                      const text = input;
+                      const before = text.substring(0, selectionRange.start);
+                      const selected = text.substring(selectionRange.start, selectionRange.end);
+                      const after = text.substring(selectionRange.end);
+                      setInput(before + selected.toUpperCase() + after);
+                      setShowFormatToolbar(false);
+                    }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Uppercase">AA</button>
+                    <button type="button" onClick={() => {
+                      const text = input;
+                      const before = text.substring(0, selectionRange.start);
+                      const selected = text.substring(selectionRange.start, selectionRange.end);
+                      const after = text.substring(selectionRange.end);
+                      setInput(before + selected.toLowerCase() + after);
+                      setShowFormatToolbar(false);
+                    }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Lowercase">aa</button>
+                    <button type="button" onClick={() => {
+                      const text = input;
+                      const before = text.substring(0, selectionRange.start);
+                      const selected = text.substring(selectionRange.start, selectionRange.end);
+                      const after = text.substring(selectionRange.end);
+                      setInput(before + toTrollCase(selected) + after);
+                      setShowFormatToolbar(false);
+                    }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Trollcase">tRoLl</button>
+                  </div>
+                )}
+
                 <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden min-h-[34px] sm:min-h-[44px]">
                   <textarea
                     ref={textareaRef}
                     rows={1}
                     value={isRecording ? `Recording... ${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` : input}
                     onChange={handleInputChange}
+                    onSelect={handleTextSelect}
+                    onBlur={() => {
+                       sessionStorage.setItem('attic_last_focus', 'chat');
+                       // Timeout to allow clicking toolbar before it disappears
+                       setTimeout(() => setShowFormatToolbar(false), 200);
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder={pendingFiles.length > 0 ? "Add a caption..." : "type a message..."}
                     disabled={isRecording || voicePreview !== null || isInputDisabled}
@@ -1847,17 +2084,23 @@ export function ChatView({ onClose, sfx }) {
 
                 {activeSidebarTab === 'search' && (
                   <div className="text-main-text flex flex-col h-full min-h-0">
-                    <div className="shrink-0">
-                      <h3 className="font-bold border-b-2 border-border pb-2 mb-4 flex items-center gap-2"><RetroIcon icon={Search} size={16} /> Search Logs</h3>
-                      <div className="flex bg-window retro-inset p-3 mb-4">
+                    <div className="shrink-0 mb-3">
+                      <div className="flex bg-window retro-inset p-2">
                         <input
                           type="text"
+                          ref={searchInputRef}
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Filter messages..."
-                          className="bg-transparent outline-none w-full text-sm font-black placeholder:font-normal uppercase"
+                          onFocus={() => sessionStorage.setItem('attic_last_focus', 'search')}
+                          placeholder="Search..."
+                          className="bg-transparent outline-none w-full text-xs font-black placeholder:font-normal uppercase"
                         />
                         {searchQuery && <button onClick={() => setSearchQuery('')} className="ml-2 hover:scale-110 transition-transform"><RetroIcon icon={X} size={14} className="opacity-50" /></button>}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                         <button onClick={() => setSearchFilters(p => ({...p, byMe: !p.byMe}))} className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 retro-border transition-colors ${searchFilters.byMe ? 'bg-accent text-accent-text' : 'bg-window hover:bg-accent hover:text-accent-text'}`}>By Me</button>
+                         <button onClick={() => setSearchFilters(p => ({...p, byPartner: !p.byPartner}))} className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 retro-border transition-colors ${searchFilters.byPartner ? 'bg-accent text-accent-text' : 'bg-window hover:bg-accent hover:text-accent-text'}`}>By Partner</button>
+                         <button onClick={() => setSearchFilters(p => ({...p, hasMedia: !p.hasMedia}))} className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 retro-border transition-colors ${searchFilters.hasMedia ? 'bg-accent text-accent-text' : 'bg-window hover:bg-accent hover:text-accent-text'}`}>Has Media</button>
                       </div>
                     </div>
                     {searchQuery && (

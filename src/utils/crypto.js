@@ -128,9 +128,9 @@ export async function decryptText(ciphertextBase64, ivBase64, derivedKey) {
     return new TextDecoder().decode(decryptedBuffer);
   } catch (err) {
     if (err instanceof DOMException || err.name === 'OperationError') {
-      console.warn("[E2EE] Decryption tag mismatch or operation error (DOMException):", err);
+      console.debug("[E2EE] Decryption tag mismatch or operation error (DOMException):", err.message);
     } else {
-      console.error("[E2EE] Unexpected decryption error:", err);
+      console.debug("[E2EE] Unexpected decryption error:", err);
     }
     throw err; // Propagate the error so the caller's try-catch catches it and shows the placeholder UI
   }

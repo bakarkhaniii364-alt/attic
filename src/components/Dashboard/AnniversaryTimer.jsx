@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export const Unit = React.memo(({ val, label }) => {
   const [displayVal, setDisplayVal] = useState(val);
@@ -50,6 +51,7 @@ export const Unit = React.memo(({ val, label }) => {
 
 export function AnniversaryTimer({ anniversary }) {
   const [elapsed, setElapsed] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!anniversary) return;
@@ -86,8 +88,11 @@ export function AnniversaryTimer({ anniversary }) {
 
   if (!anniversary) {
     return (
-      <div className="text-center text-xs opacity-50 font-bold py-2">
-        Set your anniversary date in Settings to start the counter!
+      <div 
+        onClick={() => navigate('/settings?highlight=anniversary')}
+        className="text-center text-xs opacity-50 font-bold py-2 cursor-pointer hover:opacity-100 hover:text-primary transition-all underline decoration-dashed"
+      >
+        Set anniversary date to show together time.
       </div>
     );
   }

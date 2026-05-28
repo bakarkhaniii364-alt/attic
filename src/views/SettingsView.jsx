@@ -273,6 +273,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                     </select>
                   </div>
                </div>
+               
+               {/* Coming Soon Features */}
+               <div className="pt-4 mt-4 border-t border-dashed border-border/50">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-primary mb-2">Coming Soon</h4>
+                  <div className="space-y-2 opacity-50">
+                    <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Status Message</label><input type="text" disabled placeholder="e.g. Working, Sleeping..." className="w-full p-1.5 retro-border bg-window/50 focus:outline-none text-xs cursor-not-allowed" /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                       <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Birthday</label><input type="date" disabled className="w-full p-1.5 retro-border bg-window/50 focus:outline-none text-xs cursor-not-allowed" /></div>
+                       <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Timezone</label>
+                         <select disabled className="w-full p-1.5 retro-border bg-window/50 focus:outline-none font-bold text-xs cursor-not-allowed">
+                           <option>Auto-detect</option>
+                         </select>
+                       </div>
+                    </div>
+                  </div>
+               </div>
+
              </div>
            </div>
            
@@ -324,6 +341,23 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                  </div>
               </div>
            </div>
+
+           {/* Coming Soon Features */}
+           <div className="p-4 retro-border bg-window/50 border-dashed opacity-60">
+              <h5 className="text-[11px] font-black uppercase text-primary mb-3">Advanced Security (Coming Soon)</h5>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold opacity-70">Two-Factor Authentication</span>
+                  <button disabled className="w-12 h-6 rounded-full border-2 border-border/30 bg-disabled relative cursor-not-allowed"><div className="w-4 h-4 rounded-full bg-window border-2 border-border/30 absolute top-[2px] left-[2px]" /></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold opacity-70">Auto-lock App (FaceID/PIN)</span>
+                  <button disabled className="w-12 h-6 rounded-full border-2 border-border/30 bg-disabled relative cursor-not-allowed"><div className="w-4 h-4 rounded-full bg-window border-2 border-border/30 absolute top-[2px] left-[2px]" /></button>
+                </div>
+                <RetroButton disabled variant="secondary" className="w-full py-1.5 text-[9px] cursor-not-allowed opacity-50">VIEW LOGIN HISTORY</RetroButton>
+              </div>
+           </div>
+
         </div>
       );
     }
@@ -431,7 +465,20 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         <div className="p-6 space-y-6">
            <div className="max-w-md space-y-4">
               <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Partner's Nickname</label><input type="text" value={localCoupleData.nicknames?.[partnerId] || ''} onChange={(e) => setLocalCoupleData({ ...localCoupleData, nicknames: { ...localCoupleData.nicknames, [partnerId]: e.target.value } })} className="w-full p-2 retro-border bg-window focus:outline-none text-xs font-bold" /></div>
-              <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={localCoupleData?.anniversary || ''} onChange={(e) => setLocalCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer text-xs font-bold" /></div>
+              <div id="anniversary-field"><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Your Anniversary</label><input type="date" value={localCoupleData?.anniversary || ''} onChange={(e) => setLocalCoupleData(prev => ({ ...prev, anniversary: e.target.value }))} className="w-full p-2 retro-border bg-window focus:outline-none cursor-pointer text-xs font-bold" /></div>
+           </div>
+
+           {/* Coming Soon Features */}
+           <div className="max-w-md pt-4 border-t border-dashed border-border/50 opacity-60">
+              <h4 className="text-[9px] font-black uppercase tracking-widest text-primary mb-3">Relationship Metadata (Coming Soon)</h4>
+              <div className="space-y-3">
+                 <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Relationship Status</label>
+                   <select disabled className="w-full p-2 retro-border bg-window/50 focus:outline-none font-bold text-xs cursor-not-allowed">
+                     <option>Dating</option><option>Engaged</option><option>Married</option>
+                   </select>
+                 </div>
+                 <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Shared Goal / Focus</label><input type="text" disabled placeholder="e.g. Save for a house, Travel..." className="w-full p-2 retro-border bg-window/50 focus:outline-none text-xs font-bold cursor-not-allowed" /></div>
+              </div>
            </div>
         </div>
       );
@@ -488,6 +535,15 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                     </div>
                  )}
                  
+                 {/* Coming Soon Features */}
+                 <div className="p-3 retro-border bg-window/50 border-dashed opacity-60 mt-4">
+                    <h5 className="text-[9px] font-black uppercase text-primary mb-2">Custom Tones (Coming Soon)</h5>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold opacity-70">Message Alert</span>
+                      <select disabled className="p-1 retro-border bg-window/50 focus:outline-none text-[9px] cursor-not-allowed max-w-[100px]"><option>Bloop</option></select>
+                    </div>
+                 </div>
+
                  <h4 className="text-[10px] font-black uppercase tracking-widest mt-6 mb-2 flex items-center gap-2"><Monitor size={12}/> WebRTC Advanced</h4>
                  <div className="flex items-center justify-between p-2 retro-border bg-window">
                     <span className="text-[11px] font-bold">Noise Suppression</span>
@@ -501,6 +557,16 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                        <div className={`w-4 h-4 rounded-full bg-window border-2 border-border absolute top-[2px] transition-all duration-200 ${localEchoCancellation ? 'left-[26px]' : 'left-[2px]'}`} />
                      </button>
                  </div>
+
+                 {/* Coming Soon Features */}
+                 <div className="p-3 retro-border bg-window/50 border-dashed opacity-60 mt-4">
+                    <h5 className="text-[9px] font-black uppercase text-primary mb-2">Hardware (Coming Soon)</h5>
+                    <div className="space-y-2">
+                       <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Camera Device</label><select disabled className="w-full p-1 retro-border bg-window/50 text-[9px] cursor-not-allowed"><option>Default Camera</option></select></div>
+                       <div><label className="block text-[9px] font-black uppercase tracking-widest opacity-40 mb-1">Video Quality</label><select disabled className="w-full p-1 retro-border bg-window/50 text-[9px] cursor-not-allowed"><option>High Definition (720p)</option></select></div>
+                    </div>
+                 </div>
+
               </div>
               <div className="space-y-4">
                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2">Diagnostics</h4>
@@ -522,6 +588,25 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
               <h4 className="text-[10px] font-black uppercase tracking-widest mb-2">Archive Retrieval</h4>
               <p className="text-[10px] opacity-60 mb-3 font-bold uppercase tracking-tight leading-tight">Download your shared history in local machine readable format.</p>
               <RetroButton onClick={handleExportData} variant="primary" className="px-6 py-2 text-[10px]">EXPORT .JSON DATA</RetroButton>
+           </div>
+           
+           {/* Coming Soon Features */}
+           <div className="pt-4 border-t border-dashed border-border/50 opacity-60">
+              <h4 className="text-[9px] font-black uppercase tracking-widest text-primary mb-3">Visibility Controls (Coming Soon)</h4>
+              <div className="space-y-3 max-w-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold opacity-70">Read Receipts</span>
+                  <button disabled className="w-12 h-6 rounded-full border-2 border-border/30 bg-primary/50 relative cursor-not-allowed"><div className="w-4 h-4 rounded-full bg-window border-2 border-border/30 absolute top-[2px] left-[26px]" /></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold opacity-70">Show Typing Indicator</span>
+                  <button disabled className="w-12 h-6 rounded-full border-2 border-border/30 bg-primary/50 relative cursor-not-allowed"><div className="w-4 h-4 rounded-full bg-window border-2 border-border/30 absolute top-[2px] left-[26px]" /></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold opacity-70">Incognito Mode (Hide Online Status)</span>
+                  <button disabled className="w-12 h-6 rounded-full border-2 border-border/30 bg-disabled relative cursor-not-allowed"><div className="w-4 h-4 rounded-full bg-window border-2 border-border/30 absolute top-[2px] left-[2px]" /></button>
+                </div>
+              </div>
            </div>
 
            <div className="p-5 border-2 border-dashed border-danger/30 bg-danger/5">
