@@ -90,12 +90,33 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   // We identify dashboard windows by checking if the title is one of the dashboard modules.
   const isDashboardWindow = title && typeof title === 'string' && ['welcome.exe', 'together.timer', 'stats.sys', 'applications', 'radio.sys', 'chat_feed', 'tamagotchi', 'space.sys', 'settings.exe'].some(w => title.toLowerCase().includes(w) || title.toLowerCase().endsWith(w));
   // If the window is a confirmation dialog or a smaller layout modal (like received_doodle.msg or doodle_sent.msg or reading_letter.msg), we keep its layout.
-  const isSmallModal = title && typeof title === 'string' && (title.endsWith('.msg') || title === 'Close' || title === 'Unsaved Changes' || title === 'confirm.exe');
+  const isSmallModal = title && typeof title === 'string' && (
+    title.endsWith('.msg') || 
+    title === 'Close' || 
+    title === 'Unsaved Changes' || 
+    title === 'confirm.exe' ||
+    title.toLowerCase().includes('invite') ||
+    title.toLowerCase().includes('doodle') ||
+    title.toLowerCase().includes('left') ||
+    title.toLowerCase().includes('success') ||
+    title.toLowerCase().includes('request') ||
+    title.toLowerCase().includes('sent') ||
+    title.toLowerCase().includes('delete') ||
+    title.toLowerCase().includes('terminate') ||
+    title.toLowerCase().startsWith('day_')
+  );
   
   // Chat window should be full screen but should NOT have pb-safe-navbar since the bottom nav is hidden.
   const isChatWindow = (title && typeof title === 'string' && (title.toLowerCase().includes('chat') || title.toLowerCase().includes('message') || title.toLowerCase().includes('|'))) || (typeof window !== 'undefined' && window.location.pathname.includes('/chat'));
   
-  const fullscreenClass = isMobile && !isSmallModal && !isDashboardWindow 
+  const isAuthScreen = title && typeof title === 'string' && (
+    title.toLowerCase().includes('join attic') || 
+    title.toLowerCase().includes('welcome back') || 
+    title.toLowerCase().includes('partner') || 
+    title.toLowerCase().includes('terminate_session')
+  );
+
+  const fullscreenClass = isMobile && !isSmallModal && !isDashboardWindow && !isAuthScreen
     ? (isChatWindow ? 'h-[100dvh] border-none shadow-none rounded-none' : 'h-[100dvh] pb-safe-navbar border-none shadow-none rounded-none')
     : '';
 
@@ -151,13 +172,13 @@ export function RetroInput({ label, icon: Icon, type = 'text', error, className 
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (
-    <div className={`space-y-1 w-full ${error ? 'animate-shake' : ''} ${className}`}>
-      {label && <label className="text-[10px] sm:text-[11px] font-mono opacity-60 ml-1 lowercase tracking-widest">{label}</label>}
+    <div className={`w-full ${error ? 'animate-shake' : ''} ${className}`}>
+      {label && <label className="block text-[12px] text-muted-text mb-1 font-mono lowercase tracking-widest">{label}</label>}
       <div className="relative group">
         {Icon && <Icon size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${error ? 'text-[var(--color-destructive)]' : 'opacity-30 group-focus-within:opacity-100 group-focus-within:text-primary'}`} />}
         <input 
           type={inputType}
-          className={`w-full ${Icon ? 'pl-12' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3 retro-border bg-window focus:bg-accent/5 outline-none font-bold transition-all placeholder:opacity-30 ${error ? 'border-[var(--color-destructive)] text-red-600 bg-red-50' : 'focus:ring-1 focus:ring-primary/20'}`} 
+          className={`w-full ${Icon ? 'pl-12' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} h-[44px] retro-border bg-window focus:bg-accent/5 outline-none font-bold transition-all placeholder:opacity-30 ${error ? 'border-[var(--color-destructive)] text-red-600 bg-red-50' : 'focus:ring-1 focus:ring-primary/20'}`} 
           {...props} 
         />
         {isPassword && (
@@ -210,7 +231,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
 }
 
 // ── Confirm Dialog ──
-export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = false }) {
+export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = false, confirmLabel = "Confirm", cancelLabel = "Cancel" }) {
   return (
     <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
@@ -224,8 +245,8 @@ export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = 
             </>
           ) : (
             <>
-              {showCancel && <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>Cancel</RetroButton>}
-              <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm && onConfirm(); }}>Confirm</RetroButton>
+              {showCancel && <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onCancel && onCancel(); }}>{cancelLabel}</RetroButton>}
+              <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); onConfirm && onConfirm(); }}>{confirmLabel}</RetroButton>
             </>
           )}
         </div>

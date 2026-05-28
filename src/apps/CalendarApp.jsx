@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Edit2, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { DayDetailsModal } from '../components/DayDetailsModal.jsx';
@@ -65,8 +65,17 @@ export function CalendarApp({ onClose, sfx }) {
   const blanks = Array.from({ length: firstDayOfWeek }, (_, i) => i);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
+  const upcomingEvents = events
+    .filter(e => {
+      const evDate = new Date(e.date + 'T00:00:00');
+      const todayDate = new Date();
+      todayDate.setHours(0,0,0,0);
+      return evDate >= todayDate;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return (
-    <RetroWindow title="calendar.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col">
+    <RetroWindow title="calendar.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg">
       <div 
         onClick={() => {
           playAudio('click', sfx);
@@ -93,7 +102,7 @@ export function CalendarApp({ onClose, sfx }) {
       <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2 text-center font-black text-[10px] sm:text-xs opacity-60 uppercase tracking-widest">
         {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(d => <div key={d}>{d}</div>)}
       </div>
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2 flex-1 auto-rows-fr">
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-2 auto-rows-fr mb-2">
         {blanks.map(i => <div key={`b-${i}`} className="retro-border border-dashed opacity-30 bg-black/5"></div>)}
         {days.map(d => {
           const dayEvents = getEventsForDay(d);
@@ -124,6 +133,58 @@ export function CalendarApp({ onClose, sfx }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Upcoming Events Section */}
+      <div className="mt-4 pt-4 border-t-2 border-dashed border-border flex-1 min-h-[150px] flex flex-col overflow-hidden">
+        <h3 className="text-sm font-black uppercase tracking-widest text-primary mb-2 flex items-center gap-1.5 shrink-0">
+          📅 Upcoming Events
+        </h3>
+        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          {upcomingEvents.length === 0 ? (
+            <p className="text-xs font-bold text-muted-text text-center py-4">No upcoming events.</p>
+          ) : (
+            upcomingEvents.map(event => {
+              const dateObj = new Date(event.date + 'T00:00:00');
+              const formatted = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+              return (
+                <div key={event.id} className="flex items-center justify-between p-2 retro-border bg-window hover:bg-accent/5 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-3.5 h-3.5 retro-border shrink-0" style={{ backgroundColor: event.color || 'var(--primary)' }} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold truncate">{event.title}</span>
+                      <span className="text-[10px] text-muted-text font-black uppercase tracking-wider">{formatted}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button 
+                      onClick={() => {
+                        playAudio('click', sfx);
+                        setSelectedDayForModal(dateObj.getDate());
+                        setCurrentDate(dateObj);
+                        setShowModal(true);
+                      }} 
+                      className="p-1 hover:brightness-110"
+                      title="Edit"
+                    >
+                      <Edit2 size={12} className="w-3.5 h-3.5 text-muted-text hover:text-primary" />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        playAudio('click', sfx);
+                        handleDeleteEvent(event.id);
+                      }} 
+                      className="p-1 hover:brightness-110 text-red-600"
+                      title="Delete"
+                    >
+                      <Trash2 size={13} className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {showModal && selectedDayForModal && (

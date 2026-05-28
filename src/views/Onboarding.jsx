@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Mail, Send, Grid3X3, Sparkle, User, Lock, Loader, Check, Copy, Share2, Eye, EyeOff, CheckCircle } from 'lucide-react';
-import { RetroButton, RetroWindow, RetroInput, useToast } from '../components/UI.jsx';
+import { RetroButton, RetroWindow, RetroInput, useToast, ConfirmDialog } from '../components/UI.jsx';
 import { supabase } from '../lib/supabase.js';
 import { isTestMode } from '../lib/testMode.js';
 import { useAuth } from '../context/instances.js';
@@ -225,10 +225,12 @@ export function AuthView({ mode }) {
         title={`${mode === 'signup' ? 'join attic' : 'welcome back'}.exe`} 
         className={`w-full max-w-[440px] shadow-2xl scale-up-15 ${shake ? 'animate-shake' : ''}`} 
         onClose={onBack}
+        noPadding
       >
-        <form onSubmit={startAuthFlow} className="flex flex-col gap-4 py-4">
-          <div className="flex flex-col items-center gap-1 mb-6 pb-4">
-            <h2 className="text-3xl font-black tracking-tighter text-primary lowercase text-center">
+        <div className="p-[20px] w-full max-w-[390px] mx-auto">
+        <form onSubmit={startAuthFlow} className="flex flex-col gap-4">
+          <div className="flex flex-col items-center gap-1 mb-1">
+            <h2 className="text-4xl sm:text-[40px] font-black tracking-tighter text-primary lowercase text-center leading-none">
               {mode === 'signup' ? 'join attic' : 'welcome back'}
             </h2>
           </div>
@@ -317,7 +319,7 @@ export function AuthView({ mode }) {
             </>
           )}
 
-          <div className="relative flex py-2 items-center">
+          <div className="relative flex items-center">
             <div className="flex-grow border-t border-border opacity-20"></div>
             <span className="flex-shrink-0 mx-4 text-[10px] font-bold text-muted-text uppercase tracking-widest">or</span>
             <div className="flex-grow border-t border-border opacity-20"></div>
@@ -338,6 +340,7 @@ export function AuthView({ mode }) {
             </RetroButton>
           </div>
         </form>
+        </div>
       </RetroWindow>
 
       {showLegal && (
@@ -372,6 +375,7 @@ export function HandshakeView() {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [retryTrigger, setRetryTrigger] = useState(0);
+  const [showConfirmLogout, setShowConfirmLogout] = useState(false);
   const addToast = useToast();
 
   const pairingTriggeredRef = useRef(false);
@@ -505,20 +509,20 @@ export function HandshakeView() {
     <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
 
       
-      <RetroWindow title="Pair with your partner" className="w-full max-w-[440px] shadow-2xl scale-up-15">
-        <div className="flex flex-col gap-8 py-4">
-          <div className="space-y-4 animate-in zoom-in-95 duration-500 text-center">
-             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse" aria-hidden="true">
-                <Heart size={32} className="text-primary" fill="currentColor" />
+      <RetroWindow title="Pair with your partner" className="w-full max-w-[390px] shadow-2xl scale-up-15" noPadding onClose={() => setShowConfirmLogout(true)}>
+        <div className="p-[20px] w-full flex flex-col gap-5">
+          <div className="space-y-2 animate-in zoom-in-95 duration-500 text-center">
+             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-1 animate-pulse" aria-hidden="true">
+                <Heart size={24} className="text-primary" fill="currentColor" />
              </div>
-             <h1 className="text-lg font-black">Invite your partner</h1>
-             <p className="font-bold text-muted-text text-sm">Share your code by text or in person. Only they can unlock your Attic.</p>
+             <h1 className="text-2xl font-black tracking-tighter text-primary lowercase leading-none">Invite your partner</h1>
+             <p className="font-bold text-muted-text text-xs leading-tight">Share your code. Only they can unlock your Attic.</p>
           </div>
 
-          <div className="bg-accent/20 border-2 border-border p-6 text-center space-y-3 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-2 opacity-10 rotate-12" aria-hidden="true"><Share2 size={48} /></div>
-             <div className="text-xs font-black uppercase tracking-widest text-muted-text" id="pairing-code-label">Your pairing code</div>
-             <div className="text-3xl sm:text-4xl font-black tracking-tighter text-primary select-all" aria-labelledby="pairing-code-label" role="group">{pairingCode}</div>
+          <div className="bg-accent/20 border-2 border-border p-4 text-center space-y-2 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-1 opacity-10 rotate-12" aria-hidden="true"><Share2 size={36} /></div>
+             <div className="text-[10px] font-black uppercase tracking-widest text-muted-text" id="pairing-code-label">Your pairing code</div>
+             <div className="text-2xl font-black tracking-tighter text-primary select-all" aria-labelledby="pairing-code-label" role="group">{pairingCode}</div>
              {fetchError ? (
                 <div className="space-y-1">
                   <button 
@@ -537,36 +541,47 @@ export function HandshakeView() {
           </div>
 
           <form onSubmit={handlePair}>
-             <div className="space-y-3">
-                <p className="font-bold opacity-60 text-sm text-center" id="partner-code-hint">Or enter your partner&apos;s code:</p>
+             <div className="space-y-2">
+                <p className="font-bold opacity-60 text-xs text-center" id="partner-code-hint">Or enter your partner&apos;s code:</p>
                 <div className="flex gap-2 justify-center">
-                   <input required type="text" inputMode="text" autoComplete="one-time-code" maxLength={12} placeholder="CODE" aria-labelledby="partner-code-hint" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} className="w-full max-w-[220px] px-4 py-4 border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-xl text-center tracking-widest uppercase" />
-                   <RetroButton type="submit" disabled={loading || partnerCode.length < 6} className="w-16 h-16 shrink-0" aria-label="Submit partner code">
-                      {loading ? <Loader className="animate-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}
+                   <input required type="text" inputMode="text" autoComplete="one-time-code" maxLength={12} placeholder="CODE" aria-labelledby="partner-code-hint" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} className="w-full max-w-[200px] px-4 h-[40px] border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-lg text-center tracking-widest uppercase" />
+                   <RetroButton type="submit" disabled={loading || partnerCode.length < 6} className="w-10 h-[40px] shrink-0" aria-label="Submit partner code">
+                      {loading ? <Loader className="animate-spin" aria-hidden="true" size={14} /> : <Check aria-hidden="true" size={14} />}
                    </RetroButton>
                 </div>
              </div>
           </form>
 
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-[10px] font-bold opacity-40 uppercase max-w-[240px] text-center mx-auto">Once they enter your code, the Attic will unlock instantly.</p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-[9px] font-bold opacity-45 uppercase max-w-[240px] text-center mx-auto leading-tight">Once they enter your code, the Attic will unlock instantly.</p>
             
-            <div className="flex flex-col gap-2 w-full">
-              <RetroButton variant="white" onClick={onLogout} className="py-2 px-8 text-[10px] opacity-60 hover:opacity-100">Terminate Session</RetroButton>
-              
-              {isTestMode() && import.meta.env.DEV && (
-                <button 
-                  type="button"
-                  onClick={handleDebugBypass}
-                  className="mt-2 text-[9px] font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest"
-                >
-                  [DEV] Bypass Handshake
-                </button>
-              )}
-            </div>
+            {isTestMode() && import.meta.env.DEV && (
+              <button 
+                type="button"
+                onClick={handleDebugBypass}
+                className="mt-1 text-[9px] font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest"
+              >
+                [DEV] Bypass Handshake
+              </button>
+            )}
           </div>
-          </div>
+        </div>
       </RetroWindow>
+
+      {showConfirmLogout && (
+        <ConfirmDialog
+          title="terminate_session.exe"
+          message="Do you really want to terminate session? This will log you out."
+          confirmLabel="Log Out"
+          cancelLabel="Cancel"
+          onConfirm={() => {
+            setShowConfirmLogout(false);
+            onLogout();
+          }}
+          onCancel={() => setShowConfirmLogout(false)}
+          showCancel={true}
+        />
+      )}
     </div>
   );
 }
