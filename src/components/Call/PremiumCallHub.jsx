@@ -11,11 +11,11 @@ import { DesktopOnly } from '../MobileOnly.jsx';
 
 // ── Quality Badge ─────────────────────────────────────────────────────────────
 function QualityBadge({ quality }) {
-  const colors = { good: 'bg-green-400', fair: 'bg-yellow-400', poor: 'bg-red-400' };
+  const colors = { good: 'bg-[var(--color-game)]', fair: 'bg-yellow-400', poor: 'bg-[var(--color-destructive)]' };
   const labels  = { good: 'HD',          fair: 'SD',            poor: 'LOW'         };
   return (
     <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white ${
-      quality === 'good' ? 'bg-green-500/70' : quality === 'fair' ? 'bg-yellow-500/70' : 'bg-red-500/70'
+      quality === 'good' ? 'bg-[var(--color-game)]/70' : quality === 'fair' ? 'bg-yellow-500/70' : 'bg-[var(--color-destructive)]/70'
     }`}>
       <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${colors[quality]}`} />
       {labels[quality]}
@@ -103,11 +103,11 @@ function DeviceSelector({ onChangeDevice, onClose }) {
             <div className="p-2 retro-border bg-border/5">
               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-2">Mic Check</p>
               <div className="h-2 w-full bg-border/20 rounded-full overflow-hidden mb-3">
-                <div className="h-full bg-green-400 transition-all duration-75" 
+                <div className="h-full bg-[var(--color-game)] transition-all duration-75" 
                      style={{ width: `${Math.min(100, testVolume * 300)}%` }} />
               </div>
               <button onClick={toggleMicTest}
-                      className={`w-full py-1.5 text-[9px] font-black uppercase tracking-widest retro-border transition-all ${isTesting ? 'bg-red-500 text-white' : 'bg-primary text-white hover:brightness-110'}`}>
+                      className={`w-full py-1.5 text-[9px] font-black uppercase tracking-widest retro-border transition-all ${isTesting ? 'bg-[var(--color-destructive)] text-white' : 'bg-primary text-white hover:brightness-110'}`}>
                 {isTesting ? 'Stop Mic Test' : 'Test Your Mic'}
               </button>
             </div>
@@ -214,10 +214,10 @@ function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, 
       {/* Label */}
       <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 text-[9px] text-white font-black uppercase tracking-widest z-10 flex items-center gap-1.5 border border-white/10">
         {label}
-        {isSpeaking && <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e] animate-pulse" />}
+        {isSpeaking && <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-game)] shadow-[0_0_6px_#22c55e] animate-pulse" />}
       </div>
       {tileMuted && (
-        <div className="absolute top-2 right-2 bg-red-600/90 p-1 retro-border z-10"><MicOff size={10} className="text-white" /></div>
+        <div className="absolute top-2 right-2 bg-[var(--color-destructive)]/90 p-1 retro-border z-10"><MicOff size={10} className="text-white" /></div>
       )}
     </div>
   );
@@ -448,7 +448,7 @@ export function PremiumCallHub({
           </div>
           <div className="flex gap-1.5">
             <button onClick={onMicToggle}
-                    className={`p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-border'} transition-all`}>
+                    className={`p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none ${isMuted ? 'bg-[var(--color-destructive)] text-white' : 'bg-window hover:bg-border'} transition-all`}>
               {isMuted ? <MicOff size={14}/> : <Mic size={14}/>}
             </button>
             <button onClick={() => setIsMinimized(false)}
@@ -496,7 +496,7 @@ export function PremiumCallHub({
         onMouseDown={startDrag}
       >
         <div className="flex items-center gap-2 min-w-0 truncate">
-          <div className={`w-2 h-2 shrink-0 rounded-full ${isReconnecting ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
+          <div className={`w-2 h-2 shrink-0 rounded-full ${isReconnecting ? 'bg-yellow-400 animate-pulse' : 'bg-[var(--color-game)]'}`} />
           {type === 'video' ? <Video size={13} className="shrink-0 text-pink-300"/> : <Phone size={13} className="shrink-0 text-cyan-300"/>}
           <span className="text-[11px] font-black uppercase tracking-widest truncate">{type === 'video' ? 'VIDEO CALL' : 'AUDIO CALL'} - {partnerName}</span>
           <span className="opacity-40 text-xs shrink-0">|</span>
@@ -520,7 +520,7 @@ export function PremiumCallHub({
               <Minimize2 size={14}/>
             </button>
           )}
-          <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-red-600 text-white hover:bg-red-700 transition-all" title="Hang Up">
+          <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-[var(--color-destructive)] text-white hover:bg-red-700 transition-all" title="Hang Up">
             <PhoneOff size={14}/>
           </button>
         </div>
@@ -541,7 +541,7 @@ export function PremiumCallHub({
                   <RefreshCw size={12}/> Retry
                 </button>
                 <button onClick={onEndCall}
-                        className="flex items-center gap-2 px-4 py-2 retro-border retro-shadow-dark bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
+                        className="flex items-center gap-2 px-4 py-2 retro-border retro-shadow-dark bg-[var(--color-destructive)] text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
                   <PhoneOff size={12}/> End
                 </button>
               </div>
@@ -628,9 +628,9 @@ export function PremiumCallHub({
             )}
 
             <div className="absolute top-2 left-2 flex gap-1.5 z-30">
-              {isMuted    && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><MicOff  size={12}/></div>}
-              {isDeafened && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VolumeX size={12}/></div>}
-              {isCameraOff && type === 'video' && <div className="p-1.5 bg-red-600/90 text-white rounded-full retro-border"><VideoOff size={12}/></div>}
+              {isMuted    && <div className="p-1.5 bg-[var(--color-destructive)]/90 text-white rounded-full retro-border"><MicOff  size={12}/></div>}
+              {isDeafened && <div className="p-1.5 bg-[var(--color-destructive)]/90 text-white rounded-full retro-border"><VolumeX size={12}/></div>}
+              {isCameraOff && type === 'video' && <div className="p-1.5 bg-[var(--color-destructive)]/90 text-white rounded-full retro-border"><VideoOff size={12}/></div>}
               {partnerHandRaised && (
                 <div className="px-2 py-1 bg-yellow-400 text-black rounded retro-border text-[9px] font-black animate-bounce flex items-center gap-1 shadow-lg">
                   <Hand size={10} fill="currentColor" /> {partnerName.split(' ')[0]} raised hand!
@@ -657,15 +657,15 @@ export function PremiumCallHub({
 
         <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 sm:gap-2 bg-window px-3 sm:px-4 py-2 sm:py-3 retro-border-thick transition-all duration-300 z-50 shadow-[6px_6px_0px_rgba(0,0,0,0.3)] ${isMobile ? 'opacity-100 w-[95%] justify-center flex-wrap' : 'opacity-0 group-hover:opacity-100'}`}>
           <button onClick={onMicToggle} 
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Mute (Shift+M)">
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isMuted ? 'bg-[var(--color-destructive)] text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Mute (Shift+M)">
             {isMuted ? <MicOff size={14} className="sm:size-5"/> : <Mic size={14} className="sm:size-5"/>}
           </button>
           <button onClick={onDeafenToggle} 
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isDeafened ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Deafen (Shift+D)">
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isDeafened ? 'bg-[var(--color-destructive)] text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Deafen (Shift+D)">
             {isDeafened ? <VolumeX size={14} className="sm:size-5"/> : <Volume2 size={14} className="sm:size-5"/>}
           </button>
           <button onClick={handleCameraToggle} 
-                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 relative ${isCameraOff ? 'bg-red-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Camera (Shift+V)">
+                  className={`p-2 sm:p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 relative ${isCameraOff ? 'bg-[var(--color-destructive)] text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Camera (Shift+V)">
             {isCameraChanging
               ? <Loader size={14} className="sm:size-5 animate-spin"/>
               : isCameraOff ? <VideoOff size={14} className="sm:size-5"/> : <Camera size={14} className="sm:size-5"/>
@@ -674,7 +674,7 @@ export function PremiumCallHub({
           
           <DesktopOnly>
             <button onClick={() => isScreenSharing ? onStopScreenShare?.() : onScreenShare?.()}
-                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-blue-500 text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Screen Share (Shift+S)">
+                    className={`p-2.5 retro-border retro-shadow-dark active:translate-y-[2px] active:shadow-none transition-all hover:scale-110 ${isScreenSharing ? 'bg-[var(--color-cta)] text-white' : 'bg-window hover:bg-accent hover:text-accent-text'}`} title="Screen Share (Shift+S)">
               {isScreenSharing ? <MonitorOff size={14} className="sm:size-5"/> : <Monitor size={14} className="sm:size-5"/>}
             </button>
             {/* Layout toggle */}
@@ -721,7 +721,7 @@ export function PremiumCallHub({
           <div className="w-px h-6 sm:h-8 bg-border mx-0.5 sm:mx-1 opacity-20"/>
 
           <button onClick={onEndCall} 
-                  className="p-2.5 sm:p-3 retro-border-thick shadow-[3px_3px_0_var(--border)] sm:shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-red-600 text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call">
+                  className="p-2.5 sm:p-3 retro-border-thick shadow-[3px_3px_0_var(--border)] sm:shadow-[4px_4px_0_var(--border)] active:translate-y-[2px] active:shadow-none bg-[var(--color-destructive)] text-white hover:bg-red-700 hover:scale-110 transition-all" title="End Call">
             <PhoneOff size={isMobile ? 18 : 22} className="rotate-[135deg]"/>
             <span style={{ display: 'none' }}>End</span>
           </button>

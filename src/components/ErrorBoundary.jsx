@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component {
 
             {/* 3. Window Content: The Classic BSOD */}
             <div className="bg-[#0078d7] text-white p-6 sm:p-10 flex flex-col selection:bg-white selection:text-[#0078d7]">
-              <h1 className="text-6xl sm:text-8xl font-bold mb-6" style={{ fontFamily: "'Pixelify Sans', cursive" }}>:(</h1>
+              <h1 className="text-6xl sm:text-8xl font-bold mb-6" style={{ fontFamily: "var(--font-display)" }}>:(</h1>
               
               <p className="text-lg sm:text-2xl font-bold leading-tight mb-4">
                 {isChunkError 
@@ -64,7 +64,8 @@ export class ErrorBoundary extends React.Component {
               <div className="relative group p-4 bg-black/30 border-2 border-dashed border-white/30 text-sm overflow-x-auto max-h-40 overflow-y-auto">
                 <button 
                   onClick={() => {
-                    const errStr = `${this.state.error}\n${this.state.errorInfo?.componentStack}`;
+                    const cleanStack = this.state.errorInfo?.componentStack?.replace(/https?:\/\/[^\/]+/g, '') || '';
+                    const errStr = `${this.state.error}\n${cleanStack}`;
                     navigator.clipboard.writeText(errStr);
                   }}
                   className="absolute top-2 right-2 px-3 py-1 bg-white/20 hover:bg-white/40 text-white text-[10px] font-bold uppercase tracking-widest border-2 border-transparent hover:border-white transition-all opacity-0 group-hover:opacity-100"
@@ -75,12 +76,12 @@ export class ErrorBoundary extends React.Component {
                   {this.state.error && this.state.error.toString()}
                 </p>
                 <pre className="text-[10px] sm:text-xs opacity-90 whitespace-pre-wrap leading-relaxed">
-                  {this.state.errorInfo && this.state.errorInfo.componentStack}
+                  {this.state.errorInfo && this.state.errorInfo.componentStack?.replace(/https?:\/\/[^\/]+/g, '')}
                 </pre>
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-8 flex justify-end items-center gap-4">
+              <div className="pt-8 flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-4">
                 <a 
                   href="https://www.facebook.com/bakarkhaniii/" 
                   target="_blank" 

@@ -187,7 +187,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
         <div className="border-2 border-border shadow-retro p-6 bg-main font-mono text-lg sm:text-xl leading-relaxed tracking-wide select-none">
           {passage.split('').map((char, i) => {
             let color = 'opacity-40';
-            if (i < typed.length) { color = typed[i] === char ? 'text-primary font-bold' : 'text-red-500 bg-red-100 font-bold'; }
+            if (i < typed.length) { color = typed[i] === char ? 'text-primary font-bold' : 'text-[var(--color-destructive)] bg-red-100 font-bold'; }
             else if (i === typed.length) { color = 'bg-accent text-main-text font-bold animate-pulse'; }
             return <span key={i} className={color}>{char}</span>;
           })}

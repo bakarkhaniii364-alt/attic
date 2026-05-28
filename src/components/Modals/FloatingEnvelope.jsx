@@ -6,7 +6,7 @@ export function FloatingEnvelope({ doodle, onClick, onReadLater }) {
     <div className="envelope-wrapper drop-shadow-xl flex flex-col items-center gap-1 group" style={{ top: `${doodle.y}vh`, left: `${doodle.x}vw` }}>
       <div className="relative cursor-pointer hover:scale-110 transition-transform active:scale-95" onClick={() => onClick(doodle)}>
         <Mail size={64} className="text-white fill-[var(--primary)]" />
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white animate-pulse">NEW!</span>
+        <span className="absolute -top-2 -right-2 bg-[var(--color-destructive)] text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white animate-pulse">NEW!</span>
       </div>
       <button 
         onClick={(e) => { e.stopPropagation(); onReadLater?.(doodle); }}

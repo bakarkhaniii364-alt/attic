@@ -140,11 +140,8 @@ const solveCollision = (b1, b2, onCueHit, onBallHit) => {
   if (speed > 1.5 && onBallHit) onBallHit(speed);
 };
 
-export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook, partnerName, myName }) {
-  const isMultiplayer = config.mode === '1v1_remote';
-  const myPlayerId = isMultiplayer ? userId : 'p1';
-  const oppPlayerId = isMultiplayer ? partnerId : 'p2';
-  const isHost = !isMultiplayer || userId < partnerId;
+export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onBack, roomId, onShareToChat, onSaveToScrapbook, partnerName, myName, isHost, isMultiplayer, myPlayerId, oppPlayerId }) {
+
 
   const canvasRef = useRef(null);
   const firstBallHitRef = useRef(null);
@@ -796,8 +793,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                             <span className="text-sm font-bold opacity-80">{gameState?.points?.[myPlayerId] || 0} pts</span>
                         </div>
                         <div className="font-bold flex items-center gap-2">
-                           {myType === 'red' && <div className="w-4 h-4 rounded-full bg-red-500 border border-black"></div>}
-                           {myType === 'blue' && <div className="w-4 h-4 rounded-full bg-blue-500 border border-black"></div>}
+                           {myType === 'red' && <div className="w-4 h-4 rounded-full bg-[var(--color-destructive)] border border-black"></div>}
+                           {myType === 'blue' && <div className="w-4 h-4 rounded-full bg-[var(--color-cta)] border border-black"></div>}
                            <span className="uppercase">{myType || 'OPEN TABLE'}</span>
                         </div>
                     </div>
@@ -810,8 +807,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                             <span className="text-sm font-bold opacity-80">{gameState?.points?.[oppPlayerId] || 0} pts</span>
                         </div>
                         <div className="font-bold flex items-center gap-2">
-                           {oppType === 'red' && <div className="w-4 h-4 rounded-full bg-red-500 border border-black"></div>}
-                           {oppType === 'blue' && <div className="w-4 h-4 rounded-full bg-blue-500 border border-black"></div>}
+                           {oppType === 'red' && <div className="w-4 h-4 rounded-full bg-[var(--color-destructive)] border border-black"></div>}
+                           {oppType === 'blue' && <div className="w-4 h-4 rounded-full bg-[var(--color-cta)] border border-black"></div>}
                            <span className="uppercase">{oppType || 'OPEN TABLE'}</span>
                         </div>
                     </div>

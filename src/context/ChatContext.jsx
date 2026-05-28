@@ -177,8 +177,8 @@ export function ChatProvider({ children }) {
                 console.warn('[E2EE] Failed to fetch latest user metadata:', e);
               }
               
-              // Forced manual entry on new device/browser (never auto-restore from metadata)
-              const userPin = null;
+              // Retrieve cached E2EE PIN from localStorage to persist unlock state
+              const userPin = localStorage.getItem(`e2ee_pin_${userId}`);
               const saltBase64 = myProfile.e2ee_salt || latestUser?.user_metadata?.e2ee_salt;
               const encryptedData = myProfile.encrypted_private_key || latestUser?.user_metadata?.encrypted_private_key;
               const pubJwk = myProfile.e2ee_public_key || latestUser?.user_metadata?.e2ee_public_key;
@@ -188,10 +188,11 @@ export function ChatProvider({ children }) {
                   const saltBytes = base64ToUint8Array(saltBase64);
                   const wrappingKey = await deriveKeyFromPin(userPin, saltBytes);
                   const privateKey = await decryptPrivateKey(encryptedData, wrappingKey);
-                  
                   privateKeyRef.current = privateKey;
                   if (isCurrent) {
                     setIsE2EEReady(true);
+                    setShowRestorePrompt(false);
+                    setShowPinSetupPrompt(false);
                   }
 
                   // Heal database room profile if it was missing/erased
@@ -304,6 +305,9 @@ export function ChatProvider({ children }) {
         privateKeyRef.current = privateKey;
         setIsE2EEReady(true);
 
+        // Cache the verified PIN locally
+        localStorage.setItem(`e2ee_pin_${userId}`, pin);
+
         addToast('Chat history successfully unlocked!', 'success');
         setShowRestorePrompt(false);
         setRestoreKeyInput('');
@@ -332,6 +336,9 @@ export function ChatProvider({ children }) {
         const keys = await generateECDHKeypair();
         await saveKeysAndBackup(keys, pin);
 
+        // Cache the newly created PIN locally
+        localStorage.setItem(`e2ee_pin_${userId}`, pin);
+
         addToast('Chat PIN successfully created! Chat history is now encrypted.', 'success');
         setShowPinSetupPrompt(false);
         setIsE2EEReady(true);
@@ -346,7 +353,7 @@ export function ChatProvider({ children }) {
         setIsDeriving(false);
       }
     }, 50);
-  }, [saveKeysAndBackup, addToast]);
+  }, [userId, saveKeysAndBackup, addToast]);
 
   const changePin = useCallback(async (newPin) => {
     if (!privateKeyRef.current) {
@@ -366,8 +373,7 @@ export function ChatProvider({ children }) {
           await supabase.auth.updateUser({
             data: {
               encrypted_private_key: encrypted,
-              e2ee_salt: saltBase64,
-              e2ee_pin: newPin
+              e2ee_salt: saltBase64
             }
           });
 
@@ -375,6 +381,9 @@ export function ChatProvider({ children }) {
             encrypted_private_key: encrypted,
             e2ee_salt: saltBase64
           });
+
+          // Cache the changed PIN locally
+          localStorage.setItem(`e2ee_pin_${userId}`, newPin);
 
           addToast('Chat PIN changed successfully!', 'success');
           resolve(true);
@@ -400,6 +409,9 @@ export function ChatProvider({ children }) {
       sharedKeyRef.current = null;
       setIsE2EEReady(false);
 
+      // Clear the cached PIN
+      localStorage.removeItem(`e2ee_pin_${userId}`);
+
       // Force user to set up a new Chat PIN from scratch
       setShowRestorePrompt(false);
       setShowPinSetupPrompt(true);
@@ -415,7 +427,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsRestoring(false);
     }
-  }, [addToast]);
+  }, [userId, addToast]);
 
   /**
    * Maps a database row into an application message object.
@@ -1018,195 +1030,19 @@ export function ChatProvider({ children }) {
     }
   }, [sendMessage]);
 
-  const value = { messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory, changePin };
+  const value = { 
+    messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory, changePin,
+    isE2EEReady,
+    showRestorePrompt, setShowRestorePrompt,
+    handleRestore, restoreKeyInput, setRestoreKeyInput, restoreError, isRestoring, isDeriving,
+    showPinSetupPrompt, setShowPinSetupPrompt,
+    pinSetupStep, setPinSetupStep, pinSetupInput, setPinSetupInput, pinSetupConfirm, setPinSetupConfirm, pinWarningConfirmed, setPinWarningConfirmed, handleCreatePin,
+    showResetConfirm, setShowResetConfirm
+  };
 
   return (
     <ChatContext.Provider value={value}>
       {children}
-
-      {/* 1. E2EE PIN Setup Modal */}
-      {showPinSetupPrompt && isOnChatRoute && (
-        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <RetroWindow 
-            title="e2ee_pin_setup.exe" 
-            className="w-full max-w-md shadow-2xl scale-up-15"
-            onClose={() => {
-              if (pinSetupStep === 'input') {
-                setPinSetupStep('warning');
-              } else {
-                addToast("PIN setup is required to secure E2EE chat history.", "warn");
-              }
-            }}
-          >
-            {pinSetupStep === 'warning' ? (
-              <div className="flex flex-col gap-5 py-2 text-center">
-                <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <AlertTriangle size={32} className="text-yellow-600 animate-pulse" />
-                </div>
-                <h1 className="text-xl font-black lowercase text-primary">Warning: Important Notice ⚠️</h1>
-                <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded text-left text-xs font-bold text-amber-800 space-y-2">
-                  <p>If you forget your PIN, your message history cannot be recovered.</p>
-                  <p>This cannot be undone.</p>
-                </div>
-                <p className="text-xs text-muted-text font-bold">
-                  Attic uses true End-to-End Encryption. We do not store your PIN on our servers, meaning we cannot reset it or recover your chats.
-                </p>
-                
-                <label className="flex items-start gap-2 cursor-pointer group mt-2 text-left">
-                  <input 
-                    type="checkbox" 
-                    checked={pinWarningConfirmed}
-                    onChange={e => setPinWarningConfirmed(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 border-2 border-border accent-primary cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-muted-text group-hover:text-main-text lowercase">
-                    I understand that my message history will be permanently lost if I forget my PIN.
-                  </span>
-                </label>
-
-                <RetroButton 
-                  onClick={() => setPinSetupStep('input')} 
-                  disabled={!pinWarningConfirmed} 
-                  className="w-full py-3 text-base mt-2"
-                >
-                  Continue
-                </RetroButton>
-              </div>
-            ) : (
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!pinSetupInput || pinSetupInput.length < 6) {
-                    addToast("PIN must be at least 6 digits.", "error");
-                    return;
-                  }
-                  if (pinSetupInput !== pinSetupConfirm) {
-                    addToast("PINs do not match.", "error");
-                    return;
-                  }
-                  handleCreatePin(pinSetupInput);
-                }}
-                className="flex flex-col gap-5 py-2 text-center"
-              >
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Lock size={32} className="text-primary" />
-                </div>
-                <h1 className="text-xl font-black lowercase text-primary">Create Chat PIN 🔐</h1>
-                <p className="font-bold text-muted-text text-sm">
-                  Choose a numeric PIN (min 6 digits) to secure your chat history. You will need to enter this PIN when logging in on new devices.
-                </p>
-
-                <RetroInput 
-                  label="Enter Chat PIN"
-                  icon={Key}
-                  type="password"
-                  pattern="[0-9]*"
-                  inputMode="numeric"
-                  placeholder="e.g. 123456"
-                  value={pinSetupInput}
-                  onChange={e => setPinSetupInput(e.target.value.replace(/\D/g, ''))}
-                  required
-                  autoFocus
-                  disabled={isDeriving}
-                />
-
-                <RetroInput 
-                  label="Confirm Chat PIN"
-                  icon={Check}
-                  type="password"
-                  pattern="[0-9]*"
-                  inputMode="numeric"
-                  placeholder="e.g. 123456"
-                  value={pinSetupConfirm}
-                  onChange={e => setPinSetupConfirm(e.target.value.replace(/\D/g, ''))}
-                  required
-                  disabled={isDeriving}
-                />
-
-                <RetroButton type="submit" disabled={isDeriving || pinSetupInput.length < 6 || pinSetupInput !== pinSetupConfirm} className="w-full py-3 text-base">
-                  {isDeriving ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader className="animate-spin" size={16} /> securing your keys...
-                    </span>
-                  ) : 'Create PIN'}
-                </RetroButton>
-              </form>
-            )}
-          </RetroWindow>
-        </div>
-      )}
-
-      {/* 2. E2EE PIN Restore Modal */}
-      {showRestorePrompt && isOnChatRoute && (
-        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/40 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <RetroWindow 
-            title="e2ee_restore.exe" 
-            className="w-full max-w-md shadow-2xl scale-up-15"
-          >
-            <form onSubmit={handleRestore} className="flex flex-col gap-5 py-2 text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
-                <Unlock size={32} className="text-primary" />
-              </div>
-              <h1 className="text-xl font-black lowercase text-primary">unlock chat history 🔒</h1>
-              <p className="font-bold text-muted-text text-sm">
-                We detected existing encrypted chats, but your encryption keys are not on this device. Enter your Chat PIN to unlock them.
-              </p>
-
-              <RetroInput 
-                label="Enter Chat PIN"
-                icon={Key}
-                type="password"
-                pattern="[0-9]*"
-                inputMode="numeric"
-                placeholder="Enter your 6-digit PIN"
-                value={restoreKeyInput}
-                onChange={e => setRestoreKeyInput(e.target.value.replace(/\D/g, ''))}
-                error={restoreError}
-                required
-                autoFocus
-                disabled={isRestoring || isDeriving}
-              />
-
-              <RetroButton type="submit" disabled={isRestoring || isDeriving || !restoreKeyInput.trim()} className="w-full py-3 text-base">
-                {isDeriving ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader className="animate-spin" size={16} /> securing your keys...
-                  </span>
-                ) : 'Unlock History'}
-              </RetroButton>
-
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-border opacity-20"></div>
-                <span className="flex-shrink-0 mx-4 text-[10px] font-bold text-muted-text uppercase tracking-widest">or</span>
-                <div className="flex-grow border-t border-border opacity-20"></div>
-              </div>
-
-              <div className="space-y-2 text-left">
-                <p className="text-xs font-bold text-muted-text text-center">Forgot your Chat PIN?</p>
-                <RetroButton 
-                  onClick={() => setShowResetConfirm(true)} 
-                  variant="secondary" 
-                  disabled={isRestoring || isDeriving}
-                  className="w-full py-2.5 text-xs font-bold"
-                >
-                  Reset Chat History
-                </RetroButton>
-              </div>
-            </form>
-          </RetroWindow>
-        </div>
-      )}
-
-      {/* 3. Confirm Reset Dialog */}
-      {showResetConfirm && (
-        <ConfirmDialog
-          title="Reset encryption keys?"
-          message="WARNING: Resetting your keys will prompt you to set a new Chat PIN, but all past encrypted messages will become permanently unreadable. This action cannot be undone."
-          showCancel={true}
-          onConfirm={handleResetHistory}
-          onCancel={() => setShowResetConfirm(false)}
-        />
-      )}
     </ChatContext.Provider>
   );
 }

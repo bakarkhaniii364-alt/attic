@@ -73,7 +73,7 @@ export function SecureAudio({ url, children }) {
   }
 
   if (loading) return <div className="animate-pulse opacity-50">...</div>;
-  if (error) return <div className="text-[8px] text-red-500">Error</div>;
+  if (error) return <div className="text-[8px] text-[var(--color-destructive)]">Error</div>;
 
   return children(signedUrl);
 }

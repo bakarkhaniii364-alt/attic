@@ -268,7 +268,7 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
                       const inCheck = piece?.type === 'k' && piece?.color === chess.turn() && chess.inCheck();
 
                       let bgClass = isDark ? 'bg-[#c5a880]' : 'bg-[#f0d9b5]';
-                      if (inCheck) bgClass = 'bg-red-400';
+                      if (inCheck) bgClass = 'bg-[var(--color-destructive)]';
                       else if (isSelected) bgClass = '!bg-[var(--accent)]';
                       else if (isLastMove) bgClass = 'bg-yellow-300';
                       
@@ -298,9 +298,9 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
     <RetroWindow title={isMultiplayer ? "Chess — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Chess — vs AI"} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 relative overflow-hidden">
-         <div className="w-full h-1 bg-red-400 absolute bottom-0 left-0"><div className="h-full bg-green-400 transition-all" style={{width: `${Math.max(0, Math.min(100, evalPerc))}%`}}></div></div>
+         <div className="w-full h-1 bg-[var(--color-destructive)] absolute bottom-0 left-0"><div className="h-full bg-[var(--color-game)] transition-all" style={{width: `${Math.max(0, Math.min(100, evalPerc))}%`}}></div></div>
          {isMultiplayer ? (
-           <span className={`font-black uppercase text-sm px-2 py-0.5 rounded ${chess.turn() === myColor ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-white opacity-70'}`}>
+           <span className={`font-black uppercase text-sm px-2 py-0.5 rounded ${chess.turn() === myColor ? 'bg-[var(--color-game)] text-white animate-pulse' : 'bg-gray-500 text-white opacity-70'}`}>
              {chess.turn() === myColor ? '⚡ Your Turn' : '⏳ ' + (partnerName || 'Partner') + "'s Turn"}
            </span>
          ) : (

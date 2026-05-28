@@ -72,8 +72,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   if (sync.syncError) {
     return (
       <div className="w-full flex items-center justify-center p-8 h-full min-h-[50vh] animate-in fade-in zoom-in duration-300">
-         <div className="bg-window retro-border p-8 text-center max-w-md border-red-500 retro-shadow-dark">
-            <h2 className="text-xl font-black mb-4 text-red-500 uppercase">Connection Interrupted</h2>
+         <div className="bg-window retro-border p-8 text-center max-w-md border-[var(--color-destructive)] retro-shadow-dark">
+            <h2 className="text-xl font-black mb-4 text-[var(--color-destructive)] uppercase">Connection Interrupted</h2>
             <p className="text-xs mb-6 font-bold opacity-80">{sync.syncError.message || 'Failed to synchronize couple data with the server.'}</p>
             <RetroButton onClick={() => window.location.reload()} className="px-6 py-2 text-xs">Reconnect</RetroButton>
          </div>
@@ -373,7 +373,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
                 <SettingsIcon size={10} /> Control Panel
               </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="bg-red-500 text-white font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
+              <button onClick={() => setShowLogoutConfirm(true)} className="bg-[var(--color-destructive)] text-white font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
                 <LogOut size={10} /> Logout
               </button>
             </div>

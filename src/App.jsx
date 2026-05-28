@@ -314,7 +314,7 @@ export default function App() {
       )}
       
       {syncError && !isOnboarding && (
-        <div className="fixed top-4 right-4 z-[9999] bg-red-500 text-white px-4 py-2 text-xs font-bold shadow-xl animate-in fade-in slide-in-from-top-4 flex items-center gap-2 retro-border">
+        <div className="fixed top-4 right-4 z-[9999] bg-[var(--color-destructive)] text-white px-4 py-2 text-xs font-bold shadow-xl animate-in fade-in slide-in-from-top-4 flex items-center gap-2 retro-border">
           <X size={14} />
           Sync error: {syncError.message || 'Connection lost'}
           <button onClick={() => window.location.reload()} className="ml-2 underline hover:opacity-80">Reload</button>
@@ -382,7 +382,7 @@ export default function App() {
             {partnerOnlineModal && (
               <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[var(--z-toast)] animate-in slide-in-from-top-10 fade-in duration-500 pointer-events-none">
                 <div className="bg-primary text-primary-text px-6 py-3 retro-border retro-shadow-dark flex items-center gap-3 rounded-full">
-                  <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_#4ade80]"></div>
+                  <div className="w-3 h-3 bg-[var(--color-game)] rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_#4ade80]"></div>
                   <span className="font-black uppercase tracking-widest text-xs">{partnerName} is Online!</span>
                 </div>
               </div>

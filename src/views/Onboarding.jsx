@@ -520,7 +520,7 @@ export function HandshakeView() {
                   <button 
                     type="button" 
                     onClick={() => setRetryTrigger(prev => prev + 1)} 
-                    className="text-[9px] font-black uppercase text-red-500 hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current"
+                    className="text-[9px] font-black uppercase text-[var(--color-destructive)] hover:opacity-70 flex items-center justify-center gap-1 mx-auto border-b border-current"
                   >
                     Retry Fetching Code
                   </button>

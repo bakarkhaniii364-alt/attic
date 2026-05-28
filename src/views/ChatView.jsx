@@ -1,11 +1,11 @@
 import {
   X, Send, Paperclip, Smile, Mic, Trash2, Pin, Edit2, Reply, Image as ImageIcon,
   Gamepad2, Check, Clock, Ban, Phone, PhoneOff, Video, Download, Play, Monitor,
-  Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search, Film, Settings, Lock
+  Music, FileText, ChevronRight, MoreVertical, MicOff, Volume2, VolumeX, Bell, History, Palette, Pause, Pencil, Upload, Search, Film, Settings, Lock, AlertTriangle, Unlock, Key, Loader
 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
-import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer, RetroInput, ConfirmDialog, useToast } from '../components/UI.jsx';
 import { PocketWatchWinder } from '../components/PocketWatchWinder.jsx';
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
@@ -138,7 +138,12 @@ export function ChatView({ onClose, sfx }) {
   const isMobile = useMobile();
   const { userId, partnerId, roomId } = useAuth();
   const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
-  const { messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, changePin } = useChat();
+  const { 
+    messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, changePin,
+    isE2EEReady, showRestorePrompt, setShowRestorePrompt, handleRestore, restoreKeyInput, setRestoreKeyInput, restoreError, isRestoring, isDeriving,
+    showPinSetupPrompt, setShowPinSetupPrompt, pinSetupStep, setPinSetupStep, pinSetupInput, setPinSetupInput, pinSetupConfirm, setPinSetupConfirm, pinWarningConfirmed, setPinWarningConfirmed, handleCreatePin, showResetConfirm, setShowResetConfirm
+  } = useChat();
+  const { addToast } = useToast();
   const { startCall } = useCall();
   const { uploadAsset } = useAssetSync(roomId);
   const [openReactMsgId, setOpenReactMsgId] = useState(null);
@@ -1025,7 +1030,163 @@ export function ChatView({ onClose, sfx }) {
                 className={`flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col relative chat-container`}
                 onScroll={handleChatScroll}
               >
-
+                {showPinSetupPrompt ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-md retro-border p-6 shadow-xl bg-window animate-in fade-in duration-300">
+                      {pinSetupStep === 'warning' ? (
+                        <div className="flex flex-col gap-5 py-2 text-center">
+                          <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <AlertTriangle size={32} className="text-yellow-600 animate-pulse" />
+                          </div>
+                          <h1 className="text-xl font-black lowercase text-primary">Warning: Important Notice ⚠️</h1>
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded text-left text-xs font-bold text-amber-800 space-y-2">
+                            <p>If you forget your PIN, your message history cannot be recovered.</p>
+                            <p>This cannot be undone.</p>
+                          </div>
+                          <p className="text-xs text-muted-text font-bold">
+                            Attic uses true End-to-End Encryption. We do not store your PIN on our servers, meaning we cannot reset it or recover your chats.
+                          </p>
+                          
+                          <label className="flex items-start gap-2 cursor-pointer group mt-2 text-left">
+                            <input 
+                              type="checkbox" 
+                              checked={pinWarningConfirmed}
+                              onChange={e => setPinWarningConfirmed(e.target.checked)}
+                              className="w-4 h-4 mt-0.5 border-2 border-border accent-primary cursor-pointer"
+                            />
+                            <span className="text-xs font-bold text-muted-text group-hover:text-main-text lowercase">
+                              I understand that my message history will be permanently lost if I forget my PIN.
+                            </span>
+                          </label>
+          
+                          <RetroButton 
+                            onClick={() => setPinSetupStep('input')} 
+                            disabled={!pinWarningConfirmed} 
+                            className="w-full py-3 text-base mt-2"
+                          >
+                            Continue
+                          </RetroButton>
+                        </div>
+                      ) : (
+                        <form 
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!pinSetupInput || pinSetupInput.length < 6) {
+                              addToast("PIN must be at least 6 digits.", "error");
+                              return;
+                            }
+                            if (pinSetupInput !== pinSetupConfirm) {
+                              addToast("PINs do not match.", "error");
+                              return;
+                            }
+                            handleCreatePin(pinSetupInput);
+                          }}
+                          className="flex flex-col gap-5 py-2 text-center"
+                        >
+                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <Lock size={32} className="text-primary" />
+                          </div>
+                          <h1 className="text-xl font-black lowercase text-primary">Create Chat PIN 🔐</h1>
+                          <p className="font-bold text-muted-text text-sm">
+                            Choose a numeric PIN (min 6 digits) to secure your chat history. You will need to enter this PIN when logging in on new devices.
+                          </p>
+          
+                          <RetroInput 
+                            label="Enter Chat PIN"
+                            icon={Key}
+                            type="password"
+                            pattern="[0-9]*"
+                            inputMode="numeric"
+                            placeholder="e.g. 123456"
+                            value={pinSetupInput}
+                            onChange={e => setPinSetupInput(e.target.value.replace(/\D/g, ''))}
+                            required
+                            autoFocus
+                            disabled={isDeriving}
+                          />
+          
+                          <RetroInput 
+                            label="Confirm Chat PIN"
+                            icon={Check}
+                            type="password"
+                            pattern="[0-9]*"
+                            inputMode="numeric"
+                            placeholder="e.g. 123456"
+                            value={pinSetupConfirm}
+                            onChange={e => setPinSetupConfirm(e.target.value.replace(/\D/g, ''))}
+                            required
+                            disabled={isDeriving}
+                          />
+          
+                          <RetroButton type="submit" disabled={isDeriving || pinSetupInput.length < 6 || pinSetupInput !== pinSetupConfirm} className="w-full py-3 text-base">
+                            {isDeriving ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <Loader className="animate-spin" size={16} /> securing your keys...
+                              </span>
+                            ) : 'Create PIN'}
+                          </RetroButton>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                ) : showRestorePrompt ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-md retro-border p-6 shadow-xl bg-window animate-in fade-in duration-300">
+                      <form onSubmit={handleRestore} className="flex flex-col gap-5 py-2 text-center">
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
+                          <Unlock size={32} className="text-primary" />
+                        </div>
+                        <h1 className="text-xl font-black lowercase text-primary">unlock chat history 🔒</h1>
+                        <p className="font-bold text-muted-text text-sm">
+                          We detected existing encrypted chats, but your encryption keys are not on this device. Enter your Chat PIN to unlock them.
+                        </p>
+          
+                        <RetroInput 
+                          label="Enter Chat PIN"
+                          icon={Key}
+                          type="password"
+                          pattern="[0-9]*"
+                          inputMode="numeric"
+                          placeholder="Enter your 6-digit PIN"
+                          value={restoreKeyInput}
+                          onChange={e => setRestoreKeyInput(e.target.value.replace(/\D/g, ''))}
+                          error={restoreError}
+                          required
+                          autoFocus
+                          disabled={isRestoring || isDeriving}
+                        />
+          
+                        <RetroButton type="submit" disabled={isRestoring || isDeriving || !restoreKeyInput.trim()} className="w-full py-3 text-base">
+                          {isDeriving ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <Loader className="animate-spin" size={16} /> securing your keys...
+                            </span>
+                          ) : 'Unlock History'}
+                        </RetroButton>
+          
+                        <div className="relative flex py-2 items-center">
+                          <div className="flex-grow border-t border-border opacity-20"></div>
+                          <span className="flex-shrink-0 mx-4 text-[10px] font-bold text-muted-text uppercase tracking-widest">or</span>
+                          <div className="flex-grow border-t border-border opacity-20"></div>
+                        </div>
+          
+                        <div className="space-y-2 text-left">
+                          <p className="text-xs font-bold text-muted-text text-center">Forgot your Chat PIN?</p>
+                          <RetroButton 
+                            onClick={() => setShowResetConfirm(true)} 
+                            type="button"
+                            variant="secondary" 
+                            disabled={isRestoring || isDeriving}
+                            className="w-full py-2.5 text-xs font-bold"
+                          >
+                            Reset Chat History
+                          </RetroButton>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                ) : (
+                  <>
               <div className="flex flex-col items-center gap-1 mt-2 mb-6 w-full text-center select-none shrink-0">
                 <div className="text-[10px] sm:text-xs font-bold opacity-50 text-main-text max-w-sm lowercase leading-relaxed">
                   this is the beginning of your private, secure retro room history with {partnerNickname}. say hello!
@@ -1325,7 +1486,7 @@ export function ChatView({ onClose, sfx }) {
                             {msg.type === 'call_invite' && (
                               <div className="flex flex-col gap-1 py-1 min-w-[160px]">
                                 <div className="flex items-center gap-3">
-                                  <div className={`p-2 retro-border retro-shadow-dark flex-shrink-0 ${msg.status === 'missed' ? 'bg-red-500 text-white' :
+                                  <div className={`p-2 retro-border retro-shadow-dark flex-shrink-0 ${msg.status === 'missed' ? 'bg-[var(--color-destructive)] text-white' :
                                       msg.status === 'ended' ? 'bg-gray-100 text-gray-600' :
                                         msg.status === 'ringing' ? 'bg-yellow-100 text-yellow-600' :
                                           'bg-gray-100 text-gray-500'
@@ -1336,7 +1497,7 @@ export function ChatView({ onClose, sfx }) {
                                     }
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className={`text-[11px] font-black uppercase tracking-widest leading-none mb-1 ${msg.status === 'missed' ? 'text-red-500' : ''
+                                    <span className={`text-[11px] font-black uppercase tracking-widest leading-none mb-1 ${msg.status === 'missed' ? 'text-[var(--color-destructive)]' : ''
                                       }`}>
                                       {msg.status === 'missed' ? '📵 Missed Call' :
                                         msg.status === 'ended' ? 'Call Ended' :
@@ -1439,7 +1600,7 @@ export function ChatView({ onClose, sfx }) {
                                   playAudio('click', sfx);
                                   retrySendMessage(msg);
                                 }}
-                                className="ml-1.5 text-red-500 hover:text-red-700 underline font-black cursor-pointer flex items-center gap-0.5 normal-case animate-pulse"
+                                className="ml-1.5 text-[var(--color-destructive)] hover:text-red-700 underline font-black cursor-pointer flex items-center gap-0.5 normal-case animate-pulse"
                                 title="Click to retry"
                               >
                                 ⚠️ retry
@@ -1484,7 +1645,7 @@ export function ChatView({ onClose, sfx }) {
                                    textareaRef.current.setSelectionRange(len, len);
                                  }
                                }, 50);
-                             }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-blue-500" /> Reply</button>
+                             }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Reply size={14} className="text-[var(--color-cta)]" /> Reply</button>
                             <button onClick={() => { syncUpdateMessage(msg.id, { isPinned: !msg.isPinned }); setActiveOptions(null); }} className="flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-accent hover:text-accent-text text-left transition-colors"><Pin size={14} className="text-orange-500" /> {msg.isPinned ? 'Unpin' : 'Pin'}</button>
 
                             <div className="flex items-center justify-center gap-2 px-3 py-1 border-y border-dashed border-border/10 text-[9px] font-black uppercase opacity-50">
@@ -1541,6 +1702,8 @@ export function ChatView({ onClose, sfx }) {
                   </div>
                 </div>
               )}
+                  </>
+                )}
             </div>
             <div className="flex flex-col bg-accent text-accent-text border-t-2 border-border relative">
               {showEmojiPicker && (
@@ -1582,7 +1745,7 @@ export function ChatView({ onClose, sfx }) {
                         )}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center gap-1 z-10">
                           <button onClick={() => setEditingFileIndex(i)} className="bg-primary text-white p-1.5 retro-border hover:scale-110 transition-transform" title="Edit Attachment"><Pencil size={12} /></button>
-                          <button onClick={() => setPendingFiles(p => p.filter((_, idx) => idx !== i))} className="bg-red-600 text-white p-1.5 retro-border hover:scale-110 transition-transform" title="Remove"><X size={12} /></button>
+                          <button onClick={() => setPendingFiles(p => p.filter((_, idx) => idx !== i))} className="bg-[var(--color-destructive)] text-white p-1.5 retro-border hover:scale-110 transition-transform" title="Remove"><X size={12} /></button>
                         </div>
                       </div>
                     ))}
@@ -1623,6 +1786,7 @@ export function ChatView({ onClose, sfx }) {
                   <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-white/10 retro-border flex-shrink-0 ml-2"><X size={14} /></button>
                 </div>
               )}
+              {!(showPinSetupPrompt || showRestorePrompt) && (
               <form onSubmit={handleSend} className="flex gap-1.5 sm:gap-2 items-center p-1.5 sm:p-3 relative bg-window z-50">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
 
@@ -1660,6 +1824,7 @@ export function ChatView({ onClose, sfx }) {
                   )}
                 </div>
               </form>
+              )}
             </div>
           </div>
           {showDetails && (
@@ -1917,16 +2082,16 @@ export function ChatView({ onClose, sfx }) {
           <RetroWindow 
             title="delete_message.exe" 
             onClose={() => setDeleteTargetMessage(null)} 
-            className="w-full max-w-sm"
+            className="w-full max-w-[280px]"
           >
             <div className="flex flex-col gap-4">
-              <p className="font-bold text-sm">
+              <p className="font-bold text-xs">
                 {deleteTargetMessage.sender === userId 
                   ? "Would you like to delete this message for everyone or just for you?" 
                   : "This will only delete the message from your end. Your partner will still be able to see it."}
               </p>
               {deleteTargetMessage.sender === userId && (
-                <p className="text-xs opacity-75 font-medium leading-relaxed">
+                <p className="text-[10px] opacity-75 font-medium leading-relaxed">
                   Deleting for everyone will replace this message with a "message deleted" placeholder. Deleting for you will remove it from your screen.
                 </p>
               )}
@@ -1963,20 +2128,20 @@ export function ChatView({ onClose, sfx }) {
                 >
                   Delete for Me
                 </RetroButton>
-                <RetroButton 
-                  variant="secondary" 
-                  onClick={() => {
-                    playAudio('click', sfx);
-                    setDeleteTargetMessage(null);
-                  }}
-                  className="w-full py-2 font-black uppercase text-xs"
-                >
-                  Cancel
-                </RetroButton>
               </div>
             </div>
           </RetroWindow>
         </div>
+      )}
+      {/* Confirm Reset Dialog */}
+      {showResetConfirm && (
+        <ConfirmDialog
+          title="Reset encryption keys?"
+          message="WARNING: Resetting your keys will prompt you to set a new Chat PIN, but all past encrypted messages will become permanently unreadable. This action cannot be undone."
+          showCancel={true}
+          onConfirm={handleResetHistory}
+          onCancel={() => setShowResetConfirm(false)}
+        />
       )}
     </>
   );

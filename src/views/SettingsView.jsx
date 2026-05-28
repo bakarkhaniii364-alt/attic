@@ -300,7 +300,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                      <RetroButton type="submit" variant="primary" disabled={passwordLoading} className="flex-1 py-2 text-[10px]">{passwordLoading ? 'UPDATING...' : 'UPDATE'}</RetroButton>
                      <RetroButton type="button" onClick={() => setShowChangePassword(false)} variant="secondary" className="flex-1 py-2 text-[10px]">CANCEL</RetroButton>
                    </div>
-                   {passwordError && <p className="text-[9px] text-red-500 font-bold uppercase">{passwordError}</p>}
+                   {passwordError && <p className="text-[9px] text-[var(--color-destructive)] font-bold uppercase">{passwordError}</p>}
                 </form>
               )}
            </div>
@@ -681,7 +681,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
                 </button>
               </div>
             ) : (
-              <p className="text-xs font-bold text-red-500 uppercase">
+              <p className="text-xs font-bold text-[var(--color-destructive)] uppercase">
                 No recovery key found on this device (legacy key pair). Click "Reset Encryption" below to generate a new key pair with a recovery backup.
               </p>
             )}

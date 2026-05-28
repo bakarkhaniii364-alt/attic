@@ -232,8 +232,8 @@ export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShare
                   {q.answer && (
                     <div className={`flex ${!isGuesser ? 'justify-end' : 'justify-start'}`}>
                       <div className={`px-4 py-2 border-2 border-border font-black uppercase tracking-widest text-sm flex items-center gap-2 ${
-                        q.answer === 'yes' ? 'bg-green-500 text-white' : 
-                        q.answer === 'no' ? 'bg-red-500 text-white' : 
+                        q.answer === 'yes' ? 'bg-[var(--color-game)] text-white' : 
+                        q.answer === 'no' ? 'bg-[var(--color-destructive)] text-white' : 
                         'bg-accent text-white animate-pulse'
                       }`}>
                         {q.answer === 'yes' && <Check size={16} />}
@@ -247,8 +247,8 @@ export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShare
                   {!q.answer && isSetter && phase === 'playing' && (
                     <div className="flex justify-end mt-2 animate-in slide-in-from-right-4">
                       <div className="flex gap-2">
-                        <RetroButton variant="white" className="!bg-green-500 !text-white px-4 py-2 text-xs" onClick={() => handleAnswer(i, 'yes')}><Check size={14} className="inline mr-1"/> Yes</RetroButton>
-                        <RetroButton variant="white" className="!bg-red-500 !text-white px-4 py-2 text-xs" onClick={() => handleAnswer(i, 'no')}><X size={14} className="inline mr-1"/> No</RetroButton>
+                        <RetroButton variant="white" className="!bg-[var(--color-game)] !text-white px-4 py-2 text-xs" onClick={() => handleAnswer(i, 'yes')}><Check size={14} className="inline mr-1"/> Yes</RetroButton>
+                        <RetroButton variant="white" className="!bg-[var(--color-destructive)] !text-white px-4 py-2 text-xs" onClick={() => handleAnswer(i, 'no')}><X size={14} className="inline mr-1"/> No</RetroButton>
                         <RetroButton variant="accent" className="px-4 py-2 text-xs" onClick={() => handleAnswer(i, 'correct')}><Trophy size={14} className="inline mr-1"/> Correct Guess</RetroButton>
                       </div>
                     </div>

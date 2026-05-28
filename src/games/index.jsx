@@ -212,12 +212,19 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // Sync lobbyPhase with arcadeSession status
   useEffect(() => {
     if (arcadeSession?.status === 'starting') {
-      console.log("🚦 [LOBBY] DB status is 'starting'. Moving to STARTING phase.");
+      console.log("🚦 [LOBBY] DB status is 'starting'. Bypassing countdown and starting immediately.");
       setLobbyPhase('STARTING');
+      const isPlayerA = arcadeSession?.player_a_id === userId;
+      if (isPlayerA) {
+        supabase.from('arcade_sessions').update({ status: 'playing' }).eq('room_id', syncedRoomId).eq('game_id', gameRoute)
+          .then(({ error }) => {
+            if (error) console.error("Failed to automatically start game:", error);
+          });
+      }
     } else if (arcadeSession?.status === 'playing') {
       setLobbyPhase('PLAYING');
     }
-  }, [arcadeSession?.status]);
+  }, [arcadeSession?.status, userId, syncedRoomId, gameRoute]);
 
   // Solo Bypass Handshake Listener
   useEffect(() => {
@@ -724,7 +731,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                     </div>
                     <span className="text-[10px] font-black uppercase opacity-40">P1</span>
                     <span className="text-sm font-black truncate">{myName || 'You'}</span>
-                    <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${!arcadeSession ? 'bg-gray-400 opacity-50' : (isPlayerA ? (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'))}`}>
+                    <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${!arcadeSession ? 'bg-gray-400 opacity-50' : (isPlayerA ? (arcadeSession.player_a_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white'))}`}>
                         {!arcadeSession ? 'SYNCING...' : (isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING'))}
                     </div>
                 </div>
@@ -744,7 +751,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                         {partnerInLobby ? (partnerName || 'Partner') : (arcadeSession ? 'WAITING...' : 'SYNCING...')}
                     </span>
                     {partnerInLobby ? (
-                        <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_b_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_a_ready ? 'bg-green-500 text-white' : 'bg-orange-400 text-white')}`}>
+                        <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_b_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_a_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white')}`}>
                             {isPlayerA ? (arcadeSession.player_b_ready ? 'READY' : 'WAITING') : (arcadeSession.player_a_ready ? 'READY' : 'WAITING')}
                         </div>
                     ) : (

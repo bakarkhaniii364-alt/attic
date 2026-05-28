@@ -60,7 +60,7 @@ export function TimeCapsuleApp({ onClose, sfx }) {
             backgroundImage: 'repeating-linear-gradient(transparent, transparent 31px, #e8ddd0 31px, #e8ddd0 32px)',
             backgroundPositionY: '60px'
           }}>
-             <div className="absolute top-0 right-0 w-16 h-16 bg-red-600 rounded-bl-full shadow-md z-10 flex items-center justify-center"><Heart size={20} className="text-white -mt-2 -ml-2"/></div>
+             <div className="absolute top-0 right-0 w-16 h-16 bg-[var(--color-destructive)] rounded-bl-full shadow-md z-10 flex items-center justify-center"><Heart size={20} className="text-white -mt-2 -ml-2"/></div>
              <div className="mb-8 pb-4 border-b-2 border-dashed" style={{ borderColor: '#d4c5b0', color: '#8b7355' }}>
                <p className="font-bold text-sm"><span className="uppercase tracking-widest opacity-60">From:</span> {readingLetter.senderId === userId ? 'You' : 'Partner'}</p>
                <p className="font-bold text-sm mt-1"><span className="uppercase tracking-widest opacity-60">To:</span> {readingLetter.senderId === userId ? 'Partner' : 'You'}</p>
@@ -104,7 +104,7 @@ export function TimeCapsuleApp({ onClose, sfx }) {
                     {isLocked ? (
                        <div className="absolute inset-0 overflow-hidden flex flex-col items-center justify-center">
                           <div className="absolute top-0 w-[120%] h-0 border-t-[80px] sm:border-t-[100px] border-t-[#e8c050] border-l-[150px] sm:border-l-[200px] border-l-transparent border-r-[150px] sm:border-r-[200px] border-r-transparent z-10 drop-shadow-md"></div>
-                          <div className="absolute z-20 w-14 h-14 bg-red-600 rounded-full flex flex-col items-center justify-center text-[var(--bg-window)] retro-border shadow-xl hover:scale-110 transition-transform"><Lock size={20}/></div>
+                          <div className="absolute z-20 w-14 h-14 bg-[var(--color-destructive)] rounded-full flex flex-col items-center justify-center text-[var(--bg-window)] retro-border shadow-xl hover:scale-110 transition-transform"><Lock size={20}/></div>
                           <div className="absolute bottom-3 sm:bottom-4 z-20 font-bold text-xs opacity-90 bg-black text-white px-3 py-1 rounded-full shadow-lg">{getTimeLeft(l.unlockDate)}</div>
                        </div>
                     ) : (

@@ -99,14 +99,14 @@ export function CallOverlay({
             <div className="flex gap-6 justify-center">
               <button
                 onClick={handleDecline}
-                className="p-5 bg-red-500 text-white retro-border rounded-full hover:bg-red-600 transition-all hover:scale-110 shadow-lg"
+                className="p-5 bg-[var(--color-destructive)] text-white retro-border rounded-full hover:bg-[var(--color-destructive)] transition-all hover:scale-110 shadow-lg"
                 title="Decline"
               >
                 <PhoneOff size={28} className="rotate-[135deg]" />
               </button>
               <button
                 onClick={handleAccept}
-                className="p-5 bg-green-500 text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"
+                className="p-5 bg-[var(--color-game)] text-white retro-border rounded-full hover:bg-green-600 transition-all hover:scale-110 shadow-lg"
                 title="Accept"
               >
                 <Phone size={28} />

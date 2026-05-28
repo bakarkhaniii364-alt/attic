@@ -33,9 +33,9 @@ const createDeck = () => {
 
 const getCardColorClass = (color) => {
   switch(color) {
-    case 'red': return 'bg-red-500 text-white';
-    case 'blue': return 'bg-blue-500 text-white';
-    case 'green': return 'bg-green-500 text-white';
+    case 'red': return 'bg-[var(--color-destructive)] text-white';
+    case 'blue': return 'bg-[var(--color-cta)] text-white';
+    case 'green': return 'bg-[var(--color-game)] text-white';
     case 'yellow': return 'bg-yellow-400 text-border';
     default: return 'bg-border text-window'; // Wild
   }
@@ -44,7 +44,7 @@ const getCardColorClass = (color) => {
 const CardUI = ({ card, onClick, className = "", hidden = false }) => {
   if (hidden || card.color === 'back') {
     return (
-      <div className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] retro-border-thick rounded-[6px] bg-red-500 flex items-center justify-center relative retro-shadow-dark ${className}`} style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.3) 12px, rgba(0,0,0,0.3) 16px)' }}>
+      <div className={`w-[60px] h-[90px] sm:w-[86px] sm:h-[128px] retro-border-thick rounded-[6px] bg-[var(--color-destructive)] flex items-center justify-center relative retro-shadow-dark ${className}`} style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.3) 12px, rgba(0,0,0,0.3) 16px)' }}>
       </div>
     );
   }

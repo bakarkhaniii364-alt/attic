@@ -29,7 +29,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
   const [hintUsed, setHintUsed] = useState(false);
   const [perfectWin, setPerfectWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [showCountdown, setShowCountdown] = useState(!['solo', 'practice', 'local', 'vs_ai', '1v1_local'].includes(config?.mode));
+  const [showCountdown, setShowCountdown] = useState(false);
   const [mastermindPhase, setMastermindPhase] = useState(config.mode === 'competitive' ? 'SETUP' : 'PLAYING');
   const [customTarget, setCustomTarget] = useState('');
 

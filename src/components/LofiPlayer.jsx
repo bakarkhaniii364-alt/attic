@@ -257,7 +257,7 @@ export function DashboardRadio({ radioState, setRadioState }) {
                 </div>
               </div>
              <div className="flex items-center gap-2 mt-1">
-                  <div className={`w-2 h-2 rounded-full ${radioState.isPlaying ? 'bg-red-500 animate-pulse shadow-[0_0_8px_red]' : 'bg-gray-400'}`}></div>
+                  <div className={`w-2 h-2 rounded-full ${radioState.isPlaying ? 'bg-[var(--color-destructive)] animate-pulse shadow-[0_0_8px_red]' : 'bg-gray-400'}`}></div>
                   <div className="text-[10px] font-black opacity-60 uppercase tracking-widest">{radioState.isPlaying ? 'Broadcasting' : 'Off Air'}</div>
              </div>
           </div>

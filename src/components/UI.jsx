@@ -115,7 +115,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
           <div className="relative z-10 flex items-center gap-1.5">
             {headerActions}
             {onClose && (
-              <button onClick={handleCloseClick} aria-label="Close" className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-red-600 text-white" style={{ color: 'white' }}>
+              <button onClick={handleCloseClick} aria-label="Close" className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-[var(--color-destructive)] text-white" style={{ color: 'white' }}>
                 <X size={14} />
               </button>
             )}
@@ -154,10 +154,10 @@ export function RetroInput({ label, icon: Icon, type = 'text', error, className 
     <div className={`space-y-1 w-full ${error ? 'animate-shake' : ''} ${className}`}>
       {label && <label className="text-[10px] sm:text-[11px] font-mono opacity-60 ml-1 lowercase tracking-widest">{label}</label>}
       <div className="relative group">
-        {Icon && <Icon size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${error ? 'text-red-500' : 'opacity-30 group-focus-within:opacity-100 group-focus-within:text-primary'}`} />}
+        {Icon && <Icon size={16} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${error ? 'text-[var(--color-destructive)]' : 'opacity-30 group-focus-within:opacity-100 group-focus-within:text-primary'}`} />}
         <input 
           type={inputType}
-          className={`w-full ${Icon ? 'pl-12' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3 retro-border bg-window focus:bg-accent/5 outline-none font-bold transition-all placeholder:opacity-30 ${error ? 'border-red-500 text-red-600 bg-red-50' : 'focus:ring-1 focus:ring-primary/20'}`} 
+          className={`w-full ${Icon ? 'pl-12' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3 retro-border bg-window focus:bg-accent/5 outline-none font-bold transition-all placeholder:opacity-30 ${error ? 'border-[var(--color-destructive)] text-red-600 bg-red-50' : 'focus:ring-1 focus:ring-primary/20'}`} 
           {...props} 
         />
         {isPassword && (
@@ -252,7 +252,7 @@ export function AppIcon({ icon, label, color, hue, onClick, badge }) {
           {React.cloneElement(icon, { size: 30, strokeWidth: 2 })}
         </div>
         {badge && (
-          <div className="absolute top-0 right-0 bg-red-600 text-white min-w-[20px] h-5 px-1 flex items-center justify-center font-black text-[10px] border-2 border-white shadow-[1px_1px_0px_0px_black] z-20 select-none">
+          <div className="absolute top-0 right-0 bg-[var(--color-destructive)] text-white min-w-[20px] h-5 px-1 flex items-center justify-center font-black text-[10px] border-2 border-white shadow-[1px_1px_0px_0px_black] z-20 select-none">
             {badge}
           </div>
         )}
@@ -575,14 +575,14 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
            <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 retro-border retro-shadow-dark bg-window/10 text-white hover:bg-white/20 transition-all active:translate-y-[1px] active:shadow-none" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
-          <button onClick={onClose} className="p-1.5 bg-red-600 text-white retro-border retro-shadow-dark hover:bg-red-700 transition-all active:translate-y-[1px] active:shadow-none"><X size={14} /></button>
+          <button onClick={onClose} className="p-1.5 bg-[var(--color-destructive)] text-white retro-border retro-shadow-dark hover:bg-red-700 transition-all active:translate-y-[1px] active:shadow-none"><X size={14} /></button>
         </div>
       </div>
 
       {/* Header 2: Metadata & Toolbelt */}
       <div className="shrink-0 px-3 py-2 flex items-center justify-between bg-window border-b-2 border-border shadow-sm">
         <div className="flex items-center gap-2 min-w-0">
-          <ImageIcon size={14} className={`shrink-0 ${isDeleted ? 'text-red-500 opacity-50' : 'text-primary'}`} />
+          <ImageIcon size={14} className={`shrink-0 ${isDeleted ? 'text-[var(--color-destructive)] opacity-50' : 'text-primary'}`} />
           <div className="flex flex-col min-w-0">
             <span className={`text-[10px] font-black uppercase tracking-tight truncate ${isDeleted ? 'line-through opacity-50' : ''}`}>{metadata.title || 'Media Message'}</span>
             {(metadata.sender || metadata.time) && (
@@ -599,7 +599,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
           )}
           <button onClick={handleDownload} disabled={isDeleted} className="p-1.5 retro-border bg-window hover:bg-accent/10 transition-colors disabled:opacity-30 disabled:grayscale" title="Download"><Download size={14} /></button>
           {onDelete && !isDeleted && (
-             <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 retro-border bg-window hover:bg-red-500/10 text-red-600 transition-colors" title="Delete"><Trash2 size={14} /></button>
+             <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 retro-border bg-window hover:bg-[var(--color-destructive)]/10 text-red-600 transition-colors" title="Delete"><Trash2 size={14} /></button>
           )}
         </div>
       </div>
@@ -644,26 +644,31 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
         {/* Delete Confirmation Overlay */}
         {showDeleteConfirm && (
           <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in">
-             <div className="bg-window retro-border-thick retro-shadow-dark p-6 max-w-[280px] w-full flex flex-col gap-4 animate-in zoom-in-95">
-                <div className="flex items-center gap-2 text-red-600 mb-2">
-                   <AlertTriangle size={20} />
-                   <span className="font-black uppercase tracking-widest text-sm">Delete Media?</span>
+            <RetroWindow 
+              title="delete_media.exe" 
+              onClose={() => setShowDeleteConfirm(false)} 
+              className="w-full max-w-[260px] animate-in zoom-in-95"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 text-red-600 mb-1">
+                   <AlertTriangle size={18} />
+                   <span className="font-black uppercase tracking-widest text-xs">Delete Media?</span>
                 </div>
-                <p className="text-xs font-bold opacity-80 leading-relaxed">
+                <p className="text-[10px] font-bold opacity-80 leading-relaxed">
                    {metadata.isMine ? "Do you want to delete this for yourself or everyone?" : "Are you sure you want to delete this message? This cannot be undone."}
                 </p>
-                <div className="flex flex-col gap-2 mt-2">
+                <div className="flex flex-col gap-2 mt-1">
                    {metadata.isMine ? (
                      <>
-                        <RetroButton variant="primary" onClick={() => { onDelete(currentIndex, 'everyone'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2.5 text-xs">Delete for Everyone</RetroButton>
-                        <RetroButton variant="white" onClick={() => { onDelete(currentIndex, 'me'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2.5 text-xs">Delete for Me</RetroButton>
+                        <RetroButton variant="primary" onClick={() => { onDelete(currentIndex, 'everyone'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2 text-xs">Delete for Everyone</RetroButton>
+                        <RetroButton variant="white" onClick={() => { onDelete(currentIndex, 'me'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2 text-xs">Delete for Me</RetroButton>
                      </>
                    ) : (
-                     <RetroButton variant="primary" onClick={() => { onDelete(currentIndex, 'me'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2.5 text-xs">Yes, Delete</RetroButton>
+                     <RetroButton variant="primary" onClick={() => { onDelete(currentIndex, 'me'); setShowDeleteConfirm(false); playAudio('click', sfx); }} className="py-2 text-xs">Yes, Delete</RetroButton>
                    )}
-                   <RetroButton variant="secondary" onClick={() => setShowDeleteConfirm(false)} className="py-2.5 text-xs">Cancel</RetroButton>
                 </div>
-             </div>
+              </div>
+            </RetroWindow>
           </div>
         )}
       </div>
@@ -674,7 +679,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
           {onReact && !isDeleted && (
              <div className="relative">
                 <button onClick={() => setShowReactPicker(!showReactPicker)} className={`px-4 py-2 bg-window text-main-text retro-border retro-shadow-dark flex items-center gap-2 font-bold text-xs uppercase tracking-widest hover:-translate-y-0.5 active:translate-y-0 transition-all ${showReactPicker ? 'bg-accent' : ''}`}>
-                   <Heart size={16} className={showReactPicker ? 'text-white' : 'text-red-500'} /> React
+                   <Heart size={16} className={showReactPicker ? 'text-white' : 'text-[var(--color-destructive)]'} /> React
                 </button>
                 
                 {showReactPicker && (
@@ -994,7 +999,7 @@ export function MediaEditorOverlay({ file, type, onSave, onClose, sfx }) {
                    )}
                    {(type === 'video' || type === 'audio') && (
                      <>
-                        <button onClick={() => setIsMuted(!isMuted)} className={`p-2 retro-border transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-window text-main-text'}`}>
+                        <button onClick={() => setIsMuted(!isMuted)} className={`p-2 retro-border transition-all ${isMuted ? 'bg-[var(--color-destructive)] text-white' : 'bg-window text-main-text'}`}>
                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
                         {type === 'video' && (

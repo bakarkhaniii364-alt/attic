@@ -186,7 +186,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
   return (
     <RetroWindow title={`sudoku_${config.diff}.exe`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
 
-      {mistakesOverlay && <div className="absolute inset-0 bg-red-500/20 z-[100] pointer-events-none mix-blend-overlay"></div>}
+      {mistakesOverlay && <div className="absolute inset-0 bg-[var(--color-destructive)]/20 z-[100] pointer-events-none mix-blend-overlay"></div>}
 
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0">
         <span className="uppercase tracking-widest text-xs">Sudoku — {config.diff}</span>
@@ -285,7 +285,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
           <div className="flex gap-2 bg-[var(--bg-main)] p-1 retro-border shadow-inner">
             <button onClick={() => setTool('pen')} className={`flex-1 py-2 flex justify-center items-center gap-1 font-bold text-sm rounded retro-border transition-colors ${tool === 'pen' ? 'bg-[var(--primary)] text-[var(--bg-window)]' : 'bg-[var(--bg-window)] opacity-60'}`}><PenTool size={14} /> Pen</button>
             <button onClick={() => setTool('pencil')} className={`flex-1 py-2 flex justify-center items-center gap-1 font-bold text-sm rounded retro-border transition-colors ${tool === 'pencil' ? 'bg-[var(--secondary)] text-[var(--bg-window)]' : 'bg-[var(--bg-window)] opacity-60'}`}><AlertCircle size={14} /> Note</button>
-            <button onClick={() => setTool('eraser')} className={`flex-1 py-2 flex justify-center items-center gap-1 font-bold text-sm rounded retro-border transition-colors ${tool === 'eraser' ? 'bg-red-400 text-white' : 'bg-[var(--bg-window)] opacity-60'}`}><Eraser size={14} /> Erase</button>
+            <button onClick={() => setTool('eraser')} className={`flex-1 py-2 flex justify-center items-center gap-1 font-bold text-sm rounded retro-border transition-colors ${tool === 'eraser' ? 'bg-[var(--color-destructive)] text-white' : 'bg-[var(--bg-window)] opacity-60'}`}><Eraser size={14} /> Erase</button>
           </div>
 
           {/* Number Pad */}

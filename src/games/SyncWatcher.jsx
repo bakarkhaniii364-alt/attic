@@ -766,7 +766,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             {/* Header Status Bar */}
             <div className="bg-border text-window p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 text-[10px] uppercase tracking-widest border-b-[3px] border-border">
                 <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-2">Shared Sync <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse border border-black/50"></span> Connected</span>
+                  <span className="flex items-center gap-2">Shared Sync <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-game)] animate-pulse border border-black/50"></span> Connected</span>
                   
                   {/* VIDEO / CINEMA TOGGLE */}
                   <div className="flex bg-black/30 rounded p-0.5 retro-border shadow-inner">
@@ -1035,7 +1035,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                 )}
 
                                                 {searchError && (
-                                                    <div className="bg-red-900/20 text-red-500 border-[3px] border-red-900 p-3 text-xs font-bold text-center">
+                                                    <div className="bg-red-900/20 text-[var(--color-destructive)] border-[3px] border-red-900 p-3 text-xs font-bold text-center">
                                                         {searchError}
                                                     </div>
                                                 )}

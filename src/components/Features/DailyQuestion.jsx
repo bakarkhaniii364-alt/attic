@@ -65,8 +65,8 @@ export function DailyQuestion({ onClose, sfx, userId, roomProfiles = {} }) {
               </div>
             )}
             <div className="flex justify-center gap-6 text-[10px] font-black uppercase tracking-widest">
-               <span className={myDone ? 'text-green-500' : 'opacity-30'}>You: {myDone ? 'READY' : 'PENDING'}</span>
-               <span className={partnerDone ? 'text-green-500' : 'opacity-30'}>{partnerName}: {partnerDone ? 'READY' : 'PENDING'}</span>
+               <span className={myDone ? 'text-[var(--color-game)]' : 'opacity-30'}>You: {myDone ? 'READY' : 'PENDING'}</span>
+               <span className={partnerDone ? 'text-[var(--color-game)]' : 'opacity-30'}>{partnerName}: {partnerDone ? 'READY' : 'PENDING'}</span>
             </div>
           </div>
         ) : (

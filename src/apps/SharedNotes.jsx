@@ -118,7 +118,7 @@ export function SharedNotes({ onClose, sfx, roomId, userId, userName, userColor 
                   ))}
                 </div>
               )}
-              <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]" title="Live Syncing" />
+              <div className="w-3 h-3 rounded-full bg-[var(--color-game)] animate-pulse shadow-[0_0_5px_#22c55e]" title="Live Syncing" />
            </div>
         </div>
         

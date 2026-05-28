@@ -403,7 +403,7 @@ export function BluffGame({ config, sfx, userId, partnerId, setScores, onWin, on
             {phase === 'reaction' && lastPlay && lastPlay.player !== myId && (
                 <div className="mt-8 flex gap-4 animate-in slide-in-from-bottom-4">
                     <RetroButton variant="primary" onClick={handlePass} className="px-6 py-4 text-sm font-black animate-pulse">Pass & Play</RetroButton>
-                    <RetroButton variant="accent" onClick={handleCallBluff} className="px-6 py-4 text-sm font-black bg-red-500 text-white hover:bg-red-600">Call Bluff!</RetroButton>
+                    <RetroButton variant="accent" onClick={handleCallBluff} className="px-6 py-4 text-sm font-black bg-[var(--color-destructive)] text-white hover:bg-[var(--color-destructive)]">Call Bluff!</RetroButton>
                 </div>
             )}
         </div>

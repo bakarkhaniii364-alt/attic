@@ -111,11 +111,11 @@ export function ResetPasswordView({ sfx }) {
             <p className="text-sm opacity-70">Enter the email associated with your account to receive a reset link.</p>
 
             {requestSent ? (
-              <div className="p-4 bg-green-50 border-2 border-green-500 text-green-700">Check your inbox for the reset link.</div>
+              <div className="p-4 bg-green-50 border-2 border-[var(--color-game)] text-green-700">Check your inbox for the reset link.</div>
             ) : (
               <form onSubmit={handleRequestReset} className="w-full">
                 <input type="email" required placeholder="you@love.com" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} className="w-full p-3 border-2 border-border bg-window mb-3" />
-                {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+                {error && <p className="text-xs text-[var(--color-destructive)] mb-2">{error}</p>}
                 <RetroButton type="submit" className="w-full py-3" disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</RetroButton>
               </form>
             )}
@@ -195,7 +195,7 @@ export function ResetPasswordView({ sfx }) {
           </div>
 
           {error && (
-            <p className="text-xs font-bold text-red-500 text-center border-2 border-red-300 bg-red-50 p-2">
+            <p className="text-xs font-bold text-[var(--color-destructive)] text-center border-2 border-red-300 bg-red-50 p-2">
               {error}
             </p>
           )}
