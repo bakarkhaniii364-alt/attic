@@ -320,51 +320,31 @@ export function ChatView({ onClose, sfx }) {
   const draftKey = `attic_chat_draft_${userId}`;
 
   // Formatting Toolbar State
-  const [showFormatToolbar, setShowFormatToolbar] = useState(false);
-  const [selectionRange, setSelectionRange] = useState({ start: 0, end: 0 });
-
-  const handleTextSelect = (e) => {
-    const start = e.target.selectionStart;
-    const end = e.target.selectionEnd;
-    if (start !== end && start !== undefined) {
-       setSelectionRange({ start, end });
-       setShowFormatToolbar(true);
-    } else {
-       setShowFormatToolbar(false);
+  const applyFormatting = (command) => {
+    document.execCommand(command, false, null);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      setInput(textareaRef.current.innerHTML);
     }
-  };
-
-  const applyFormatting = (prefix, suffix = prefix) => {
-    if (selectionRange.start === selectionRange.end) return;
-    const text = input;
-    const before = text.substring(0, selectionRange.start);
-    const selected = text.substring(selectionRange.start, selectionRange.end);
-    const after = text.substring(selectionRange.end);
-    
-    setInput(before + prefix + selected + suffix + after);
-    setShowFormatToolbar(false);
-    
-    setTimeout(() => {
-       if (textareaRef.current) {
-         textareaRef.current.focus();
-         textareaRef.current.setSelectionRange(
-           selectionRange.start + prefix.length,
-           selectionRange.end + prefix.length
-         );
-       }
-    }, 50);
   };
   const [input, setInput] = useState(() => {
     try {
-      return localStorage.getItem(draftKey) || '';
+      const draft = localStorage.getItem(draftKey);
+      return draft ? markdownToHtml(draft) : '';
     } catch (e) {
       return '';
     }
   });
 
   useEffect(() => {
+    if (textareaRef.current && textareaRef.current.innerHTML === '' && input) {
+      textareaRef.current.innerHTML = input;
+    }
+  }, [input]);
+
+  useEffect(() => {
     if (input) {
-      localStorage.setItem(draftKey, input);
+      localStorage.setItem(draftKey, htmlToMarkdown(input));
     } else {
       localStorage.removeItem(draftKey);
     }
@@ -491,7 +471,7 @@ export function ChatView({ onClose, sfx }) {
   // TYPING INDICATOR LOGIC
 
   const handleInputChange = (e) => {
-    setInput(e.target.value);
+    setInput(e.currentTarget.innerHTML);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -517,13 +497,21 @@ export function ChatView({ onClose, sfx }) {
       if (myMsgs.length > 0) {
         const last = myMsgs[myMsgs.length - 1];
         setEditingMsgId(last.id);
-        setInput(last.text);
+        const html = markdownToHtml(last.text);
+        setInput(html);
+        if (textareaRef.current) {
+          textareaRef.current.innerHTML = html;
+        }
         e.preventDefault();
         setTimeout(() => {
           if (textareaRef.current) {
             textareaRef.current.focus();
-            const len = last.text.length;
-            textareaRef.current.setSelectionRange(len, len);
+            const sel = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textareaRef.current);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
           }
         }, 50);
       }
@@ -532,7 +520,10 @@ export function ChatView({ onClose, sfx }) {
       setEditingMsgId(null);
       setInput('');
       setReplyingTo(null);
-      if (textareaRef.current) textareaRef.current.style.height = 'auto'; // Reset height
+      if (textareaRef.current) {
+        textareaRef.current.innerHTML = '';
+        textareaRef.current.style.height = 'auto'; // Reset height
+      }
     }
   };
 
@@ -764,11 +755,12 @@ export function ChatView({ onClose, sfx }) {
       return;
     }
 
-    if (!input.trim() && pendingFiles.length === 0 && voicePreview === null) return;
+    const markdownInput = htmlToMarkdown(input);
+    if (!markdownInput.trim() && pendingFiles.length === 0 && voicePreview === null) return;
     playAudio('send', sfx);
     if (editingMsgId) {
       if (isNormalized) {
-        syncUpdateMessage(editingMsgId, { text: input, isEdited: true });
+        syncUpdateMessage(editingMsgId, { text: markdownInput, isEdited: true });
       }
       setEditingMsgId(null);
     }
@@ -778,9 +770,9 @@ export function ChatView({ onClose, sfx }) {
           if (item.type === 'image' && item.data) {
             const blob = base64ToBlob(item.data);
             const file = new File([blob], `image_${Date.now()}.png`, { type: 'image/png' });
-            syncSendMessage(file, 'image', { text: input.trim() });
+            syncSendMessage(file, 'image', { text: markdownInput.trim() });
           } else {
-            syncSendMessage(item.file, item.type, { text: input.trim(), fileName: item.name });
+            syncSendMessage(item.file, item.type, { text: markdownInput.trim(), fileName: item.name });
           }
         });
         setPendingFiles([]);
@@ -788,13 +780,16 @@ export function ChatView({ onClose, sfx }) {
     }
     else {
       if (isNormalized) {
-        syncSendMessage(input, 'text', { replyTo: replyingTo }).catch(err => {
+        syncSendMessage(markdownInput, 'text', { replyTo: replyingTo }).catch(err => {
           console.error("Failed to send message:", err);
         });
       }
     }
     setInput(''); setReplyingTo(null); setActiveOptions(null); setShowEmojiPicker(false);
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    if (textareaRef.current) {
+      textareaRef.current.innerHTML = '';
+      textareaRef.current.style.height = 'auto';
+    }
     if (isHistoricalView) {
       handleJumpToPresent();
     }
@@ -1994,58 +1989,48 @@ export function ChatView({ onClose, sfx }) {
                   </button>
                 </div>
 
-                {showFormatToolbar && (
-                  <div className="absolute -top-12 left-0 right-0 mx-auto w-max bg-window retro-border shadow-lg z-50 flex gap-1 p-1 animate-in fade-in zoom-in-95 duration-200">
-                    <button type="button" onClick={() => applyFormatting('**')} className="w-8 h-8 flex items-center justify-center font-serif font-bold hover:bg-accent hover:text-accent-text transition-colors" title="Bold">B</button>
-                    <button type="button" onClick={() => applyFormatting('*')} className="w-8 h-8 flex items-center justify-center font-serif italic hover:bg-accent hover:text-accent-text transition-colors" title="Italic">I</button>
-                    <button type="button" onClick={() => applyFormatting('~~')} className="w-8 h-8 flex items-center justify-center font-serif line-through hover:bg-accent hover:text-accent-text transition-colors" title="Strikethrough">S</button>
-                    <button type="button" onClick={() => applyFormatting('$x_{', '}$')} className="w-8 h-8 flex items-center justify-center font-serif text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Subscript">x₂</button>
-                    <button type="button" onClick={() => applyFormatting('$x^{', '}$')} className="w-8 h-8 flex items-center justify-center font-serif text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Superscript">x²</button>
-                    <button type="button" onClick={() => applyFormatting('$$ \n', '\n$$')} className="w-8 h-8 flex items-center justify-center font-serif font-black hover:bg-accent hover:text-accent-text transition-colors" title="LaTeX Equation">∑</button>
+                  <div className="absolute -top-12 left-0 right-0 mx-auto w-max bg-window retro-border shadow-lg z-50 flex gap-1 p-1 animate-in fade-in zoom-in-95 duration-200" onMouseDown={(e) => e.preventDefault()}>
+                    <button type="button" onClick={() => applyFormatting('bold')} className="w-8 h-8 flex items-center justify-center font-serif font-bold hover:bg-accent hover:text-accent-text transition-colors" title="Bold">B</button>
+                    <button type="button" onClick={() => applyFormatting('italic')} className="w-8 h-8 flex items-center justify-center font-serif italic hover:bg-accent hover:text-accent-text transition-colors" title="Italic">I</button>
+                    <button type="button" onClick={() => applyFormatting('strikeThrough')} className="w-8 h-8 flex items-center justify-center font-serif line-through hover:bg-accent hover:text-accent-text transition-colors" title="Strikethrough">S</button>
+                    <button type="button" onClick={() => applyFormatting('subscript')} className="w-8 h-8 flex items-center justify-center font-serif text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Subscript">x₂</button>
+                    <button type="button" onClick={() => applyFormatting('superscript')} className="w-8 h-8 flex items-center justify-center font-serif text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Superscript">x²</button>
                     <div className="w-px bg-border mx-1 my-1"></div>
                     <button type="button" onClick={() => {
-                      const text = input;
-                      const before = text.substring(0, selectionRange.start);
-                      const selected = text.substring(selectionRange.start, selectionRange.end);
-                      const after = text.substring(selectionRange.end);
-                      setInput(before + selected.toUpperCase() + after);
-                      setShowFormatToolbar(false);
+                      const sel = window.getSelection();
+                      if (!sel.rangeCount) return;
+                      const text = sel.toString();
+                      if (!text) return;
+                      document.execCommand('insertText', false, text.toUpperCase());
                     }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Uppercase">AA</button>
                     <button type="button" onClick={() => {
-                      const text = input;
-                      const before = text.substring(0, selectionRange.start);
-                      const selected = text.substring(selectionRange.start, selectionRange.end);
-                      const after = text.substring(selectionRange.end);
-                      setInput(before + selected.toLowerCase() + after);
-                      setShowFormatToolbar(false);
+                      const sel = window.getSelection();
+                      if (!sel.rangeCount) return;
+                      const text = sel.toString();
+                      if (!text) return;
+                      document.execCommand('insertText', false, text.toLowerCase());
                     }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Lowercase">aa</button>
                     <button type="button" onClick={() => {
-                      const text = input;
-                      const before = text.substring(0, selectionRange.start);
-                      const selected = text.substring(selectionRange.start, selectionRange.end);
-                      const after = text.substring(selectionRange.end);
-                      setInput(before + toTrollCase(selected) + after);
-                      setShowFormatToolbar(false);
+                      const sel = window.getSelection();
+                      if (!sel.rangeCount) return;
+                      const text = sel.toString();
+                      if (!text) return;
+                      document.execCommand('insertText', false, toTrollCase(text));
                     }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Trollcase">tRoLl</button>
                   </div>
-                )}
 
                 <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden min-h-[34px] sm:min-h-[44px]">
-                  <textarea
+                  <div
+                    contentEditable={!isRecording && voicePreview === null && !isInputDisabled}
                     ref={textareaRef}
-                    rows={1}
-                    value={isRecording ? `Recording... ${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}` : input}
-                    onChange={handleInputChange}
-                    onSelect={handleTextSelect}
+                    onInput={handleInputChange}
                     onBlur={() => {
                        sessionStorage.setItem('attic_last_focus', 'chat');
-                       // Timeout to allow clicking toolbar before it disappears
-                       setTimeout(() => setShowFormatToolbar(false), 200);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder={pendingFiles.length > 0 ? "Add a caption..." : "type a message..."}
-                    disabled={isRecording || voicePreview !== null || isInputDisabled}
-                    className={`w-full p-1.5 sm:p-2.5 focus:outline-none font-bold placeholder:font-normal text-xs sm:text-base chat-input-textarea resize-none overflow-y-auto text-main-text self-center ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
+                    data-placeholder={pendingFiles.length > 0 ? "Add a caption..." : "type a message..."}
+                    suppressContentEditableWarning={true}
+                    className={`w-full p-1.5 sm:p-2.5 focus:outline-none font-bold placeholder:font-normal text-xs sm:text-base chat-input-textarea resize-none overflow-y-auto text-main-text self-center empty:before:content-[attr(data-placeholder)] empty:before:opacity-50 empty:before:pointer-events-none empty:before:font-normal ${isInputDisabled ? 'bg-[var(--bg-disabled)] text-[var(--text-disabled)] opacity-50 cursor-not-allowed' : (isRecording ? 'text-[var(--color-danger)] animate-pulse bg-[var(--color-danger)]/15' : 'bg-transparent')}`}
                     style={{ minHeight: isMobile ? '34px' : '44px', maxHeight: '120px' }}
                   />
                 </div>
