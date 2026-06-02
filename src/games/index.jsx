@@ -89,10 +89,12 @@ const GAME_CATALOG = {
 };
 
 export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadcast, userId, partnerId, scores, setScores, profile, myName, partnerName, roomProfiles, onlineUsers, syncedRoomId, onSaveToScrapbook, pictionaryState, setPictionaryState }) {
-  const isMobile = useMobile();
-  const { '*': gameRoute } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useMobile();
+  // Extract gameRoute directly from location.pathname to be robust under persistent layouts
+  const match = location.pathname.match(/^\/activities\/(.+)$/);
+  const gameRoute = match ? match[1] : undefined;
   
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showPartnerLeftModal, setShowPartnerLeftModal] = useState(false);

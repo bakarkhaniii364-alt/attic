@@ -1075,13 +1075,6 @@ export function ChatView({ onClose, sfx }) {
   const headerActions = (
     <div className="flex gap-1.5">
       <button 
-        onClick={() => { playAudio('click', sfx); setShowClearChatConfirm(true); }} 
-        className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-window text-red-600 hover:text-red-700" 
-        title="Clear Chat History"
-      >
-        <Trash2 size={14} />
-      </button>
-      <button 
         onClick={() => handleStartCall('audio')} 
         className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-window text-main-text" 
         title="Voice Call"
@@ -2312,6 +2305,39 @@ export function ChatView({ onClose, sfx }) {
                           {isChangingPin ? 'Updating...' : 'Update PIN'}
                         </RetroButton>
                       </form>
+                    </div>
+
+                    <div className="bg-window p-3 retro-outset flex flex-col gap-4">
+                      <div className="flex items-center gap-2 mb-1 border-b border-border border-dashed pb-2">
+                        <Trash2 size={14} className="text-[var(--color-destructive)] flex-shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--color-destructive)]">Danger Zone</span>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[10px] font-bold opacity-60 leading-normal lowercase">
+                          Resetting encryption keys will prompt you to set a new Chat PIN. All past encrypted messages will become permanently unreadable.
+                        </p>
+                        <RetroButton 
+                          type="button" 
+                          onClick={() => { playAudio('click', sfx); setShowResetConfirm(true); }} 
+                          variant="secondary"
+                          className="w-full py-2 text-xs font-black"
+                        >
+                          Reset Encryption Keys
+                        </RetroButton>
+                      </div>
+                      <div className="flex flex-col gap-2 border-t border-border border-dashed pt-3">
+                        <p className="text-[10px] font-bold opacity-60 leading-normal lowercase">
+                          Permanently delete all message history in this chat room for both you and your partner. This action cannot be undone.
+                        </p>
+                        <RetroButton 
+                          type="button" 
+                          onClick={() => { playAudio('click', sfx); setShowClearChatConfirm(true); }} 
+                          className="w-full py-2 text-xs font-black bg-[var(--color-destructive)] text-white hover:bg-red-700 hover:text-white"
+                          style={{ backgroundColor: 'var(--color-destructive)', color: 'white' }}
+                        >
+                          Delete Chat History
+                        </RetroButton>
+                      </div>
                     </div>
                   </div>
                 )}

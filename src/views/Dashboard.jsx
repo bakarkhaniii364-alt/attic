@@ -217,6 +217,46 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                   hi {myDisplayName}! {mood}
                 </h1>
               </div>
+            </div>
+
+            <div className="flex justify-between items-center w-full mt-1 border-t border-dashed border-border/30 pt-2 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative shrink-0">
+                  {partnerProfile.pfp ? (
+                    <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
+                  ) : (
+                    <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
+                  )}
+                  <div className={`absolute -bottom-1 -right-1 w-2 h-2 border border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-black truncate">{partnerName}</p>
+                      <span className={`text-[8px] font-black uppercase px-1 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
+                        partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
+                        isPartnerOnline ? 'bg-success text-success-text border-success' : 
+                        isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
+                        'bg-disabled text-disabled-text border-disabled opacity-60'
+                      }`}>
+                        {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
+                      </span>
+                    </div>
+                    <p className="text-[9px] font-bold opacity-60 truncate mt-0.5">
+                      {(() => {
+                        if (partnerStatusData.activity) return partnerStatusData.activity;
+                        if (partnerStatusData.status === 'offline') {
+                          const parts = [];
+                          if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
+                          if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
+                          return parts.length > 0 ? parts.join(' · ') : 'Resting...';
+                        }
+                        return displayStatus.toLowerCase();
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
               <RetroButton
                 onClick={handleSendKiss}
                 disabled={Date.now() - lastActionTime < 3000}
@@ -226,44 +266,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 <Heart size={12} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
                 <span>Kiss</span>
               </RetroButton>
-            </div>
-
-            <div className="flex items-center gap-2.5 w-full mt-1 border-t border-dashed border-border/30 pt-2">
-              <div className="relative shrink-0">
-                {partnerProfile.pfp ? (
-                  <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
-                ) : (
-                  <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
-                )}
-                <div className={`absolute -bottom-1 -right-1 w-2 h-2 border border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-black truncate">{partnerName}</p>
-                    <span className={`text-[8px] font-black uppercase px-1 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
-                      partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
-                      isPartnerOnline ? 'bg-success text-success-text border-success' : 
-                      isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
-                      'bg-disabled text-disabled-text border-disabled opacity-60'
-                    }`}>
-                      {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
-                    </span>
-                  </div>
-                  <p className="text-[9px] font-bold opacity-60 truncate mt-0.5">
-                    {(() => {
-                      if (partnerStatusData.activity) return partnerStatusData.activity;
-                      if (partnerStatusData.status === 'offline') {
-                        const parts = [];
-                        if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
-                        if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
-                        return parts.length > 0 ? parts.join(' · ') : 'Resting...';
-                      }
-                      return displayStatus.toLowerCase();
-                    })()}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         ) : (

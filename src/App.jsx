@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { Loader, Phone, Video, PhoneOff, MicOff, Mic, Volume2, VolumeX, Maximize2, Minimize2, VideoOff, Camera, Bell, X, Mail, Heart, Download, MessageSquare, PenTool, Gamepad2 } from 'lucide-react';
 import { BootLoader } from './components/BootLoader.jsx';
 import { ToastProvider, ConfirmDialog, useToast, RetroWindow, RetroButton } from './components/UI.jsx';
@@ -22,6 +22,7 @@ import { useAssetSync } from './hooks/useAssetSync.js';
 import { useAppLogic } from './hooks/useAppLogic.js';
 import { DesktopOnly } from './components/MobileOnly.jsx';
 import { MobileBottomNav } from './components/Navigation/MobileBottomNav.jsx';
+import { SwipeNavigationWrapper } from './components/Navigation/SwipeNavigationWrapper.jsx';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { LegalView } from './views/LegalView.jsx';
@@ -71,8 +72,37 @@ import { SeoManager } from './components/SeoManager.jsx';
 
 const AppLoader = () => null;
 
+function SwipeLayout({
+  sfxEnabled,
+  dashboardElement,
+  chatElement,
+  arcadeElement,
+  spaceElement,
+  settingsElement
+}) {
+  const location = useLocation();
+  
+  let activeTab = 'dashboard';
+  if (location.pathname.startsWith('/chat')) {
+    activeTab = 'chat';
+  } else if (location.pathname.startsWith('/activities')) {
+    activeTab = 'arcade';
+  } else if (location.pathname.startsWith('/space')) {
+    activeTab = 'space';
+  } else if (location.pathname.startsWith('/settings')) {
+    activeTab = 'settings';
+  }
 
-
+  return (
+    <SwipeNavigationWrapper activeTab={activeTab} sfxEnabled={sfxEnabled}>
+      {dashboardElement}
+      {chatElement}
+      {arcadeElement}
+      {spaceElement}
+      {settingsElement}
+    </SwipeNavigationWrapper>
+  );
+}
 
 export default function App() {
   const navigate = useNavigate();
@@ -297,6 +327,82 @@ export default function App() {
     }
   }, [remoteStream, isDeafened]);
 
+  const dashboardElement = (
+    <Dashboard 
+      setView={navigateTo} 
+      theme={theme} setTheme={setTheme} 
+      sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
+      notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
+      weather={weather} setWeather={setWeather} 
+      radioState={radioState} setRadioState={setRadioState} 
+      setShowKiss={setShowKiss} 
+    />
+  );
+
+  const chatElement = (
+    <ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} />
+  );
+
+  const arcadeElement = (
+    <ActivitiesHub 
+      onClose={()=>navigateTo('dashboard')} 
+      sfx={sfxEnabled} 
+      setConfetti={setConfetti} 
+      onShareToChat={handleShareToChat}
+      broadcast={broadcast}
+      userId={userId}
+      partnerId={partnerId}
+      scores={globalState.game_scores}
+      setScores={(val) => {
+        const newScores = typeof val === 'function' ? val(globalState.game_scores || {}) : val;
+        updateSyncStateAtomic('game_scores', userId, newScores[userId]);
+      }}
+      profile={roomProfiles[userId]}
+      roomProfiles={roomProfiles}
+      onlineUsers={onlineUsers}
+      myName={roomProfiles[userId]?.name}
+      partnerName={partnerName}
+      syncedRoomId={roomId}
+      pictionaryState={globalState.pictionary_state}
+      setPictionaryState={(val) => updateSyncState('pictionary_state', val)}
+      onSaveToScrapbook={handleSaveToScrapbook}
+    />
+  );
+
+  const spaceElement = (
+    <SpaceHub onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} />
+  );
+
+  const settingsElement = (
+    <SettingsView 
+      theme={theme} setTheme={setTheme} 
+      weather={weather} setWeather={setWeather} 
+      setPreviewWeather={setPreviewWeather}
+      setPreviewBgPattern={setPreviewBgPattern}
+      setPreviewBgPatternOpacity={setPreviewBgPatternOpacity}
+      sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
+      notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} 
+      profile={roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }} 
+      setProfile={(newProf) => {
+        const currentProf = roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' };
+        const updatedProf = typeof newProf === 'function' ? newProf(currentProf) : newProf;
+        updateSyncStateAtomic('room_profiles', userId, updatedProf);
+      }}
+      coupleData={globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' }} 
+      setCoupleData={(newData) => {
+        const currentData = globalState.couple_data || {};
+        const updatedData = typeof newData === 'function' ? newData(currentData) : newData;
+        mergeSyncState('couple_data', updatedData);
+      }}
+      onClose={()=>navigateTo('dashboard')} 
+      streaks={streaks}
+      scores={globalState.game_scores}
+      userId={userId}
+      partnerId={partnerId}
+      onLogout={logout}
+    />
+  );
+
   const isOnboarding = ['/', '/login', '/signup', '/signin', '/handshake'].includes(location.pathname);
 
   return (
@@ -428,21 +534,8 @@ export default function App() {
         )}
         <div className="app-glitch-wrapper flex-1 w-full flex flex-col items-center" data-hawkins={theme === 'hawkins'}>
           <Suspense fallback={<AppLoader />}>
-            <Routes key={location.pathname}>
+            <Routes>
               <Route path="/" element={<PublicRoute><LandingView /></PublicRoute>} />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard 
-                    setView={navigateTo} 
-                    theme={theme} setTheme={setTheme} 
-                    sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
-                    notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled}
-                    weather={weather} setWeather={setWeather} 
-                    radioState={radioState} setRadioState={setRadioState} 
-                    setShowKiss={setShowKiss} 
-                  />
-                </ProtectedRoute>
-              } />
               <Route path="/signup" element={<PublicRoute><AuthView mode="signup" /></PublicRoute>} />
               <Route path="/signin" element={<PublicRoute><AuthView mode="signin" /></PublicRoute>} />
               <Route path="/password-reset" element={<PublicRoute><ResetPasswordView sfx={sfxEnabled} /></PublicRoute>} />
@@ -451,34 +544,29 @@ export default function App() {
                   <HandshakeView />
                 </ProtectedRoute>
               } />
-              <Route path="/settings" element={<ProtectedRoute><SettingsView 
-                theme={theme} setTheme={setTheme} 
-                weather={weather} setWeather={setWeather} 
-                setPreviewWeather={setPreviewWeather}
-                setPreviewBgPattern={setPreviewBgPattern}
-                setPreviewBgPatternOpacity={setPreviewBgPatternOpacity}
-                sfxEnabled={sfxEnabled} setSfxEnabled={setSfxEnabled} 
-                notificationsEnabled={notificationsEnabled} setNotificationsEnabled={setNotificationsEnabled} 
-                profile={roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' }} 
-                setProfile={(newProf) => {
-                  const currentProf = roomProfiles?.[userId] || { name: user?.user_metadata?.name || user?.user_metadata?.full_name || 'Partner', emoji: '👤' };
-                  const updatedProf = typeof newProf === 'function' ? newProf(currentProf) : newProf;
-                  updateSyncStateAtomic('room_profiles', userId, updatedProf);
-                }}
-                coupleData={globalState.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9' }} 
-                setCoupleData={(newData) => {
-                  const currentData = globalState.couple_data || {};
-                  const updatedData = typeof newData === 'function' ? newData(currentData) : newData;
-                  mergeSyncState('couple_data', updatedData);
-                }}
-                onClose={()=>navigateTo('dashboard')} 
-                streaks={streaks}
-                scores={globalState.game_scores}
-                userId={userId}
-                partnerId={partnerId}
-                onLogout={logout}
-              /></ProtectedRoute>} />
-              <Route path="/chat" element={<ProtectedRoute><ChatView onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} /></ProtectedRoute>} />
+
+              {/* Shared Persistent Swipeable Layout routes */}
+              <Route element={
+                <ProtectedRoute>
+                  <SwipeLayout
+                    sfxEnabled={sfxEnabled}
+                    dashboardElement={dashboardElement}
+                    chatElement={chatElement}
+                    arcadeElement={arcadeElement}
+                    spaceElement={spaceElement}
+                    settingsElement={settingsElement}
+                  />
+                </ProtectedRoute>
+              }>
+                <Route path="/dashboard" element={<Outlet />} />
+                <Route path="/chat" element={<Outlet />} />
+                <Route path="/activities" element={<Outlet />} />
+                <Route path="/activities/*" element={<Outlet />} />
+                <Route path="/space" element={<Outlet />} />
+                <Route path="/settings" element={<Outlet />} />
+              </Route>
+
+              {/* Standalone sub-app routes */}
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
               <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/capsule" element={<ProtectedRoute><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
@@ -490,40 +578,15 @@ export default function App() {
               <Route path="/dreams" element={<ProtectedRoute><DreamJournal onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/daily-q" element={<ProtectedRoute><DailyQuestion onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} roomProfiles={roomProfiles} /></ProtectedRoute>} />
               <Route path="/resume" element={<ProtectedRoute><RelationshipResume onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} profile={roomProfiles?.[userId] || { name: 'You', emoji: '👤' }} coupleData={globalState?.couple_data || {}} scores={globalState?.game_scores || {}} roomProfiles={roomProfiles || {}} /></ProtectedRoute>} />
-               <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} onShareToChat={handleShareToChat} /></ProtectedRoute>} />
+              <Route path="/watch" element={<ProtectedRoute><SyncWatcher onBack={() => navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} onShareToChat={handleShareToChat} /></ProtectedRoute>} />
               <Route path="/legal" element={<LegalView onClose={() => navigateTo('dashboard')} />} />
-              <Route path="/activities/*" element={<ProtectedRoute><ActivitiesHub 
-                onClose={()=>navigateTo('dashboard')} 
-                sfx={sfxEnabled} 
-                setConfetti={setConfetti} 
-                onShareToChat={handleShareToChat}
-                broadcast={broadcast}
-                userId={userId}
-                partnerId={partnerId}
-                scores={globalState.game_scores}
-                setScores={(val) => {
-                  const newScores = typeof val === 'function' ? val(globalState.game_scores || {}) : val;
-                  // Atomic score update
-                  updateSyncStateAtomic('game_scores', userId, newScores[userId]);
-                }}
-                profile={roomProfiles[userId]}
-                roomProfiles={roomProfiles}
-                onlineUsers={onlineUsers}
-                myName={roomProfiles[userId]?.name}
-                partnerName={partnerName}
-                syncedRoomId={roomId}
-                pictionaryState={globalState.pictionary_state}
-                setPictionaryState={(val) => updateSyncState('pictionary_state', val)}
-                onSaveToScrapbook={handleSaveToScrapbook}
-              /></ProtectedRoute>} />
-              <Route path="/space" element={<ProtectedRoute><SpaceHub onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </div>
         </>
         )}
-        {!isOnboarding && hasInitialized && user && location.pathname !== '/chat' && <MobileBottomNav sfxEnabled={sfxEnabled} />}
+        {!isOnboarding && hasInitialized && user && <MobileBottomNav sfxEnabled={sfxEnabled} />}
       </div>
     </>
   );

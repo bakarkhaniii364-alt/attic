@@ -29,8 +29,16 @@ export function MobileBottomNav({ sfxEnabled }) {
     navigate(tab.path);
   };
 
+  const shouldHide = location.pathname.startsWith('/chat');
+
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-[600] bg-window border-t-[0.5px] border-border pb-[env(safe-area-inset-bottom)]">
+    <div 
+      className="md:hidden fixed bottom-0 left-0 right-0 z-[600] bg-window border-t-[0.5px] border-border pb-[env(safe-area-inset-bottom)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+      style={{
+        transform: shouldHide ? 'translate3d(0, 100%, 0)' : 'translate3d(0, 0, 0)',
+        pointerEvents: shouldHide ? 'none' : 'auto'
+      }}
+    >
       <div className="flex items-center justify-between px-2 h-[56px]">
         {tabs.map(tab => {
           const isActive = location.pathname.startsWith(tab.path);
