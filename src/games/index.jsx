@@ -415,10 +415,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         sfx, userId, partnerId, setScores, onWin: handleWin,
         isHost, isMultiplayer, myPlayerId, oppPlayerId,
         onBack: () => {
-             if (currentPhase === 'playing_local') setLocalPlayConfig(null);
-             else {
-                 navigate('/activities');
-             }
+             setLocalPlayConfig(null);
+             navigate('/activities');
         }, 
         onShareToChat, onSaveToScrapbook, profile,
         myName, partnerName, roomProfiles,
@@ -452,7 +450,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 1. Arcade Menu Phase
   if (currentPhase === 'menu') {
     return (
-      <RetroWindow title="activities_hub.exe" onClose={onClose} className={`w-full ${isMobile ? 'h-[100dvh] pb-[calc(56px+env(safe-area-inset-bottom))] border-none shadow-none' : 'max-w-5xl h-[calc(100dvh-4rem)]'} relative overflow-hidden flex flex-col`} noPadding>
+      <div className={`w-full h-full flex flex-col items-center justify-center p-4 md:p-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
+        <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl flex-1 flex flex-col relative overflow-hidden" noPadding>
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
            <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>Leaderboard</button>
@@ -558,7 +557,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
             </div>
           </div>
         )}
-      </RetroWindow>
+        </RetroWindow>
+      </div>
     );
   }
 
@@ -608,7 +608,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
 
       return (
-        <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className={`w-full ${isMobile ? 'h-[100dvh] pb-[calc(56px+env(safe-area-inset-bottom))] border-none shadow-none' : 'max-w-md flex flex-col bg-[var(--bg-window)] transition-all duration-300'}`} noPadding>
+        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)]" noPadding>
           <div className="flex flex-col bg-[var(--bg-window)] text-[var(--text-main)]">
              <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
                  <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-widest" style={{ color: game.color || 'var(--primary)' }}>{game.title}</h1>
@@ -695,7 +696,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                  )}
              </div>
           </div>
-        </RetroWindow>
+          </RetroWindow>
+        </div>
       );
   }
 
@@ -716,8 +718,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     const amIReady = isPlayerA ? arcadeSession?.player_a_ready : arcadeSession?.player_b_ready;
 
     return (
-      <>
-      <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className={`w-full ${isMobile ? 'h-[100dvh] pb-[calc(56px+env(safe-area-inset-bottom))] border-none shadow-none' : 'max-w-2xl bg-[var(--bg-window)]'}`} noPadding>
+      <div className={`w-full h-full flex flex-col items-center justify-center p-4 md:p-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
+        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl flex-1 flex flex-col relative bg-[var(--bg-window)]" noPadding>
          <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-[var(--bg-window)]">
             <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
             
@@ -792,28 +794,28 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
             </div>
          </div>
       </RetroWindow>
-      {showLeaveConfirm && (
-        <ConfirmDialog 
-          title="leave_lobby.exe" 
-          message="Are you sure you want to leave lobby? An invitation has been sent to your partner." 
-          onConfirm={() => { playAudio('click', sfx); leaveLobby(); }} 
-          onCancel={() => { playAudio('click', sfx); setShowLeaveConfirm(false); }} 
-          showSave={false} 
-          sfx={sfx}
-        />
-      )}
-      {showPartnerLeftModal && (
-        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <RetroWindow title="partner_left.exe" onClose={() => setShowPartnerLeftModal(false)} className="w-full max-w-sm">
-            <p className="font-bold text-sm mb-6">Your partner has left the game mid-game. Would you like to stay or leave?</p>
-            <div className="flex gap-2">
-              <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); setShowPartnerLeftModal(false); }}>Stay</RetroButton>
-              <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); setShowPartnerLeftModal(false); leaveLobby(); }}>Leave Game</RetroButton>
-            </div>
-          </RetroWindow>
-        </div>
-      )}
-      </>
+        {showLeaveConfirm && (
+          <ConfirmDialog 
+            title="Leave Lobby?" 
+            message="Are you sure you want to close the lobby? This will disconnect your partner." 
+            onConfirm={leaveLobby} 
+            onCancel={() => { playAudio('click', sfx); setShowLeaveConfirm(false); }} 
+            showSave={false} 
+            sfx={sfx}
+          />
+        )}
+        {showPartnerLeftModal && (
+          <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <RetroWindow title="partner_left.exe" onClose={() => setShowPartnerLeftModal(false)} className="w-full max-w-sm">
+              <p className="font-bold text-sm mb-6">Your partner has left the game mid-game. Would you like to stay or leave?</p>
+              <div className="flex gap-2">
+                <RetroButton variant="white" className="flex-1 py-2" onClick={() => { playAudio('click', sfx); setShowPartnerLeftModal(false); }}>Stay</RetroButton>
+                <RetroButton className="flex-1 py-2" onClick={() => { playAudio('click', sfx); setShowPartnerLeftModal(false); leaveLobby(); }}>Leave Game</RetroButton>
+              </div>
+            </RetroWindow>
+          </div>
+        )}
+      </div>
     );
   }
 

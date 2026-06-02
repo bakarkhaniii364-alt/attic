@@ -314,7 +314,7 @@ export const PixelPet = React.memo(({ happy, onPet, onHit, skin, isPartnerAfk, e
 
   return (
     <div
-      className={`relative cursor-pointer select-none transition-opacity ${isSleeping ? 'opacity-80' : ''}`}
+      className={`relative cursor-pointer select-none transition-opacity no-swipe ${isSleeping ? 'opacity-80' : ''}`}
       onMouseEnter={() => !isSleeping && setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       onPointerDown={startPress}

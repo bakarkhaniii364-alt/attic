@@ -666,12 +666,12 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   return (
-    <>
+    <div className={`w-full h-full flex flex-col items-center justify-center p-4 md:p-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
       <RetroWindow 
         title={isMobile ? "Profile & Settings" : "control_panel.exe"} 
         onClose={handleCancel} 
         noPadding 
-        className={`w-full ${isMobile ? 'h-[100dvh] pb-safe-navbar border-none shadow-none' : 'max-w-2xl h-[calc(100dvh-4rem)] max-h-[850px]'} flex flex-col relative overflow-hidden transition-none`}
+        className="w-full max-w-2xl flex-1 flex flex-col relative overflow-hidden transition-none"
         sfx={localSfxEnabled}
       >
         {/* Navigation Bar */}
@@ -722,10 +722,10 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
       {/* Footer Area */}
       <div className="shrink-0 p-3 bg-window border-t-2 border-border flex justify-between items-center">
          <div className="text-[9px] font-black uppercase tracking-widest opacity-30">Configurator v1.2.1-rigid</div>
-         <div className="flex gap-2">
-            <RetroButton onClick={handleCancel} variant="secondary" className="px-3 py-1 text-[10px] !font-sans !font-normal capitalize">Cancel</RetroButton>
-            <RetroButton onClick={handleSave} variant="primary" className="px-4 py-1 text-[10px] !font-sans !font-normal capitalize">Save & Apply</RetroButton>
-         </div>
+          <div className="flex gap-2">
+            <RetroButton onClick={handleCancel} variant="secondary" className="px-3 py-1.5 text-[10px] uppercase">Cancel</RetroButton>
+            <RetroButton onClick={handleSave} variant="primary" className="px-4 py-1.5 text-[10px] uppercase">Save Changes</RetroButton>
+          </div>
       </div>
     </RetroWindow>
 
@@ -806,6 +806,6 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         sfx={localSfxEnabled}
       />
     )}
-  </>
+    </div>
   );
 }

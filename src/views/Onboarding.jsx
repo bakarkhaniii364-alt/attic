@@ -47,10 +47,10 @@ export function LandingView() {
             A corner of the internet, <br/> <span className="text-primary font-bold">just for two</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-            <RetroButton onClick={onTryAttic} className="w-52 py-3 text-base sm:text-lg relative overflow-hidden group shadow-[4px_4px_0_var(--border)]">
+            <RetroButton size="lg" onClick={onTryAttic} className="w-52 relative overflow-hidden group shadow-[4px_4px_0_var(--border)]">
               <span className="relative z-10 font-bold">enter attic</span>
             </RetroButton>
-            <RetroButton variant="white" onClick={onSignIn} className="w-52 py-3 text-base sm:text-lg opacity-80 hover:opacity-100 shadow-[4px_4px_0_var(--border)]">
+            <RetroButton size="lg" variant="white" onClick={onSignIn} className="w-52 opacity-80 hover:opacity-100 shadow-[4px_4px_0_var(--border)]">
               <span className="font-bold">start new journey</span>
             </RetroButton>
           </div>
@@ -209,7 +209,7 @@ export function AuthView({ mode }) {
             <CheckCircle size={48} className="text-primary animate-bounce" />
             <h2 className="text-2xl font-black uppercase tracking-widest text-main-text">Check your inbox</h2>
             <p className="text-sm opacity-70">We sent a magic link to <strong>{email}</strong>.<br/>Click it to instantly enter the Attic.</p>
-            <RetroButton variant="secondary" onClick={() => setLinkSent(false)} className="mt-4 text-xs py-2 px-6">
+            <RetroButton size="sm" variant="secondary" onClick={() => setLinkSent(false)} className="mt-4">
               Try a different email
             </RetroButton>
           </div>
@@ -272,7 +272,7 @@ export function AuthView({ mode }) {
                 By creating an account, you agree to the <button type="button" onClick={() => setShowLegal(true)} className="text-primary underline cursor-pointer">Sanctuary Promise</button> and acknowledge the privacy rules.
               </p>
 
-              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-2">
+              <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
               </RetroButton>
             </>
@@ -313,7 +313,7 @@ export function AuthView({ mode }) {
                 </div>
               </div>
 
-              <RetroButton type="submit" disabled={loading} className="py-3 text-lg mt-4">
+              <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-4">
                 {loading ? <Loader className="animate-spin" /> : 'enter attic'}
               </RetroButton>
             </>
@@ -325,14 +325,14 @@ export function AuthView({ mode }) {
             <div className="flex-grow border-t border-border opacity-20"></div>
           </div>
 
-          <div className="flex gap-4 justify-center items-center py-1">
-            <RetroButton type="button" onClick={() => handleOAuthLogin('google')} aria-label="Google" className="w-[50px] h-[50px] flex items-center justify-center bg-white hover:bg-gray-100 text-gray-800 border-2 border-gray-300 shadow-[2px_2px_0_var(--border)]">
+          <div className="flex gap-3 w-full justify-center items-center py-1">
+            <RetroButton type="button" size="lg" variant="custom" onClick={() => handleOAuthLogin('google')} aria-label="Google" className="flex-1 bg-white hover:bg-gray-100 text-gray-800 border-gray-300">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
             </RetroButton>
-            <RetroButton type="button" onClick={handleMagicLinkLogin} aria-label="Magic Link" className="w-[50px] h-[50px] flex items-center justify-center bg-window hover:bg-accent text-main-text border-2 border-border shadow-[2px_2px_0_var(--border)]">
-              <Link className="w-5 h-5 text-primary" />
+            <RetroButton type="button" size="lg" variant="primary" onClick={handleMagicLinkLogin} aria-label="Magic Link" className="flex-1">
+              <Link size={20} />
             </RetroButton>
-            <RetroButton type="button" onClick={() => handleOAuthLogin('facebook')} aria-label="Facebook" className="w-[50px] h-[50px] flex items-center justify-center bg-[#1877F2] hover:bg-[#166FE5] text-white border-[#0c4b9e] shadow-[2px_2px_0_var(--border)]">
+            <RetroButton type="button" size="lg" variant="custom" onClick={() => handleOAuthLogin('facebook')} aria-label="Facebook" className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white border-[#0c4b9e]">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96A10 10 0 0 0 22 12.06C22 6.53 17.5 2.04 12 2.04Z"/></svg>
             </RetroButton>
           </div>
@@ -542,7 +542,7 @@ export function HandshakeView() {
                 <p className="font-bold opacity-60 text-xs text-center" id="partner-code-hint">Or enter your partner&apos;s code:</p>
                 <div className="flex gap-2 justify-center">
                    <input required type="text" inputMode="text" autoComplete="one-time-code" maxLength={12} placeholder="CODE" aria-labelledby="partner-code-hint" value={partnerCode} onChange={e => setPartnerCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} className="w-full max-w-[200px] px-4 h-[40px] border-2 border-border bg-window text-main-text focus:bg-accent/10 outline-none font-black text-lg text-center tracking-widest uppercase" />
-                   <RetroButton type="submit" disabled={loading || partnerCode.length < 6} className="w-10 h-[40px] shrink-0" aria-label="Submit partner code">
+                   <RetroButton size="sq" type="submit" disabled={loading || partnerCode.length < 6} className="shrink-0" aria-label="Submit partner code">
                       {loading ? <Loader className="animate-spin" aria-hidden="true" size={14} /> : <Check aria-hidden="true" size={14} />}
                    </RetroButton>
                 </div>

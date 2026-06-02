@@ -108,7 +108,7 @@
   padding-top: 14px;
   padding-bottom: 28px;
   line-height: 28px;
-  font-family: 'Space Mono', Courier, monospace;
+  font-family: 'Space Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', Courier, monospace;
   font-size: 14px;
   color: #3e2723;
 }

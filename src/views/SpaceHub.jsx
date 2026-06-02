@@ -1,11 +1,11 @@
 import React from 'react';
-import { Pen, Brush, Clock, Moon, ListTodo, Calendar as CalendarIcon, Image as ImageIcon, FileText, Heart, MessageCircle } from 'lucide-react';
+import { Pen, Brush, Clock, Moon, ListTodo, Calendar as CalendarIcon, Image as ImageIcon, FileText, Heart, MessageCircle, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { RetroWindow, AppIcon } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { useMobile } from '../hooks/useMobile.js';
 
-export function SpaceHub({ sfx }) {
+export function SpaceHub({ onClose, sfx }) {
   const navigate = useNavigate();
   const isMobile = useMobile();
   
@@ -15,9 +15,10 @@ export function SpaceHub({ sfx }) {
   };
 
   return (
-    <div className={`w-full ${isMobile ? 'h-[100dvh] flex flex-col p-0' : 'h-full flex flex-col p-4 md:p-8'} animate-in slide-in-from-right-8 duration-300 md:w-[800px] md:mx-auto`}>
-      <RetroWindow title="space.sys" className="w-full flex-1">
+    <div className={`w-full h-full flex flex-col p-4 md:p-8 animate-in slide-in-from-right-8 duration-300 md:w-[800px] md:mx-auto ${isMobile ? 'pb-safe-navbar' : ''}`}>
+      <RetroWindow title="space.sys" onClose={onClose} className="w-full flex-1">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6 p-4">
+          <AppIcon icon={<MessageSquare size={24} strokeWidth={1.5} />} label="Chat"   color="#3b82f6" onClick={() => nav('/chat')} />
           <AppIcon icon={<Pen          size={24} strokeWidth={1.5} />} label="Doodle"   color="#ec4899" onClick={() => nav('/doodle')} />
           <AppIcon icon={<Brush        size={24} strokeWidth={1.5} />} label="Pixels"   color="#f97316" onClick={() => nav('/pixelart')} />
           <AppIcon icon={<Clock        size={24} strokeWidth={1.5} />} label="Capsule"  color="#10b981" onClick={() => nav('/capsule')} />

@@ -15,7 +15,7 @@
   background-color: var(--border) !important;
 }
 
-html { font-size: 100%; height: 100%; }
+html { font-size: 100%; height: 100%; overscroll-behavior-y: none; }
 .scale-up-15 { font-size: 115% !important; }
 
 body {
@@ -25,6 +25,7 @@ body {
   margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto;
   transition: background-color 0.3s, color 0.3s, transform 0.1s, filter 0.1s;
   font-size: 14px;
+  overscroll-behavior-y: none;
 }
 
 .bg-transparent-checkerboard {
@@ -153,3 +154,51 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ════ UNIFIED TYPOGRAPHY SYSTEM ════ */
+:root {
+  --font-size-micro: 10px;
+  --font-size-caption: 12px;
+  --font-size-small: 13px;
+  --font-size-base: 15px;
+  --font-size-large: 17px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+  --font-size-4xl: 36px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --font-size-micro: 9px;
+    --font-size-caption: 10px;
+    --font-size-small: 12px;
+    --font-size-base: 14px;
+    --font-size-large: 15px;
+    --font-size-xl: 18px;
+    --font-size-2xl: 20px;
+    --font-size-3xl: 22px;
+    --font-size-4xl: 28px;
+  }
+}
+
+/* Override body font size to use base token */
+body {
+  font-size: var(--font-size-base);
+}
+
+/* Overriding Tailwind standard classes */
+.text-xs { font-size: var(--font-size-small) !important; }
+.text-sm { font-size: var(--font-size-base) !important; }
+.text-base { font-size: var(--font-size-large) !important; }
+.text-lg { font-size: var(--font-size-xl) !important; }
+.text-xl { font-size: var(--font-size-2xl) !important; }
+.text-2xl { font-size: var(--font-size-3xl) !important; }
+.text-3xl { font-size: var(--font-size-4xl) !important; }
+.text-4xl { font-size: var(--font-size-4xl) !important; }
+
+/* Overriding common Tailwind arbitrary sizes */
+.text-\[8px\], .text-\[9px\] { font-size: var(--font-size-micro) !important; }
+.text-\[10px\], .text-\[11px\], .text-\[12px\] { font-size: var(--font-size-caption) !important; }
+.text-\[40px\] { font-size: var(--font-size-4xl) !important; }
+

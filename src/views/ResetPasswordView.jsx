@@ -116,14 +116,11 @@ export function ResetPasswordView({ sfx }) {
               <form onSubmit={handleRequestReset} className="w-full">
                 <input type="email" required placeholder="you@love.com" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} className="w-full p-3 border-2 border-border bg-window mb-3" />
                 {error && <p className="text-xs text-[var(--color-destructive)] mb-2">{error}</p>}
-                <RetroButton type="submit" className="w-full py-3" disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</RetroButton>
+                <RetroButton type="submit" size="lg" className="w-full" disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</RetroButton>
               </form>
             )}
 
-            <div className="flex gap-3">
-              <button type="button" onClick={() => navigate('/signin')} className="text-xs opacity-60 mt-2">remember password? sign in instead</button>
-              <button type="button" onClick={() => navigate('/')} className="text-xs opacity-60 mt-2">back to landing</button>
-            </div>
+            <button type="button" onClick={() => navigate('/signin')} className="text-xs opacity-60 mt-2 text-center w-full">remember password? sign in instead</button>
           </div>
         </RetroWindow>
       </div>
@@ -202,8 +199,9 @@ export function ResetPasswordView({ sfx }) {
 
           <RetroButton
             type="submit"
+            size="lg"
             variant="primary"
-            className="py-3 mt-2 text-sm flex justify-center items-center gap-2"
+            className="w-full mt-2"
             disabled={loading}
           >
             {loading ? (
@@ -218,7 +216,7 @@ export function ResetPasswordView({ sfx }) {
           <button
             type="button"
             onClick={() => navigate('/signin')}
-            className="text-center text-xs font-bold opacity-50 hover:opacity-100 transition-opacity flex items-center justify-center gap-1"
+            className="text-center text-xs font-bold opacity-50 hover:opacity-100 transition-opacity flex items-center justify-center gap-1 w-full"
           >
             remember password? sign in instead
           </button>

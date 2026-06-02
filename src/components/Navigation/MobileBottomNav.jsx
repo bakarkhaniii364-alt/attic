@@ -17,11 +17,10 @@ export function MobileBottomNav({ sfxEnabled }) {
   const myPfp = profile.pfp;
 
   const tabs = [
-    { id: 'home', path: '/dashboard', label: 'Home', icon: Heart },
-    { id: 'chat', path: '/chat', label: 'Chat', icon: MessageSquare },
+    { id: 'home', path: '/dashboard', label: 'Dashboard', icon: Heart },
+    { id: 'space', path: '/space', label: 'Spaces', icon: Grid3x3 },
     { id: 'arcade', path: '/activities', label: 'Arcade', icon: Gamepad2 },
-    { id: 'space', path: '/space', label: 'Space', icon: Grid3x3 },
-    { id: 'settings', path: '/settings', label: 'Profile', isAvatar: true }
+    { id: 'settings', path: '/settings', label: 'Control panel', isAvatar: true }
   ];
 
   const handleNav = (tab) => {

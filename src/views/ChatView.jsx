@@ -2075,18 +2075,18 @@ export function ChatView({ onClose, sfx }) {
           </div>
           {showDetails && (
             <div className="flex flex-col w-full md:w-80 shrink-0 bg-main overflow-hidden relative border-l-2 border-border h-full">
-              <div className="p-2 flex gap-1 bg-border shrink-0 overflow-x-auto whitespace-nowrap">
-                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'media' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <ImageIcon size={10} /> Media
+              <div className="flex border-b border-border bg-window/50 shrink-0 overflow-x-auto whitespace-nowrap">
+                <button onClick={() => setActiveSidebarTab('media')} className={`flex-1 py-2.5 px-2 text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 border-b-2 ${activeSidebarTab === 'media' ? 'border-b-primary bg-window text-main-text' : 'border-b-transparent text-muted-text hover:text-main-text hover:bg-window/5'}`}>
+                  <ImageIcon size={12} /> Media
                 </button>
-                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'calls' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <History size={10} /> Calls
+                <button onClick={() => setActiveSidebarTab('calls')} className={`flex-1 py-2.5 px-2 text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 border-b-2 ${activeSidebarTab === 'calls' ? 'border-b-primary bg-window text-main-text' : 'border-b-transparent text-muted-text hover:text-main-text hover:bg-window/5'}`}>
+                  <History size={12} /> Calls
                 </button>
-                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'search' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <Search size={10} /> Search
+                <button onClick={() => setActiveSidebarTab('search')} className={`flex-1 py-2.5 px-2 text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 border-b-2 ${activeSidebarTab === 'search' ? 'border-b-primary bg-window text-main-text' : 'border-b-transparent text-muted-text hover:text-main-text hover:bg-window/5'}`}>
+                  <Search size={12} /> Search
                 </button>
-                <button onClick={() => setActiveSidebarTab('settings')} className={`flex-1 py-1.5 px-2.5 text-[9px] font-black uppercase retro-border transition-all flex items-center justify-center gap-1 ${activeSidebarTab === 'settings' ? 'bg-window text-main-text shadow-inner' : 'bg-window/10 text-white/40 hover:bg-window/20 hover:text-white/70'}`}>
-                  <Settings size={10} /> Settings
+                <button onClick={() => setActiveSidebarTab('settings')} className={`flex-1 py-2.5 px-2 text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1.5 border-b-2 ${activeSidebarTab === 'settings' ? 'border-b-primary bg-window text-main-text' : 'border-b-transparent text-muted-text hover:text-main-text hover:bg-window/5'}`}>
+                  <Settings size={12} /> Settings
                 </button>
               </div>
               <div className="p-4 flex-1 overflow-hidden flex flex-col min-h-0">

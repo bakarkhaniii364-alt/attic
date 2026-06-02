@@ -2,7 +2,7 @@
 @media (max-width: 768px) {
   /* ─── GLOBAL FIXES ─── */
   body, #root {
-    font-size: 14px !important; /* Bumped to ~14px for readability */
+    font-size: var(--font-size-base) !important; /* Unified to base token */
   }
 
   /* Hide Scrollbars globally on mobile */
@@ -25,14 +25,14 @@
   .retro-button {
      padding-top: 13px !important;
      padding-bottom: 13px !important;
-     font-size: 15px !important;
+     font-size: var(--font-size-base) !important;
      font-weight: bold !important;
   }
   
   /* Section title hierarchy */
-  h1 { font-size: 16px !important; }
-  h2, .name-label { font-size: 14px !important; }
-  .section-label { font-size: 11px !important; text-transform: uppercase; }
+  h1 { font-size: var(--font-size-large) !important; }
+  h2, .name-label { font-size: var(--font-size-base) !important; }
+  .section-label { font-size: var(--font-size-caption) !important; text-transform: uppercase; }
 
   /* ─── WINDOWS ─── */
   .retro-border-thick { border-width: 3px !important; }
@@ -61,6 +61,12 @@
 
   /* ─── MOBILE NAVIGATION ─── */
   /* ─── FULL SCREEN WINDOWS ─── */
+  .window-header {
+    height: 48px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  
   .window-screen {
     position: relative !important;
     width: 100vw !important;

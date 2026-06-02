@@ -6,8 +6,8 @@
   --shadow-btn-active: 1px 1px 0px 0px var(--border);
   --shadow-box: 2.5px 2.5px 0px 0px var(--border);
   
-  --font-display: 'Space Mono', 'Hind Siliguri', monospace;
-  --font-mono: 'Space Mono', 'Hind Siliguri', monospace;
+  --font-display: 'Space Mono', 'Hind Siliguri', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  --font-mono: 'Space Mono', 'Hind Siliguri', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
   --font-family: var(--font-mono);
   --font-heading: var(--font-display);
 

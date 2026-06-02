@@ -123,7 +123,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
   return (
     <>
       <div className={`glass-window bg-window retro-border-thick retro-shadow-dark flex flex-col transform-gpu ${fullscreenClass} ${className}`}>
-        <div className="retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
+        <div className="window-header retro-border border-t-0 border-l-0 border-r-0 border-b-[2px] flex justify-between items-center p-1.5 flex-shrink-0 relative overflow-hidden" style={{ backgroundColor: 'var(--bg-header)', color: 'var(--text-on-header)' }}>
           <div className={`relative z-10 flex gap-2 items-center flex-1 ${onTitleClick ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`} onClick={onTitleClick}>
             <div className="flex flex-col gap-[3px] w-5 flex-shrink-0">
               <div className="h-[2px] w-full bg-current opacity-50"></div>
@@ -198,14 +198,25 @@ export function RetroInput({ label, icon: Icon, type = 'text', error, className 
 }
 
 // ── RetroButton ──
-export function RetroButton({ children, onClick, variant = 'primary', className = "", disabled = false, style = {}, type = "button", ...props }) {
+export function RetroButton({ children, onClick, variant = 'primary', size = null, className = "", disabled = false, style = {}, type = "button", ...props }) {
   const base = "font-bold transition-all active:translate-y-[2px] active:shadow-none disabled:pointer-events-none retro-border retro-shadow-dark flex items-center justify-center gap-2";
   
+  const sizes = {
+    lg: "h-12 px-6 text-sm font-black uppercase tracking-wider",
+    md: "h-10 px-4 text-xs font-black uppercase tracking-wider",
+    sm: "h-8 px-3 text-[10px] font-black uppercase tracking-widest",
+    sq: "w-10 h-10 p-0 flex items-center justify-center",
+    "sq-sm": "w-8 h-8 p-0 flex items-center justify-center"
+  };
+
+  const sizeClass = size ? (sizes[size] || "") : "";
+
   const variants = { 
     primary: { backgroundColor: 'var(--primary)', color: 'var(--text-on-primary)' }, 
     secondary: { backgroundColor: 'var(--secondary)', color: 'var(--text-on-secondary)' }, 
     white: { backgroundColor: 'var(--bg-window)', color: 'var(--text-main)' }, 
     accent: { backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }, 
+    custom: {},
     disabled: { 
       backgroundColor: 'var(--bg-disabled)', 
       color: 'var(--text-disabled)', 
@@ -221,7 +232,7 @@ export function RetroButton({ children, onClick, variant = 'primary', className 
       type={type} 
       onClick={onClick} 
       disabled={disabled} 
-      className={`${base} ${className}`}
+      className={`${base} ${sizeClass} ${className}`}
       style={{ ...currentVariant, ...style }}
       {...props}
     >

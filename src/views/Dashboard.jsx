@@ -75,7 +75,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
          <div className="bg-window retro-border p-8 text-center max-w-md border-[var(--color-destructive)] retro-shadow-dark">
             <h2 className="text-xl font-black mb-4 text-[var(--color-destructive)] uppercase">Connection Interrupted</h2>
             <p className="text-xs mb-6 font-bold opacity-80">{sync.syncError.message || 'Failed to synchronize couple data with the server.'}</p>
-            <RetroButton onClick={() => window.location.reload()} className="px-6 py-2 text-xs">Reconnect</RetroButton>
+            <RetroButton onClick={() => window.location.reload()} size="md">Reconnect</RetroButton>
          </div>
       </div>
     );
@@ -87,7 +87,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
          <div className="bg-window retro-border p-8 text-center max-w-md retro-shadow-dark">
             <h2 className="text-xl font-black mb-4 uppercase">Waiting for Partner</h2>
             <p className="text-xs mb-6 font-bold opacity-80">Your room is established, but your partner hasn't joined yet. They need your pairing code to enter.</p>
-            <RetroButton onClick={() => nav('handshake')} className="px-6 py-2 text-xs bg-primary">View Invite Code</RetroButton>
+            <RetroButton onClick={() => nav('handshake')} size="md" className="bg-primary">View Invite Code</RetroButton>
          </div>
       </div>
     );
@@ -113,9 +113,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
 
   const draftKey = `attic_chat_draft_${userId}`;
   const hasDraft = !!localStorage.getItem(draftKey);
-  const unreadMessages = (chatHistory || []).filter(m => m.sender === partnerId && (!m.status || m.status !== 'read'));
-  const lastUnreadMessage = unreadMessages.length > 0 ? unreadMessages[unreadMessages.length - 1] : null;
-
   let quickActionItem = null;
 
   if (hasDraft) {
@@ -126,31 +123,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
       bgClass: 'bg-primary/15 border-primary/30 text-main-text',
       action: {
         label: 'Finish',
-        onClick: () => {
-          playAudio('click', sfxEnabled);
-          nav('chat');
-        },
-      }
-    };
-  } else if (lastUnreadMessage) {
-    let msgText = `${partnerName} sent a message`;
-    if (lastUnreadMessage.type === 'text') {
-      msgText = `${partnerName} said "${lastUnreadMessage.text}"`;
-    } else if (lastUnreadMessage.type === 'image') {
-      msgText = `${partnerName} sent an image`;
-    } else if (lastUnreadMessage.type === 'video') {
-      msgText = `${partnerName} sent a video`;
-    } else if (lastUnreadMessage.type === 'voice') {
-      msgText = `${partnerName} sent a voice note`;
-    }
-    
-    quickActionItem = {
-      id: 'chat',
-      icon: <MessageSquare size={14} className="text-primary shrink-0" fill="currentColor" />,
-      text: msgText,
-      bgClass: 'bg-primary/15 border-primary/30 text-main-text',
-      action: {
-        label: 'Reply',
         onClick: () => {
           playAudio('click', sfxEnabled);
           nav('chat');
@@ -251,21 +223,32 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                           if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
                           return parts.length > 0 ? parts.join(' · ') : 'Resting...';
                         }
-                        return displayStatus.toLowerCase();
+                        return displayStatus;
                       })()}
                     </p>
                   </div>
                 </div>
               </div>
-              <RetroButton
-                onClick={handleSendKiss}
-                disabled={Date.now() - lastActionTime < 3000}
-                variant="primary"
-                className="h-8 px-2.5 text-xs font-black uppercase shrink-0"
-              >
-                <Heart size={12} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
-                <span>Kiss</span>
-              </RetroButton>
+              <div className="flex gap-2 shrink-0">
+                <RetroButton
+                  onClick={() => nav('chat')}
+                  variant="primary"
+                  size="sq-sm"
+                  className="bg-blue-500 hover:bg-blue-600 text-white border-blue-700"
+                  aria-label="Chat"
+                >
+                  <MessageSquare size={12} />
+                </RetroButton>
+                <RetroButton
+                  onClick={handleSendKiss}
+                  disabled={Date.now() - lastActionTime < 3000}
+                  variant="primary"
+                  size="sq-sm"
+                  aria-label="Send Kiss"
+                >
+                  <Heart size={12} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
+                </RetroButton>
+              </div>
             </div>
           </div>
         ) : (
@@ -320,7 +303,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                                 }
                                 return parts.length > 0 ? parts.join(' · ') : 'Resting...';
                               }
-                              return displayStatus.toLowerCase();
+                              return displayStatus;
                             })()}
                           </p>
                         </div>
@@ -331,25 +314,34 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               </div>
             </div>
             {isMobile ? (
-              <RetroButton
-                onClick={handleSendKiss}
-                disabled={Date.now() - lastActionTime < 3000}
-                variant="primary"
-                className="h-9 px-3 text-xs font-black uppercase shrink-0"
-              >
-                <Heart size={14} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
-                <span>Kiss</span>
-              </RetroButton>
+              <div className="flex gap-2 shrink-0">
+                <RetroButton
+                  onClick={() => nav('chat')}
+                  variant="primary"
+                  className="h-9 w-9 p-0 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white border-blue-700"
+                  aria-label="Chat"
+                >
+                  <MessageSquare size={14} />
+                </RetroButton>
+                <RetroButton
+                  onClick={handleSendKiss}
+                  disabled={Date.now() - lastActionTime < 3000}
+                  variant="primary"
+                  className="h-9 w-9 p-0 flex items-center justify-center"
+                  aria-label="Send Kiss"
+                >
+                  <Heart size={14} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
+                </RetroButton>
+              </div>
             ) : (
               <button 
                 type="button"
                 onClick={handleSendKiss} 
                 disabled={Date.now() - lastActionTime < 3000}
                 aria-label={`Send a kiss to ${partnerName}`}
-                className={`p-1.5 w-14 retro-border flex flex-col items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
+                className={`w-10 h-10 retro-border flex items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
               >
                 <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
-                <span className="text-[9px] font-bold mt-0.5 uppercase">Kiss</span>
               </button>
             )}
           </div>
@@ -361,17 +353,18 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             const item = quickActionItem || fallbackItem;
             return (
               <div 
-                className={`feed-item flex ${isMobile ? 'flex-col' : 'items-center justify-between'} gap-2 py-2 leading-tight ${isMobile ? 'border-b border-dashed border-border/30 bg-transparent text-main-text text-xs' : `px-2.5 retro-border text-[11px] font-bold ${item.bgClass}`}`}
+                className={`feed-item flex items-center justify-between gap-3 py-2 leading-tight w-full ${isMobile ? 'bg-transparent text-main-text text-xs' : `px-2.5 retro-border text-[11px] font-bold ${item.bgClass}`}`}
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="feed-icon-pulse">{item.icon}</span>
-                  <span className={`lowercase ${isMobile ? 'whitespace-normal' : 'truncate'}`}>{item.text}</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="feed-icon-pulse shrink-0">{item.icon}</span>
+                  <span className="lowercase break-words whitespace-normal flex-1">{item.text}</span>
                 </div>
                 {item.action && (
                   <RetroButton
                     type="button"
                     variant="primary"
-                    className={`${isMobile ? 'h-10 w-full px-3 text-xs mt-2' : 'text-[9px] py-0.5 px-2.5 bg-window text-main-text'} shrink-0 font-black uppercase`}
+                    size="sm"
+                    className="bg-window text-main-text shrink-0"
                     onClick={item.action.onClick}
                   >
                     {item.action.label}
@@ -382,26 +375,28 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           })()}
         </div>
 
-        <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mt-2">
-          <div className="flex items-center gap-2">
-            {partnerWeather && (
-              <>
-                <span className="text-lg leading-none">{partnerWeather.emoji}</span>
-                <p className="text-xs font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
-              </>
+        {((partnerWeather && isMobile) || !isMobile) && (
+          <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mt-2">
+            <div className="flex items-center gap-2">
+              {partnerWeather && (
+                <>
+                  <span className="text-lg leading-none">{partnerWeather.emoji}</span>
+                  <p className="text-xs font-black">{partnerWeather.temp}°C · {partnerWeather.city}</p>
+                </>
+              )}
+            </div>
+            {!isMobile && (
+              <div className="flex gap-2">
+                <RetroButton size="sm" variant="white" onClick={() => nav('settings')}>
+                  <SettingsIcon size={10} /> Control Panel
+                </RetroButton>
+                <RetroButton size="sm" variant="custom" onClick={() => setShowLogoutConfirm(true)} className="bg-[var(--color-destructive)] hover:brightness-110 text-white">
+                  <LogOut size={10} /> Logout
+                </RetroButton>
+              </div>
             )}
           </div>
-          {!isMobile && (
-            <div className="flex gap-2">
-              <button onClick={() => nav('settings')} className="bg-window text-main-text font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
-                <SettingsIcon size={10} /> Control Panel
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="bg-[var(--color-destructive)] text-white font-black text-[9px] py-1 px-2.5 retro-border retro-shadow-dark uppercase tracking-wider flex items-center gap-1">
-                <LogOut size={10} /> Logout
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </RetroWindow>
   );
@@ -424,7 +419,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
         </div>
 
         <div className="flex gap-2 w-full mt-2 px-2">
-          <RetroButton variant="secondary" className={`flex-1 ${isMobile ? 'h-9 text-xs' : 'py-1 text-[10px]'} font-black uppercase`} disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
+          <RetroButton variant="secondary" size="sm" className="flex-1" disabled={petCooldown} onClick={handleFeed}>Feed</RetroButton>
         </div>
       </div>
     </RetroWindow>

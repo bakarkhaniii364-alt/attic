@@ -75,7 +75,6 @@ const AppLoader = () => null;
 function SwipeLayout({
   sfxEnabled,
   dashboardElement,
-  chatElement,
   arcadeElement,
   spaceElement,
   settingsElement
@@ -83,12 +82,10 @@ function SwipeLayout({
   const location = useLocation();
   
   let activeTab = 'dashboard';
-  if (location.pathname.startsWith('/chat')) {
-    activeTab = 'chat';
+  if (location.pathname.startsWith('/space')) {
+    activeTab = 'space';
   } else if (location.pathname.startsWith('/activities')) {
     activeTab = 'arcade';
-  } else if (location.pathname.startsWith('/space')) {
-    activeTab = 'space';
   } else if (location.pathname.startsWith('/settings')) {
     activeTab = 'settings';
   }
@@ -96,9 +93,8 @@ function SwipeLayout({
   return (
     <SwipeNavigationWrapper activeTab={activeTab} sfxEnabled={sfxEnabled}>
       {dashboardElement}
-      {chatElement}
-      {arcadeElement}
       {spaceElement}
+      {arcadeElement}
       {settingsElement}
     </SwipeNavigationWrapper>
   );
@@ -551,7 +547,6 @@ export default function App() {
                   <SwipeLayout
                     sfxEnabled={sfxEnabled}
                     dashboardElement={dashboardElement}
-                    chatElement={chatElement}
                     arcadeElement={arcadeElement}
                     spaceElement={spaceElement}
                     settingsElement={settingsElement}
@@ -559,7 +554,6 @@ export default function App() {
                 </ProtectedRoute>
               }>
                 <Route path="/dashboard" element={<Outlet />} />
-                <Route path="/chat" element={<Outlet />} />
                 <Route path="/activities" element={<Outlet />} />
                 <Route path="/activities/*" element={<Outlet />} />
                 <Route path="/space" element={<Outlet />} />
@@ -567,6 +561,7 @@ export default function App() {
               </Route>
 
               {/* Standalone sub-app routes */}
+              <Route path="/chat" element={<ProtectedRoute>{chatElement}</ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
               <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />
               <Route path="/capsule" element={<ProtectedRoute><TimeCapsuleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />

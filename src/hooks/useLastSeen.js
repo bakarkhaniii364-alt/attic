@@ -53,7 +53,7 @@ export function useLastSeen() {
 
     return {
       status: presence.status || 'active',
-      label: presence.status === 'active' ? 'Online' : 'Idle',
+      label: presence.status === 'active' ? 'Active Now' : 'Idle',
       activity: activityLabel,
       lastActivity: lastActivity
     };
@@ -63,7 +63,7 @@ export function useLastSeen() {
     const data = getLastSeen(userId);
     if (data.status === 'active' || data.status === 'idle') {
       if (data.activity) return data.activity;
-      return data.status === 'active' ? 'Online' : 'Idle';
+      return data.status === 'active' ? 'Active Now' : 'Idle';
     }
     
     let base = data.label;

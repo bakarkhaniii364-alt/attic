@@ -243,6 +243,68 @@ export function PremiumCallHub({
 
   const isMobile = useMobile();
 
+  // ── Mobile Minimized Bubble Coordinates & State ──
+  const [bubblePos, setBubblePos] = useState(() => {
+    if (typeof window === 'undefined') return { x: 200, y: 100 };
+    return { x: window.innerWidth - 74, y: 100 }; // 10px from right margin
+  });
+
+  const bubbleTouchStart = useRef({ x: 0, y: 0, posX: 0, posY: 0, moved: false });
+  const [isDraggingBubble, setIsDraggingBubble] = useState(false);
+
+  const handleBubbleTouchStart = (e) => {
+    const touch = e.touches[0];
+    bubbleTouchStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      posX: bubblePos.x,
+      posY: bubblePos.y,
+      moved: false
+    };
+    setIsDraggingBubble(true);
+  };
+
+  const handleBubbleTouchMove = (e) => {
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - bubbleTouchStart.current.x;
+    const deltaY = touch.clientY - bubbleTouchStart.current.y;
+    
+    if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+      bubbleTouchStart.current.moved = true;
+    }
+    
+    const newX = Math.max(10, Math.min(window.innerWidth - 74, bubbleTouchStart.current.posX + deltaX));
+    const newY = Math.max(10, Math.min(window.innerHeight - 74, bubbleTouchStart.current.posY + deltaY));
+    
+    setBubblePos({ x: newX, y: newY });
+  };
+
+  const handleBubbleTouchEnd = () => {
+    setIsDraggingBubble(false);
+    if (!bubbleTouchStart.current.moved) {
+      // Tap to restore call overlay
+      playAudio('click', sfx);
+      setIsMinimized(false);
+    } else {
+      // Messenger-style: Snap to left or right screen edge
+      const middleX = window.innerWidth / 2;
+      const targetX = (bubblePos.x + 32) < middleX ? 10 : window.innerWidth - 74;
+      setBubblePos(prev => ({ ...prev, x: targetX }));
+    }
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      setBubblePos(prev => {
+        const nextX = Math.max(10, Math.min(window.innerWidth - 74, prev.x));
+        const nextY = Math.max(10, Math.min(window.innerHeight - 74, prev.y));
+        return { x: nextX, y: nextY };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Window State
   const [pos,  setPos]  = useState(() => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
@@ -462,6 +524,63 @@ export function PremiumCallHub({
     );
   }
 
+  // ── MINIMIZED BUBBLE (MOBILE) ───────────────────────────────────────────────
+  if (isMinimized && isMobile) {
+    const hasVideo = type === 'video' && remoteStream && !isPartnerCameraOff;
+    return (
+      <div
+        onTouchStart={handleBubbleTouchStart}
+        onTouchMove={handleBubbleTouchMove}
+        onTouchEnd={handleBubbleTouchEnd}
+        className="fixed z-[950] w-16 h-16 rounded-full bg-window flex items-center justify-center select-none touch-none"
+        style={{
+          left: `${bubblePos.x}px`,
+          top: `${bubblePos.y}px`,
+          boxShadow: '4px 4px 0 var(--border)',
+          border: '3px solid var(--border)',
+          transition: isDraggingBubble ? 'none' : 'left 0.2s ease-out, top 0.2s ease-out',
+        }}
+      >
+        <div className={`w-full h-full rounded-full overflow-hidden relative flex items-center justify-center bg-black ${partnerSpeaking ? 'ring-4 ring-green-500 ring-offset-2 ring-offset-window' : ''}`}>
+          {hasVideo ? (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-black/60 rounded-full">
+              {partnerPfp ? (
+                <img
+                  src={partnerPfp}
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                  alt=""
+                />
+              ) : (
+                <VideoOff size={20} className="text-white/30" />
+              )}
+            </div>
+          )}
+          
+          {/* Diagnostic / Mic Muted / Reconnecting badges */}
+          {isMuted && (
+            <div className="absolute bottom-0 right-0 bg-[var(--color-destructive)] p-0.5 rounded-full border border-window shadow">
+              <MicOff size={8} className="text-white" />
+            </div>
+          )}
+          {isReconnecting && (
+            <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-full">
+              <Loader size={16} className="text-yellow-400 animate-spin" />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ── FULL WINDOW ─────────────────────────────────────────────────────────────
   return (
     <div
@@ -515,11 +634,9 @@ export function PremiumCallHub({
               <ExternalLink size={14}/>
             </button>
           )}
-          {!isMobile && (
-            <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Minimize">
-              <Minimize2 size={14}/>
-            </button>
-          )}
+          <button onClick={() => { playAudio('click', sfx); setIsMinimized(true); }} className="p-1.5 retro-border retro-shadow-dark bg-window text-main-text hover:bg-accent hover:text-accent-text transition-all active:translate-y-[1px] active:shadow-none" title="Minimize">
+            <Minimize2 size={14}/>
+          </button>
           <button onClick={onEndCall} className="p-1.5 retro-border retro-shadow-dark active:translate-y-[1px] active:shadow-none bg-[var(--color-destructive)] text-white hover:bg-red-700 transition-all" title="Hang Up">
             <PhoneOff size={14}/>
           </button>
