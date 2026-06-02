@@ -145,6 +145,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
   const canvasRef = useRef(null);
   const firstBallHitRef = useRef(null);
+  const aiTimerRef = useRef(null);
+  const aiShotFiredRef = useRef(false);
   const engineRef = useRef({
       balls: [],
       isSimulating: false,
@@ -153,12 +155,22 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       hoverMouse: null
   });
 
+  const [isPortrait, setIsPortrait] = useState(window.innerWidth < 768);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsPortrait(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const executeShot = useCallback((vx, vy) => {
       const cue = engineRef.current.balls.find(b => b.id === 0);
       if (cue) {
           cue.vx = vx;
           cue.vy = vy;
           engineRef.current.isSimulating = true;
+          setIsSimulating(true);
           firstBallHitRef.current = null;
           // Use break shot SFX for high-power shots, regular hit for others
           const shotSpeed = Math.hypot(vx, vy);
@@ -168,6 +180,28 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   }, [sfx]);
 
   const [gameState, setGameState] = useGlobalSync(`pool_${roomId}`, null);
+  const [activePlayers, setActivePlayers] = useGlobalSync(`pool_players_${roomId}`, []);
+
+  useEffect(() => {
+    setActivePlayers(prev => {
+      const arr = prev || [];
+      if (!arr.includes(userId)) {
+        return [...arr, userId];
+      }
+      return arr;
+    });
+
+    return () => {
+      setActivePlayers(prev => {
+        const arr = prev || [];
+        const nextArr = arr.filter(id => id !== userId);
+        if (nextArr.length === 0) {
+          setGameState(null);
+        }
+        return nextArr;
+      });
+    };
+  }, [userId, setGameState, setActivePlayers]);
   
   // State ref for broadcast listener
   const shotStateRef = useRef({ userId, isHost, isMultiplayer, executeShot });
@@ -195,16 +229,27 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       // Listener callback - broadcast channel setup
   });
 
+  const assignColorsAndFirstTurn = (p1, p2) => {
+      const isP1Blue = Math.random() < 0.5;
+      const assignments = {
+          [p1]: isP1Blue ? 'blue' : 'red',
+          [p2]: isP1Blue ? 'red' : 'blue'
+      };
+      const turn = isP1Blue ? p1 : p2;
+      return { assignments, turn };
+  };
+
   // Init game - ONLY on first mount or when manually requested
   useEffect(() => {
-      if (isHost && !gameState) {
+      if ((isHost || !isMultiplayer) && !gameState) {
+          const { assignments, turn } = assignColorsAndFirstTurn(myPlayerId, oppPlayerId);
           setGameState({
               ballsState: getInitialBalls(), // snapshot
-              turn: myPlayerId,
-              assignments: { [myPlayerId]: null, [oppPlayerId]: null }, // 'solid' or 'stripe'
+              turn,
+              assignments,
               points: { [myPlayerId]: 0, [oppPlayerId]: 0 },
               winner: null,
-              message: "Break!"
+              message: `${assignments[myPlayerId] === 'blue' ? 'You' : 'Opponent'} got Blue and goes first!`
           });
       }
   }, [isHost, isMultiplayer, gameState, myPlayerId, oppPlayerId, setGameState]); // Run when mount or key states update
@@ -212,9 +257,18 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
   const handleManualReset = () => {
     if (!isHost && isMultiplayer) return;
     playAudio('click', sfx);
-    setGameState(null);
+    const { assignments, turn } = assignColorsAndFirstTurn(myPlayerId, oppPlayerId);
+    setGameState({
+        ballsState: getInitialBalls(),
+        turn,
+        assignments,
+        points: { [myPlayerId]: 0, [oppPlayerId]: 0 },
+        winner: null,
+        message: `${assignments[myPlayerId] === 'blue' ? 'You' : 'Opponent'} got Blue and goes first!`
+    });
     engineRef.current.balls = getInitialBalls();
     engineRef.current.isSimulating = false;
+    setIsSimulating(false);
   };
 
   // Load authoritative state from DB into engine
@@ -230,6 +284,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       } else {
           // Guest: forcibly stop any running local sim and snap to host state
           engineRef.current.isSimulating = false;
+          setIsSimulating(false);
           engineRef.current.balls = gameState.ballsState.map(b => ({ ...b }));
       }
   }, [gameState]);
@@ -307,6 +362,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               requestAnimationFrame(loop);
           } else {
               engine.isSimulating = false;
+              setIsSimulating(false);
               if (isHost || !isMultiplayer) processTurnEnd();
           }
       };
@@ -317,10 +373,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       // Evaluate rules
       const oldState = gameState;
       const balls = engineRef.current.balls;
-      let nextTurn = oldState.turn === myPlayerId ? oppPlayerId : myPlayerId;
       let newAssignments = { ...oldState.assignments };
-      let msg = "";
-      let winner = null;
       
       const pocketedThisTurn = balls.filter(b => !b.active && oldState.ballsState.find(ob => ob.id === b.id)?.active);
       const cue = balls.find(b => b.id === 0);
@@ -328,13 +381,15 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
       let scratch = false;
       let legitimateSink = false;
+      let winner = null;
+      let msg = "";
 
       const currentTurnPlayer = oldState.turn;
-      const myType = oldState.assignments[currentTurnPlayer];
-      const myBallsLeft = balls.filter(b => b.active && b.type === myType);
+      const myColor = oldState.assignments[currentTurnPlayer];
+      const myBallsLeft = balls.filter(b => b.active && b.type === myColor);
 
-      if (firstBallHitRef.current === 8 && (myType === null || myBallsLeft.length > 0)) {
-          winner = nextTurn;
+      if (firstBallHitRef.current === 8 && myBallsLeft.length > 0) {
+          winner = currentTurnPlayer === myPlayerId ? oppPlayerId : myPlayerId;
           msg = "Hit 8-ball first! You lose.";
       }
 
@@ -355,65 +410,63 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               }
           }
           cue.x = rx; cue.y = ry; cue.vx = 0; cue.vy = 0;
-          msg = "Scratch! Opponent's turn.";
+          msg = "Scratch!";
       }
 
       if (!eight.active) {
-          // Did they legally win?
-          const myType = oldState.assignments[oldState.turn];
-          const myBallsLeft = balls.filter(b => b.active && b.type === myType);
-          
-          if (scratch || myBallsLeft.length > 0 || myType === null) {
-              winner = nextTurn; // Loss
+          if (scratch || myBallsLeft.length > 0) {
+              winner = currentTurnPlayer === myPlayerId ? oppPlayerId : myPlayerId; // Loss
               msg = "8-Ball sunk illegally! You lose.";
           } else {
-              winner = oldState.turn; // Win
+              winner = currentTurnPlayer; // Win
               msg = "8-Ball sunk! You win!";
           }
       }
 
       if (!scratch && !winner) {
           pocketedThisTurn.forEach(b => {
-              if (b.type === 'red' || b.type === 'blue') {
-                  if (newAssignments[myPlayerId] === null) {
-                      newAssignments[oldState.turn] = b.type;
-                      newAssignments[nextTurn] = b.type === 'red' ? 'blue' : 'red';
-                      msg = `You are ${b.type}s!`;
-                  }
-                  if (newAssignments[oldState.turn] === b.type) {
-                      legitimateSink = true; // Keep turn
-                  }
+              if (b.type === myColor) {
+                  legitimateSink = true;
               }
           });
+      }
 
-           if (legitimateSink) {
-               nextTurn = oldState.turn;
-               if(!msg) msg = "Good shot! Shoot again.";
-           }
+      let nextTurn = oldState.turn;
+      if (!winner) {
+          if (legitimateSink && !scratch) {
+              nextTurn = oldState.turn;
+              msg = "Good shot! Shoot again.";
+              if (nextTurn === oppPlayerId) {
+                  aiShotFiredRef.current = false;
+              }
+          } else {
+              nextTurn = oldState.turn === myPlayerId ? oppPlayerId : myPlayerId;
+              msg = scratch ? "Scratch! Turn passed." : "Turn passed.";
+          }
 
-           // Explicit end condition: if one player scores all the balls of their color, game ends
-           const myType = newAssignments[myPlayerId];
-           const oppType = newAssignments[oppPlayerId];
-           if (myType && balls.filter(b => b.active && b.type === myType).length === 0) {
-               winner = myPlayerId;
-               msg = "You pocketed all your balls! You win!";
-           } else if (oppType && balls.filter(b => b.active && b.type === oppType).length === 0) {
-               winner = oppPlayerId;
-               msg = "Opponent pocketed all their balls! You lose.";
-           }
-       }
+          const p1Color = newAssignments[myPlayerId];
+          const p2Color = newAssignments[oppPlayerId];
+          const p1Left = balls.filter(b => b.active && b.type === p1Color).length;
+          const p2Left = balls.filter(b => b.active && b.type === p2Color).length;
+          if (p1Left === 0 && p1Color) {
+              if (nextTurn === myPlayerId) msg = "Pocket the 8-ball to win!";
+          }
+          if (p2Left === 0 && p2Color) {
+              if (nextTurn === oppPlayerId) msg = "Opponent needs 8-ball to win!";
+          }
+      }
 
-       const oldPoints = oldState.points || { [myPlayerId]: 0, [oppPlayerId]: 0 };
-       const newPoints = { ...oldPoints };
-       pocketedThisTurn.forEach(b => {
-           if (b.type === 'red' || b.type === 'blue') {
-               if (newAssignments[oldState.turn] === b.type) {
-                   newPoints[oldState.turn] += 100;
-               }
-           } else if (b.type === '8' && winner === oldState.turn) {
-               newPoints[oldState.turn] += 500;
-           }
-       });
+      const oldPoints = oldState.points || { [myPlayerId]: 0, [oppPlayerId]: 0 };
+      const newPoints = { ...oldPoints };
+      pocketedThisTurn.forEach(b => {
+          if (b.type === 'red' || b.type === 'blue') {
+              if (newAssignments[oldState.turn] === b.type) {
+                  newPoints[oldState.turn] += 100;
+              }
+          } else if (b.type === '8' && winner === oldState.turn) {
+              newPoints[oldState.turn] += 500;
+          }
+      });
 
       if (winner && setScores && winner === myPlayerId) {
           setScores(p => ({ ...p, pool: { ...(p.pool || {}), [userId]: (p.pool?.[userId] || 0) + 1 } }));
@@ -432,7 +485,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           assignments: newAssignments,
           points: newPoints,
           winner,
-          message: msg || (nextTurn === oldState.turn ? "Shoot again" : "Turn passed")
+          message: msg
       });
   };
 
@@ -441,8 +494,8 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      canvas.width = CANVAS_WIDTH * 2;
-      canvas.height = CANVAS_HEIGHT * 2;
+      canvas.width = (isPortrait ? CANVAS_HEIGHT : CANVAS_WIDTH) * 2;
+      canvas.height = (isPortrait ? CANVAS_WIDTH : CANVAS_HEIGHT) * 2;
       ctx.scale(2, 2);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -457,7 +510,13 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
           // Clear outer background
           ctx.fillStyle = bgWindow;
-          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.fillRect(0, 0, isPortrait ? CANVAS_HEIGHT : CANVAS_WIDTH, isPortrait ? CANVAS_WIDTH : CANVAS_HEIGHT);
+
+          ctx.save();
+          if (isPortrait) {
+              ctx.translate(CANVAS_HEIGHT, 0);
+              ctx.rotate(Math.PI / 2);
+          }
 
           // 1. Board Structure from Image
           const WOOD = 32;
@@ -636,23 +695,33 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
           });
 
           ctx.restore();
+          ctx.restore();
 
           frameId = requestAnimationFrame(render);
       };
       render();
 
       return () => cancelAnimationFrame(frameId);
-  }, [gameState !== null]);
+  }, [gameState !== null, isPortrait]);
 
   const handlePointerDown = (e) => {
       const isMyTurn = gameState?.turn === myPlayerId;
       if (!isMyTurn || engineRef.current.isSimulating || gameState?.winner) return;
       
       const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = CANVAS_WIDTH / rect.width;
-      const scaleY = CANVAS_HEIGHT / rect.height;
-      const x = (e.clientX - rect.left) * scaleX - BORDER_SIZE;
-      const y = (e.clientY - rect.top) * scaleY - BORDER_SIZE;
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      let x, y;
+      if (isPortrait) {
+          x = clickY * (CANVAS_WIDTH / rect.height) - BORDER_SIZE;
+          y = (rect.width - clickX) * (CANVAS_HEIGHT / rect.width) - BORDER_SIZE;
+      } else {
+          const scaleX = CANVAS_WIDTH / rect.width;
+          const scaleY = CANVAS_HEIGHT / rect.height;
+          x = clickX * scaleX - BORDER_SIZE;
+          y = clickY * scaleY - BORDER_SIZE;
+      }
       
       const cue = engineRef.current.balls.find(b => b.id === 0);
       if (cue && Math.hypot(cue.x - x, cue.y - y) < BALL_R * 3) {
@@ -663,10 +732,19 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
   const handlePointerMove = (e) => {
       const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = CANVAS_WIDTH / rect.width;
-      const scaleY = CANVAS_HEIGHT / rect.height;
-      const x = (e.clientX - rect.left) * scaleX - BORDER_SIZE;
-      const y = (e.clientY - rect.top) * scaleY - BORDER_SIZE;
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      let x, y;
+      if (isPortrait) {
+          x = clickY * (CANVAS_WIDTH / rect.height) - BORDER_SIZE;
+          y = (rect.width - clickX) * (CANVAS_HEIGHT / rect.width) - BORDER_SIZE;
+      } else {
+          const scaleX = CANVAS_WIDTH / rect.width;
+          const scaleY = CANVAS_HEIGHT / rect.height;
+          x = clickX * scaleX - BORDER_SIZE;
+          y = clickY * scaleY - BORDER_SIZE;
+      }
       
       engineRef.current.hoverMouse = { x, y };
 
@@ -702,10 +780,27 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
 
   // AI Turn Logic
   useEffect(() => {
-      if (!gameState || isMultiplayer || gameState.winner || engineRef.current.isSimulating) return;
+      if (!gameState || isMultiplayer || gameState.winner || isSimulating) {
+          if (aiTimerRef.current) {
+              clearTimeout(aiTimerRef.current);
+              aiTimerRef.current = null;
+          }
+          return;
+      }
 
-      if (gameState.turn === oppPlayerId) {
-          const aiTimer = setTimeout(() => {
+      if (gameState.turn !== oppPlayerId) {
+          aiShotFiredRef.current = false;
+          if (aiTimerRef.current) {
+              clearTimeout(aiTimerRef.current);
+              aiTimerRef.current = null;
+          }
+          return;
+      }
+
+      if (gameState.turn === oppPlayerId && !aiShotFiredRef.current && !aiTimerRef.current) {
+          aiTimerRef.current = setTimeout(() => {
+              aiTimerRef.current = null;
+              aiShotFiredRef.current = true;
               const engine = engineRef.current;
               const balls = engine.balls;
               const cue = balls.find(b => b.id === 0);
@@ -763,13 +858,18 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
               const vx = (finalDx / distCueToGhost) * power;
               const vy = (finalDy / distCueToGhost) * power;
 
-              if (isMultiplayer) broadcastShotCue({ vx, vy, sender: userId });
               executeShot(vx, vy);
 
           }, 1500);
-          return () => clearTimeout(aiTimer);
       }
-  }, [gameState, isMultiplayer, oppPlayerId]);
+
+      return () => {
+          if (aiTimerRef.current) {
+              clearTimeout(aiTimerRef.current);
+              aiTimerRef.current = null;
+          }
+      };
+  }, [gameState?.turn, isMultiplayer, oppPlayerId, isSimulating]);
 
   if (!gameState) return <div className="p-8 text-center animate-pulse font-black uppercase text-xl">Racking balls...</div>;
 
@@ -781,63 +881,63 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
     <RetroWindow title={isMultiplayer ? "Retro Pool — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Retro Pool — vs AI"} onClose={onBack} confirmOnClose sfx={sfx} noPadding>
         <div className="flex flex-col md:flex-row w-full h-[80vh] bg-[var(--bg-main)] text-[var(--text-main)] font-mono select-none overflow-hidden touch-none relative">
             
-            {/* Side Panel */}
-            <div className="hidden md:flex flex-col w-[250px] h-full bg-[var(--bg-window)] border-r-2 border-[var(--border)] relative z-10">
-                <div className="bg-[var(--border)] px-4 py-2 text-[var(--bg-window)] font-bold tracking-widest uppercase text-sm border-b-2 border-[var(--border)]">
+            {/* Side Panel / Top Panel */}
+            <div className="flex flex-row md:flex-col w-full md:w-[250px] bg-[var(--bg-window)] border-b-2 md:border-b-0 md:border-r-2 border-[var(--border)] relative z-10 p-2 md:p-4 gap-2 md:gap-4 overflow-y-auto md:overflow-visible items-center md:items-stretch justify-between">
+                <div className="hidden md:block bg-[var(--border)] px-4 py-2 text-[var(--bg-window)] font-bold tracking-widest uppercase text-sm border-b-2 border-[var(--border)] -mx-4 -mt-4 mb-4">
                     retro_pool.sys
                 </div>
-                <div className="flex-1 p-4 flex flex-col gap-4">
-                    <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === myPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
-                        <div className="font-black uppercase text-xl mb-1 flex justify-between items-center">
+                
+                <div className="flex flex-row md:flex-col gap-2 md:gap-4 items-center md:items-stretch flex-1 w-full justify-around md:justify-start">
+                    <div className={`p-2 md:p-4 retro-border-thick retro-shadow-dark transition-all flex-1 md:flex-none ${gameState?.turn === myPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
+                        <div className="font-black uppercase text-xs md:text-xl mb-1 flex justify-between items-center gap-2">
                             <span>YOU</span>
-                            <span className="text-sm font-bold opacity-80">{gameState?.points?.[myPlayerId] || 0} pts</span>
+                            <span className="text-[10px] md:text-sm font-bold opacity-80">{gameState?.points?.[myPlayerId] || 0} pts</span>
                         </div>
-                        <div className="font-bold flex items-center gap-2">
-                           {myType === 'red' && <div className="w-4 h-4 rounded-full bg-[var(--color-destructive)] border border-black"></div>}
-                           {myType === 'blue' && <div className="w-4 h-4 rounded-full bg-[var(--color-cta)] border border-black"></div>}
+                        <div className="font-bold flex items-center gap-2 text-[10px] md:text-base">
+                           {myType === 'red' && <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[var(--color-destructive)] border border-black"></div>}
+                           {myType === 'blue' && <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[var(--color-cta)] border border-black"></div>}
                            <span className="uppercase">{myType || 'OPEN TABLE'}</span>
                         </div>
                     </div>
                     
-                    <div className="font-black text-2xl text-center opacity-50 uppercase">VS</div>
+                    <div className="hidden md:block font-black text-2xl text-center opacity-50 uppercase">VS</div>
 
-                    <div className={`p-4 retro-border-thick retro-shadow-dark transition-all ${gameState?.turn === oppPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
-                        <div className="font-black uppercase text-xl mb-1 flex justify-between items-center">
+                    <div className={`p-2 md:p-4 retro-border-thick retro-shadow-dark transition-all flex-1 md:flex-none ${gameState?.turn === oppPlayerId ? 'bg-[var(--primary)] text-[var(--text-on-primary)] scale-105' : 'bg-[var(--bg-main)] opacity-70'}`}>
+                        <div className="font-black uppercase text-xs md:text-xl mb-1 flex justify-between items-center gap-2">
                             <span>{isMultiplayer ? partnerName || 'Partner' : 'AI'}</span>
-                            <span className="text-sm font-bold opacity-80">{gameState?.points?.[oppPlayerId] || 0} pts</span>
+                            <span className="text-[10px] md:text-sm font-bold opacity-80">{gameState?.points?.[oppPlayerId] || 0} pts</span>
                         </div>
-                        <div className="font-bold flex items-center gap-2">
-                           {oppType === 'red' && <div className="w-4 h-4 rounded-full bg-[var(--color-destructive)] border border-black"></div>}
-                           {oppType === 'blue' && <div className="w-4 h-4 rounded-full bg-[var(--color-cta)] border border-black"></div>}
+                        <div className="font-bold flex items-center gap-2 text-[10px] md:text-base">
+                           {oppType === 'red' && <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[var(--color-destructive)] border border-black"></div>}
+                           {oppType === 'blue' && <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[var(--color-cta)] border border-black"></div>}
                            <span className="uppercase">{oppType || 'OPEN TABLE'}</span>
                         </div>
                     </div>
+                </div>
 
-                    {/* Pocketed Info */}
-                    <div className="mt-4 p-3 bg-[var(--bg-main)] retro-border">
-                        <div className="text-[10px] font-black uppercase opacity-40 mb-2">Balls Remaining</div>
-                        <div className="flex flex-wrap gap-2">
-                            {engineRef.current.balls.filter(b => b.active && b.id !== 0).map(b => (
-                                <div key={b.id} className="w-5 h-5 rounded-full border border-black shadow-sm" style={{ backgroundColor: COLORS[b.id] }}></div>
-                            ))}
-                        </div>
+                {/* Pocketed Info */}
+                <div className="hidden md:block mt-4 p-3 bg-[var(--bg-main)] retro-border">
+                    <div className="text-[10px] font-black uppercase opacity-40 mb-2">Balls Remaining</div>
+                    <div className="flex flex-wrap gap-2">
+                        {engineRef.current.balls.filter(b => b.active && b.id !== 0).map(b => (
+                            <div key={b.id} className="w-5 h-5 rounded-full border border-black shadow-sm" style={{ backgroundColor: COLORS[b.id] }}></div>
+                        ))}
                     </div>
+                </div>
 
-                    <div className="mt-auto flex flex-col gap-2">
-                        <div className="text-xs opacity-70 font-bold mb-1 uppercase">Game Status</div>
-                        <div className="text-sm font-bold bg-[var(--bg-main)] p-2 retro-border shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)]">
-                            {gameState?.message}
-                        </div>
-                        {(gameState?.winner || (isHost || !isMultiplayer)) && (
-                            <button onClick={handleManualReset} className="mt-2 w-full py-2 bg-[var(--primary)] text-white font-black uppercase text-xs retro-border hover:scale-105 transition-all">
-                                New Game
-                            </button>
-                        )}
+                <div className="flex flex-row md:flex-col items-center md:items-stretch gap-2 w-auto md:w-full">
+                    <div className="text-xs font-bold bg-[var(--bg-main)] p-2 retro-border shadow-[inset_2px_2px_0_rgba(0,0,0,0.1)] truncate max-w-[150px] md:max-w-none text-center">
+                        {gameState?.message}
                     </div>
+                    {(gameState?.winner || (isHost || !isMultiplayer)) && (
+                        <button onClick={handleManualReset} className="py-2 px-3 bg-[var(--primary)] text-white font-black uppercase text-[10px] md:text-xs retro-border hover:scale-105 transition-all">
+                            New Game
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Window Content (Game Area) */}
+            {/* Window Content (Game Area - 100% free of overlays) */}
             <div 
                 className="flex-1 relative overflow-hidden flex justify-center items-center p-4 bg-[var(--bg-main)]"
                 onPointerDown={handlePointerDown}
@@ -845,38 +945,11 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
-                {/* Scoring Overlay for Mobile */}
-                <div className="absolute top-4 left-4 right-4 md:hidden flex justify-between z-20 pointer-events-none">
-                    <div className="bg-white/90 p-2 retro-border text-xs font-bold">
-                        YOU: {engineRef.current.balls.filter(b => !b.active && b.type === myType).length}
-                    </div>
-                    <div className="bg-white/90 p-2 retro-border text-xs font-bold">
-                        {isMultiplayer ? partnerName || 'Partner' : 'OPP'}: {engineRef.current.balls.filter(b => !b.active && b.type === oppType).length}
-                    </div>
-                </div>
-
-                <div className="relative max-h-full max-w-full aspect-[11/6]">
+                <div className={`relative max-h-full max-w-full ${isPortrait ? 'aspect-[6/11]' : 'aspect-[11/6]'} w-full h-full flex justify-center items-center`}>
                     <canvas 
                        ref={canvasRef} 
-                       width={CANVAS_WIDTH} 
-                       height={CANVAS_HEIGHT} 
-                       className="block w-full h-full object-contain pointer-events-none"
+                       className="block max-w-full max-h-full object-contain pointer-events-none"
                     />
-                </div>
-                
-                {/* Messages Over Canvas - Visible on Mobile */}
-                <div className={`md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] sm:text-[28px] font-bold text-center bg-[var(--bg-window)] text-[var(--text-main)] px-[30px] py-[15px] retro-border-thick retro-shadow-dark pointer-events-none transition-opacity duration-100 ${gameState?.message && gameState.message !== 'Break!' ? 'opacity-100' : 'opacity-0'}`}>
-                    {gameState?.message}
-                </div>
-
-                {/* Mobile Status Indicator */}
-                <div className="md:hidden absolute top-[10px] left-[10px] bg-[var(--bg-window)] retro-border-thick p-[5px] sm:p-[10px] text-[10px] sm:text-[12px] font-bold retro-shadow-dark pointer-events-none flex flex-col gap-1 z-20">
-                     <div className={gameState?.turn === myPlayerId ? "text-[var(--primary)]" : "opacity-50"}>
-                         YOU: {myType || 'open'}
-                     </div>
-                     <div className={gameState?.turn === oppPlayerId ? "text-[var(--primary)]" : "opacity-50"}>
-                         {isMultiplayer ? partnerName || 'Partner' : 'OPP'}: {oppType || 'open'}
-                     </div>
                 </div>
             </div>
 
@@ -885,16 +958,7 @@ export function PoolGame({ config, sfx, userId, partnerId, setScores, onWin, onB
                  gameName={`Retro Pool (${config.mode})`}
                  stats={{ Result: gameState.winner === myPlayerId ? 'You Win!' : 'You Lose!' }}
                  onClose={() => onBack()}
-                 onRematch={() => {
-                     setGameState({
-                         ballsState: getInitialBalls(),
-                         turn: myPlayerId,
-                         assignments: { [myPlayerId]: null, [oppPlayerId]: null },
-                         points: { [myPlayerId]: 0, [oppPlayerId]: 0 },
-                         winner: null,
-                         message: "Break!"
-                     });
-                 }}
+                 onRematch={handleManualReset}
                  onShareToChat={onShareToChat}
                  onSaveToScrapbook={onSaveToScrapbook}
                  partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined}

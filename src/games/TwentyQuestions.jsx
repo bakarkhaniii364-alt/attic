@@ -16,12 +16,14 @@ export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShare
 
   // Initialize state
   useEffect(() => {
-    if (isMultiplayer && isHost && !syncState) {
+    if (isMultiplayer && !syncState) {
+      const setter = isHost ? userId : partnerId;
+      const guesser = isHost ? partnerId : userId;
       setSyncState({
         phase: 'setup',
         secretWord: '',
-        setterId: userId,
-        guesserId: partnerId,
+        setterId: setter,
+        guesserId: guesser,
         questions: [],
         winner: null,
       });

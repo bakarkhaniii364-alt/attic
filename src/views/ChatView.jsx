@@ -295,9 +295,24 @@ export function ChatView({ onClose, sfx }) {
   const [openReactMsgId, setOpenReactMsgId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const [showFormatting, setShowFormatting] = useState(false);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
   
   const searchInputRef = useRef(null);
   const textareaRef = useRef(null);
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && !sel.isCollapsed && textareaRef.current?.contains(sel.anchorNode)) {
+        setShowFormatting(true);
+      } else {
+        setShowFormatting(false);
+      }
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
 
   useEffect(() => {
     const lastFocused = sessionStorage.getItem('attic_last_focus');
@@ -679,9 +694,14 @@ export function ChatView({ onClose, sfx }) {
   // Scroll to bottom when a new message is added or loaded
   useEffect(() => {
     if (lastMessageId && !isHistoricalView) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (!initialScrollDone) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        setInitialScrollDone(true);
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
-  }, [lastMessageId, isHistoricalView]);
+  }, [lastMessageId, isHistoricalView, initialScrollDone]);
 
   // Handle click outside to close options
   useEffect(() => {
@@ -1989,6 +2009,7 @@ export function ChatView({ onClose, sfx }) {
                   </button>
                 </div>
 
+                  {showFormatting && (
                   <div className="absolute -top-12 left-0 right-0 mx-auto w-max bg-window retro-border shadow-lg z-50 flex gap-1 p-1 animate-in fade-in zoom-in-95 duration-200" onMouseDown={(e) => e.preventDefault()}>
                     <button type="button" onClick={() => applyFormatting('bold')} className="w-8 h-8 flex items-center justify-center font-serif font-bold hover:bg-accent hover:text-accent-text transition-colors" title="Bold">B</button>
                     <button type="button" onClick={() => applyFormatting('italic')} className="w-8 h-8 flex items-center justify-center font-serif italic hover:bg-accent hover:text-accent-text transition-colors" title="Italic">I</button>
@@ -2018,6 +2039,7 @@ export function ChatView({ onClose, sfx }) {
                       document.execCommand('insertText', false, toTrollCase(text));
                     }} className="w-8 h-8 flex items-center justify-center font-bold text-[10px] hover:bg-accent hover:text-accent-text transition-colors" title="Trollcase">tRoLl</button>
                   </div>
+                  )}
 
                 <div className="flex-1 relative flex items-center bg-window retro-inset overflow-hidden min-h-[34px] sm:min-h-[44px]">
                   <div

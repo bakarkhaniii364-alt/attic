@@ -197,7 +197,23 @@ export function AuthProvider({ children }) {
     setRoomId(null);
     setPartnerId(null);
     setHasInitialized(false);
+    
+    // Save E2EE pins before clearing
+    const e2eePins = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('e2ee_pin_')) {
+        e2eePins[key] = localStorage.getItem(key);
+      }
+    }
+    
     localStorage.clear();
+    
+    // Restore E2EE pins
+    for (const [key, value] of Object.entries(e2eePins)) {
+      localStorage.setItem(key, value);
+    }
+    
     window.location.href = '/';
   };
 

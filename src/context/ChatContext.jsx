@@ -86,6 +86,7 @@ export function ChatProvider({ children }) {
   const e2eeInitRef = useRef(false); // Tracks if local keys have been initialized this session
   const derivedKeyInputsRef = useRef(null); // Tracks the partner key fingerprint used for last derivation
   const [e2eeVersion, setE2eeVersion] = useState(0); // Incremented to force re-initialization (e.g., after restore)
+  const [isE2EEInitializing, setIsE2EEInitializing] = useState(true);
 
   // E2EE PIN Setup & Restoration States
   const [showPinSetupPrompt, setShowPinSetupPrompt] = useState(false);
@@ -155,10 +156,12 @@ export function ChatProvider({ children }) {
       setIsE2EEReady(false);
       e2eeInitRef.current = false;
       derivedKeyInputsRef.current = null;
+      setIsE2EEInitializing(false);
       return;
     }
 
     let isCurrent = true;
+    setIsE2EEInitializing(true);
 
     const initE2EE = async () => {
       try {
@@ -214,6 +217,7 @@ export function ChatProvider({ children }) {
                 // A backup exists on the database. Show the PIN restore prompt.
                 if (isCurrent) {
                   setShowRestorePrompt(true);
+                  setIsE2EEInitializing(false);
                 }
                 return; // Halt initialization until restored or reset
               }
@@ -221,6 +225,7 @@ export function ChatProvider({ children }) {
               // No backup exists. Prompt user to setup PIN.
               if (isCurrent) {
                 setShowPinSetupPrompt(true);
+                setIsE2EEInitializing(false);
               }
               return; // Halt initialization until PIN is setup
             }
@@ -262,8 +267,15 @@ export function ChatProvider({ children }) {
             }
           }
         }
+        
+        if (isCurrent) {
+          setIsE2EEInitializing(false);
+        }
       } catch (err) {
         console.error('[E2EE] Init failed:', err);
+        if (isCurrent) {
+          setIsE2EEInitializing(false);
+        }
       }
     };
 
@@ -529,6 +541,8 @@ export function ChatProvider({ children }) {
       return;
     }
 
+    if (isE2EEInitializing) return;
+
     let mounted = true;
     const rawCacheKey = `chat_raw_cache_${roomId}_${CACHE_VERSION}`;
 
@@ -649,7 +663,7 @@ export function ChatProvider({ children }) {
       if (channel) supabase.removeChannel(channel);
       unsubs.forEach(un => un());
     };
-  }, [roomId, isE2EEReady, mapMessage]); // Re-subscribe and refresh when E2EE becomes available
+  }, [roomId, isE2EEReady, isE2EEInitializing, mapMessage]); // Re-subscribe and refresh when E2EE becomes available
 
   const { broadcast } = sync || {};
 
