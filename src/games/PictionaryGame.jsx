@@ -43,7 +43,6 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
   const isDrawer = userId === drawerId;
 
   const [guess, setGuess] = useState('');
-  const [hotCold, setHotCold] = useState('');
   
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
@@ -459,25 +458,15 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           let pts = 1;
           if (localTimeLeft >= 80) pts = 2;
 
-          setPictionaryState(prev => {
-             const currentScores = prev.scores || {};
-             return { 
-                ...prev, 
-                gameState: 'turn_end',
-                turnResult: 'guessed',
-                scores: {
-                  ...currentScores,
-                  [userId]: (currentScores[userId] || 0) + pts
-                }
-             };
-          });
+          const updatedScores = {
+             ...(stateToUse.scores || {}),
+             [userId]: ((stateToUse.scores || {})[userId] || 0) + pts
+          };
+          
           setScores(prev => incrementUserScore(prev, userId, 'pictionary', pts, myName || profile?.name || 'You'));
+          proceedToNextTurn(updatedScores);
       } else { 
           playAudio('click', sfx); 
-          const dist = calculateLevenshtein(guess.toUpperCase(), word.toUpperCase());
-          if (dist <= 2) setHotCold("🔥 Hot!");
-          else if (dist <= 4) setHotCold("🌞 Warm");
-          else setHotCold("❄️ Cold");
       } 
       setGuess(''); 
   };
@@ -491,7 +480,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
     }));
   };
 
-  const proceedToNextTurn = () => {
+  const proceedToNextTurn = (updatedScores = null) => {
     playAudio('click', sfx);
     let nextRound = stateToUse.currentRound;
     let nextTurn = stateToUse.turn + 1;
@@ -501,9 +490,12 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       nextRound += 1;
     }
 
+    const scoresToUse = updatedScores || stateToUse.scores || {};
+
     if (nextRound > stateToUse.totalRounds) {
       setPictionaryState(prev => ({
         ...prev,
+        scores: scoresToUse,
         gameState: 'game_over'
       }));
     } else {
@@ -511,6 +503,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       const wordOptions = getWordOptions();
       setPictionaryState(prev => ({
         ...prev,
+        scores: scoresToUse,
         gameState: 'word_selection',
         currentRound: nextRound,
         turn: nextTurn,
@@ -657,12 +650,26 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
           {isDrawer ? (
             <>
               <p className="font-bold opacity-80 mb-6 text-sm">Select a secret word to draw:</p>
-              <div className="flex flex-col gap-3 w-full">
-                {(stateToUse.wordOptions || []).map((w, i) => (
-                   <RetroButton key={i} className="w-full py-3 text-lg font-black uppercase" onClick={() => selectWord(w)}>
-                     {w}
-                   </RetroButton>
-                ))}
+              <div className="flex flex-col gap-4 w-full max-w-xs">
+                {(stateToUse.wordOptions || []).map((w, i) => {
+                   const colors = [
+                     { bg: 'var(--primary)', text: 'var(--text-on-primary)' },
+                     { bg: 'var(--secondary)', text: 'var(--text-on-secondary)' },
+                     { bg: 'var(--accent)', text: 'var(--text-on-accent)' }
+                   ];
+                   const currentStyle = colors[i % colors.length];
+                   return (
+                     <button 
+                       key={i} 
+                       type="button"
+                       onClick={() => selectWord(w)}
+                       className="w-full py-3.5 px-6 text-lg font-black uppercase tracking-wider retro-border retro-shadow-dark transition-all hover:-translate-y-0.5 active:translate-y-[1px] active:shadow-none"
+                       style={{ backgroundColor: currentStyle.bg, color: currentStyle.text }}
+                     >
+                       {w}
+                     </button>
+                   );
+                })}
               </div>
               <div className="text-xs font-bold opacity-60 mt-6 uppercase tracking-wider text-main-text/60">
                 Auto-selecting in {wordCountdown}s...
@@ -686,20 +693,35 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
   return (
     <RetroWindow title={`${myName || 'You'} vs ${partnerName || 'Partner'} - Pictionary`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
-      <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold text-xs sm:text-sm">
-         <span className={localTimeLeft < 10 ? 'text-red-400 animate-pulse-fast' : ''}>⏳ {localTimeLeft}s</span>
-         <div className="flex items-center gap-2 bg-black/10 px-2 py-0.5 rounded retro-border border-dashed">
-           <span>Score - You: {myScore} pts</span>
-           <span className="opacity-45">|</span>
-           <span>{partnerName || 'Partner'}: {partnerScore} pts</span>
+      <div className="bg-[var(--bg-header)] text-[var(--text-on-header)] border-b-2 border-[var(--border)] p-3 flex justify-between items-center font-bold text-xs sm:text-sm select-none">
+         <div className={`flex items-center gap-2 px-3 py-1 bg-[var(--bg-window)] text-[var(--text-main)] retro-border shadow-inner font-mono ${localTimeLeft < 10 ? 'text-red-600 animate-pulse-fast border-red-500 bg-red-50' : ''}`}>
+            <span className="text-sm sm:text-base">⏳</span>
+            <span className="font-black text-xs sm:text-sm tracking-wider">{localTimeLeft}s</span>
          </div>
+         
+         <div className="flex items-center gap-2 sm:gap-4 bg-[var(--bg-window)] text-[var(--text-main)] px-3 sm:px-4 py-1.5 retro-border shadow-inner">
+            <div className="flex items-center gap-1.5">
+               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[var(--primary)] shrink-0"></span>
+               <span className="font-extrabold tracking-tight text-xs sm:text-sm">You: <span className="font-black text-[var(--primary)]">{myScore} pts</span></span>
+            </div>
+            <div className="w-px h-4 bg-[var(--border)]/20"></div>
+            <div className="flex items-center gap-1.5">
+               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[var(--secondary)] shrink-0"></span>
+               <span className="font-extrabold tracking-tight text-xs sm:text-sm">{partnerName || 'Partner'}: <span className="font-black text-[var(--secondary)]">{partnerScore} pts</span></span>
+            </div>
+         </div>
+
          {gameState === 'drawing' ? (
            <div className="flex items-center gap-2">
-             <span className="text-sm opacity-80">{isDrawer ? "You are drawing" : `${partnerName} is drawing`}</span>
-             {isDrawer && <RetroButton variant="white" onClick={() => { setPictionaryState(prev => ({...prev, gameState: 'turn_end', turnResult: 'time_up'})); }} className={`px-4 py-1 text-xs ${isTestMode() ? 'opacity-100 relative' : 'opacity-0 absolute pointer-events-none'}`}>Hand to Guesser</RetroButton>}
+             <span className="px-2.5 py-1 bg-[var(--accent)] text-[var(--text-on-accent)] retro-border font-black text-[9px] sm:text-[10px] uppercase tracking-wider">
+                {isDrawer ? 'Drawing' : 'Guessing'}
+             </span>
+             {isDrawer && <RetroButton variant="white" onClick={() => { setPictionaryState(prev => ({...prev, gameState: 'turn_end', turnResult: 'time_up'})); }} className={`px-2.5 py-0.5 text-[9px] sm:text-xs ${isTestMode() ? 'opacity-100 relative' : 'opacity-0 absolute pointer-events-none'}`}>Hand to Guesser</RetroButton>}
            </div>
          ) : (
-           <span>{isDrawer ? 'Waiting for partner to guess...' : `${partnerName} is drawing`}</span>
+           <span className="px-2.5 py-1 bg-[var(--accent)] text-[var(--text-on-accent)] retro-border font-black text-[9px] sm:text-[10px] uppercase tracking-wider">
+              {isDrawer ? 'Waiting' : 'Guessing'}
+           </span>
          )}
       </div>
 
@@ -738,7 +760,7 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
 
       <div 
         className={`flex-1 relative touch-none select-none ${gridEnabled ? 'bg-pattern-grid' : ''} overflow-hidden cursor-none`} 
-        style={{ backgroundColor: 'var(--bg-window)' }}
+        style={{ backgroundColor: '#ffffff' }}
         onPointerMove={handlePointerMove} 
         onPointerDown={handlePointerDown} 
         onPointerUp={handlePointerUp}
@@ -781,42 +803,70 @@ export function PictionaryGame({ config, setScores, onBack, sfx, onWin, onShareT
       </div>
 
       {isDrawer && (
-        <div className="p-4 retro-bg-accent retro-border-t flex justify-center items-center gap-8">
+        <div className="p-4 bg-[var(--accent)] text-[var(--text-on-accent)] retro-border-t flex flex-wrap justify-center items-center gap-6 sm:gap-8 shadow-md">
             <div className="text-center">
-                <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">Secret Word</p>
-                <div className="text-2xl font-black tracking-widest uppercase text-[var(--primary-hover)] drop-shadow-sm">{word}</div>
+                <p className="text-[10px] font-black opacity-55 uppercase tracking-[0.2em] mb-1">Secret Word</p>
+                <div className="text-xl sm:text-2xl font-black tracking-widest uppercase text-[var(--primary)]">{word}</div>
             </div>
-            <div className="w-px h-10 bg-black/10"></div>
+            <div className="w-px h-8 bg-current opacity-20 hidden sm:block"></div>
             <div className="text-center">
-                <p className="text-[10px] font-black opacity-40 uppercase tracking-[0.2em] mb-1">Progress</p>
-                <div className="text-2xl font-black tracking-[0.3em] uppercase">{displayWord.join(' ')}</div>
+                <p className="text-[10px] font-black opacity-55 uppercase tracking-[0.2em] mb-1">Guesser's Progress</p>
+                <div className="text-xl sm:text-2xl font-black tracking-[0.3em] uppercase text-[var(--text-on-accent)]">{displayWord.join(' ')}</div>
             </div>
-            <RetroButton onClick={useHint} className="ml-4" variant="white">Hint (-1 pt)</RetroButton>
+            <div className="w-px h-8 bg-current opacity-20 hidden sm:block"></div>
+            <RetroButton onClick={useHint} className="px-4 py-2 text-xs font-bold uppercase tracking-wider" variant="white">
+               Hint (-1 pt)
+            </RetroButton>
         </div>
       )}
 
       {!isDrawer && (
-        <div className="p-4 retro-bg-window retro-border-t shadow-lg">
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between items-center px-1 border-b border-dashed border-[var(--border)] pb-2 mb-1">
-               <span className="font-bold text-sm sm:text-base flex items-center gap-2">Word: <span className="tracking-[0.5em] text-[var(--primary)] text-lg uppercase">{displayWord.join('')}</span></span>
-               <span className="text-xs sm:text-sm font-bold text-[var(--border)]">{hotCold}</span>
+        <div className="p-4 sm:p-5 bg-[var(--bg-window)] text-[var(--text-main)] retro-border-t shadow-lg">
+          <div className="flex flex-col gap-4 max-w-2xl mx-auto">
+            {/* Word progress indicator */}
+            <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-main)] text-[var(--text-main)] retro-border shadow-inner">
+               <span className="font-extrabold text-[11px] sm:text-xs uppercase opacity-70 tracking-widest">Secret Word Progress</span>
+               <span className="font-black text-base sm:text-xl tracking-[0.4em] text-[var(--primary)] uppercase select-none">{displayWord.join(' ')}</span>
             </div>
-            <form onSubmit={submitGuess} className="flex flex-wrap sm:flex-nowrap gap-4 max-w-lg mx-auto w-full">
-                <input type="text" value={guess} onChange={e=>setGuess(e.target.value)} placeholder="Type your guess here..." className="flex-1 p-3 retro-border focus:outline-none uppercase font-black text-lg tracking-widest bg-gray-50 shadow-inner" autoFocus />
-                <RetroButton type="submit" className="px-8 text-lg">GUESS!</RetroButton>
-                <RetroButton type="button" onClick={handleGiveUp} variant="white" className="px-4 text-sm whitespace-nowrap">Give Up</RetroButton>
+
+            {/* Chat Compose Box style typing area */}
+            <form onSubmit={submitGuess} className="flex items-center gap-2 w-full">
+                <div className="flex-1 relative flex items-center bg-[var(--bg-window)] text-[var(--text-main)] retro-border shadow-inner px-3 py-1 min-h-[44px]">
+                    <span className="text-[var(--text-muted)] mr-2 select-none shrink-0"><Smile size={18} /></span>
+                    <input 
+                      type="text" 
+                      value={guess} 
+                      onChange={e=>setGuess(e.target.value)} 
+                      placeholder="Type your guess here..." 
+                      className="w-full bg-transparent focus:outline-none uppercase font-black text-sm sm:text-base tracking-widest text-[var(--text-main)] placeholder-[var(--text-muted)]/50 py-1" 
+                      autoFocus 
+                    />
+                </div>
+                <RetroButton type="submit" className="px-6 h-[44px] text-xs sm:text-sm uppercase tracking-wider font-black">
+                   Guess
+                </RetroButton>
+                <RetroButton type="button" onClick={handleGiveUp} variant="white" className="px-4 h-[44px] text-xs sm:text-sm whitespace-nowrap uppercase tracking-wider font-black">
+                   Give Up
+                </RetroButton>
             </form>
-            <div className="mt-3 bg-gray-50 retro-border p-3 flex flex-col gap-2">
-                <p className="text-xs font-black opacity-50 uppercase tracking-widest">Emoji Reactions to Drawing</p>
+
+            {/* Emoji Reactions grid */}
+            <div className="bg-[var(--bg-main)] retro-border p-3 flex flex-col gap-2.5">
+                <p className="text-[10px] font-black opacity-60 uppercase tracking-[0.2em] mb-0.5">Send drawing reaction</p>
                 <div className="flex flex-wrap gap-2">
                    {['👍', '🤣', '👎', '❤️', '🔥', '👀'].map(emj => (
-                      <button key={emj} onClick={() => triggerGuesserEmoji(emj)} className="p-2 text-2xl hover:scale-125 transition-transform bg-white retro-border rounded-md hover:bg-gray-100">{emj}</button>
+                      <button 
+                        key={emj} 
+                        type="button"
+                        onClick={() => triggerGuesserEmoji(emj)} 
+                        className="w-10 h-10 flex items-center justify-center text-xl hover:scale-110 active:translate-y-[1px] active:shadow-none transition-all bg-[var(--bg-window)] text-[var(--text-main)] retro-border retro-shadow-dark"
+                      >
+                        {emj}
+                      </button>
                    ))}
                 </div>
             </div>
           </div>
-          {hotCold && <div className={`mt-2 text-center font-black uppercase italic tracking-widest animate-bounce ${hotCold.includes('Hot') ? 'text-orange-500' : hotCold.includes('Warm') ? 'text-yellow-600' : 'text-blue-400'}`}>{hotCold}</div>}
         </div>
       )}
     </RetroWindow>

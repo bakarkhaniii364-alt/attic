@@ -658,10 +658,22 @@ export function ChatProvider({ children }) {
         .subscribe();
     }
 
+    const handleBroadcast = (e) => {
+      const { event, payload } = e.detail;
+      if (event === 'chat_cleared' && payload?.roomId === roomId) {
+        if (mounted) {
+          setMessages([]);
+          localforage.setItem(rawCacheKey, []).catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('sync_broadcast', handleBroadcast);
+
     return () => {
       mounted = false;
       if (channel) supabase.removeChannel(channel);
       unsubs.forEach(un => un());
+      window.removeEventListener('sync_broadcast', handleBroadcast);
     };
   }, [roomId, isE2EEReady, isE2EEInitializing, mapMessage]); // Re-subscribe and refresh when E2EE becomes available
 
@@ -904,6 +916,26 @@ export function ChatProvider({ children }) {
     if (error) console.error('[CHAT] Delete error:', error);
   }, []);
 
+  const clearChatHistory = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      const { error } = await supabase.from('chat_messages').delete().eq('room_id', roomId);
+      if (error) {
+        console.error('[CHAT] Error clearing chat history:', error);
+        return;
+      }
+      setMessages([]);
+      const rawCacheKey = `chat_raw_cache_${roomId}_${CACHE_VERSION}`;
+      localforage.setItem(rawCacheKey, []).catch(() => {});
+
+      if (sync?.broadcast) {
+        sync.broadcast('chat_cleared', { roomId });
+      }
+    } catch (e) {
+      console.error('[CHAT] clearChatHistory exception:', e);
+    }
+  }, [roomId, sync]);
+
   const loadMore = useCallback(async () => {
     if (!roomId || !hasMore || loading) return;
     const oldestMsg = messages[0];
@@ -1089,7 +1121,7 @@ export function ChatProvider({ children }) {
   }, [sendMessage]);
 
   const value = { 
-    messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory, changePin,
+    messages, sendMessage, retrySendMessage, updateMessage, deleteMessage, clearChatHistory, loadMore, loading, hasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, resetE2EEKeys: handleResetHistory, changePin,
     isE2EEReady,
     showRestorePrompt, setShowRestorePrompt,
     handleRestore, restoreKeyInput, setRestoreKeyInput, restoreError, isRestoring, isDeriving,

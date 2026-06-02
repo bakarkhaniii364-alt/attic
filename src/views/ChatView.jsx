@@ -285,9 +285,10 @@ export function ChatView({ onClose, sfx }) {
   const { userId, partnerId, roomId } = useAuth();
   const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
   const { 
-    messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, changePin,
+    messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, clearChatHistory, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, changePin,
     isE2EEReady, showRestorePrompt, setShowRestorePrompt, handleRestore, restoreKeyInput, setRestoreKeyInput, restoreError, isRestoring, isDeriving,
-    showPinSetupPrompt, setShowPinSetupPrompt, pinSetupStep, setPinSetupStep, pinSetupInput, setPinSetupInput, pinSetupConfirm, setPinSetupConfirm, pinWarningConfirmed, setPinWarningConfirmed, handleCreatePin, showResetConfirm, setShowResetConfirm
+    showPinSetupPrompt, setShowPinSetupPrompt, pinSetupStep, setPinSetupStep, pinSetupInput, setPinSetupInput, pinSetupConfirm, setPinSetupConfirm, pinWarningConfirmed, setPinWarningConfirmed, handleCreatePin, showResetConfirm, setShowResetConfirm,
+    resetE2EEKeys
   } = useChat();
   const { addToast } = useToast();
   const { startCall } = useCall();
@@ -297,6 +298,7 @@ export function ChatView({ onClose, sfx }) {
   const typingTimeoutRef = useRef(null);
   const [showFormatting, setShowFormatting] = useState(false);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
   
   const searchInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -1072,6 +1074,13 @@ export function ChatView({ onClose, sfx }) {
   const callHistory = safeHistory.filter(m => m.type === 'call_invite');
   const headerActions = (
     <div className="flex gap-1.5">
+      <button 
+        onClick={() => { playAudio('click', sfx); setShowClearChatConfirm(true); }} 
+        className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-window text-red-600 hover:text-red-700" 
+        title="Clear Chat History"
+      >
+        <Trash2 size={14} />
+      </button>
       <button 
         onClick={() => handleStartCall('audio')} 
         className="flex p-1.5 retro-border retro-shadow-dark hover:brightness-110 transition-all active:translate-y-[1px] active:shadow-none bg-window text-main-text" 
@@ -2389,8 +2398,25 @@ export function ChatView({ onClose, sfx }) {
           title="Reset encryption keys?"
           message="WARNING: Resetting your keys will prompt you to set a new Chat PIN, but all past encrypted messages will become permanently unreadable. This action cannot be undone."
           showCancel={true}
-          onConfirm={handleResetHistory}
+          onConfirm={resetE2EEKeys}
           onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+      {/* Confirm Clear Chat Dialog */}
+      {showClearChatConfirm && (
+        <ConfirmDialog
+          title="Delete Chat History?"
+          message="Are you sure you want to delete all messages in this chat? This will permanently delete the chat history for both you and your partner. This action cannot be undone."
+          showCancel={true}
+          onConfirm={async () => {
+            playAudio('click', sfx);
+            await clearChatHistory();
+            setShowClearChatConfirm(false);
+          }}
+          onCancel={() => {
+            playAudio('click', sfx);
+            setShowClearChatConfirm(false);
+          }}
         />
       )}
     </>
