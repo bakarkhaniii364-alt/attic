@@ -111,7 +111,11 @@ export function ResetPasswordView({ sfx }) {
             <p className="text-sm opacity-70">Enter the email associated with your account to receive a reset link.</p>
 
             {requestSent ? (
-              <div className="p-4 bg-green-50 border-2 border-[var(--color-game)] text-green-700">Check your inbox for the reset link.</div>
+              <div className="p-6 flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-300 py-4 text-center mt-2 border-2 border-border bg-window">
+                <Check size={48} className="text-primary animate-bounce" />
+                <h3 className="text-lg font-black uppercase tracking-widest text-main-text">Email Sent</h3>
+                <p className="text-xs opacity-70 font-bold">Check your inbox for the reset link.</p>
+              </div>
             ) : (
               <form onSubmit={handleRequestReset} className="w-full">
                 <input type="email" required placeholder="you@love.com" value={requestEmail} onChange={(e) => setRequestEmail(e.target.value)} className="w-full p-3 border-2 border-border bg-window mb-3" />

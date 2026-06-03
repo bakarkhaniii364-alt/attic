@@ -85,7 +85,56 @@ export function AuthView({ mode }) {
   const [shake, setShake] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
   const addToast = useToast();
+
+  useEffect(() => {
+    // Add Turnstile script if not already present
+    if (!document.getElementById('turnstile-script')) {
+      const script = document.createElement('script');
+      script.id = 'turnstile-script';
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+    
+    // Define global callback for Turnstile
+    window.onTurnstileSuccess = (token) => {
+      setCaptchaToken(token);
+    };
+
+    return () => {
+      delete window.onTurnstileSuccess;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Render the Turnstile widget
+    let widgetId;
+    const renderWidget = () => {
+       if (window.turnstile && document.getElementById('turnstile-container')) {
+         try {
+           widgetId = window.turnstile.render('#turnstile-container', {
+              sitekey: '0x4AAAAAADdzhyrg4kvhvTW3',
+              callback: 'onTurnstileSuccess',
+           });
+         } catch (e) {
+           console.error("Turnstile render error", e);
+         }
+       } else {
+         setTimeout(renderWidget, 200);
+       }
+    };
+    renderWidget();
+    
+    return () => {
+      if (window.turnstile && widgetId !== undefined) {
+        window.turnstile.remove(widgetId);
+      }
+      setCaptchaToken(null);
+    };
+  }, [mode]);
 
   const onBack = () => navigate('/');
 
@@ -102,6 +151,10 @@ export function AuthView({ mode }) {
 
   const startAuthFlow = (e) => {
     e.preventDefault();
+    if (!captchaToken) {
+      addToast("Please complete the captcha", "error");
+      return;
+    }
     // Terms agreement is only required for new accounts
     if (mode === 'signup' && !termsAgreed) {
         setShowLegal(true);
@@ -116,9 +169,14 @@ export function AuthView({ mode }) {
     try {
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({ 
-            email, password, options: { data: { name } } 
+            email, password, options: { data: { name }, captchaToken } 
         });
-        if (error) throw error;
+        if (error) {
+           if (error.message.toLowerCase().includes('already registered')) {
+             throw new Error('An account with this email already exists. Try signing in instead!');
+           }
+           throw error;
+        }
         
         if (data.user && !data.session) {
           addToast("Verification email sent! Please check your inbox before logging in.", "success");
@@ -133,7 +191,9 @@ export function AuthView({ mode }) {
         handleAuthSuccess(data.session);
         navigate('/dashboard');
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+            email, password, options: { captchaToken } 
+        });
         if (error) {
            if (error.message.includes('Email not confirmed')) {
               throw new Error('Please verify your email before logging in. Check your inbox!');
@@ -152,7 +212,13 @@ export function AuthView({ mode }) {
       setAuthError(err.message);
       addToast(err.message, "error"); 
     }
-    finally { setLoading(false); }
+    finally { 
+      setLoading(false);
+      if (window.turnstile) {
+        window.turnstile.reset();
+        setCaptchaToken(null);
+      }
+    }
   };
 
   const handleOAuthLogin = async (provider) => {
@@ -204,8 +270,8 @@ export function AuthView({ mode }) {
   if (linkSent) {
     return (
       <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">
-        <RetroWindow title="transmission_sent.exe" className="w-full max-w-[440px] shadow-2xl p-6 text-center" onClose={onBack}>
-          <div className="flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-300 py-8">
+        <RetroWindow title="transmission_sent.exe" className="w-full max-w-[440px] shadow-2xl" onClose={onBack} noPadding>
+          <div className="p-6 flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in duration-300 py-8 text-center">
             <CheckCircle size={48} className="text-primary animate-bounce" />
             <h2 className="text-2xl font-black uppercase tracking-widest text-main-text">Check your inbox</h2>
             <p className="text-sm opacity-70">We sent a magic link to <strong>{email}</strong>.<br/>Click it to instantly enter the Attic.</p>
@@ -272,7 +338,9 @@ export function AuthView({ mode }) {
                 By creating an account, you agree to the <button type="button" onClick={() => setShowLegal(true)} className="text-primary underline cursor-pointer">Sanctuary Promise</button> and acknowledge the privacy rules.
               </p>
 
-              <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-2">
+              <div id="turnstile-container" className="flex justify-center mt-2"></div>
+
+              <RetroButton size="lg" type="submit" disabled={loading || !captchaToken} className="w-full mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
               </RetroButton>
             </>
@@ -313,7 +381,9 @@ export function AuthView({ mode }) {
                 </div>
               </div>
 
-              <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-4">
+              <div id="turnstile-container" className="flex justify-center mt-2"></div>
+
+              <RetroButton size="lg" type="submit" disabled={loading || !captchaToken} className="w-full mt-4">
                 {loading ? <Loader className="animate-spin" /> : 'enter attic'}
               </RetroButton>
             </>
