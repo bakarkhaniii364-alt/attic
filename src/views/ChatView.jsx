@@ -1307,6 +1307,7 @@ export function ChatView({ onClose, sfx }) {
                             label="Enter Chat PIN"
                             icon={Key}
                             type="password"
+                            autoComplete="new-password"
                             pattern="[0-9]*"
                             inputMode="numeric"
                             placeholder="e.g. 123456"
@@ -1321,6 +1322,7 @@ export function ChatView({ onClose, sfx }) {
                             label="Confirm Chat PIN"
                             icon={Check}
                             type="password"
+                            autoComplete="new-password"
                             pattern="[0-9]*"
                             inputMode="numeric"
                             placeholder="e.g. 123456"
@@ -1357,6 +1359,7 @@ export function ChatView({ onClose, sfx }) {
                           label="Enter Chat PIN"
                           icon={Key}
                           type="password"
+                          autoComplete="current-password"
                           pattern="[0-9]*"
                           inputMode="numeric"
                           placeholder="Enter your 6-digit PIN"
@@ -2260,6 +2263,7 @@ export function ChatView({ onClose, sfx }) {
                             <label className="text-[9px] font-bold uppercase tracking-wider opacity-60">New PIN</label>
                             <input
                               type="password"
+                              autoComplete="new-password"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               maxLength={6}
@@ -2278,6 +2282,7 @@ export function ChatView({ onClose, sfx }) {
                             <label className="text-[9px] font-bold uppercase tracking-wider opacity-60">Confirm New PIN</label>
                             <input
                               type="password"
+                              autoComplete="new-password"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               maxLength={6}

@@ -263,6 +263,7 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
               
               <input 
                 type="password" 
+                autoComplete="off"
                 maxLength={wordLen} 
                 value={customTarget} 
                 onChange={(e) => setCustomTarget(e.target.value.replace(/[^A-Za-z]/g, ''))}

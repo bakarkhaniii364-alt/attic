@@ -153,6 +153,7 @@ export function ResetPasswordView({ sfx }) {
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 placeholder="••••••••"
@@ -178,6 +179,7 @@ export function ResetPasswordView({ sfx }) {
             <div className="relative">
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
                 placeholder="••••••••"

@@ -98,15 +98,6 @@ export function AuthView({ mode }) {
       script.defer = true;
       document.head.appendChild(script);
     }
-    
-    // Define global callback for Turnstile
-    window.onTurnstileSuccess = (token) => {
-      setCaptchaToken(token);
-    };
-
-    return () => {
-      delete window.onTurnstileSuccess;
-    };
   }, []);
 
   useEffect(() => {
@@ -115,9 +106,12 @@ export function AuthView({ mode }) {
     const renderWidget = () => {
        if (window.turnstile && document.getElementById('turnstile-container')) {
          try {
+           const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY || (import.meta.env.DEV ? '1x00000000000000000000AA' : '0x4AAAAAADdzhyrg4kvhvTW3');
            widgetId = window.turnstile.render('#turnstile-container', {
-              sitekey: '0x4AAAAAADdzhyrg4kvhvTW3',
-              callback: 'onTurnstileSuccess',
+              sitekey,
+              callback: (token) => {
+                setCaptchaToken(token);
+              },
            });
          } catch (e) {
            console.error("Turnstile render error", e);
@@ -328,6 +322,7 @@ export function AuthView({ mode }) {
                 label="password"
                 icon={Lock}
                 type="password"
+                autoComplete="new-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -362,6 +357,7 @@ export function AuthView({ mode }) {
                   label="password"
                   icon={Lock}
                   type="password"
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
