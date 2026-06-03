@@ -170,11 +170,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (max-width: 768px) {
   :root {
-    --font-size-micro: 9px;
-    --font-size-caption: 10px;
-    --font-size-small: 12px;
-    --font-size-base: 14px;
-    --font-size-large: 15px;
+    --font-size-micro: 11px;
+    --font-size-caption: 12px;
+    --font-size-small: 13px;
+    --font-size-base: 15px;
+    --font-size-large: 16px;
     --font-size-xl: 18px;
     --font-size-2xl: 20px;
     --font-size-3xl: 22px;

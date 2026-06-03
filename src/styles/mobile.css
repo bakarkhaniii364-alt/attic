@@ -21,10 +21,10 @@
   .gap-4 { gap: 10px !important; }
   .gap-6 { gap: 14px !important; }
   
-  /* Buttons - Increased touch targets & font size for readability */
-  .retro-button {
-     padding-top: 13px !important;
-     padding-bottom: 13px !important;
+  /* Buttons - Increased touch targets & font size for readability (excluding square/icon/layout buttons) */
+  .retro-button:not(.h-auto):not(.w-8):not(.h-8):not(.w-10):not(.h-10):not(.p-0) {
+     padding-top: 10px !important;
+     padding-bottom: 10px !important;
      font-size: var(--font-size-base) !important;
      font-weight: bold !important;
   }

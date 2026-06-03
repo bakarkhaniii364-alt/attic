@@ -57,6 +57,7 @@ export function CallProvider({ children }) {
   const [incomingCall,  setIncomingCall]  = useState(null);
   const [callDuration,  setCallDuration]  = useState(0);
   const [remoteStream,  setRemoteStream]  = useState(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState(null);
   const [localStream,   setLocalStream]   = useState(null);
   const [isMuted,       setIsMuted]       = useState(false);
   const [isDeafened,    setIsDeafened]    = useState(false);
@@ -97,6 +98,9 @@ export function CallProvider({ children }) {
   const isRingingRef       = useRef(false);
   const callingRef         = useRef(null);
   const makingOfferRef     = useRef(false); // glare prevention
+  const remoteTracksRef    = useRef([]);
+  const partnerScreenTrackIdRef = useRef(null);
+  const partnerScreenStreamIdRef = useRef(null);
 
   useEffect(() => { callingRef.current  = calling;  }, [calling]);
   useEffect(() => { isRingingRef.current = isRinging; }, [isRinging]);
@@ -120,6 +124,32 @@ export function CallProvider({ children }) {
   }, [callStatus]);
 
   // Test Mode Auto-Connect logic removed to allow real WebRTC signaling to finish and trigger ICE connected state naturally
+
+  // ── updateRemoteStreams ───────────────────────────────────────────────────
+  const updateRemoteStreams = useCallback(() => {
+    const tracks = remoteTracksRef.current;
+    console.log('[Call] updateRemoteStreams: active remote tracks =', tracks.map(t => `${t.kind}:${t.id}:${t.readyState}`));
+    
+    const audioTracks = tracks.filter(t => t.kind === 'audio' && t.readyState === 'live');
+    const videoTracks = tracks.filter(t => t.kind === 'video' && t.readyState === 'live');
+    
+    const screenTrack = videoTracks.find(t => t.id === partnerScreenTrackIdRef.current);
+    const cameraTracks = videoTracks.filter(t => t.id !== partnerScreenTrackIdRef.current);
+
+    console.log('[Call] updateRemoteStreams: screenTrack =', screenTrack?.id, 'cameraTracks =', cameraTracks.map(t => t.id));
+
+    if (audioTracks.length > 0 || cameraTracks.length > 0) {
+      setRemoteStream(new MediaStream([...audioTracks, ...cameraTracks]));
+    } else {
+      setRemoteStream(null);
+    }
+
+    if (screenTrack) {
+      setRemoteScreenStream(new MediaStream([screenTrack]));
+    } else {
+      setRemoteScreenStream(null);
+    }
+  }, []);
 
   // ── cleanupCall ───────────────────────────────────────────────────────────
   const cleanupCall = useCallback(() => {
@@ -150,9 +180,12 @@ export function CallProvider({ children }) {
     pendingCandidates.current = [];
     makingOfferRef.current = false;
     isCallerRef.current = false;
+    remoteTracksRef.current = [];
+    partnerScreenTrackIdRef.current = null;
+    partnerScreenStreamIdRef.current = null;
 
     setCalling(null); setIsRinging(false); setIncomingCall(null);
-    setRemoteStream(null); setLocalStream(null); setLocalScreenStream(null); setCallDuration(0);
+    setRemoteStream(null); setRemoteScreenStream(null); setLocalStream(null); setLocalScreenStream(null); setCallDuration(0);
     setIsMuted(false); setIsCameraOff(false); setIsScreenSharing(false);
     setIsPartnerCameraOff(false); setIsPartnerScreenSharing(false);
     setCallStatus('idle'); setCallQuality('good');
@@ -244,17 +277,19 @@ const createPC = useCallback(async (type) => {
 
     // Receive remote tracks
     pc.ontrack = (e) => {
-      console.log('[Call] ontrack — remote track received:', e.track.kind);
-      setRemoteStream(prev => {
-        if (prev) {
-          // If the stream already exists, add the track if it's not there
-          if (!prev.getTracks().find(t => t.id === e.track.id)) {
-            prev.addTrack(e.track);
-          }
-          return new MediaStream(prev.getTracks()); // trigger re-render
-        }
-        return e.streams[0] || new MediaStream([e.track]);
-      });
+      console.log('[Call] ontrack — remote track received:', e.track.kind, 'id:', e.track.id);
+      
+      if (!remoteTracksRef.current.find(t => t.id === e.track.id)) {
+        remoteTracksRef.current.push(e.track);
+      }
+      
+      e.track.onended = () => {
+        console.log('[Call] Track ended:', e.track.kind, 'id:', e.track.id);
+        remoteTracksRef.current = remoteTracksRef.current.filter(t => t.id !== e.track.id);
+        updateRemoteStreams();
+      };
+      
+      updateRemoteStreams();
     };
 
     // Trickle ICE
@@ -314,7 +349,7 @@ const createPC = useCallback(async (type) => {
     // Negotiation needed (for re-negotiation e.g. screen share)
     pc.onnegotiationneeded = async () => {
       console.log('[Call] onnegotiationneeded firing. isCaller:', isCallerRef.current, 'signalingState:', pc.signalingState);
-      if (!isCallerRef.current || makingOfferRef.current) return;
+      if (makingOfferRef.current) return;
       try {
         makingOfferRef.current = true;
         const offer = await pc.createOffer();
@@ -332,7 +367,7 @@ const createPC = useCallback(async (type) => {
     };
 
     return pc;
-  }, [sendSignal, cleanupCall, attachDataChannel]);
+  }, [sendSignal, cleanupCall, attachDataChannel, updateRemoteStreams]);
 
   // ── Quality monitor ───────────────────────────────────────────────────────
   const startQualityMonitor = useCallback((pc) => {
@@ -412,28 +447,38 @@ const createPC = useCallback(async (type) => {
       }
 
       case 'offer': {
-        // I am the receiver. Caller sent SDP offer.
-        if (isCallerRef.current) return;
-        setCallStatus('connecting');
-        callTypeRef.current = payload.callType || 'audio';
-        try {
-          // Get media if not already acquired (stop any stale tracks first)
-          if (!localStreamRef.current) {
-            // Defensive: stop any lingering local tracks before re-acquiring camera/mic
-            try { if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
-            const stream = await navigator.mediaDevices.getUserMedia({
-              audio: {
-                 echoCancellation,
-                 noiseSuppression,
-                 autoGainControl: true
-              },
-              video: payload.callType === 'video',
-            });
-            localStreamRef.current = stream;
-            setLocalStream(stream);
+        let pc = pcRef.current;
+        if (!pc || pc.connectionState === 'closed') {
+          if (isCallerRef.current) return;
+          setCallStatus('connecting');
+          callTypeRef.current = payload.callType || 'audio';
+          try {
+            if (!localStreamRef.current) {
+              try { if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop()); } catch(_){}
+              const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                   echoCancellation,
+                   noiseSuppression,
+                   autoGainControl: true
+                },
+                video: payload.callType === 'video',
+              });
+              localStreamRef.current = stream;
+              setLocalStream(stream);
+            }
+            pc = await createPC(payload.callType);
+          } catch (e) {
+            console.error('[Call] Failed to acquire media for incoming offer:', e);
+            sendSignal({ action: 'ended' });
+            cleanupCall();
+            alert('Could not access microphone/camera. Please check browser permissions.');
+            return;
           }
+        } else {
+          console.log('[Call] Received renegotiation offer. Reusing existing RTCPeerConnection.');
+        }
 
-          const pc = await createPC(payload.callType);
+        try {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           await applyPendingCandidates();
 
@@ -442,16 +487,15 @@ const createPC = useCallback(async (type) => {
           sendSignal({ action: 'answer', sdp: pc.localDescription });
         } catch (e) {
           console.error('[Call] offer handling failed:', e);
-          sendSignal({ action: 'ended' });
-          cleanupCall();
-          alert('Could not access microphone/camera. Please check browser permissions.');
+          if (!pcRef.current || pcRef.current.connectionState === 'closed') {
+            sendSignal({ action: 'ended' });
+            cleanupCall();
+          }
         }
         break;
       }
 
       case 'answer': {
-        // I am the caller. Receiver sent SDP answer.
-        if (!isCallerRef.current) return;
         const pc = pcRef.current;
         if (!pc || pc.signalingState === 'stable') return;
         try {
@@ -496,7 +540,18 @@ const createPC = useCallback(async (type) => {
       }
 
       case 'screen_share_toggle': {
-        setIsPartnerScreenSharing(!!payload.active);
+        console.log('[Call] screen_share_toggle received:', payload);
+        if (payload.active) {
+          partnerScreenTrackIdRef.current = payload.trackId;
+          partnerScreenStreamIdRef.current = payload.streamId;
+          setIsPartnerScreenSharing(true);
+        } else {
+          partnerScreenTrackIdRef.current = null;
+          partnerScreenStreamIdRef.current = null;
+          setIsPartnerScreenSharing(false);
+          setRemoteScreenStream(null);
+        }
+        updateRemoteStreams();
         break;
       }
 
@@ -512,7 +567,7 @@ const createPC = useCallback(async (type) => {
 
       default: break;
     }
-  }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd, echoCancellation, noiseSuppression]);
+  }, [userId, sendSignal, cleanupCall, createPC, applyPendingCandidates, recordCallEnd, echoCancellation, noiseSuppression, updateRemoteStreams]);
 
   // ── Supabase signaling channel ────────────────────────────────────────────
   useEffect(() => {
@@ -774,33 +829,39 @@ const createPC = useCallback(async (type) => {
   }, []);
 
   const startScreenShare = useCallback(async () => {
+    if (!pcRef.current) return;
     try {
       const ss = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const st = ss.getVideoTracks()[0];
       screenTrackRef.current = st;
-      const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
-      if (sender) sender.replaceTrack(st); else pcRef.current?.addTrack(st, localStreamRef.current);
+      
+      pcRef.current.addTrack(st, ss);
+      
       setIsScreenSharing(true);
       setLocalScreenStream(ss);
-      sendSignal({ action: 'screen_share_toggle', active: true });
-      setCalling('video');
-      callTypeRef.current = 'video';
+      sendSignal({ action: 'screen_share_toggle', active: true, trackId: st.id, streamId: ss.id });
+      
       st.onended = () => stopScreenShare();
     } catch (e) { console.error('[Call] screen share failed:', e); }
-  }, []);
+  }, [sendSignal]);
 
   const stopScreenShare = useCallback(async () => {
-    if (screenTrackRef.current) { screenTrackRef.current.stop(); screenTrackRef.current = null; }
+    if (screenTrackRef.current) {
+      try {
+        const sender = pcRef.current?.getSenders().find(s => s.track === screenTrackRef.current);
+        if (sender && pcRef.current) {
+          pcRef.current.removeTrack(sender);
+        }
+      } catch (e) {
+        console.error('[Call] removeTrack failed during screen share stop:', e);
+      }
+      try { screenTrackRef.current.stop(); } catch (_) {}
+      screenTrackRef.current = null;
+    }
     setIsScreenSharing(false);
     setLocalScreenStream(null);
     sendSignal({ action: 'screen_share_toggle', active: false });
-    try {
-      const vs = await navigator.mediaDevices.getUserMedia({ video: true });
-      const vt = vs.getVideoTracks()[0];
-      const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
-      if (sender && vt) sender.replaceTrack(vt);
-    } catch (_) {}
-  }, []);
+  }, [sendSignal]);
 
   const sendReaction = useCallback((emoji) => {
     sendSignal({ action: 'reaction', emoji });
@@ -864,7 +925,7 @@ const createPC = useCallback(async (type) => {
 
   const value = {
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
-    remoteStream, localStream, localScreenStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
+    remoteStream, remoteScreenStream, localStream, localScreenStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
     partnerInCall, isPartnerCameraOff,
     startCall,    acceptCall, declineCall, endCall, toggleMic, toggleDeafen, toggleCamera,
     startScreenShare, stopScreenShare, restartIce, changeDevice, testTurnConfig,

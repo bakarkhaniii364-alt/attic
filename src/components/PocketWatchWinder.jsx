@@ -283,86 +283,83 @@ export function PocketWatchWinder({ initialDate, onClose, onJumpToDate, roomId, 
       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-64 h-64 sm:w-72 sm:h-72 rounded-full border-4 border-border bg-window flex flex-col items-center justify-center select-none animate-in zoom-in duration-200"
       style={{ boxShadow: 'none' }}
     >
-      {loading ? (
-        <div className="flex flex-col items-center justify-center font-bold text-xs opacity-50">
-          <span className="animate-spin text-lg mb-2">⌛</span>
-          Aligning dial...
+      <>
+        {/* Alignment indicator notch */}
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center">
+          <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-primary" />
+          <div className="w-0.5 h-3 bg-primary" />
         </div>
-      ) : (
-        <>
-          {/* Alignment indicator notch */}
-          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center">
-            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-primary" />
-            <div className="w-0.5 h-3 bg-primary" />
+
+        {/* Fidget Dial Wheel (spin drag target) */}
+        <div
+          ref={dialRef}
+          onMouseDown={handleDialDown}
+          onTouchStart={handleDialDown}
+          className="w-[84%] h-[84%] rounded-full border-4 border-dashed border-primary/30 bg-primary/10 flex items-center justify-center cursor-grab active:cursor-grabbing relative"
+          style={{
+            transform: `rotate(${rotationAngle}deg)`,
+            transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+          }}
+        >
+
+
+          {/* Circular layout of dates */}
+          {visibleDates.map(({ date, idx }) => {
+            const dateAngle = idx * -30 - 90;
+            const dateString = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            
+            const angleRad = (dateAngle * Math.PI) / 180;
+            const x = radius * Math.cos(angleRad);
+            const y = radius * Math.sin(angleRad);
+
+            // Calculate continuous angular difference relative to current rotationAngle
+            let degDiff = (rotationAngle - idx * 30) % 360;
+            if (degDiff > 180) degDiff -= 360;
+            if (degDiff < -180) degDiff += 360;
+            const absDegDiff = Math.abs(degDiff);
+
+            // Cosine-based opacity fading: smooth fading near top/middle notch, 0 at >=90 degrees
+            const baseOpacity = absDegDiff < 90 ? Math.pow(Math.cos((degDiff * Math.PI) / 180), 1.5) : 0;
+            const opacity = loading ? 0 : baseOpacity;
+
+            return (
+              <div
+                key={idx}
+                className={`absolute font-black tracking-tight select-none uppercase pointer-events-none text-center text-[9px] ${
+                  absDegDiff < 15 ? 'text-primary' : 'text-main-text'
+                }`}
+                style={{
+                  left: `calc(50% + ${x}px)`,
+                  top: `calc(50% + ${y}px)`,
+                  // Scale active date slightly up and inactive dates slightly down for a premium look
+                  transform: `translate(-50%, -50%) rotate(${-rotationAngle}deg) scale(${absDegDiff < 15 ? 1.15 : 0.85})`,
+                  // Add transition to keep the date label upright and scale/fade smoothly during snaps
+                  transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                  opacity: opacity,
+                }}
+              >
+                {dateString}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Centered Date Read-out (replacing the axle details) */}
+        <div 
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-25 text-center transition-opacity duration-300"
+          style={{ opacity: loading ? 0 : 1 }}
+        >
+          <div className="text-[7px] font-black uppercase opacity-50 tracking-[0.2em] mb-1 leading-none">jump to</div>
+          <div className="text-[10px] font-black uppercase text-primary tracking-tight leading-tight">
+            {dates[selectedIndex] ? (
+              <>
+                <div>{dates[selectedIndex].toLocaleDateString([], { weekday: 'short' })},</div>
+                <div className="mt-0.5">{dates[selectedIndex].toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+              </>
+            ) : ''}
           </div>
-
-          {/* Fidget Dial Wheel (spin drag target) */}
-          <div
-            ref={dialRef}
-            onMouseDown={handleDialDown}
-            onTouchStart={handleDialDown}
-            className="w-[84%] h-[84%] rounded-full border-4 border-dashed border-primary/30 bg-primary/10 flex items-center justify-center cursor-grab active:cursor-grabbing relative"
-            style={{
-              transform: `rotate(${rotationAngle}deg)`,
-              transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-            }}
-          >
-
-
-            {/* Circular layout of dates */}
-            {visibleDates.map(({ date, idx }) => {
-              const dateAngle = idx * -30 - 90;
-              const dateString = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-              
-              const angleRad = (dateAngle * Math.PI) / 180;
-              const x = radius * Math.cos(angleRad);
-              const y = radius * Math.sin(angleRad);
-
-              // Calculate continuous angular difference relative to current rotationAngle
-              let degDiff = (rotationAngle - idx * 30) % 360;
-              if (degDiff > 180) degDiff -= 360;
-              if (degDiff < -180) degDiff += 360;
-              const absDegDiff = Math.abs(degDiff);
-
-              // Cosine-based opacity fading: smooth fading near top/middle notch, 0 at >=90 degrees
-              const opacity = absDegDiff < 90 ? Math.pow(Math.cos((degDiff * Math.PI) / 180), 1.5) : 0;
-
-              return (
-                <div
-                  key={idx}
-                  className={`absolute font-black tracking-tight select-none uppercase pointer-events-none text-center text-[9px] ${
-                    absDegDiff < 15 ? 'text-primary' : 'text-main-text'
-                  }`}
-                  style={{
-                    left: `calc(50% + ${x}px)`,
-                    top: `calc(50% + ${y}px)`,
-                    // Scale active date slightly up and inactive dates slightly down for a premium look
-                    transform: `translate(-50%, -50%) rotate(${-rotationAngle}deg) scale(${absDegDiff < 15 ? 1.15 : 0.85})`,
-                    // Add transition to keep the date label upright and scale/fade smoothly during snaps
-                    transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                    opacity: opacity,
-                  }}
-                >
-                  {dateString}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Centered Date Read-out (replacing the axle details) */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-25 text-center">
-            <div className="text-[7px] font-black uppercase opacity-50 tracking-[0.2em] mb-1 leading-none">jump to</div>
-            <div className="text-[10px] font-black uppercase text-primary tracking-tight leading-tight">
-              {dates[selectedIndex] ? (
-                <>
-                  <div>{dates[selectedIndex].toLocaleDateString([], { weekday: 'short' })},</div>
-                  <div className="mt-0.5">{dates[selectedIndex].toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                </>
-              ) : ''}
-            </div>
-          </div>
-        </>
-      )}
+        </div>
+      </>
     </div>
   );
 }

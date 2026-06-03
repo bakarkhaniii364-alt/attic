@@ -178,7 +178,7 @@ function DeviceSelector({ onChangeDevice, onClose }) {
 }
 
 // ── Stream Tile ───────────────────────────────────────────────────────────────
-function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, mirrored, muted, onClick, isActive, className = '' }) {
+function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, mirrored, muted, onClick, isActive, isScreenShare, className = '' }) {
   const videoRef = useRef(null);
   useEffect(() => {
     const v = videoRef.current;
@@ -191,7 +191,7 @@ function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, 
   return (
     <div
       onClick={onClick}
-      className={`relative overflow-hidden bg-black flex items-center justify-center select-none transition-all duration-300 ${
+      className={`relative overflow-hidden bg-black flex items-center justify-center select-none transition-all duration-300 cursor-pointer group/tile ${
         isActive ? 'ring-2 ring-primary' : ''
       } ${isSpeaking ? 'shadow-[0_0_20px_rgba(34,197,94,0.5)] ring-2 ring-green-500' : ''} ${className}`}
     >
@@ -204,11 +204,20 @@ function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, 
           className={`w-full h-full object-cover ${mirrored ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-black/60">
-          {avatarSrc
-            ? <img src={avatarSrc} className="w-16 h-16 retro-border object-cover opacity-70" onError={e => e.target.style.display='none'} alt="" />
-            : <div className="w-16 h-16 bg-border/20 retro-border flex items-center justify-center"><VideoOff size={28} className="text-white/30" /></div>
-          }
+        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/80 p-4 text-center">
+          {isScreenShare ? (
+            <div className="flex flex-col items-center gap-3 animate-pulse">
+              <div className="p-3 bg-primary/20 retro-border text-primary animate-bounce">
+                <Monitor size={32} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Tuning in...</p>
+              <p className="text-[8px] font-bold opacity-60 text-white uppercase">Waiting for stream signal</p>
+            </div>
+          ) : avatarSrc ? (
+            <img src={avatarSrc} className="w-16 h-16 retro-border object-cover opacity-70" onError={e => e.target.style.display='none'} alt="" />
+          ) : (
+            <div className="w-16 h-16 bg-border/20 retro-border flex items-center justify-center"><VideoOff size={28} className="text-white/30" /></div>
+          )}
         </div>
       )}
       {/* Label */}
@@ -219,6 +228,11 @@ function StreamTile({ stream, label, isSpeaking, isMuted: tileMuted, avatarSrc, 
       {tileMuted && (
         <div className="absolute top-2 right-2 bg-[var(--color-destructive)]/90 p-1 retro-border z-10"><MicOff size={10} className="text-white" /></div>
       )}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/tile:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+        <span className="bg-window text-main-text border border-border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm">
+          Click to Focus
+        </span>
+      </div>
     </div>
   );
 }
@@ -230,7 +244,7 @@ export function PremiumCallHub({
   onMicToggle, onDeafenToggle, onCameraToggle, onEndCall,
   onScreenShare, onStopScreenShare,
   onRestartIce, onChangeDevice,
-  partnerName, partnerPfp, sfx, remoteStream, localStream, isRinging, type,
+  partnerName, partnerPfp, sfx, remoteStream, remoteScreenStream, localStream, isRinging, type,
   isPartnerTyping, isPartnerCameraOff,
   onReaction, onRaiseHand,
   localScreenStream, isPartnerScreenSharing,
@@ -428,9 +442,10 @@ export function PremiumCallHub({
 
   // Build active stream list
   const activeStreams = [
-    { id: 'remote',       stream: remoteStream,       label: isPartnerScreenSharing ? `${partnerName.split(' ')[0]} (Screen)` : partnerName.split(' ')[0], isSpeaking: partnerSpeaking, muted: false, avatarSrc: partnerPfp },
+    { id: 'remote', stream: remoteStream, label: partnerName.split(' ')[0], isSpeaking: partnerSpeaking, muted: false, avatarSrc: partnerPfp },
+    ...(isPartnerScreenSharing ? [{ id: 'remote-screen', stream: remoteScreenStream, label: `${partnerName.split(' ')[0]}'s Screen`, isSpeaking: false, muted: true, avatarSrc: null, isScreenShare: true }] : []),
     ...(!isCameraOff && localStream ? [{ id: 'local-cam', stream: localStream, label: 'You (Camera)', isSpeaking: mySpeaking, muted: true, avatarSrc: null, mirrored: true }] : []),
-    ...(localScreenStream ? [{ id: 'local-screen', stream: localScreenStream, label: 'You (Screen)', isSpeaking: false, muted: true, avatarSrc: null }] : []),
+    ...(localScreenStream ? [{ id: 'local-screen', stream: localScreenStream, label: 'You (Screen)', isSpeaking: false, muted: true, avatarSrc: null, isScreenShare: true }] : []),
   ];
 
   // Auto-focus remote on mount; keep focused valid
@@ -438,6 +453,13 @@ export function PremiumCallHub({
     const ids = activeStreams.map(s => s.id);
     if (!ids.includes(focusedStream)) setFocusedStream(ids[0] || 'remote');
   }, [activeStreams.length]);
+
+  // Auto-focus on partner's screen share when it starts
+  useEffect(() => {
+    if (isPartnerScreenSharing) {
+      setFocusedStream('remote-screen');
+    }
+  }, [isPartnerScreenSharing]);
 
   // Pointer move
   const onPointerMove = useCallback((e) => {
@@ -695,6 +717,7 @@ export function PremiumCallHub({
                     mirrored={s.mirrored}
                     muted={s.muted}
                     onClick={() => setFocusedStream(s.id)}
+                    isScreenShare={s.isScreenShare}
                     className="w-full h-full"
                   />
                 ))}
@@ -716,6 +739,7 @@ export function PremiumCallHub({
                         avatarSrc={focused.avatarSrc}
                         mirrored={focused.mirrored}
                         muted={focused.muted}
+                        isScreenShare={focused.isScreenShare}
                         className="w-full h-full"
                       />
                     );
@@ -736,6 +760,7 @@ export function PremiumCallHub({
                         muted={s.muted}
                         onClick={() => setFocusedStream(s.id)}
                         isActive={focusedStream === s.id}
+                        isScreenShare={s.isScreenShare}
                         className="w-32 h-20 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/60 transition-all"
                       />
                     ))}

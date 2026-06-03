@@ -115,7 +115,7 @@ export default function App() {
   const { messages: chatHistory, sendMessage: syncSendMessage, updateMessage: syncUpdateMessage } = useChat();
   const { 
     calling, isRinging, incomingCall, callDuration, callStatus, callQuality,
-    remoteStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
+    remoteStream, remoteScreenStream, localStream, isMuted, isDeafened, isCameraOff, isScreenSharing,
     acceptCall, declineCall, endCall, toggleMic, toggleCamera, toggleDeafen,
     startScreenShare, stopScreenShare,
     restartIce, changeDevice, isPartnerCameraOff,
@@ -465,7 +465,7 @@ export default function App() {
               startScreenShare={startScreenShare} stopScreenShare={stopScreenShare}
               restartIce={restartIce} changeDevice={changeDevice}
               isPartnerTyping={isPartnerTyping} isPartnerCameraOff={isPartnerCameraOff}
-              sfxEnabled={sfxEnabled} remoteStream={remoteStream} localStream={localStream}
+              sfxEnabled={sfxEnabled} remoteStream={remoteStream} remoteScreenStream={remoteScreenStream} localStream={localStream}
               onReaction={sendReaction} onRaiseHand={toggleRaiseHand}
               localScreenStream={localScreenStream} isPartnerScreenSharing={isPartnerScreenSharing}
             />

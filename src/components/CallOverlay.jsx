@@ -7,7 +7,7 @@ export function CallOverlay({
   calling, callDuration, callStatus, callQuality, isMuted, isDeafened, isCameraOff, isScreenSharing,
   toggleMic, toggleDeafen, toggleCamera, startScreenShare, stopScreenShare,
   restartIce, changeDevice, isPartnerTyping, isPartnerCameraOff,
-  sfxEnabled, remoteStream, localStream,
+  sfxEnabled, remoteStream, remoteScreenStream, localStream,
   onReaction, onRaiseHand,
   localScreenStream, isPartnerScreenSharing,
 }) {
@@ -126,7 +126,7 @@ export function CallOverlay({
           onRestartIce={restartIce} onChangeDevice={changeDevice}
           isPartnerTyping={isPartnerTyping} isPartnerCameraOff={isPartnerCameraOff}
           partnerName={partnerName} partnerPfp={partnerProfile?.pfp} sfx={sfxEnabled}
-          remoteStream={remoteStream} localStream={localStream} isRinging={isRinging} type={calling}
+          remoteStream={remoteStream} remoteScreenStream={remoteScreenStream} localStream={localStream} isRinging={isRinging} type={calling}
           onReaction={onReaction} onRaiseHand={onRaiseHand}
           localScreenStream={localScreenStream} isPartnerScreenSharing={isPartnerScreenSharing}
         />

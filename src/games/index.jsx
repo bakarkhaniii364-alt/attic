@@ -450,8 +450,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 1. Arcade Menu Phase
   if (currentPhase === 'menu') {
     return (
-      <div className={`w-full h-full flex flex-col items-center justify-center p-4 md:p-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
-        <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-5xl flex-1 flex flex-col relative overflow-hidden" noPadding>
+      <div className={`w-full h-full flex flex-col ${isMobile ? 'p-0' : 'items-center justify-center p-4 md:p-8'}`}>
+        <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-2xl flex-1 flex flex-col relative overflow-hidden" noPadding>
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
            <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>Leaderboard</button>
@@ -608,7 +608,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
 
       return (
-        <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+        <div className={`${isMobile ? 'absolute p-0' : 'fixed p-4'} inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center animate-in fade-in duration-200 overflow-y-auto`}>
           <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)]" noPadding>
           <div className="flex flex-col bg-[var(--bg-window)] text-[var(--text-main)]">
              <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
@@ -718,7 +718,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     const amIReady = isPlayerA ? arcadeSession?.player_a_ready : arcadeSession?.player_b_ready;
 
     return (
-      <div className={`w-full h-full flex flex-col items-center justify-center p-4 md:p-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
+      <div className={`w-full h-full flex flex-col ${isMobile ? 'p-0' : 'items-center justify-center p-4 md:p-8'}`}>
         <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl flex-1 flex flex-col relative bg-[var(--bg-window)]" noPadding>
          <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-[var(--bg-window)]">
             <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
@@ -805,7 +805,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           />
         )}
         {showPartnerLeftModal && (
-          <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className={`${isMobile ? 'absolute' : 'fixed'} inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200`}>
             <RetroWindow title="partner_left.exe" onClose={() => setShowPartnerLeftModal(false)} className="w-full max-w-sm">
               <p className="font-bold text-sm mb-6">Your partner has left the game mid-game. Would you like to stay or leave?</p>
               <div className="flex gap-2">

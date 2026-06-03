@@ -88,7 +88,7 @@ export function RetroWindow({ title, onClose, children, className = "", noPaddin
 
   // Check if we should render fullscreen on mobile.
   // We identify dashboard windows by checking if the title is one of the dashboard modules.
-  const isDashboardWindow = title && typeof title === 'string' && ['welcome.exe', 'together.timer', 'stats.sys', 'applications', 'radio.sys', 'chat_feed', 'tamagotchi', 'space.sys', 'settings.exe'].some(w => title.toLowerCase().includes(w) || title.toLowerCase().endsWith(w));
+  const isDashboardWindow = title && typeof title === 'string' && ['welcome.exe', 'together.timer', 'stats.sys', 'applications', 'radio.sys', 'chat_feed', 'tamagotchi', 'settings.exe'].some(w => title.toLowerCase().includes(w) || title.toLowerCase().endsWith(w));
   // If the window is a confirmation dialog or a smaller layout modal (like received_doodle.msg or doodle_sent.msg or reading_letter.msg), we keep its layout.
   const isSmallModal = title && typeof title === 'string' && (
     title.endsWith('.msg') || 
@@ -243,8 +243,9 @@ export function RetroButton({ children, onClick, variant = 'primary', size = nul
 
 // ── Confirm Dialog ──
 export function ConfirmDialog({ title, message, onConfirm, onCancel, showSave = false, onSave, sfx, showCancel = false, confirmLabel = "Confirm", cancelLabel = "Cancel" }) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   return (
-    <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className={`${isMobile ? 'absolute' : 'fixed'} inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center p-4 animate-in fade-in duration-200`}>
       <RetroWindow title={title || "confirm.exe"} onClose={onCancel} className="w-full max-w-sm" confirmOnClose={false}>
         <p className="font-bold text-sm mb-6">{message}</p>
         <div className="flex gap-2">

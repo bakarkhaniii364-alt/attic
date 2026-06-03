@@ -244,22 +244,22 @@ export function SwipeNavigationWrapper({ children, activeTab, sfxEnabled }) {
         }}
       >
         {/* Slide 0: Dashboard (Home) */}
-        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden">
+        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden relative">
           {children[0]}
         </div>
 
         {/* Slide 1: SpaceHub */}
-        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden">
+        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden relative">
           {children[1]}
         </div>
 
         {/* Slide 2: Arcade (ActivitiesHub) */}
-        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden">
+        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden relative">
           {children[2]}
         </div>
 
         {/* Slide 3: SettingsView */}
-        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden">
+        <div className="w-[100vw] h-full flex-shrink-0 overflow-y-auto overflow-x-hidden relative">
           {children[3]}
         </div>
       </div>

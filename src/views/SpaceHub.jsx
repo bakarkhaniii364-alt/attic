@@ -15,7 +15,7 @@ export function SpaceHub({ onClose, sfx }) {
   };
 
   return (
-    <div className={`w-full h-full flex flex-col p-4 md:p-8 animate-in slide-in-from-right-8 duration-300 md:w-[800px] md:mx-auto ${isMobile ? 'pb-safe-navbar' : ''}`}>
+    <div className={`w-full h-full flex flex-col ${isMobile ? 'p-0' : 'p-4 md:p-8'} animate-in slide-in-from-right-8 duration-300 md:w-[800px] md:mx-auto`}>
       <RetroWindow title="space.sys" onClose={onClose} className="w-full flex-1">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6 p-4">
           <AppIcon icon={<MessageSquare size={24} strokeWidth={1.5} />} label="Chat"   color="#3b82f6" onClick={() => nav('/chat')} />

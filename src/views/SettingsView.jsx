@@ -666,7 +666,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
   };
 
   return (
-    <div className={`w-full h-full flex flex-col items-center justify-center p-4 md:p-8 ${isMobile ? 'pb-safe-navbar' : ''}`}>
+    <div className={`w-full h-full flex flex-col ${isMobile ? 'p-0' : 'items-center justify-center p-4 md:p-8'}`}>
       <RetroWindow 
         title={isMobile ? "Profile & Settings" : "control_panel.exe"} 
         onClose={handleCancel} 

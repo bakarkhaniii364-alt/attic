@@ -253,97 +253,98 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           </div>
         ) : (
           // Desktop layout
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col w-full gap-3">
+            {/* Top row: user's greeting */}
             <div className="flex items-center gap-3">
               {profile.pfp ? <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl" aria-hidden="true">{profile.emoji}</div>}
-              <div>
-                <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
-                  hi {myDisplayName}! {mood}
-                </h1>
+              <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
+                hi {myDisplayName}! {mood}
+              </h1>
+            </div>
 
-                <div className={`flex flex-wrap items-center gap-3 mt-2 ${isMobile ? '' : 'bg-black/5 p-1.5 retro-border border-dashed'}`}>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      {partnerProfile.pfp ? (
-                        <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
-                      ) : (
-                        <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
-                      )}
-                      <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-xs font-black truncate max-w-[150px] leading-tight">
-                          {partnerName}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
-                          <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
-                            partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
-                            isPartnerOnline ? 'bg-success text-success-text border-success' : 
-                            isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
-                            'bg-disabled text-disabled-text border-disabled opacity-60'
-                          }`}>
-                            {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
-                          </span>
-                          <p className="text-[9px] font-bold opacity-60 truncate whitespace-nowrap">
-                            {(() => {
-                              if (partnerStatusData.activity) return partnerStatusData.activity;
-                              if (partnerStatusData.status === 'offline') {
-                                const parts = [];
-                                // 1. Last Seen
-                                if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
-                                // 2. Played Last
-                                if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
-                                // 3. Prompt / "Miss you" logic
-                                const lastSeenAt = partnerProfile.last_online_at || partnerProfile.updated_at;
-                                if (lastSeenAt) {
-                                  const hoursAway = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
-                                  if (hoursAway > 12) parts.push("Missing them?");
-                                  else if (hoursAway > 3) parts.push("Send a nudge?");
-                                }
-                                return parts.length > 0 ? parts.join(' · ') : 'Resting...';
-                              }
-                              return displayStatus;
-                            })()}
-                          </p>
-                        </div>
-                      </div>
+            {/* Bottom row: partner status on the left, kiss button on the right */}
+            <div className="flex justify-between items-center gap-3 w-full">
+              <div className="bg-black/5 p-1.5 retro-border border-dashed flex items-center gap-2">
+                <div className="relative">
+                  {partnerProfile.pfp ? (
+                    <img src={partnerProfile.pfp} alt={`${partnerName} profile`} className="w-8 h-8 retro-border object-cover bg-white" />
+                  ) : (
+                    <div className="w-8 h-8 retro-bg-secondary retro-border flex items-center justify-center text-sm">{partnerProfile.emoji || '👤'}</div>
+                  )}
+                  <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border-2 border-window rounded-full ${isPartnerOnline ? 'bg-success' : isPartnerIdle ? 'bg-warning' : 'bg-disabled'}`} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs font-black truncate max-w-[150px] leading-tight">
+                      {partnerName}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
+                        partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
+                        isPartnerOnline ? 'bg-success text-success-text border-success' : 
+                        isPartnerIdle ? 'bg-warning text-warning-text border-warning' : 
+                        'bg-disabled text-disabled-text border-disabled opacity-60'
+                      }`}>
+                        {partnerStatusData.activity ? 'Playing' : partnerStatusData.status}
+                      </span>
+                      <p className="text-[9px] font-bold opacity-60 truncate whitespace-nowrap">
+                        {(() => {
+                          if (partnerStatusData.activity) return partnerStatusData.activity;
+                          if (partnerStatusData.status === 'offline') {
+                            const parts = [];
+                            // 1. Last Seen
+                            if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
+                            // 2. Played Last
+                            if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
+                            // 3. Prompt / "Miss you" logic
+                            const lastSeenAt = partnerProfile.last_online_at || partnerProfile.updated_at;
+                            if (lastSeenAt) {
+                              const hoursAway = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
+                              if (hoursAway > 12) parts.push("Missing them?");
+                              else if (hoursAway > 3) parts.push("Send a nudge?");
+                            }
+                            return parts.length > 0 ? parts.join(' · ') : 'Resting...';
+                          }
+                          return displayStatus;
+                        })()}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            {isMobile ? (
-              <div className="flex gap-2 shrink-0">
-                <RetroButton
-                  onClick={() => nav('chat')}
-                  variant="primary"
-                  className="h-9 w-9 p-0 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white border-blue-700"
-                  aria-label="Chat"
-                >
-                  <MessageSquare size={14} />
-                </RetroButton>
-                <RetroButton
-                  onClick={handleSendKiss}
+
+              {isMobile ? (
+                <div className="flex gap-2 shrink-0">
+                  <RetroButton
+                    onClick={() => nav('chat')}
+                    variant="primary"
+                    className="h-9 w-9 p-0 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white border-blue-700"
+                    aria-label="Chat"
+                  >
+                    <MessageSquare size={14} />
+                  </RetroButton>
+                  <RetroButton
+                    onClick={handleSendKiss}
+                    disabled={Date.now() - lastActionTime < 3000}
+                    variant="primary"
+                    className="h-9 w-9 p-0 flex items-center justify-center"
+                    aria-label="Send Kiss"
+                  >
+                    <Heart size={14} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
+                  </RetroButton>
+                </div>
+              ) : (
+                <button 
+                  type="button"
+                  onClick={handleSendKiss} 
                   disabled={Date.now() - lastActionTime < 3000}
-                  variant="primary"
-                  className="h-9 w-9 p-0 flex items-center justify-center"
-                  aria-label="Send Kiss"
+                  aria-label={`Send a kiss to ${partnerName}`}
+                  className={`w-10 h-10 retro-border flex items-center justify-center transition-all shrink-0 ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
                 >
-                  <Heart size={14} fill={Date.now() - lastActionTime < 3000 ? "none" : "currentColor"} />
-                </RetroButton>
-              </div>
-            ) : (
-              <button 
-                type="button"
-                onClick={handleSendKiss} 
-                disabled={Date.now() - lastActionTime < 3000}
-                aria-label={`Send a kiss to ${partnerName}`}
-                className={`w-10 h-10 retro-border flex items-center justify-center transition-all ${Date.now() - lastActionTime < 3000 ? 'opacity-40 grayscale cursor-not-allowed' : 'bg-window retro-shadow-dark hover:-translate-y-0.5 active:translate-y-0'}`} 
-              >
-                <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
-              </button>
-            )}
+                  <Heart size={20} fill={Date.now() - lastActionTime < 3000 ? "none" : "var(--primary)"} className={Date.now() - lastActionTime < 3000 ? 'text-border' : 'text-primary'} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
