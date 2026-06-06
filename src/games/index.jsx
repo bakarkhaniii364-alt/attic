@@ -450,7 +450,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 1. Arcade Menu Phase
   if (currentPhase === 'menu') {
     return (
-      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg relative overflow-hidden" noPadding>
+      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none relative overflow-hidden" noPadding>
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
            <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>Leaderboard</button>
@@ -717,7 +717,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
     return (
       <>
-        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg relative overflow-hidden bg-[var(--bg-window)]" noPadding>
+        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none relative overflow-hidden bg-[var(--bg-window)]" noPadding>
            <div className="flex-1 overflow-y-auto w-full custom-scrollbar flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-window)]">
               <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
               

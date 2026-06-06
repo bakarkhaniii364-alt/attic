@@ -18,7 +18,7 @@ export function SpaceHub({ onClose, sfx }) {
     <RetroWindow 
       title="space.sys" 
       onClose={onClose} 
-      className="w-full max-w-3xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg relative overflow-hidden"
+      className="w-full max-w-3xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none relative overflow-hidden"
     >
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6 p-4">
         <AppIcon icon={<MessageSquare size={24} strokeWidth={1.5} />} label="Chat"   color="#3b82f6" onClick={() => nav('/chat')} />

@@ -75,7 +75,7 @@ export function CalendarApp({ onClose, sfx }) {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <RetroWindow title="calendar.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg">
+    <RetroWindow title="calendar.exe" onClose={onClose} className="w-full max-w-3xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none">
       <div 
         onClick={() => {
           playAudio('click', sfx);

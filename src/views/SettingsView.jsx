@@ -731,7 +731,7 @@ export function SettingsView({ compact = false, onClose, theme, setTheme, profil
         title={isMobile ? "Profile & Settings" : "control_panel.exe"} 
         onClose={handleCancel} 
         noPadding 
-        className="w-full max-w-2xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg relative overflow-hidden transition-none"
+        className="w-full max-w-2xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none relative overflow-hidden transition-none"
         sfx={localSfxEnabled}
       >
         {/* Navigation Bar */}
