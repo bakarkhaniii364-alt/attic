@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor, Zap, LogOut, Sparkles } from 'lucide-react';
-import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast, SkeletonText } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 import { playAudio } from '../utils/audio.js';
@@ -41,6 +41,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const dailyAnswers = globalState?.daily_answers || {};
   
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
+  const partnerNameNode = isInitialized ? partnerName : <SkeletonText className="w-16 h-3" />;
   const partnerStatus = partnerProfile.status || 'offline';
 
   const { partnerStatusData, partnerStatusLabel } = useLastSeen();
@@ -50,6 +51,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
 
   const scores = globalState?.game_scores || {};
   const myDisplayName = profile.name || 'you';
+  const myDisplayNameNode = isInitialized ? myDisplayName : <SkeletonText className="w-16 h-3.5" />;
   const mood = coupleData.petHappy > 80 ? '✨' : coupleData.petHappy > 50 ? '❤️' : '☁️';
   const safeDoodles = globalState?.doodles || [];
 
@@ -186,7 +188,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                   <div className="w-10 h-10 retro-border retro-bg-accent flex items-center justify-center text-xl" aria-hidden="true">{profile.emoji}</div>
                 )}
                 <h1 className="text-base font-black leading-none lowercase">
-                  hi {myDisplayName}! {mood}
+                  hi {myDisplayNameNode}! {mood}
                 </h1>
               </div>
             </div>
@@ -204,7 +206,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-black truncate">{partnerName}</p>
+                      <p className="text-xs font-black truncate">{partnerNameNode}</p>
                       <span className={`text-[8px] font-black uppercase px-1 py-0.5 retro-border leading-none shadow-sm shrink-0 ${
                         partnerStatusData.activity ? 'bg-secondary text-secondary-text border-secondary' : 
                         isPartnerOnline ? 'bg-success text-success-text border-success' : 
@@ -258,7 +260,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             <div className="flex items-center gap-3">
               {profile.pfp ? <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl" aria-hidden="true">{profile.emoji}</div>}
               <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
-                hi {myDisplayName}! {mood}
+                hi {myDisplayNameNode}! {mood}
               </h1>
             </div>
 
@@ -276,7 +278,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                 <div className="min-w-0">
                   <div className="flex flex-col gap-0.5">
                     <p className="text-xs font-black truncate max-w-[150px] leading-tight">
-                      {partnerName}
+                      {partnerNameNode}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
                       <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 retro-border leading-none shadow-sm shrink-0 ${

@@ -10,7 +10,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
-import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer, RetroInput, ConfirmDialog, useToast, ViewOnceMedia } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer, RetroInput, ConfirmDialog, useToast, ViewOnceMedia, SkeletonText } from '../components/UI.jsx';
 import { PocketWatchWinder } from '../components/PocketWatchWinder.jsx';
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
@@ -283,7 +283,7 @@ function formatMessage(text, isEdited) {
 export function ChatView({ onClose, sfx }) {
   const isMobile = useMobile();
   const { userId, partnerId, roomId } = useAuth();
-  const { globalState, broadcast: syncBroadcast, onlineUsers } = useSync();
+  const { globalState, broadcast: syncBroadcast, onlineUsers, isInitialized } = useSync();
   const { 
     messages: chatHistory, sendMessage: syncSendMessage, retrySendMessage, updateMessage: syncUpdateMessage, deleteMessage: syncDeleteMessage, clearChatHistory, loadMore: syncLoadMore, hasMore: syncHasMore, searchMessages, jumpToMessage, loadNewer, resetToLatest, changePin,
     isE2EEReady, showRestorePrompt, setShowRestorePrompt, handleRestore, restoreKeyInput, setRestoreKeyInput, restoreError, isRestoring, isDeriving,
@@ -331,6 +331,7 @@ export function ChatView({ onClose, sfx }) {
   const roomProfiles = globalState?.room_profiles || {};
   const coupleData = globalState.couple_data || {};
   const partnerNickname = coupleData.nicknames?.[partnerId] || partnerProfile.name || 'Partner';
+  const partnerNicknameNode = isInitialized ? partnerNickname : <SkeletonText className="w-16 h-3 inline-block" />;
   const { partnerStatusData, partnerStatusLabel } = useLastSeen();
   const isNormalized = !!roomId;
   const isInputDisabled = false;
@@ -1123,7 +1124,7 @@ export function ChatView({ onClose, sfx }) {
         setShowDetails(true);
       }}
     >
-      {partnerNickname} | {partnerStatusLabel.toLowerCase()}
+      {partnerNicknameNode} | {partnerStatusLabel.toLowerCase()}
     </span>
   );
 
@@ -1550,7 +1551,7 @@ export function ChatView({ onClose, sfx }) {
                             }}
                             className={`border-l-4 border-border/40 bg-border/20 p-2 mb-2 text-[10px] opacity-90 cursor-pointer hover:bg-border/30 transition-all active:scale-95`}
                           >
-                            <p className="font-black uppercase tracking-tighter mb-0.5 opacity-60">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || 'Partner')}</p>
+                            <p className="font-black uppercase tracking-tighter mb-0.5 opacity-60">{msg.replyTo.sender === userId ? 'You' : (roomProfiles[msg.replyTo.sender]?.name || (isInitialized ? 'Partner' : <SkeletonText className="w-12 h-2.5 inline-block" />))}</p>
                             <p className="truncate italic font-bold">{msg.replyTo.text || '📸 Media / Attachment'}</p>
                           </div>
                         )}
@@ -2022,7 +2023,7 @@ export function ChatView({ onClose, sfx }) {
                   <div className="flex items-center gap-2 overflow-hidden">
                     <Reply size={14} className="flex-shrink-0" />
                     <span className="font-bold truncate">
-                      Replying to {replyingTo.sender === userId ? 'You' : (roomProfiles[replyingTo.sender]?.name || 'Partner')}: {replyingTo.text || '📸 Media / Attachment'}
+                      Replying to {replyingTo.sender === userId ? 'You' : (roomProfiles[replyingTo.sender]?.name || (isInitialized ? 'Partner' : <SkeletonText className="w-12 h-2.5 inline-block" />))}: {replyingTo.text || '📸 Media / Attachment'}
                     </span>
                   </div>
                   <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-white/10 retro-border flex-shrink-0 ml-2"><X size={14} /></button>
@@ -2160,7 +2161,7 @@ export function ChatView({ onClose, sfx }) {
                                 className="bg-window retro-outset p-3 cursor-pointer hover:bg-accent hover:text-accent-text transition-all group/res active:translate-y-[2px]"
                               >
                                 <div className="flex justify-between items-center mb-1">
-                                  <span className="text-[10px] font-black uppercase text-primary">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</span>
+                                  <span className="text-[10px] font-black uppercase text-primary">{m.sender === userId ? 'You' : (m.senderName || (isInitialized ? partnerNickname : <SkeletonText className="w-12 h-2.5 inline-block" />))}</span>
                                   <span className="text-[9px] opacity-40 font-bold">{m.time}</span>
                                 </div>
                                 <p className="text-xs font-bold line-clamp-2 leading-relaxed">{m.text || '📸 Media / Attachment'}</p>
@@ -2199,7 +2200,7 @@ export function ChatView({ onClose, sfx }) {
                         ) : (
                           pinnedMessages.map(m => (
                             <div key={m.id} className="bg-window p-2 text-sm retro-outset border-l-4 border-l-accent">
-                              <p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || partnerNickname || 'Partner')}</p>
+                              <p className="font-bold opacity-70 text-xs mb-1">{m.sender === userId ? 'You' : (m.senderName || (isInitialized ? partnerNickname : <SkeletonText className="w-12 h-3 inline-block" />))}</p>
                               <p className="truncate">{m.text || 'Attachment/Voice'}</p>
                             </div>
                           ))
