@@ -491,12 +491,30 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
   const [showReactPicker, setShowReactPicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
+  const isViewOnce = !!metadata.isViewOnce;
+  const [isViewingOnce, setIsViewingOnce] = useState(false);
+
+  useEffect(() => {
+    setIsViewingOnce(false);
+  }, [currentIndex]);
+
+  const handleReleaseViewOnce = () => {
+    if (isViewingOnce) {
+      setIsViewingOnce(false);
+      if (onDelete) {
+        onDelete(currentIndex, 'me'); // Deletes the message from DB
+      }
+      onClose();
+    }
+  };
+
   const drag = useRef(null);
   const resize = useRef(null);
 
-  const { bucket, path } = parseSupabaseUrl(currentUrl);
+  const isDirectUrl = !currentUrl || currentUrl.startsWith('blob:') || currentUrl.startsWith('data:');
+  const { bucket, path } = isDirectUrl ? { bucket: null, path: null } : parseSupabaseUrl(currentUrl);
   const { signedUrl } = useSignedUrl(bucket, path);
-  const downloadUrl = signedUrl || currentUrl;
+  const downloadUrl = isDirectUrl ? currentUrl : (signedUrl || currentUrl);
 
   const reactions = [
     { emoji: '❤️', label: 'love' },
@@ -627,11 +645,11 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-4">
-          {onJumpToMessage && !isDeleted && (
+          {onJumpToMessage && !isDeleted && !isViewOnce && (
              <button onClick={() => { playAudio('click', sfx); onJumpToMessage(currentIndex); }} className="p-1.5 retro-border bg-window hover:bg-accent/10 text-primary transition-colors flex items-center justify-center" title="Jump to Message"><MessageSquare size={14} /></button>
           )}
-          <button onClick={handleDownload} disabled={isDeleted} className="p-1.5 retro-border bg-window hover:bg-accent/10 transition-colors disabled:opacity-30 disabled:grayscale" title="Download"><Download size={14} /></button>
-          {onDelete && !isDeleted && (
+          <button onClick={handleDownload} disabled={isDeleted || isViewOnce} className="p-1.5 retro-border bg-window hover:bg-accent/10 transition-colors disabled:opacity-30 disabled:grayscale" title={isViewOnce ? "Download disabled for view-once media" : "Download"}><Download size={14} /></button>
+          {onDelete && !isDeleted && !isViewOnce && (
              <button onClick={() => setShowDeleteConfirm(true)} className="p-1.5 retro-border bg-window hover:bg-[var(--color-destructive)]/10 text-red-600 transition-colors" title="Delete"><Trash2 size={14} /></button>
           )}
         </div>
@@ -649,6 +667,55 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
                  <p className="text-[10px] font-bold opacity-60">This {currentType} was deleted on {metadata.time || 'N/A'}</p>
               </div>
            </div>
+        ) : isViewOnce ? (
+          <div 
+            className="w-full h-full flex items-center justify-center relative select-none touch-none cursor-pointer"
+            onMouseDown={(e) => {
+              if (e.button === 0) setIsViewingOnce(true);
+            }}
+            onMouseUp={handleReleaseViewOnce}
+            onMouseLeave={handleReleaseViewOnce}
+            onTouchStart={() => setIsViewingOnce(true)}
+            onTouchEnd={handleReleaseViewOnce}
+            onTouchCancel={handleReleaseViewOnce}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            {currentType === 'video' ? (
+              <video 
+                src={downloadUrl} 
+                className="max-w-full max-h-full object-contain pointer-events-none transition-all duration-300"
+                style={{ filter: isViewingOnce ? 'none' : 'blur(40px) brightness(0.3)' }}
+                autoPlay={isViewingOnce} 
+                muted 
+                loop 
+                playsInline
+              />
+            ) : (
+              <img 
+                src={downloadUrl} 
+                alt="preview" 
+                className="max-w-full max-h-full object-contain shadow-2xl pointer-events-none transition-all duration-300" 
+                style={{ filter: isViewingOnce ? 'none' : 'blur(40px) brightness(0.3)' }}
+              />
+            )}
+            
+            {!isViewingOnce && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/40 pointer-events-none">
+                <div className="w-16 h-16 rounded-full bg-[var(--color-destructive)]/20 text-[var(--color-destructive)] flex items-center justify-center mb-4 border border-[var(--color-destructive)]/30 animate-pulse">
+                  <Eye size={32} />
+                </div>
+                <div className="text-white font-black text-xs uppercase tracking-widest select-none text-center">
+                  One time media. Hold to view.
+                </div>
+              </div>
+            )}
+            
+            {isViewingOnce && (
+              <div className="absolute top-4 right-4 bg-[var(--color-destructive)] text-white text-[9px] font-black uppercase px-3 py-1 tracking-widest retro-border shadow-md animate-pulse pointer-events-none">
+                Release to destroy
+              </div>
+            )}
+          </div>
         ) : currentType === 'video' ? (
            <RetroMediaPlayer 
             url={currentUrl} 
@@ -709,7 +776,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
       {/* Footer Controls */}
       <div className="shrink-0 p-3 bg-window border-t-2 border-border flex items-center justify-between relative">
         <div className="flex gap-2">
-          {onReact && !isDeleted && (
+          {onReact && !isDeleted && !isViewOnce && (
              <div className="relative">
                 <button onClick={() => setShowReactPicker(!showReactPicker)} className={`px-4 py-2 bg-window text-main-text retro-border retro-shadow-dark flex items-center gap-2 font-bold text-xs uppercase tracking-widest hover:-translate-y-0.5 active:translate-y-0 transition-all ${showReactPicker ? 'bg-accent' : ''}`}>
                    <Heart size={16} className={showReactPicker ? 'text-white' : 'text-[var(--color-destructive)]'} /> React
@@ -733,7 +800,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
           )}
         </div>
         <div className="flex gap-2">
-           {onSaveToScrapbook && currentType === 'image' && !isDeleted && (
+           {onSaveToScrapbook && currentType === 'image' && !isDeleted && !isViewOnce && (
              <button onClick={() => { onSaveToScrapbook(currentUrl); playAudio('click', sfx); }} className="px-4 py-2 bg-primary text-white retro-border retro-shadow-dark flex items-center gap-2 font-bold text-xs uppercase tracking-widest hover:-translate-y-0.5 active:translate-y-0 transition-all">
                 <ImageIcon size={16} /> Save to Album
              </button>
@@ -1087,6 +1154,12 @@ export function ViewOnceMedia({ url, type, onViewed, className = "" }) {
   const [isViewing, setIsViewing] = useState(false);
   const [isViewed, setIsViewed] = useState(false);
 
+  // If it's a blob/data URL, use it directly; otherwise parse and sign it.
+  const isDirectUrl = !url || url.startsWith('blob:') || url.startsWith('data:');
+  const { bucket, path } = isDirectUrl ? { bucket: null, path: null } : parseSupabaseUrl(url);
+  const { signedUrl } = useSignedUrl(bucket, path);
+  const resolvedUrl = isDirectUrl ? url : (signedUrl || '');
+
   useEffect(() => {
     const handleBlur = () => {
       if (isViewing) {
@@ -1138,9 +1211,9 @@ export function ViewOnceMedia({ url, type, onViewed, className = "" }) {
       {isViewing ? (
         <div className="w-full h-full relative pointer-events-none">
           {type === 'video' ? (
-            <video src={url} className="w-full h-full object-contain retro-border bg-black" autoPlay muted loop playsInline />
+            <video src={resolvedUrl} className="w-full h-full object-contain retro-border bg-black" autoPlay muted loop playsInline />
           ) : (
-            <img src={url} className="w-full h-full object-contain retro-border bg-black/5" alt="View Once" />
+            <img src={resolvedUrl} className="w-full h-full object-contain retro-border bg-black/5" alt="View Once" />
           )}
           <div className="absolute top-2 right-2 bg-[var(--color-destructive)] text-white text-[8px] font-black uppercase px-2 py-0.5 tracking-widest retro-border shadow-md animate-pulse">
             Release to destroy

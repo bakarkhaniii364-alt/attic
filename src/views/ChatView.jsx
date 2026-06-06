@@ -1158,7 +1158,8 @@ export function ChatView({ onClose, sfx }) {
             title: m.type === 'video' ? 'Video Message' : 'Photo Message',
             sender: m.sender === userId ? 'You' : (roomProfiles[m.sender]?.name || 'Partner'),
             time: m.time,
-            isMine: m.sender === userId
+            isMine: m.sender === userId,
+            isViewOnce: m.metadata?.isViewOnce
           },
           reactions: m.reactions
         }];
@@ -1590,7 +1591,7 @@ export function ChatView({ onClose, sfx }) {
                                     <ViewOnceMedia 
                                       url={msg.url} 
                                       type="video" 
-                                      onViewed={() => syncDeleteMessage(msg.id)}
+                                      onClick={() => openViewer(msg.url, msg.id)}
                                       className="w-full aspect-video retro-border"
                                     />
                                  ) : (
@@ -1745,7 +1746,7 @@ export function ChatView({ onClose, sfx }) {
                                       <ViewOnceMedia 
                                         url={msg.url} 
                                         type="image" 
-                                        onViewed={() => syncDeleteMessage(msg.id)}
+                                        onClick={() => openViewer(msg.url, msg.id)}
                                         className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'}`}
                                       />
                                    ) : (
@@ -1759,9 +1760,6 @@ export function ChatView({ onClose, sfx }) {
                                  </div>
                                  {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
                                  {!msg.metadata?.isViewOnce && renderMediaToolbar(msg, isMe)}
-                               </div>
-                             )}      {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
-                                 {renderMediaToolbar(msg, isMe)}
                                </div>
                              )}
                              {msg.type === 'image_group' && (
