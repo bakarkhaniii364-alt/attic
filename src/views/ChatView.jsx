@@ -10,7 +10,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 const EmojiPicker = lazy(() => import('emoji-picker-react'));
-import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer, RetroInput, ConfirmDialog, useToast } from '../components/UI.jsx';
+import { RetroWindow, RetroButton, ImageViewerOverlay, MediaEditorOverlay, RetroMediaPlayer, RetroInput, ConfirmDialog, useToast, ViewOnceMedia } from '../components/UI.jsx';
 import { PocketWatchWinder } from '../components/PocketWatchWinder.jsx';
 import { SecureImage, SecureVideo, SecureAudio } from '../components/SecureMedia.jsx';
 import { useSignedUrl, parseSupabaseUrl } from '../hooks/useSignedUrl.js';
@@ -295,6 +295,7 @@ export function ChatView({ onClose, sfx }) {
   const { uploadAsset } = useAssetSync(roomId);
   const [openReactMsgId, setOpenReactMsgId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [isViewOnce, setIsViewOnce] = useState(false);
   const typingTimeoutRef = useRef(null);
   const [showFormatting, setShowFormatting] = useState(false);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
@@ -792,12 +793,13 @@ export function ChatView({ onClose, sfx }) {
           if (item.type === 'image' && item.data) {
             const blob = base64ToBlob(item.data);
             const file = new File([blob], `image_${Date.now()}.png`, { type: 'image/png' });
-            syncSendMessage(file, 'image', { text: markdownInput.trim() });
+            syncSendMessage(file, 'image', { text: markdownInput.trim(), isViewOnce });
           } else {
-            syncSendMessage(item.file, item.type, { text: markdownInput.trim(), fileName: item.name });
+            syncSendMessage(item.file, item.type, { text: markdownInput.trim(), fileName: item.name, isViewOnce });
           }
         });
         setPendingFiles([]);
+        setIsViewOnce(false);
       }
     }
     else {
@@ -1584,15 +1586,24 @@ export function ChatView({ onClose, sfx }) {
                              )}
                              {msg.type === 'video' && (
                                <div className="flex flex-col gap-2 relative group/video w-full max-w-[280px] sm:max-w-xs overflow-hidden rounded-lg">
-                                 <RetroMediaPlayer
-                                   url={msg.url}
-                                   type="video"
-                                   autoPlay={false}
-                                   className="w-full aspect-video retro-border"
-                                   onClick={() => openViewer(msg.url, msg.id)}
-                                 />
+                                 {msg.metadata?.isViewOnce ? (
+                                    <ViewOnceMedia 
+                                      url={msg.url} 
+                                      type="video" 
+                                      onViewed={() => syncDeleteMessage(msg.id)}
+                                      className="w-full aspect-video retro-border"
+                                    />
+                                 ) : (
+                                   <RetroMediaPlayer
+                                     url={msg.url}
+                                     type="video"
+                                     autoPlay={false}
+                                     className="w-full aspect-video retro-border"
+                                     onClick={() => openViewer(msg.url, msg.id)}
+                                   />
+                                 )}
                                  {msg.text && <span className="italic text-xs opacity-80 break-words">{msg.text}</span>}
-                                 {renderMediaToolbar(msg, isMe)}
+                                 {!msg.metadata?.isViewOnce && renderMediaToolbar(msg, isMe)}
                                </div>
                              )}
                              {msg.type === 'audio' && (
@@ -1727,17 +1738,29 @@ export function ChatView({ onClose, sfx }) {
                                 </div>
                               </div>
                             )}
-                            {msg.type === 'image' && (
+                             {msg.type === 'image' && (
                                <div className="flex flex-col gap-2">
                                  <div className={`relative ${isPng(msg) ? 'bg-transparent-checkerboard' : 'bg-black/5'} rounded-md overflow-hidden`}>
-                                   <SecureImage
-                                     url={msg.url}
-                                     alt=""
-                                     onClick={() => openViewer(msg.url, msg.id)}
-                                     className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-contain retro-border cursor-pointer hover:brightness-95 transition-all`}
-                                   />
+                                   {msg.metadata?.isViewOnce ? (
+                                      <ViewOnceMedia 
+                                        url={msg.url} 
+                                        type="image" 
+                                        onViewed={() => syncDeleteMessage(msg.id)}
+                                        className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'}`}
+                                      />
+                                   ) : (
+                                     <SecureImage
+                                       url={msg.url}
+                                       alt=""
+                                       onClick={() => openViewer(msg.url, msg.id)}
+                                       className={`${isPureImage ? 'w-48 sm:w-64' : 'w-32 h-32 sm:w-48 sm:h-48'} object-contain retro-border cursor-pointer hover:brightness-95 transition-all`}
+                                     />
+                                   )}
                                  </div>
                                  {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
+                                 {!msg.metadata?.isViewOnce && renderMediaToolbar(msg, isMe)}
+                               </div>
+                             )}      {msg.text && <span className="italic text-xs opacity-80 break-words whitespace-pre-wrap max-w-full-break block">{msg.text}</span>}
                                  {renderMediaToolbar(msg, isMe)}
                                </div>
                              )}
@@ -1944,8 +1967,14 @@ export function ChatView({ onClose, sfx }) {
               {pendingFiles.length > 0 && (
                 <div className="p-3 bg-window border-b-2 border-dashed border-border flex flex-col gap-3 animate-in slide-in-from-bottom-2 text-main-text select-none">
                   <div className="w-full flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-primary">Attachment(s) staged for upload:</span>
-                    <button onClick={() => setPendingFiles([])} className="text-[9px] font-bold underline opacity-60 hover:opacity-100 uppercase tracking-tighter">Clear All</button>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-primary">Attachment(s) staged for upload:</span>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-main-text group">
+                        <input type="checkbox" checked={isViewOnce} onChange={(e) => setIsViewOnce(e.target.checked)} className="w-3 h-3 accent-[var(--color-destructive)]" />
+                        <span className="group-hover:text-[var(--color-destructive)] transition-colors uppercase tracking-widest">View Once</span>
+                      </label>
+                    </div>
+                    <button onClick={() => { setPendingFiles([]); setIsViewOnce(false); }} className="text-[9px] font-bold underline opacity-60 hover:opacity-100 uppercase tracking-tighter">Clear All</button>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {pendingFiles.map((item, i) => (
@@ -2427,7 +2456,7 @@ export function ChatView({ onClose, sfx }) {
       {showResetConfirm && (
         <ConfirmDialog
           title="Reset encryption keys?"
-          message="WARNING: Resetting your keys will prompt you to set a new Chat PIN, but all past encrypted messages will become permanently unreadable. This action cannot be undone."
+          message="WARNING: Resetting your keys will prompt you to set a new Chat PIN. All past messages will become permanently unreadable. This action cannot be undone."
           showCancel={true}
           onConfirm={resetE2EEKeys}
           onCancel={() => setShowResetConfirm(false)}

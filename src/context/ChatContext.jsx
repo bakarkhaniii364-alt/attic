@@ -34,7 +34,7 @@ const decryptedMediaCache = new Map();
 /**
  * Downloads and decrypts encrypted media files from Supabase Storage.
  */
-async function getOrDecryptMedia(row, sharedKey) {
+async function getOrDecryptMedia(row, sharedKeys) {
   if (decryptedMediaCache.has(row.id)) {
     return decryptedMediaCache.get(row.id);
   }
@@ -42,8 +42,23 @@ async function getOrDecryptMedia(row, sharedKey) {
     const meta = row.metadata?.encrypted_media_meta;
     if (!meta) return '';
 
-    // Decrypt the file key and iv
-    const { fileKey, fileIv } = await decryptFileMetadata(meta.ciphertext, meta.iv, sharedKey);
+    const keysArray = Array.isArray(sharedKeys) ? sharedKeys : [sharedKeys];
+    let fileKey, fileIv;
+    let decrypted = false;
+
+    for (const key of keysArray) {
+      try {
+        const result = await decryptFileMetadata(meta.ciphertext, meta.iv, key);
+        fileKey = result.fileKey;
+        fileIv = result.fileIv;
+        decrypted = true;
+        break;
+      } catch (e) {
+        // Try next key
+      }
+    }
+
+    if (!decrypted) throw new Error('Failed to decrypt file metadata with any key');
 
     // Download the encrypted file
     const parts = row.content.split('/');
@@ -81,6 +96,7 @@ export function ChatProvider({ children }) {
   const [isE2EEReady, setIsE2EEReady] = useState(false);
   const privateKeyRef = useRef(null);
   const sharedKeyRef = useRef(null);
+  const sharedKeysHistoryRef = useRef([]);
 
   // E2EE Initialization Guards
   const e2eeInitRef = useRef(false); // Tracks if local keys have been initialized this session
@@ -137,8 +153,20 @@ export function ChatProvider({ children }) {
       });
 
       // 2. Update room profiles in SyncContext (shared with partner for handshake)
+      const existingProfile = sync?.globalState?.room_profiles?.[userId] || {};
+      const currentPubKey = existingProfile.e2ee_public_key;
+      let pubKeyHistory = existingProfile.e2ee_public_key_history || [];
+      
+      if (currentPubKey) {
+        const isDuplicate = pubKeyHistory.some(k => k.x === currentPubKey.x && k.y === currentPubKey.y);
+        if (!isDuplicate) {
+          pubKeyHistory = [...pubKeyHistory, currentPubKey];
+        }
+      }
+
       await sync.updateSyncStateAtomic('room_profiles', userId, {
         e2ee_public_key: localPubJwk,
+        e2ee_public_key_history: pubKeyHistory,
         encrypted_private_key: encrypted,
         e2ee_salt: saltBase64
       });
@@ -246,23 +274,38 @@ export function ChatProvider({ children }) {
           const partnerProfile = roomProfiles[partnerId] || {};
           const partnerPubJwk = partnerProfile.e2ee_public_key;
           if (partnerPubJwk) {
+            const historyJwks = partnerProfile.e2ee_public_key_history || [];
+            const allJwks = [partnerPubJwk, ...historyJwks];
+            
             // Only re-derive if the partner key inputs actually changed
-            const inputFingerprint = `${partnerPubJwk.x}:${partnerPubJwk.y}`;
+            const inputFingerprint = allJwks.map(k => `${k.x}:${k.y}`).join(',');
             if (derivedKeyInputsRef.current === inputFingerprint && sharedKeyRef.current) {
               // Same inputs, skip re-derivation
               return;
             }
-            const partnerPubKey = await importPublicKeyJWK(partnerPubJwk);
-            const derived = await deriveSharedKey(myPrivateKey, partnerPubKey);
-            if (isCurrent) {
+            
+            const derivedKeys = [];
+            for (const jwk of allJwks) {
+               try {
+                 const partnerPubKey = await importPublicKeyJWK(jwk);
+                 const derived = await deriveSharedKey(myPrivateKey, partnerPubKey);
+                 derivedKeys.push(derived);
+               } catch (e) {
+                 console.warn('[E2EE] Failed to derive historical key:', e);
+               }
+            }
+            
+            if (isCurrent && derivedKeys.length > 0) {
               derivedKeyInputsRef.current = inputFingerprint;
-              sharedKeyRef.current = derived;
+              sharedKeyRef.current = derivedKeys[0];
+              sharedKeysHistoryRef.current = derivedKeys;
               setIsE2EEReady(true);
             }
           } else {
             if (isCurrent) {
               derivedKeyInputsRef.current = null;
               sharedKeyRef.current = null;
+              sharedKeysHistoryRef.current = [];
               setIsE2EEReady(false);
             }
           }
@@ -439,7 +482,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsRestoring(false);
     }
-  }, [userId, addToast]);
+  }, [userId, roomId, sync, addToast]);
 
   /**
    * Maps a database row into an application message object.
@@ -471,15 +514,23 @@ export function ChatProvider({ children }) {
       mapped.text = 'This message was deleted';
     } else if (row.type === 'text') {
       if (isEncrypted) {
-        if (currentSharedKey) {
-          try {
-            mapped.text = await decryptText(row.content, row.metadata.iv, currentSharedKey);
-          } catch (e) {
-            console.debug('[E2EE] Decrypt text failed (probably encrypted with a different key):', e.message);
-            mapped.text = '🔒 Encrypted Message (Decryption failed)';
+        if (sharedKeysHistoryRef.current.length > 0) {
+          let decrypted = false;
+          for (const key of sharedKeysHistoryRef.current) {
+            try {
+              mapped.text = await decryptText(row.content, row.metadata.iv, key);
+              decrypted = true;
+              break;
+            } catch (e) {
+              // Try next key
+            }
+          }
+          if (!decrypted) {
+            console.debug('[E2EE] Decrypt text failed for all available keys');
+            mapped.text = '[Encrypted Message (Decryption failed)]';
           }
         } else {
-          mapped.text = '🔒 Encrypted Message';
+          mapped.text = '[Encrypted Message]';
         }
       } else {
         mapped.text = row.content || '';
@@ -489,8 +540,8 @@ export function ChatProvider({ children }) {
       }
     } else if (row.type === 'image') {
       if (isEncrypted) {
-        if (currentSharedKey) {
-          mapped.url = await getOrDecryptMedia(row, currentSharedKey);
+        if (sharedKeysHistoryRef.current.length > 0) {
+          mapped.url = await getOrDecryptMedia(row, sharedKeysHistoryRef.current);
         } else {
           mapped.url = '';
           mapped.isMediaLocked = true;
@@ -500,8 +551,8 @@ export function ChatProvider({ children }) {
       }
     } else if (row.type === 'voice') {
       if (isEncrypted) {
-        if (currentSharedKey) {
-          mapped.audioUrl = await getOrDecryptMedia(row, currentSharedKey);
+        if (sharedKeysHistoryRef.current.length > 0) {
+          mapped.audioUrl = await getOrDecryptMedia(row, sharedKeysHistoryRef.current);
         } else {
           mapped.audioUrl = '';
           mapped.isMediaLocked = true;
@@ -511,8 +562,8 @@ export function ChatProvider({ children }) {
       }
     } else if (row.type === 'video' || row.type === 'audio' || row.type === 'file') {
       if (isEncrypted) {
-        if (currentSharedKey) {
-          mapped.url = await getOrDecryptMedia(row, currentSharedKey);
+        if (sharedKeysHistoryRef.current.length > 0) {
+          mapped.url = await getOrDecryptMedia(row, sharedKeysHistoryRef.current);
         } else {
           mapped.url = '';
           mapped.isMediaLocked = true;

@@ -1081,3 +1081,80 @@ export function MediaEditorOverlay({ file, type, onSave, onClose, sfx }) {
     </div>
   );
 }
+
+// ── ViewOnceMedia ──
+export function ViewOnceMedia({ url, type, onViewed, className = "" }) {
+  const [isViewing, setIsViewing] = useState(false);
+  const [isViewed, setIsViewed] = useState(false);
+
+  useEffect(() => {
+    const handleBlur = () => {
+      if (isViewing) {
+        setIsViewing(false);
+        setIsViewed(true);
+        if (onViewed) onViewed();
+      }
+    };
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, [isViewing, onViewed]);
+
+  const handleStart = (e) => {
+    if (isViewed) return;
+    if (e.type === 'mousedown' && e.button !== 0) return; // Only left click
+    // Prevent default to stop scrolling or text selection while holding
+    if (e.cancelable) e.preventDefault();
+    setIsViewing(true);
+  };
+
+  const handleEnd = () => {
+    if (isViewing) {
+      setIsViewing(false);
+      setIsViewed(true);
+      if (onViewed) onViewed();
+    }
+  };
+
+  if (isViewed) {
+    return (
+      <div className={`flex flex-col items-center justify-center p-4 retro-border border-dashed bg-black/5 ${className} min-h-[120px] w-full max-w-[240px]`}>
+        <Ban size={24} className="text-main-text/40 mb-2" />
+        <span className="text-[10px] font-black uppercase text-main-text/40 tracking-widest">Destroyed</span>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className={`relative select-none touch-none ${className}`}
+      onMouseDown={handleStart}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onTouchStart={handleStart}
+      onTouchEnd={handleEnd}
+      onTouchCancel={handleEnd}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {isViewing ? (
+        <div className="w-full h-full relative pointer-events-none">
+          {type === 'video' ? (
+            <video src={url} className="w-full h-full object-contain retro-border bg-black" autoPlay muted loop playsInline />
+          ) : (
+            <img src={url} className="w-full h-full object-contain retro-border bg-black/5" alt="View Once" />
+          )}
+          <div className="absolute top-2 right-2 bg-[var(--color-destructive)] text-white text-[8px] font-black uppercase px-2 py-0.5 tracking-widest retro-border shadow-md animate-pulse">
+            Release to destroy
+          </div>
+        </div>
+      ) : (
+        <div className="w-full h-full min-h-[160px] min-w-[160px] flex flex-col items-center justify-center p-6 retro-border bg-window retro-shadow cursor-pointer hover:bg-accent/10 transition-colors group">
+          <div className="w-12 h-12 rounded-full bg-[var(--color-destructive)]/10 text-[var(--color-destructive)] flex items-center justify-center mb-3 group-active:scale-90 transition-transform">
+            <Eye size={24} />
+          </div>
+          <span className="text-[11px] font-black uppercase text-[var(--color-destructive)] tracking-wider">View Once</span>
+          <span className="text-[9px] font-bold text-main-text/60 mt-1 tracking-widest uppercase">Hold to view</span>
+        </div>
+      )}
+    </div>
+  );
+}

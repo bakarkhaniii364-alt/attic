@@ -145,8 +145,8 @@ export function AuthView({ mode }) {
 
   const startAuthFlow = (e) => {
     e.preventDefault();
-    if (!captchaToken) {
-      addToast("Please complete the captcha", "error");
+    if (!captchaToken && !import.meta.env.DEV) {
+      addToast("Please complete the captcha (disable adblocker if missing)", "error");
       return;
     }
     // Terms agreement is only required for new accounts
@@ -335,7 +335,7 @@ export function AuthView({ mode }) {
 
               <div id="turnstile-container" className="flex justify-center mt-2"></div>
 
-              <RetroButton size="lg" type="submit" disabled={loading || !captchaToken} className="w-full mt-2">
+              <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
               </RetroButton>
             </>
@@ -379,7 +379,7 @@ export function AuthView({ mode }) {
 
               <div id="turnstile-container" className="flex justify-center mt-2"></div>
 
-              <RetroButton size="lg" type="submit" disabled={loading || !captchaToken} className="w-full mt-4">
+              <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-4">
                 {loading ? <Loader className="animate-spin" /> : 'enter attic'}
               </RetroButton>
             </>
