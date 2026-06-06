@@ -642,7 +642,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
             <div className="h-[2px] w-full bg-current"></div>
             <div className="h-[2px] w-full bg-current"></div>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest truncate">media_viewer.exe</span>
+          <span className="text-[10px] font-black uppercase tracking-widest truncate">media_viewer.exe {images.length > 1 ? `[${currentIndex + 1}/${images.length}]` : ''}</span>
         </div>
         <div className="flex items-center gap-1.5">
            <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 retro-border retro-shadow-dark bg-window/10 text-white hover:bg-white/20 transition-all active:translate-y-[1px] active:shadow-none" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
@@ -754,13 +754,6 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
             <button onClick={onPrev} className="absolute left-6 w-14 h-14 bg-window retro-border retro-shadow-dark flex items-center justify-center hover:-translate-x-1 active:translate-x-0 active:shadow-none transition-all z-20 group/nav"><ChevronLeft size={32} className="group-hover/nav:scale-110 transition-transform" /></button>
             <button onClick={onNext} className="absolute right-6 w-14 h-14 bg-window retro-border retro-shadow-dark flex items-center justify-center hover:translate-x-1 active:translate-x-0 active:shadow-none transition-all z-20 group/nav"><ChevronRight size={32} className="group-hover/nav:scale-110 transition-transform" /></button>
           </>
-        )}
-        
-        {/* Pagination Info */}
-        {images.length > 1 && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-window retro-border-thick px-4 py-1.5 font-black text-[10px] uppercase tracking-widest select-none z-10 shadow-lg">
-            {currentIndex + 1} / {images.length}
-          </div>
         )}
 
         {/* Delete Confirmation Overlay */}

@@ -473,6 +473,26 @@ export function ChatProvider({ children }) {
     });
   }, [userId, sync, addToast]);
 
+  const clearChatHistory = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      const { error } = await supabase.from('chat_messages').delete().eq('room_id', roomId);
+      if (error) {
+        console.error('[CHAT] Error clearing chat history:', error);
+        return;
+      }
+      setMessages([]);
+      const rawCacheKey = `chat_raw_cache_${roomId}_${CACHE_VERSION}`;
+      localforage.setItem(rawCacheKey, []).catch(() => {});
+
+      if (sync?.broadcast) {
+        sync.broadcast('chat_cleared', { roomId });
+      }
+    } catch (e) {
+      console.error('[CHAT] clearChatHistory exception:', e);
+    }
+  }, [roomId, sync]);
+
   const handleResetHistory = useCallback(async () => {
     setIsRestoring(true);
     setRestoreError(null);
@@ -986,29 +1006,42 @@ export function ChatProvider({ children }) {
 
   const deleteMessage = useCallback(async (id) => {
     if (!id) return;
+    
+    // Track row locally for test mode deletion
+    if (isTestMode()) {
+      setMessages(prev => prev.filter(m => m.id !== id));
+      sendTestStateUpdate('chat_message_delete', { id });
+      return;
+    }
+
+    try {
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (data) {
+        const content = data.content;
+        const type = data.type;
+        // If content points to a file in a storage bucket
+        if ((type === 'image' || type === 'video' || type === 'audio' || type === 'voice' || type === 'file') && content && content.includes('/')) {
+          const parts = content.split('/');
+          const bucket = parts[0];
+          const path = parts.slice(1).join('/');
+          if (bucket && path) {
+            console.log(`[CHAT] Deleting file from storage bucket ${bucket}: ${path}`);
+            await supabase.storage.from(bucket).remove([path]);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[CHAT] Failed to delete media file from storage:', e);
+    }
+
     const { error } = await supabase.from('chat_messages').delete().eq('id', id);
     if (error) console.error('[CHAT] Delete error:', error);
   }, []);
-
-  const clearChatHistory = useCallback(async () => {
-    if (!roomId) return;
-    try {
-      const { error } = await supabase.from('chat_messages').delete().eq('room_id', roomId);
-      if (error) {
-        console.error('[CHAT] Error clearing chat history:', error);
-        return;
-      }
-      setMessages([]);
-      const rawCacheKey = `chat_raw_cache_${roomId}_${CACHE_VERSION}`;
-      localforage.setItem(rawCacheKey, []).catch(() => {});
-
-      if (sync?.broadcast) {
-        sync.broadcast('chat_cleared', { roomId });
-      }
-    } catch (e) {
-      console.error('[CHAT] clearChatHistory exception:', e);
-    }
-  }, [roomId, sync]);
 
   const loadMore = useCallback(async () => {
     if (!roomId || !hasMore || loading) return;
