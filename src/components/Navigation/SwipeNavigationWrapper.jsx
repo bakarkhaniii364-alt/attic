@@ -72,7 +72,7 @@ export function SwipeNavigationWrapper({ children, activeTab, sfxEnabled }) {
   if (!isMobile) {
     // Desktop layout has no swipe track, simply render active children view statically
     const idx = tabIndices[activeTab] !== undefined ? tabIndices[activeTab] : 0;
-    return <div className="w-full h-full flex flex-col items-center">{children[idx]}</div>;
+    return children[idx];
   }
 
   const handleTouchStart = (e) => {

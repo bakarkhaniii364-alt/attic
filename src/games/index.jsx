@@ -450,8 +450,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // 1. Arcade Menu Phase
   if (currentPhase === 'menu') {
     return (
-      <div className={`w-full h-full flex flex-col ${isMobile ? 'p-0' : 'items-center justify-center p-4 md:p-8'}`}>
-        <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-2xl flex-1 flex flex-col relative overflow-hidden" noPadding>
+      <RetroWindow title="activities_hub.exe" onClose={onClose} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg relative overflow-hidden" noPadding>
         <div className="flex border-b-2 retro-border shrink-0 bg-[var(--bg-main)]">
            <button onClick={() => setView('arcade')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs transition-all ${view === 'arcade' ? 'bg-[var(--primary)] text-white' : 'opacity-60 grayscale'}`}>Games</button>
            <button onClick={() => setView('scores')} className={`flex-1 py-3 font-black uppercase tracking-widest text-xs border-l-2 retro-border transition-all ${view === 'scores' ? 'bg-[var(--secondary)] text-white' : 'opacity-60 grayscale'}`}>Leaderboard</button>
@@ -558,7 +557,6 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           </div>
         )}
         </RetroWindow>
-      </div>
     );
   }
 
@@ -718,82 +716,82 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     const amIReady = isPlayerA ? arcadeSession?.player_a_ready : arcadeSession?.player_b_ready;
 
     return (
-      <div className={`w-full h-full flex flex-col ${isMobile ? 'p-0' : 'items-center justify-center p-4 md:p-8'}`}>
-        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-2xl flex-1 flex flex-col relative bg-[var(--bg-window)]" noPadding>
-         <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-[var(--bg-window)]">
-            <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
-            
-            <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
-                <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game?.title || gameRoute}</span>
-                <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession?.game_state?.mode || 'Online'}</span>
-            </div>
-            <div className="flex justify-center gap-8 mb-10 w-full max-w-md">
-                {/* Player 1 Slot (Always You) */}
-                <div className="flex-1 flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark min-w-[120px]">
-                    <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-2 border-2 border-primary">
-                        <User size={24} className="text-primary" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase opacity-40">P1</span>
-                    <span className="text-sm font-black truncate">{myName || 'You'}</span>
-                    <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${!arcadeSession ? 'bg-gray-400 opacity-50' : (isPlayerA ? (arcadeSession.player_a_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white'))}`}>
-                        {!arcadeSession ? 'SYNCING...' : (isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING'))}
-                    </div>
-                </div>
-
-                {/* VS Divider */}
-                <div className="flex items-center justify-center">
-                    <span className="text-2xl font-black italic opacity-20">VS</span>
-                </div>
-
-                {/* Player 2 Slot (Partner) */}
-                <div className="flex-1 flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark min-w-[120px]">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 border-2 ${partnerInLobby ? 'bg-accent/20 border-accent' : 'bg-border/10 border-dashed border-border'}`}>
-                        {partnerInLobby ? <User size={24} className="text-accent" /> : <Monitor size={24} className="opacity-20" />}
-                    </div>
-                    <span className="text-[10px] font-black uppercase opacity-40">P2</span>
-                    <span className={`text-sm font-black truncate ${!partnerInLobby ? 'opacity-30' : ''}`}>
-                        {partnerInLobby ? (partnerName || 'Partner') : (arcadeSession ? 'WAITING...' : 'SYNCING...')}
-                    </span>
-                    {partnerInLobby ? (
-                        <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_b_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_a_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white')}`}>
-                            {isPlayerA ? (arcadeSession.player_b_ready ? 'READY' : 'WAITING') : (arcadeSession.player_a_ready ? 'READY' : 'WAITING')}
-                        </div>
-                    ) : (
-                        <div className="mt-2 px-2 py-0.5 text-[8px] font-black uppercase opacity-30 border-2 border-dashed border-black/10">
-                            {!arcadeSession ? 'SYNCING...' : 'EMPTY'}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-4 w-full max-w-xs">
-              <RetroButton 
-                variant={amIReady ? 'primary' : 'accent'} 
-                disabled={!partnerInLobby}
-                onClick={async () => {
-                  const nextReady = !amIReady;
-                  console.log(`🚦 [LOBBY] Toggle ready to ${nextReady}`);
-                  try {
-                     await setReady(nextReady, partnerIsOnline);
-                  } catch (e) {
-                     console.error("Failed to toggle ready:", e);
-                  }
-                }}
-                className="w-full py-3 font-black uppercase text-sm"
-              >
-                {amIReady ? "✓ You are Ready" : "Click to Ready"}
-              </RetroButton>
+      <>
+        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none md:rounded-lg relative overflow-hidden bg-[var(--bg-window)]" noPadding>
+           <div className="flex-1 overflow-y-auto w-full custom-scrollbar flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-window)]">
+              <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
               
-              <RetroButton 
-                variant="secondary"
-                onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} 
-                className="w-full py-2 text-xs"
-              >
-                 {partnerInLobby ? "Ping Partner" : "Resend Invite"}
-              </RetroButton>
-            </div>
-         </div>
-      </RetroWindow>
+              <div className="bg-[var(--bg-window)] border-2 border-black border-dashed px-6 py-2 mb-8 inline-flex flex-col items-center">
+                  <span className="font-black text-[var(--primary)] uppercase tracking-widest text-xl">{game?.title || gameRoute}</span>
+                  <span className="text-xs font-bold opacity-70 uppercase tracking-widest mt-1">Mode: {arcadeSession?.game_state?.mode || 'Online'}</span>
+              </div>
+              <div className="flex justify-center gap-8 mb-10 w-full max-w-md">
+                  {/* Player 1 Slot (Always You) */}
+                  <div className="flex-1 flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark min-w-[120px]">
+                      <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-2 border-2 border-primary">
+                          <User size={24} className="text-primary" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase opacity-40">P1</span>
+                      <span className="text-sm font-black truncate">{myName || 'You'}</span>
+                      <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${!arcadeSession ? 'bg-gray-400 opacity-50' : (isPlayerA ? (arcadeSession.player_a_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_b_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white'))}`}>
+                          {!arcadeSession ? 'SYNCING...' : (isPlayerA ? (arcadeSession.player_a_ready ? 'READY' : 'WAITING') : (arcadeSession.player_b_ready ? 'READY' : 'WAITING'))}
+                      </div>
+                  </div>
+  
+                  {/* VS Divider */}
+                  <div className="flex items-center justify-center">
+                      <span className="text-2xl font-black italic opacity-20">VS</span>
+                  </div>
+  
+                  {/* Player 2 Slot (Partner) */}
+                  <div className="flex-1 flex flex-col items-center p-4 bg-[var(--bg-window)] retro-border retro-shadow-dark min-w-[120px]">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 border-2 ${partnerInLobby ? 'bg-accent/20 border-accent' : 'bg-border/10 border-dashed border-border'}`}>
+                          {partnerInLobby ? <User size={24} className="text-accent" /> : <Monitor size={24} className="opacity-20" />}
+                      </div>
+                      <span className="text-[10px] font-black uppercase opacity-40">P2</span>
+                      <span className={`text-sm font-black truncate ${!partnerInLobby ? 'opacity-30' : ''}`}>
+                          {partnerInLobby ? (partnerName || 'Partner') : (arcadeSession ? 'WAITING...' : 'SYNCING...')}
+                      </span>
+                      {partnerInLobby ? (
+                          <div className={`mt-2 px-2 py-0.5 text-[8px] font-black uppercase retro-border ${isPlayerA ? (arcadeSession.player_b_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white') : (arcadeSession.player_a_ready ? 'bg-[var(--color-game)] text-white' : 'bg-orange-400 text-white')}`}>
+                              {isPlayerA ? (arcadeSession.player_b_ready ? 'READY' : 'WAITING') : (arcadeSession.player_a_ready ? 'READY' : 'WAITING')}
+                          </div>
+                      ) : (
+                          <div className="mt-2 px-2 py-0.5 text-[8px] font-black uppercase opacity-30 border-2 border-dashed border-black/10">
+                              {!arcadeSession ? 'SYNCING...' : 'EMPTY'}
+                          </div>
+                      )}
+                  </div>
+              </div>
+  
+              <div className="flex flex-col gap-4 w-full max-w-xs">
+                <RetroButton 
+                  variant={amIReady ? 'primary' : 'accent'} 
+                  disabled={!partnerInLobby}
+                  onClick={async () => {
+                    const nextReady = !amIReady;
+                    console.log(`🚦 [LOBBY] Toggle ready to ${nextReady}`);
+                    try {
+                       await setReady(nextReady, partnerIsOnline);
+                    } catch (e) {
+                       console.error("Failed to toggle ready:", e);
+                    }
+                  }}
+                  className="w-full py-3 font-black uppercase text-sm"
+                >
+                  {amIReady ? "✓ You are Ready" : "Click to Ready"}
+                </RetroButton>
+                
+                <RetroButton 
+                  variant="secondary"
+                  onClick={() => onShareToChat(`Join my lobby for ${game?.title || gameRoute}!`, null, { gameId: gameRoute, type: 'game_invite_modal' })} 
+                  className="w-full py-2 text-xs"
+                >
+                   {partnerInLobby ? "Ping Partner" : "Resend Invite"}
+                </RetroButton>
+              </div>
+           </div>
+        </RetroWindow>
         {showLeaveConfirm && (
           <ConfirmDialog 
             title="Leave Lobby?" 
@@ -815,7 +813,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
             </RetroWindow>
           </div>
         )}
-      </div>
+      </>
     );
   }
 

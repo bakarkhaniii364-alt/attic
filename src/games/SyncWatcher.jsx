@@ -6,8 +6,8 @@ import { RetroWindow, RetroButton } from '../components/UI.jsx';
 import { playAudio } from '../utils/audio.js';
 import { 
     Play, Pause, RotateCcw, RotateCw, Heart, Link as LinkIcon, 
-    MessageSquare, Volume2, VolumeX, Maximize2, Settings, Globe, 
-    Users, Search, ArrowLeft, Film, Tv 
+    MessageSquare, Volume2, VolumeX, Maximize2, Minimize2, Settings, Globe, 
+    Users, Search, ArrowLeft, Film, Tv, X
 } from 'lucide-react';
 import { useSync, useAuth } from '../context/instances.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
@@ -33,7 +33,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const [syncedUrl, setSyncedUrl] = useGlobalSync('sync_watcher_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     const [mode, setMode] = useGlobalSync('sync_watcher_mode', 'video');
     const [syncedTitle, setSyncedTitle] = useGlobalSync('sync_watcher_title_v2', 'YouTube/Video');
-    const [watcherChat, setWatcherChat] = useGlobalSync('sync_watcher_chat_v2', []);
+    const [watcherChatsByUrl, setWatcherChatsByUrl] = useGlobalSync('sync_watcher_chats_by_url_v3', {});
+    const watcherChat = watcherChatsByUrl[syncedUrl] || [];
     
     const myName = roomProfiles?.[userId]?.name || 'You';
 
@@ -141,6 +142,20 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const isSeeking = useRef(false);
     const chatEndRef = useRef(null);
 
+    // Fullscreen and pointer click overlay states
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const [ripples, setRipples] = useState([]);
+
+    const addRipple = useCallback((x, y, label) => {
+        const id = `${Date.now()}-${Math.random()}`;
+        setRipples(prev => [...prev, { id, x, y, label }]);
+        setTimeout(() => {
+            setRipples(prev => prev.filter(r => r.id !== id));
+        }, 1000);
+    }, []);
+
+
     // Control Sync Refs to avoid infinite broadcast loops
     const incomingPlay = useRef(0);
     const incomingPause = useRef(0);
@@ -151,14 +166,20 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
     const appendSystemLog = useCallback((text) => {
         const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, sender: 'SYSTEM', text };
-        setWatcherChat((prev) => [...(prev || []), entry]);
-        broadcast('watcher_chat', entry);
-    }, [setWatcherChat, broadcast]);
+        setWatcherChatsByUrl((prev) => ({
+            ...prev,
+            [syncedUrl]: [...(prev[syncedUrl] || []), entry]
+        }));
+        broadcast('watcher_chat', { ...entry, url: syncedUrl });
+    }, [syncedUrl, setWatcherChatsByUrl, broadcast]);
 
     const appendChatMessage = useCallback((msg) => {
-        setWatcherChat((prev) => [...(prev || []), msg]);
-        broadcast('watcher_chat', { ...msg, isMe: false });
-    }, [setWatcherChat, broadcast]);
+        setWatcherChatsByUrl((prev) => ({
+            ...prev,
+            [syncedUrl]: [...(prev[syncedUrl] || []), msg]
+        }));
+        broadcast('watcher_chat', { ...msg, url: syncedUrl, isMe: false });
+    }, [syncedUrl, setWatcherChatsByUrl, broadcast]);
 
     const archiveSession = useCallback((prevUrl, prevTitle, chatLogs) => {
         if (!prevUrl || !chatLogs || chatLogs.length === 0) return;
@@ -192,8 +213,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         archiveSession(syncedUrl, syncedTitle, watcherChat);
         setSyncedUrl(newUrl);
         setSyncedTitle(newTitle);
-        setWatcherChat([]);
-    }, [syncedUrl, syncedTitle, watcherChat, archiveSession, setSyncedUrl, setSyncedTitle, setWatcherChat]);
+        // Do not clear the chat history, it will automatically load the chat for the newUrl from watcherChatsByUrl!
+    }, [syncedUrl, syncedTitle, watcherChat, archiveSession, setSyncedUrl, setSyncedTitle]);
 
     const handleProviderChange = (prov) => {
         playAudio('click', sfx);
@@ -252,6 +273,15 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     useEffect(() => {
         broadcast('watcher_join', { sender: userId });
     }, [broadcast, userId]);
+
+    useEffect(() => {
+        const handleFsChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
+
 
 
     // TMDb API Key from Vite env (Optional)
@@ -539,24 +569,109 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     };
 
 
-    const handleNextPrevEpisode = (direction) => {
+    const getEpisodesForSeason = async (tvId, seasonNum) => {
+        try {
+            if (tmdbKey && !String(tvId).startsWith('tt')) {
+                const eps = await fetchTMDBSeasonEpisodes(tvId, seasonNum);
+                return eps ? eps.map(e => ({ number: e.episode_number })) : [];
+            } else {
+                let tvmazeId = tvId;
+                if (String(tvId).startsWith('tt')) {
+                    const lookup = await lookupTVmazeByImdb(tvId);
+                    if (lookup && lookup.id) {
+                        tvmazeId = lookup.id;
+                    } else {
+                        return [];
+                    }
+                }
+                const eps = await fetchTVmazeEpisodes(tvmazeId);
+                if (!eps) return [];
+                return eps.filter(e => e.season === seasonNum).map(e => ({ number: e.number }));
+            }
+        } catch (e) {
+            console.error('[SYNC] Failed to fetch episodes:', e);
+            return [];
+        }
+    };
+
+    const handleNextPrevEpisode = async (direction) => {
         playAudio('click', sfx);
-        const newEp = Math.max(1, currentEpisode + direction);
+        
+        let newEp = currentEpisode + direction;
+        let newSeason = currentSeason;
+        
+        if (addToast) {
+            addToast({ message: 'Loading next episode...', type: 'info', duration: 1500 });
+        }
+
+        if (direction > 0) {
+            const currentSeasonEps = await getEpisodesForSeason(currentTvId, currentSeason);
+            const totalEps = currentSeasonEps.length;
+            
+            if (totalEps > 0 && currentEpisode >= totalEps) {
+                // End of season reached, try next season
+                const nextSeasonNum = currentSeason + 1;
+                const nextSeasonEps = await getEpisodesForSeason(currentTvId, nextSeasonNum);
+                if (nextSeasonEps.length > 0) {
+                    newSeason = nextSeasonNum;
+                    newEp = 1;
+                } else {
+                    if (addToast) {
+                        addToast({ message: 'You have reached the end of the series!', type: 'info' });
+                    }
+                    return;
+                }
+            }
+        } else {
+            // Going backwards
+            if (newEp < 1) {
+                if (currentSeason > 1) {
+                    const prevSeasonNum = currentSeason - 1;
+                    const prevSeasonEps = await getEpisodesForSeason(currentTvId, prevSeasonNum);
+                    if (prevSeasonEps.length > 0) {
+                        newSeason = prevSeasonNum;
+                        newEp = prevSeasonEps.length; // Last episode of previous season
+                    } else {
+                        newEp = 1;
+                    }
+                } else {
+                    newEp = 1;
+                }
+            }
+        }
+
         const isImdb = String(currentTvId).startsWith('tt');
         const url = isImdb
-            ? `https://vidsrc.su/embed/tv/${currentTvId}/${currentSeason}/${newEp}`
-            : `https://www.vidking.net/embed/tv/${currentTvId}/${currentSeason}/${newEp}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+            ? `https://vidsrc.su/embed/tv/${currentTvId}/${newSeason}/${newEp}`
+            : `https://www.vidking.net/embed/tv/${currentTvId}/${newSeason}/${newEp}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
         
         const showTitle = selectedShow?.title || (isTvUrl ? "TV Show" : "Cinema");
-        const epTitle = `${showTitle} - Season ${currentSeason} Ep ${newEp}`;
+        const epTitle = `${showTitle} - Season ${newSeason} Ep ${newEp}`;
         loadNewVideo(url, epTitle);
-        appendSystemLog(`${myName} skipped to Episode ${newEp}`);
+        appendSystemLog(`${myName} skipped to Season ${newSeason} Episode ${newEp}`);
     };
 
     // --- CONTROLS ---
     const handlePlayPause = () => {
         playAudio('click', sfx);
         setPlaying(!playing);
+    };
+
+    const handlePlayerClick = (e) => {
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        playAudio('click', sfx);
+        const nextPlaying = !playing;
+        setPlaying(nextPlaying);
+
+        addRipple(x, y, myName);
+
+        broadcast('watcher_click', { x, y, playing: nextPlaying, senderName: myName, sender: userId });
+        broadcast('watcher_control', { action: nextPlaying ? 'PLAY' : 'PAUSE' });
+        appendSystemLog(`${myName} ${nextPlaying ? 'played' : 'paused'} the video`);
     };
 
     const handleSkip = (seconds) => {
@@ -672,16 +787,23 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     useEffect(() => {
         const handleBroadcast = ({ detail: { event, payload } }) => {
             if (event === 'watcher_chat') {
-                setWatcherChat(prev => {
-                    const list = prev || [];
-                    if (list.some(m => m.id === payload.id)) return list;
-                    return [...list, payload];
+                const targetUrl = payload.url || syncedUrl;
+                setWatcherChatsByUrl(prev => {
+                    const list = prev[targetUrl] || [];
+                    if (list.some(m => m.id === payload.id)) return prev;
+                    return {
+                        ...prev,
+                        [targetUrl]: [...list, payload]
+                    };
                 });
             }
             if (event === 'watcher_heart') {
                 const newHeart = { id: Date.now(), x: payload.x, y: payload.y };
                 setHearts(prev => [...prev, newHeart]);
                 setTimeout(() => setHearts(prev => prev.filter(h => h.id !== newHeart.id)), 2000);
+            }
+            if (event === 'watcher_click' && payload.sender !== userId) {
+                addRipple(payload.x, payload.y, payload.senderName);
             }
             if (event === 'watcher_join' && payload.sender !== userId) {
                 if (playerRef.current) {
@@ -734,7 +856,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
         window.addEventListener('sync_broadcast', handleBroadcast);
         return () => window.removeEventListener('sync_broadcast', handleBroadcast);
-    }, [playing, syncedUrl, userId, broadcast]); // need playing in deps for the pulse listener logic
+    }, [playing, syncedUrl, userId, broadcast, addRipple, setWatcherChatsByUrl]); // need playing in deps for the pulse listener logic
 
     const sendChat = (e) => {
         e.preventDefault();
@@ -749,8 +871,11 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const toggleFullscreen = () => {
         playAudio('click', sfx);
         if (wrapperRef.current) {
-            if (document.fullscreenElement) document.exitFullscreen();
-            else wrapperRef.current.requestFullscreen();
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.error("Error exiting fullscreen:", err));
+            } else {
+                wrapperRef.current.requestFullscreen().catch(err => console.error("Error entering fullscreen:", err));
+            }
         }
     };
 
@@ -761,7 +886,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
 
     return (
-        <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[100dvh] md:h-[calc(100dvh-4rem)] max-h-none md:max-h-[850px] border-none md:border-solid flex flex-col shadow-none md:shadow-2xl" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
+        <RetroWindow title={`sync_watcher.exe`} className="w-full max-w-6xl h-[100dvh] md:h-[calc(100dvh-4rem)] max-h-none md:max-h-[850px] border-none md:border-solid flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
             
             {/* Header Status Bar */}
             <div className="bg-border text-window p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 text-[10px] uppercase tracking-widest border-b-[3px] border-border">
@@ -807,7 +932,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                     {/* The Player / Browser / Cinema */}
                     <div className="flex-1 relative flex items-center justify-center w-full h-full">
                         {mode === 'video' ? (
-                            <>
+                            <div className="relative w-full h-full">
                                 {loadError && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black text-white/80 text-center p-4">
                                         <p className="font-bold text-lg mb-2">Could not load video</p>
@@ -867,19 +992,116 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                     style={{ position: 'absolute', top: 0, left: 0 }}
                                     config={{ youtube: { playerVars: { modestbranding: 1, rel: 0, controls: 1 } } }}
                                 />
-                            </>
+                                {/* Click Catcher Overlay (covers top 85% of player to allow clicking bottom player bar) */}
+                                <div 
+                                    className="absolute top-0 left-0 right-0 bottom-12 z-20 cursor-pointer" 
+                                    onClick={handlePlayerClick}
+                                />
+                                
+                                {/* Ripples overlay */}
+                                <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+                                    {ripples.map(ripple => (
+                                        <div 
+                                            key={ripple.id} 
+                                            className="absolute flex flex-col items-center -translate-x-1/2 -translate-y-1/2"
+                                            style={{ left: `${ripple.x}%`, top: `${ripple.y}%` }}
+                                        >
+                                            <div className="w-12 h-12 rounded-full border-2 border-primary absolute opacity-70 animate-ping" />
+                                            <div 
+                                                className="w-8 h-8 rounded-full border-2 border-primary bg-primary/20 flex items-center justify-center"
+                                                style={{ animation: 'ripple-pulse 0.8s ease-out forwards' }}
+                                            />
+                                            {ripple.label && (
+                                                <span className="mt-2 bg-black/85 text-white font-black text-[8px] uppercase px-1.5 py-0.5 rounded tracking-widest border border-white/20 shadow-md">
+                                                    {ripple.label}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <style>{`
+                                    @keyframes ripple-pulse {
+                                        0% {
+                                            transform: scale(0.2);
+                                            opacity: 1;
+                                            border-width: 3px;
+                                        }
+                                        100% {
+                                            transform: scale(1.5);
+                                            opacity: 0;
+                                            border-width: 1px;
+                                        }
+                                    }
+                                `}</style>
+                            </div>
                         ) : (
                             /* CINEMA MODE */
                             <div className="absolute inset-0 bg-main flex flex-col overflow-hidden">
                                         {isCinemaPlayerUrl && !showCinemaSearch ? (
                                     <>
-                                        {/* Cinema Search Overlay Toggle */}
-                                        <button 
-                                            onClick={() => { playAudio('click', sfx); setShowCinemaSearch(true); }} 
-                                            className="absolute top-3 left-3 z-30 px-3 py-1.5 bg-black/85 text-white font-black text-[10px] retro-border hover:bg-primary transition-colors flex items-center gap-1.5 uppercase tracking-widest shadow-lg"
+                                        {/* Floating Cinema Fullscreen Button */}
+                                        <div className="absolute top-3 left-3 z-30">
+                                            <button 
+                                                onClick={toggleFullscreen} 
+                                                className="p-2 bg-black/85 text-white retro-border hover:bg-primary transition-colors flex items-center justify-center shadow-lg active:translate-y-[1px]"
+                                                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                                            >
+                                                {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                                            </button>
+                                        </div>
+
+                                        {/* Cinema Search Overlay Toggle (Hover zone revealed on top-right) */}
+                                        <div 
+                                            className="absolute top-0 right-0 p-8 pt-3 pr-3 z-30 group/search-zone flex justify-end"
+                                            onMouseLeave={() => {
+                                                if (!searchQuery.trim()) {
+                                                    setIsSearchExpanded(false);
+                                                }
+                                            }}
                                         >
-                                            <Search size={12} /> Search Cinema
-                                        </button>
+                                            <div className={`transition-all duration-300 flex items-center gap-1.5 bg-black/85 p-1.5 retro-border shadow-lg ${isSearchExpanded ? 'opacity-100' : 'opacity-0 group-hover/search-zone:opacity-100'}`}>
+                                                {isSearchExpanded && (
+                                                    <input 
+                                                        type="text"
+                                                        value={searchQuery}
+                                                        onChange={e => setSearchQuery(e.target.value)}
+                                                        placeholder="Search Cinema..."
+                                                        className="bg-main text-main-text font-bold border border-border px-2 py-0.5 text-[9px] uppercase focus:outline-none focus:border-primary w-32"
+                                                        onClick={e => e.stopPropagation()}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') {
+                                                                handleSearch(searchQuery);
+                                                                setShowCinemaSearch(true);
+                                                                setIsSearchExpanded(false);
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                    />
+                                                )}
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        playAudio('click', sfx);
+                                                        if (!isSearchExpanded) {
+                                                            setIsSearchExpanded(true);
+                                                        } else {
+                                                            if (searchQuery.trim()) {
+                                                                handleSearch(searchQuery);
+                                                                setShowCinemaSearch(true);
+                                                                setIsSearchExpanded(false);
+                                                            } else {
+                                                                setIsSearchExpanded(false);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="p-1 text-white hover:text-primary transition-colors flex items-center justify-center"
+                                                    title="Search Cinema"
+                                                >
+                                                    <Search size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
 
                                         {providerAllowedEmbed ? (
                                             <>
@@ -923,6 +1145,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                     Note: Content is hosted by third-party providers. If a video fails to load, try switching the Mirror above.
                                                 </p>
                                             </div>
+                                            {isCinemaPlayerUrl && (
+                                                <RetroButton 
+                                                    onClick={() => { playAudio('click', sfx); setShowCinemaSearch(false); }} 
+                                                    className="px-4 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm shrink-0"
+                                                >
+                                                    <X size={12} /> Close Search
+                                                </RetroButton>
+                                            )}
                                         </div>
 
                                         {selectedShow ? (
@@ -1190,7 +1420,11 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                 </div>
 
                 {/* RIGHT: Live Chat Sidebar */}
-                <div className="w-full lg:w-80 bg-window flex flex-col shrink-0 h-64 lg:h-auto">
+                <div className={`w-full lg:w-80 bg-window flex flex-col shrink-0 transition-all duration-300 ${
+                    isFullscreen 
+                    ? 'h-[30dvh] w-full portrait:h-[30dvh] portrait:w-full landscape:hidden lg:landscape:flex lg:landscape:w-80 lg:landscape:h-auto' 
+                    : 'h-64 lg:h-auto'
+                }`}>
                     <div className="p-3 bg-border text-window font-black uppercase tracking-widest text-[10px] flex justify-between items-center shrink-0 shadow-sm border-b-[3px] border-border">
                         <span className="flex items-center gap-2">
                             <MessageSquare size={14} /> Live Reaction Chat
