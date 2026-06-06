@@ -493,17 +493,39 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
   
   const isViewOnce = !!metadata.isViewOnce;
   const [isViewingOnce, setIsViewingOnce] = useState(false);
+  const hasBeenViewedRef = useRef(false);
+  const deletedRef = useRef(false);
+
+  if (isViewingOnce) {
+    hasBeenViewedRef.current = true;
+  }
 
   useEffect(() => {
     setIsViewingOnce(false);
+    hasBeenViewedRef.current = false;
+    deletedRef.current = false;
   }, [currentIndex]);
+
+  const handleDeleteViewOnce = useCallback(() => {
+    if (isViewOnce && hasBeenViewedRef.current && !deletedRef.current && onDelete) {
+      deletedRef.current = true;
+      onDelete(currentIndex, 'me');
+    }
+  }, [isViewOnce, currentIndex, onDelete]);
+
+  useEffect(() => {
+    return () => {
+      if (isViewOnce && hasBeenViewedRef.current && !deletedRef.current && onDelete) {
+        deletedRef.current = true;
+        onDelete(currentIndex, 'me');
+      }
+    };
+  }, [isViewOnce, currentIndex, onDelete]);
 
   const handleReleaseViewOnce = () => {
     if (isViewingOnce) {
       setIsViewingOnce(false);
-      if (onDelete) {
-        onDelete(currentIndex, 'me'); // Deletes the message from DB
-      }
+      handleDeleteViewOnce();
       onClose();
     }
   };
@@ -578,7 +600,7 @@ export function ImageViewerOverlay({ images, currentIndex, onClose, onNext, onPr
   };
 
   const handleDownload = () => {
-    if (isDeleted) return;
+    if (isDeleted || isViewOnce) return;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = `attic_media_${Date.now()}.${currentType === 'video' ? 'mp4' : 'png'}`;

@@ -329,6 +329,26 @@ export function ChatProvider({ children }) {
     };
   }, [userId, roomId, partnerId, isSyncInitialized, myPubJwkX, myPubJwkY, partnerPubJwkX, partnerPubJwkY, e2eeVersion, user, saveKeysAndBackup]);
 
+  // Detect if partner has reset their E2EE key and clear local history/cache
+  useEffect(() => {
+    if (!roomId || !partnerId || !isSyncInitialized) return;
+    const partnerProfile = roomProfiles[partnerId];
+    const partnerPubKey = partnerProfile?.e2ee_public_key;
+    if (partnerPubKey) {
+      const pubKeyStr = `${partnerPubKey.x}:${partnerPubKey.y}`;
+      const cacheKey = `last_partner_pubkey_${roomId}_${partnerId}`;
+      const storedPubKey = localStorage.getItem(cacheKey);
+
+      if (storedPubKey && storedPubKey !== pubKeyStr) {
+        console.log('[E2EE] Partner public key change/reset detected. Clearing local chat history and cache.');
+        setMessages([]);
+        const rawCacheKey = `chat_raw_cache_${roomId}_${CACHE_VERSION}`;
+        localforage.setItem(rawCacheKey, []).catch(() => {});
+      }
+      localStorage.setItem(cacheKey, pubKeyStr);
+    }
+  }, [roomId, partnerId, isSyncInitialized, roomProfiles]);
+
   // Restore/Reset Callbacks
   const handleRestore = useCallback(async (e) => {
     if (e) e.preventDefault();
@@ -467,6 +487,9 @@ export function ChatProvider({ children }) {
       // Clear the cached PIN
       localStorage.removeItem(`e2ee_pin_${userId}`);
 
+      // Delete database messages and local cache
+      await clearChatHistory();
+
       // Force user to set up a new Chat PIN from scratch
       setShowRestorePrompt(false);
       setShowPinSetupPrompt(true);
@@ -482,7 +505,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsRestoring(false);
     }
-  }, [userId, roomId, sync, addToast]);
+  }, [userId, roomId, sync, addToast, clearChatHistory]);
 
   /**
    * Maps a database row into an application message object.

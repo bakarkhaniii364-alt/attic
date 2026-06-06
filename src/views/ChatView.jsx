@@ -1071,7 +1071,7 @@ export function ChatView({ onClose, sfx }) {
 
   const onEmojiClick = (emojiData) => { setInput(prev => prev + emojiData.emoji); };
 
-  const mediaMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group' || m.type === 'video') && !m.isDeleted);
+  const mediaMessages = safeHistory.filter(m => (m.type === 'image' || m.type === 'image_group' || m.type === 'video') && !m.isDeleted && !m.metadata?.isViewOnce);
   // Sort pinned messages by time (newest first)
   const pinnedMessages = safeHistory.filter(m => m.isPinned && !m.isDeleted).reverse();
   const callHistory = safeHistory.filter(m => m.type === 'call_invite');
