@@ -7,7 +7,7 @@ import { playAudio } from '../utils/audio.js';
 import { 
     Play, Pause, RotateCcw, RotateCw, Heart, Link as LinkIcon, 
     MessageSquare, Volume2, VolumeX, Maximize2, Minimize2, Settings, Globe, 
-    Users, Search, ArrowLeft, Film, Tv, X
+    Users, Search, ArrowLeft, Film, Tv, X, Reply, Download
 } from 'lucide-react';
 import { useSync, useAuth } from '../context/instances.js';
 import { useGlobalSync } from '../hooks/useSupabaseSync.js';
@@ -25,6 +25,9 @@ import {
 } from '../utils/cinemaApi.js';
 
 export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
+    // TMDb API Key from Vite env (Optional)
+    const tmdbKey = import.meta.env.VITE_TMDB_API_KEY || '';
+
     const { broadcast, roomProfiles } = useSync();
     const { partnerId } = useAuth();
     const partnerName = roomProfiles?.[partnerId]?.name || 'Partner';
@@ -33,8 +36,17 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const [syncedUrl, setSyncedUrl] = useGlobalSync('sync_watcher_url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     const [mode, setMode] = useGlobalSync('sync_watcher_mode', 'video');
     const [syncedTitle, setSyncedTitle] = useGlobalSync('sync_watcher_title_v2', 'YouTube/Video');
-    const [watcherChatsByUrl, setWatcherChatsByUrl] = useGlobalSync('sync_watcher_chats_by_url_v3', {});
-    const watcherChat = watcherChatsByUrl[syncedUrl] || [];
+    
+    // Watch Sessions & Chats State
+    const [sessions, setSessions] = useGlobalSync('sync_watcher_sessions_v4', []);
+    const [currentSessionId, setCurrentSessionId] = useGlobalSync('sync_watcher_current_session_id_v4', null);
+    const [chatsBySessionId, setChatsBySessionId] = useGlobalSync('sync_watcher_chats_by_session_v4', {});
+    const watcherChat = currentSessionId ? (chatsBySessionId[currentSessionId] || []) : [];
+    
+    // Shared lists state for watchlist auto-add and tick
+    const [lists, setLists] = useGlobalSync('shared_lists', { watchlist: [], bucketlist: [], groceries: [] });
+    const [historyRecommendations, setHistoryRecommendations] = useState([]);
+    const [recsLoading, setRecsLoading] = useState(false);
     
     const myName = roomProfiles?.[userId]?.name || 'You';
 
@@ -49,6 +61,12 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         }
         return saved;
     });
+
+    const [replyingTo, setReplyingTo] = useState(null);
+    const [showTicketsModal, setShowTicketsModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('chat');
+    const [selectedHistorySession, setSelectedHistorySession] = useState(null);
+    const [hasSeenTickets, setHasSeenTickets] = useState(false);
 
     const getLocalEmbedUrl = (url, provider) => {
         const info = parseEmbedUrl(url);
@@ -165,21 +183,23 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     const pendingSyncRef = useRef(null);
 
     const appendSystemLog = useCallback((text) => {
+        if (!currentSessionId) return;
         const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, sender: 'SYSTEM', text };
-        setWatcherChatsByUrl((prev) => ({
+        setChatsBySessionId((prev) => ({
             ...prev,
-            [syncedUrl]: [...(prev[syncedUrl] || []), entry]
+            [currentSessionId]: [...(prev[currentSessionId] || []), entry]
         }));
-        broadcast('watcher_chat', { ...entry, url: syncedUrl });
-    }, [syncedUrl, setWatcherChatsByUrl, broadcast]);
+        broadcast('watcher_chat', { ...entry, sessionId: currentSessionId, isMe: false });
+    }, [currentSessionId, setChatsBySessionId, broadcast]);
 
     const appendChatMessage = useCallback((msg) => {
-        setWatcherChatsByUrl((prev) => ({
+        if (!currentSessionId) return;
+        setChatsBySessionId((prev) => ({
             ...prev,
-            [syncedUrl]: [...(prev[syncedUrl] || []), msg]
+            [currentSessionId]: [...(prev[currentSessionId] || []), msg]
         }));
-        broadcast('watcher_chat', { ...msg, url: syncedUrl, isMe: false });
-    }, [syncedUrl, setWatcherChatsByUrl, broadcast]);
+        broadcast('watcher_chat', { ...msg, sessionId: currentSessionId, isMe: false });
+    }, [currentSessionId, setChatsBySessionId, broadcast]);
 
     const archiveSession = useCallback((prevUrl, prevTitle, chatLogs) => {
         if (!prevUrl || !chatLogs || chatLogs.length === 0) return;
@@ -209,12 +229,214 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         }
     }, [onShareToChat]);
 
-    const loadNewVideo = useCallback((newUrl, newTitle) => {
+    const addToWatchlistAndTick = useCallback((title) => {
+        if (!title) return;
+        setLists(prev => {
+            const currentWatchlist = prev?.watchlist || [];
+            const exists = currentWatchlist.some(item => item.text.toLowerCase() === title.toLowerCase());
+            
+            if (exists) {
+                const needsUpdate = currentWatchlist.some(item => item.text.toLowerCase() === title.toLowerCase() && !item.done);
+                if (!needsUpdate) return prev;
+                return {
+                    ...prev,
+                    watchlist: currentWatchlist.map(item => 
+                        item.text.toLowerCase() === title.toLowerCase() 
+                            ? { ...item, done: true } 
+                            : item
+                    )
+                };
+            } else {
+                const newItem = {
+                    id: Date.now(),
+                    text: title,
+                    done: true,
+                    authorId: userId
+                };
+                return {
+                    ...prev,
+                    watchlist: [...currentWatchlist, newItem]
+                };
+            }
+        });
+    }, [userId, setLists]);
+
+    const fetchAndSaveMetadata = useCallback(async (sessionId, type, tmdbId) => {
+        if (!tmdbId || !tmdbKey) return;
+        try {
+            const endpointType = type === 'tv' ? 'tv' : 'movie';
+            const detailsUrl = `https://api.themoviedb.org/3/${endpointType}/${tmdbId}?api_key=${tmdbKey}&append_to_response=credits`;
+            const details = await fetchJson(detailsUrl);
+            if (details) {
+                const genres = details.genres ? details.genres.map(g => g.name) : [];
+                const year = details.release_date 
+                    ? new Date(details.release_date).getFullYear() 
+                    : details.first_air_date 
+                        ? new Date(details.first_air_date).getFullYear() 
+                        : 'N/A';
+                const cast = details.credits?.cast ? details.credits.cast.slice(0, 5).map(c => c.name) : [];
+                const director = details.credits?.crew ? details.credits.crew.find(c => c.job === 'Director')?.name || '' : '';
+                
+                setSessions(prev => prev.map(s => {
+                    if (s.id === sessionId) {
+                        return {
+                            ...s,
+                            metadata: {
+                                ...s.metadata,
+                                genres,
+                                year,
+                                cast,
+                                director,
+                                tagline: details.tagline || ''
+                            }
+                        };
+                    }
+                    return s;
+                }));
+            }
+        } catch (e) {
+            console.error('Error fetching details from TMDB:', e);
+        }
+    }, [tmdbKey, setSessions]);
+
+    const loadNewVideo = useCallback((newUrl, newTitle, metadata = null) => {
         archiveSession(syncedUrl, syncedTitle, watcherChat);
         setSyncedUrl(newUrl);
         setSyncedTitle(newTitle);
-        // Do not clear the chat history, it will automatically load the chat for the newUrl from watcherChatsByUrl!
-    }, [syncedUrl, syncedTitle, watcherChat, archiveSession, setSyncedUrl, setSyncedTitle]);
+        
+        const itemTitle = metadata?.title || newTitle;
+        const cleanTitle = itemTitle.split(' - Season')[0];
+        addToWatchlistAndTick(cleanTitle);
+        
+        // Resolve session state for new video
+        const active = sessions.find(s => s.url === newUrl && !s.completed);
+        if (active) {
+            setCurrentSessionId(active.id);
+            if (metadata?.tmdbId && (!active.metadata?.genres || active.metadata.genres.length === 0)) {
+                fetchAndSaveMetadata(active.id, metadata.type, metadata.tmdbId);
+            }
+        } else {
+            const latest = [...sessions].reverse().find(s => s.url === newUrl);
+            if (latest) {
+                setCurrentSessionId(latest.id);
+                if (metadata?.tmdbId && (!latest.metadata?.genres || latest.metadata.genres.length === 0)) {
+                    fetchAndSaveMetadata(latest.id, metadata.type, metadata.tmdbId);
+                }
+            } else {
+                const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+                const newSession = {
+                  id: newSessionId,
+                  url: newUrl,
+                  title: newTitle,
+                  startTime: Date.now(),
+                  completed: false,
+                  completedAt: null,
+                  ticketsClaimed: false,
+                  metadata: {
+                    type: metadata?.type || (newTitle.includes('TV Show') || newTitle.includes('Season') ? 'tv' : 'movie'),
+                    tmdbId: metadata?.tmdbId || null,
+                    imdbId: metadata?.imdbId || null,
+                    title: cleanTitle,
+                    poster: metadata?.poster || '',
+                    year: metadata?.year || 'N/A',
+                    genres: [],
+                    cast: metadata?.cast || [],
+                    director: ''
+                  }
+                };
+                setSessions(prev => [...prev, newSession]);
+                setCurrentSessionId(newSessionId);
+                
+                if (metadata?.tmdbId) {
+                    fetchAndSaveMetadata(newSessionId, metadata.type, metadata.tmdbId);
+                }
+            }
+        }
+    }, [syncedUrl, syncedTitle, watcherChat, archiveSession, sessions, setSyncedUrl, setSyncedTitle, setSessions, setCurrentSessionId, addToWatchlistAndTick, fetchAndSaveMetadata]);
+
+    const completeSession = useCallback((sessId) => {
+        if (!sessId) return;
+        setSessions(prev => prev.map(s => {
+            if (s.id === sessId && !s.completed) {
+                return { ...s, completed: true, completedAt: Date.now() };
+            }
+            return s;
+        }));
+        appendSystemLog(`Finished watching "${syncedTitle}"! Collect your digital tickets.`);
+    }, [syncedTitle, setSessions, appendSystemLog]);
+
+    const handleStartNewSession = useCallback((url, title) => {
+        playAudio('click', sfx);
+        const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+        const existingSess = [...sessions].reverse().find(s => s.url === url);
+        const newSession = {
+          id: newSessionId,
+          url: url,
+          title: title,
+          startTime: Date.now(),
+          completed: false,
+          completedAt: null,
+          ticketsClaimed: false,
+          metadata: existingSess?.metadata || {
+            type: title.includes('TV Show') || title.includes('Season') ? 'tv' : 'movie',
+            title: title.split(' - Season')[0],
+            year: 'N/A',
+            genres: [],
+            cast: [],
+            director: ''
+          }
+        };
+        setSessions(prev => [...prev, newSession]);
+        setCurrentSessionId(newSessionId);
+        setChatsBySessionId(prev => ({
+            ...prev,
+            [newSessionId]: []
+        }));
+        appendSystemLog(`${myName} started a new watch session`);
+    }, [sfx, myName, sessions, setSessions, setCurrentSessionId, setChatsBySessionId, appendSystemLog]);
+
+    useEffect(() => {
+        if (!syncedUrl) return;
+        
+        const active = sessions.find(s => s.url === syncedUrl && !s.completed);
+        if (active) {
+            if (currentSessionId !== active.id) {
+                setCurrentSessionId(active.id);
+            }
+        } else {
+            const latest = [...sessions].reverse().find(s => s.url === syncedUrl);
+            if (latest) {
+                if (currentSessionId !== latest.id) {
+                    setCurrentSessionId(latest.id);
+                }
+            } else {
+                if (!currentSessionId) {
+                    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+                    const newSession = {
+                      id: newSessionId,
+                      url: syncedUrl,
+                      title: syncedTitle,
+                      startTime: Date.now(),
+                      completed: false,
+                      completedAt: null,
+                      ticketsClaimed: false
+                    };
+                    setSessions(prev => [...prev, newSession]);
+                    setCurrentSessionId(newSessionId);
+                }
+            }
+        }
+    }, [syncedUrl, sessions, currentSessionId, syncedTitle, setSessions, setCurrentSessionId]);
+
+    const activeSession = sessions.find(s => s.id === currentSessionId);
+    useEffect(() => {
+        if (activeSession && activeSession.completed && !hasSeenTickets) {
+            setShowTicketsModal(true);
+            setHasSeenTickets(true);
+        } else if (activeSession && !activeSession.completed) {
+            setHasSeenTickets(false);
+        }
+    }, [activeSession, hasSeenTickets]);
 
     const handleProviderChange = (prov) => {
         playAudio('click', sfx);
@@ -284,14 +506,133 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
 
 
-    // TMDb API Key from Vite env (Optional)
-    const tmdbKey = import.meta.env.VITE_TMDB_API_KEY || '';
 
     useEffect(() => {
         if (!tmdbKey) {
             console.warn('TMDB key not set — cinema will use fallback providers only');
         }
     }, [tmdbKey]);
+
+    useEffect(() => {
+        const fetchRecommendations = async () => {
+            // Get unique, non-empty sessions with metadata
+            const history = sessions
+                .filter(s => s.metadata && (s.metadata.title || s.metadata.tmdbId))
+                .reverse(); // most recent first
+                
+            if (history.length === 0) {
+                setHistoryRecommendations(RETRO_CLASSIC_SUGGESTIONS.slice(0, 6));
+                return;
+            }
+
+            setRecsLoading(true);
+            const lastThree = history.slice(0, 3);
+
+            if (tmdbKey) {
+                try {
+                    const allRecs = [];
+                    const seenIds = new Set();
+
+                    for (const session of lastThree) {
+                        const { tmdbId, type } = session.metadata;
+                        if (!tmdbId) continue;
+                        const endpointType = type === 'tv' ? 'tv' : 'movie';
+                        const url = `https://api.themoviedb.org/3/${endpointType}/${tmdbId}/recommendations?api_key=${tmdbKey}`;
+                        try {
+                            const data = await fetchJson(url);
+                            if (data?.results) {
+                                data.results.forEach(item => {
+                                    if (!seenIds.has(item.id)) {
+                                        seenIds.add(item.id);
+                                        allRecs.push({
+                                            id: item.id,
+                                            title: item.title || item.name,
+                                            year: item.release_date 
+                                                ? new Date(item.release_date).getFullYear() 
+                                                : item.first_air_date 
+                                                    ? new Date(item.first_air_date).getFullYear() 
+                                                    : 'N/A',
+                                            poster: item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : '',
+                                            type: item.media_type || (item.title ? 'movie' : 'tv'),
+                                            overview: item.overview
+                                        });
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching recommendations for TMDB ID ${tmdbId}:`, e);
+                        }
+                    }
+
+                    if (allRecs.length > 0) {
+                        setHistoryRecommendations(allRecs.slice(0, 6));
+                        setRecsLoading(false);
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Error in TMDB recommendations pipeline:', err);
+                }
+            }
+
+            // Fallback scorer
+            const scoredCatalog = RETRO_CLASSIC_SUGGESTIONS.map(catalogItem => {
+                let score = 0;
+                
+                lastThree.forEach(watched => {
+                    const watchedMeta = watched.metadata;
+                    if (!watchedMeta) return;
+
+                    // 1. Genre match (+3 per genre)
+                    if (Array.isArray(watchedMeta.genres) && Array.isArray(catalogItem.genres)) {
+                        const matchedGenres = catalogItem.genres.filter(g => 
+                            watchedMeta.genres.some(wg => wg.toLowerCase() === g.toLowerCase())
+                        );
+                        score += matchedGenres.length * 3;
+                    }
+
+                    // 2. Director match (+5)
+                    if (watchedMeta.director && catalogItem.director && 
+                        watchedMeta.director.toLowerCase() === catalogItem.director.toLowerCase()) {
+                        score += 5;
+                    }
+
+                    // 3. Lead Cast match (+2 per actor)
+                    if (Array.isArray(watchedMeta.cast) && Array.isArray(catalogItem.cast)) {
+                        const matchedCast = catalogItem.cast.filter(c => 
+                            watchedMeta.cast.some(wc => wc.toLowerCase() === c.toLowerCase())
+                        );
+                        score += matchedCast.length * 2;
+                    }
+
+                    // 4. Year proximity (+2 if within 5 years)
+                    const watchedYear = parseInt(watchedMeta.year);
+                    const catalogYear = parseInt(catalogItem.year);
+                    if (!isNaN(watchedYear) && !isNaN(catalogYear)) {
+                        if (Math.abs(watchedYear - catalogYear) <= 5) {
+                            score += 2;
+                        }
+                    }
+                });
+
+                return { ...catalogItem, score };
+            });
+
+            const watchedTitles = new Set(history.map(s => s.metadata?.title?.toLowerCase() || ''));
+            const filteredRecommendations = scoredCatalog
+                .filter(item => !watchedTitles.has(item.title.toLowerCase()))
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 6);
+
+            if (filteredRecommendations.length > 0) {
+                setHistoryRecommendations(filteredRecommendations);
+            } else {
+                setHistoryRecommendations(scoredCatalog.sort((a, b) => b.score - a.score).slice(0, 6));
+            }
+            setRecsLoading(false);
+        };
+
+        fetchRecommendations();
+    }, [sessions, tmdbKey]);
 
     // Embed URL parsing & derived state
     const parsedEmbed = parseEmbedUrl(syncedUrl);
@@ -386,10 +727,6 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                     if (addedImdbIds.has(item.id)) {
                         continue;
                     }
-                    const tvMatch = tvResults.find(tv => tv.title.toLowerCase() === item.title.toLowerCase());
-                    if (tvMatch) {
-                        continue;
-                    }
                     unifiedResults.push(item);
                     addedImdbIds.add(item.id);
                 }
@@ -443,7 +780,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             const url = isImdb 
                 ? `https://vidsrc.su/embed/movie/${resolvedItem.id}`
                 : `https://www.vidking.net/embed/movie/${resolvedItem.id}?color=e50914&autoPlay=true`;
-            loadNewVideo(url, resolvedItem.title);
+            loadNewVideo(url, resolvedItem.title, {
+                type: 'movie',
+                tmdbId: !isImdb ? resolvedItem.id : null,
+                imdbId: isImdb ? resolvedItem.id : null,
+                title: resolvedItem.title,
+                poster: resolvedItem.poster,
+                year: resolvedItem.year
+            });
             setMode('cinema');
             setShowCinemaSearch(false);
             appendSystemLog(`${myName} started playing Movie: ${resolvedItem.title}`);
@@ -562,7 +906,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
             : `https://www.vidking.net/embed/tv/${id}/${selectedSeason}/${episodeNumber}?color=e50914&autoPlay=true&nextEpisode=true&episodeSelector=true`;
         
         const epTitle = `${selectedShow.title} - Season ${selectedSeason} Ep ${episodeNumber}`;
-        loadNewVideo(url, epTitle);
+        loadNewVideo(url, epTitle, {
+            type: 'tv',
+            tmdbId: tmdbKey ? selectedShow.id : null,
+            imdbId: !tmdbKey ? selectedShow.imdbId : null,
+            title: selectedShow.title,
+            poster: selectedShow.poster,
+            year: selectedShow.year
+        });
         setMode('cinema');
         setShowCinemaSearch(false);
         appendSystemLog(`${myName} started playing TV: ${epTitle}`);
@@ -647,7 +998,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         
         const showTitle = selectedShow?.title || (isTvUrl ? "TV Show" : "Cinema");
         const epTitle = `${showTitle} - Season ${newSeason} Ep ${newEp}`;
-        loadNewVideo(url, epTitle);
+        loadNewVideo(url, epTitle, {
+            type: 'tv',
+            tmdbId: selectedShow?.id || (isTvUrl && !String(currentTvId).startsWith('tt') ? currentTvId : null),
+            imdbId: selectedShow?.imdbId || (isTvUrl && String(currentTvId).startsWith('tt') ? currentTvId : null),
+            title: showTitle,
+            poster: selectedShow?.poster || '',
+            year: selectedShow?.year || 'N/A'
+        });
         appendSystemLog(`${myName} skipped to Season ${newSeason} Episode ${newEp}`);
     };
 
@@ -787,13 +1145,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
     useEffect(() => {
         const handleBroadcast = ({ detail: { event, payload } }) => {
             if (event === 'watcher_chat') {
-                const targetUrl = payload.url || syncedUrl;
-                setWatcherChatsByUrl(prev => {
-                    const list = prev[targetUrl] || [];
+                const targetSessionId = payload.sessionId || currentSessionId;
+                if (!targetSessionId) return;
+                setChatsBySessionId(prev => {
+                    const list = prev[targetSessionId] || [];
                     if (list.some(m => m.id === payload.id)) return prev;
                     return {
                         ...prev,
-                        [targetUrl]: [...list, payload]
+                        [targetSessionId]: [...list, payload]
                     };
                 });
             }
@@ -856,16 +1215,23 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
 
         window.addEventListener('sync_broadcast', handleBroadcast);
         return () => window.removeEventListener('sync_broadcast', handleBroadcast);
-    }, [playing, syncedUrl, userId, broadcast, addRipple, setWatcherChatsByUrl]); // need playing in deps for the pulse listener logic
+    }, [playing, syncedUrl, userId, broadcast, addRipple, currentSessionId, setChatsBySessionId]); // need playing in deps for the pulse listener logic
 
     const sendChat = (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
         playAudio('click', sfx);
         
-        const msg = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, sender: myName, text: chatInput.trim(), isMe: true };
+        const msg = { 
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, 
+            sender: myName, 
+            text: chatInput.trim(), 
+            isMe: true,
+            replyTo: replyingTo ? { id: replyingTo.id, sender: replyingTo.sender, text: replyingTo.text } : null
+        };
         appendChatMessage(msg);
         setChatInput('');
+        setReplyingTo(null);
     };
 
     const toggleFullscreen = () => {
@@ -987,6 +1353,7 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                     }}
                                     onError={() => setLoadError('URL blocked by owner. Try a different YouTube link.')}
                                     onReady={handlePlayerReady}
+                                    onEnded={() => completeSession(currentSessionId)}
                                     width="100%"
                                     height="100%"
                                     style={{ position: 'absolute', top: 0, left: 0 }}
@@ -1040,8 +1407,8 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                             <div className="absolute inset-0 bg-main flex flex-col overflow-hidden">
                                         {isCinemaPlayerUrl && !showCinemaSearch ? (
                                     <>
-                                        {/* Floating Cinema Fullscreen Button */}
-                                        <div className="absolute top-3 left-3 z-30">
+                                        {/* Floating Cinema Controls */}
+                                        <div className="absolute top-3 left-3 z-30 flex gap-2">
                                             <button 
                                                 onClick={toggleFullscreen} 
                                                 className="p-2 bg-black/85 text-white retro-border hover:bg-primary transition-colors flex items-center justify-center shadow-lg active:translate-y-[1px]"
@@ -1049,6 +1416,24 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                             >
                                                 {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                                             </button>
+                                            {activeSession && !activeSession.completed && (
+                                                <>
+                                                    <button 
+                                                        onClick={() => { playAudio('click', sfx); setShowTicketsModal(true); }}
+                                                        className="px-3 py-1.5 bg-primary text-white font-black text-[10px] tracking-wider uppercase retro-border hover:brightness-110 transition-colors flex items-center gap-1 shadow-lg active:translate-y-[1px]"
+                                                        title="View & Download Tickets Now"
+                                                    >
+                                                        Tickets
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => { playAudio('click', sfx); completeSession(currentSessionId); }}
+                                                        className="px-3 py-1.5 bg-green-700 text-white font-black text-[10px] tracking-wider uppercase retro-border hover:bg-green-600 transition-colors flex items-center gap-1 shadow-lg active:translate-y-[1px]"
+                                                        title="Finish watching and get tickets"
+                                                    >
+                                                        Finish Watching
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Cinema Search Overlay Toggle (Hover zone revealed on top-right) */}
@@ -1256,6 +1641,76 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                                     <button onClick={() => { playAudio('click', sfx); setSearchFilter('tv'); }} className={`px-3 py-1.5 retro-border transition-colors ${searchFilter === 'tv' ? 'bg-primary text-white border-primary' : 'bg-window text-main-text hover:bg-main'}`}>TV Shows</button>
                                                 </div>
 
+                                                {!searchLoading && !searchQuery && (
+                                                    <div className="flex flex-col gap-6 animate-in fade-in-50 duration-200 mt-2">
+                                                        {/* Shared Watchlist Suggestions */}
+                                                        {lists?.watchlist?.filter(item => !item.done).length > 0 && (
+                                                            <div className="flex flex-col gap-2">
+                                                                <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-border border-dashed pb-1">
+                                                                    🎬 From Your Shared Watchlist
+                                                                </h3>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {lists.watchlist.filter(item => !item.done).map(item => (
+                                                                        <button 
+                                                                            key={item.id}
+                                                                            onClick={() => {
+                                                                                playAudio('click', sfx);
+                                                                                setSearchQuery(item.text);
+                                                                                handleSearch(item.text);
+                                                                            }}
+                                                                            className="px-3 py-1.5 bg-window hover:bg-main text-main-text font-bold text-xs retro-border shadow-sm flex items-center gap-1.5 transition-all active:translate-y-[1px]"
+                                                                        >
+                                                                            <span>{item.text}</span>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Recommendations Grid */}
+                                                        <div className="flex flex-col gap-3">
+                                                            <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5 border-b border-border border-dashed pb-1">
+                                                                🌟 Recommended For You
+                                                            </h3>
+                                                            {recsLoading ? (
+                                                                <div className="flex items-center gap-2 py-4">
+                                                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Curating suggestions...</span>
+                                                                </div>
+                                                            ) : historyRecommendations.length === 0 ? (
+                                                                <p className="text-[10px] font-bold opacity-50 uppercase tracking-wider">No recommendations available yet.</p>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                                                                    {historyRecommendations.map((item, idx) => (
+                                                                        <div 
+                                                                            key={item.id || idx}
+                                                                            onClick={() => {
+                                                                                playAudio('click', sfx);
+                                                                                setSearchQuery(item.title);
+                                                                                handleSearch(item.title);
+                                                                            }}
+                                                                            className="bg-window border-[3px] border-border p-2 cursor-pointer hover:border-primary transition-all flex flex-col group shadow-sm"
+                                                                        >
+                                                                            <div className="aspect-[2/3] w-full bg-black/10 mb-1.5 relative overflow-hidden retro-border flex items-center justify-center">
+                                                                                {item.poster ? (
+                                                                                    <img src={item.poster} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" onError={(e) => { e.target.onerror = null; e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" font-family="sans-serif" font-size="12" fill="%23999" text-anchor="middle" dy=".3em">No Image</text></svg>'; }} />
+                                                                                ) : (
+                                                                                    item.type === 'movie' ? <Film size={24} className="opacity-30" /> : <Tv size={24} className="opacity-30" />
+                                                                                )}
+                                                                                <span className="absolute top-1 right-1 bg-black/80 text-white font-black text-[6px] uppercase px-1.5 py-0.5 rounded tracking-widest border border-white/20">
+                                                                                    {item.type}
+                                                                                </span>
+                                                                            </div>
+                                                                            <h4 className="font-bold text-[10px] truncate text-main-text group-hover:text-primary transition-colors leading-tight">{item.title}</h4>
+                                                                            <p className="text-[8px] opacity-60 font-black uppercase tracking-widest mt-0.5">{item.year}</p>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Status Display */}
                                                 {searchLoading && (
                                                     <div className="flex flex-col items-center justify-center py-16">
@@ -1365,7 +1820,25 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-1.5">
+                                <div className="flex gap-1.5 items-center">
+                                    {activeSession && !activeSession.completed && (
+                                        <>
+                                            <RetroButton 
+                                                onClick={() => { playAudio('click', sfx); setShowTicketsModal(true); }} 
+                                                className="h-9 px-3 flex items-center justify-center text-xs font-black bg-primary text-white border-primary hover:brightness-110 transition-colors shadow-sm !rounded-none"
+                                                title="View & Download Tickets Now"
+                                            >
+                                                Tickets
+                                            </RetroButton>
+                                            <RetroButton 
+                                                onClick={() => { playAudio('click', sfx); completeSession(currentSessionId); }} 
+                                                className="h-9 px-3 flex items-center justify-center text-xs font-black bg-green-700 text-white border-green-700 hover:bg-green-600 transition-colors shadow-sm !rounded-none"
+                                                title="Finish Watching & Get Tickets"
+                                            >
+                                                Finish
+                                            </RetroButton>
+                                        </>
+                                    )}
                                     <RetroButton onClick={sendReaction} className="w-9 h-9 p-0 flex items-center justify-center text-pink-500 hover:bg-pink-50 transition-colors bg-white border border-pink-200 shadow-sm !rounded-none" title="Send Love">
                                         <Heart size={16} fill="currentColor" />
                                     </RetroButton>
@@ -1425,53 +1898,596 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
                     ? 'h-[30dvh] w-full portrait:h-[30dvh] portrait:w-full landscape:hidden lg:landscape:flex lg:landscape:w-80 lg:landscape:h-auto' 
                     : 'h-64 lg:h-auto'
                 }`}>
-                    <div className="p-3 bg-border text-window font-black uppercase tracking-widest text-[10px] flex justify-between items-center shrink-0 shadow-sm border-b-[3px] border-border">
-                        <span className="flex items-center gap-2">
-                            <MessageSquare size={14} /> Live Reaction Chat
+                    {/* Header */}
+                    <div className="p-2 bg-border text-window font-black uppercase tracking-widest text-[10px] flex justify-between items-center shrink-0 shadow-sm border-b-[3px] border-border">
+                        <span className="flex items-center gap-2 px-1">
+                            <MessageSquare size={14} /> watch_party.sys
                         </span>
-                        <RetroButton onClick={handleInvite} className="text-[9px] font-black px-2 py-1 flex items-center gap-1.5 bg-secondary text-secondary-text border-secondary active:translate-y-[1px]" title="Invite partner to watch together">
+                        <RetroButton onClick={handleInvite} className="text-[9px] font-black px-2 py-1 flex items-center gap-1 bg-secondary text-secondary-text border-secondary active:translate-y-[1px]" title="Invite partner to watch together">
                             <Users size={10} /> Invite
                         </RetroButton>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-main/50">
-                        {(watcherChat || []).length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-full text-center opacity-40 text-main-text">
-                                <MessageSquare size={32} className="mb-2" />
-                                <p className="text-[10px] font-black uppercase tracking-widest">No messages yet.<br/>Say hello!</p>
-                            </div>
-                        )}
-                        {(watcherChat || []).map((log) => (
-                            <div key={log.id} className={`flex flex-col animate-in slide-in-from-bottom-2 ${log.sender === 'SYSTEM' ? 'items-center' : log.isMe ? 'items-end' : 'items-start'}`}>
-                                {log.sender === 'SYSTEM' ? (
-                                    <div className="bg-window px-3 py-1 retro-border text-[9px] uppercase font-black opacity-60 mt-2 tracking-widest text-main-text">
-                                        {log.text}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-1 max-w-[85%]">
-                                        <span className={`text-[9px] font-black uppercase tracking-wider opacity-50 text-main-text ${log.isMe ? 'text-right' : 'text-left'}`}>{log.sender}</span>
-                                        <div className={`px-3 py-2 retro-border shadow-sm text-sm font-bold ${log.isMe ? 'bg-primary text-white border-primary' : 'bg-window text-main-text'}`}>
-                                            {log.text}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
+                    {/* Navigation Tabs */}
+                    <div className="flex border-b-[3px] border-border bg-main/20 flex-shrink-0">
+                        <button 
+                            onClick={() => { playAudio('click', sfx); setActiveTab('chat'); setSelectedHistorySession(null); }}
+                            className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider border-r-[3px] border-border ${activeTab === 'chat' ? 'bg-window text-primary border-b-[3px] border-b-primary -mb-[3px]' : 'text-main-text/60 hover:bg-main/45'}`}
+                        >
+                            Live Chat
+                        </button>
+                        <button 
+                            onClick={() => { playAudio('click', sfx); setActiveTab('history'); setSelectedHistorySession(null); }}
+                            className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider ${activeTab === 'history' ? 'bg-window text-primary border-b-[3px] border-b-primary -mb-[3px]' : 'text-main-text/60 hover:bg-main/45'}`}
+                        >
+                            History ({sessions.length})
+                        </button>
                     </div>
 
-                    <form onSubmit={sendChat} className="p-3 bg-window border-t-[3px] border-border shrink-0 flex gap-2">
-                        <input 
-                            type="text" 
-                            value={chatInput} 
-                            onChange={e => setChatInput(e.target.value)} 
-                            placeholder="Type a reaction..." 
-                            className="flex-1 p-2 border-[3px] border-border bg-main/50 text-main-text text-xs font-bold focus:outline-none focus:border-primary min-h-[44px]" 
-                        />
-                        <RetroButton type="submit" variant="accent" className="px-4 text-xs font-black shadow-sm min-h-[44px]">Send</RetroButton>
-                    </form>
-                </div>
+                    {activeTab === 'chat' ? (
+                        <>
+                            {/* Archived Session Banner */}
+                            {activeSession?.completed && (
+                                <div className="bg-primary/10 border-b-[3px] border-dashed border-border p-2 text-[10px] text-center text-main-text font-black uppercase tracking-wider flex items-center justify-center gap-2 shrink-0">
+                                    <span>📂 Archived watch (Finished)</span>
+                                    <button 
+                                        onClick={() => handleStartNewSession(syncedUrl, syncedTitle)}
+                                        className="px-2.5 py-1 bg-primary text-white font-black text-[9px] retro-border active:translate-y-[1px]"
+                                    >
+                                        Start New
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Chat Messages Panel */}
+                            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-main/50 custom-scrollbar">
+                                {(watcherChat || []).length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-full text-center opacity-40 text-main-text">
+                                        <MessageSquare size={32} className="mb-2" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">No messages yet.<br/>Say hello!</p>
+                                    </div>
+                                )}
+                                {(watcherChat || []).map((log, index, arr) => {
+                                    const prevMsg = index > 0 ? arr[index - 1] : null;
+                                    const nextMsg = index < arr.length - 1 ? arr[index + 1] : null;
+                                    const isGroupStart = !prevMsg || prevMsg.sender !== log.sender || prevMsg.sender === 'SYSTEM';
+                                    const isGroupEnd = !nextMsg || nextMsg.sender !== log.sender || nextMsg.sender === 'SYSTEM';
+                                    const marginClass = log.sender === 'SYSTEM' ? 'my-2' : isGroupEnd ? 'mb-4' : 'mb-1';
+                                    
+                                    const isMe = log.isMe || log.sender === myName;
+                                    
+                                    if (log.sender === 'SYSTEM') {
+                                        return (
+                                            <div key={log.id} className="flex justify-center my-2 animate-in fade-in">
+                                                <div className="bg-primary/10 px-3 py-1 retro-border border-dashed rounded text-[10px] uppercase tracking-wider font-bold text-primary/80 text-center max-w-[90%]">
+                                                    {log.text}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    
+                                    return (
+                                        <div key={log.id} className={`flex flex-col relative group ${isMe ? 'items-end' : 'items-start'} ${marginClass} animate-in fade-in slide-in-from-bottom-1`}>
+                                            <div id={`msg-${log.id}`} className={`flex items-end gap-2 max-w-[85%] relative transition-all duration-300 ${isMe ? 'flex-row justify-end self-end ml-auto' : 'flex-row self-start'}`}>
+                                                
+                                                {/* Reply hover button */}
+                                                <div className={`absolute top-1/2 -translate-y-1/2 transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 ${isMe ? '-left-8' : '-right-8'}`}>
+                                                    <button 
+                                                        onClick={() => { playAudio('click', sfx); setReplyingTo(log); }}
+                                                        className="p-1 retro-border border-dashed bg-window text-main-text shadow-sm hover:text-primary hover:border-solid active:translate-y-[1px]"
+                                                        title="Reply"
+                                                    >
+                                                        <Reply size={10} />
+                                                    </button>
+                                                </div>
+                                                
+                                                {!isMe && (
+                                                    <div className="w-6 h-6 flex-shrink-0 flex items-end order-first mb-0.5">
+                                                        {isGroupEnd ? (
+                                                            <div className="w-6 h-6 retro-border flex items-center justify-center text-[9px] rounded-none bg-secondary text-secondary-text font-black">
+                                                                {roomProfiles?.[partnerId]?.emoji || '☕'}
+                                                            </div>
+                                                        ) : <div className="w-6" />}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className={`relative flex flex-col p-2 retro-border retro-shadow-dark ${isMe ? 'bg-primary text-[color:var(--text-on-primary)] border-primary text-white' : 'bg-window text-main-text'}`}>
+                                                    {log.replyTo && (
+                                                        <div 
+                                                            onClick={() => {
+                                                                const el = document.getElementById(`msg-${log.replyTo.id}`);
+                                                                if (el) {
+                                                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                    el.classList.add('animate-pulse');
+                                                                    setTimeout(() => el.classList.remove('animate-pulse'), 1500);
+                                                                }
+                                                            }}
+                                                            className={`border-l-2 border-white/40 bg-white/10 p-1.5 mb-1.5 text-[9px] cursor-pointer hover:bg-white/20 transition-all rounded-sm`}
+                                                        >
+                                                            <p className="font-black uppercase tracking-tighter opacity-65 mb-0.5">{log.replyTo.sender === myName ? 'You' : log.replyTo.sender}</p>
+                                                            <p className="truncate italic font-bold text-[9px]">{log.replyTo.text}</p>
+                                                        </div>
+                                                    )}
+                                                    <span className="break-words whitespace-pre-wrap text-[11px] font-bold leading-normal [word-break:break-word] overflow-hidden">
+                                                        {log.text}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <div ref={chatEndRef} />
+                            </div>
+
+                            {/* Reply input preview bar */}
+                            {replyingTo && (
+                                <div className="p-2 bg-primary text-white border-t-2 border-border/20 flex justify-between items-center text-[10px] font-bold tracking-wide animate-in slide-in-from-bottom-1 shrink-0">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <Reply size={12} className="flex-shrink-0" />
+                                        <span className="truncate">
+                                            Replying to {replyingTo.sender}: "{replyingTo.text}"
+                                        </span>
+                                    </div>
+                                    <button onClick={() => setReplyingTo(null)} className="p-0.5 hover:bg-white/10 retro-border flex-shrink-0 ml-2"><X size={10} /></button>
+                                </div>
+                            )}
+
+                            {/* Chat form input */}
+                            <form onSubmit={sendChat} className="p-3 bg-window border-t-[3px] border-border shrink-0 flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={chatInput} 
+                                    onChange={e => setChatInput(e.target.value)} 
+                                    placeholder="Type a reaction..." 
+                                    className="flex-1 p-2 border-[3px] border-border bg-main/50 text-main-text text-xs font-bold focus:outline-none focus:border-primary min-h-[44px]" 
+                                />
+                                <RetroButton type="submit" variant="accent" className="px-4 text-xs font-black shadow-sm min-h-[44px]">Send</RetroButton>
+                            </form>
+                        </>
+                    ) : (
+                        /* WATCH HISTORY / SESSIONS TAB */
+                        <div className="flex-1 flex flex-col overflow-hidden bg-main/30">
+                            {selectedHistorySession ? (
+                                <div className="flex-1 flex flex-col overflow-hidden">
+                                    {/* Sub-header to back out */}
+                                    <div className="p-2 bg-window border-b-[3px] border-border flex items-center justify-between shrink-0">
+                                        <button 
+                                            onClick={() => { playAudio('click', sfx); setSelectedHistorySession(null); }}
+                                            className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
+                                        >
+                                            <ArrowLeft size={10} /> Back
+                                        </button>
+                                        {selectedHistorySession.completed && (
+                                            <button 
+                                                onClick={() => {
+                                                    playAudio('click', sfx);
+                                                    setShowTicketsModal(true);
+                                                }}
+                                                className="px-2 py-1 bg-green-700 hover:bg-green-600 text-white font-black text-[9px] uppercase tracking-wider retro-border flex items-center gap-1 active:translate-y-[1px]"
+                                            >
+                                                <Download size={8} /> Tickets
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Title box */}
+                                    <div className="p-3 bg-window/65 border-b-[3px] border-dashed border-border shrink-0">
+                                        <h3 className="text-xs font-black uppercase tracking-wider text-primary truncate leading-tight">{selectedHistorySession.title}</h3>
+                                        <p className="text-[8px] font-bold opacity-50 uppercase tracking-widest mt-0.5">
+                                            Started: {new Date(selectedHistorySession.startTime).toLocaleDateString()}
+                                        </p>
+                                    </div>
+
+                                    {/* Archived Chat log */}
+                                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 custom-scrollbar bg-main/50">
+                                        {(chatsBySessionId[selectedHistorySession.id] || []).length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center h-full text-center opacity-40 text-main-text">
+                                                <p className="text-[10px] font-black uppercase tracking-widest">No chat logs for this session.</p>
+                                            </div>
+                                        ) : (
+                                            (chatsBySessionId[selectedHistorySession.id] || []).map((log, index, arr) => {
+                                                const prevMsg = index > 0 ? arr[index - 1] : null;
+                                                const nextMsg = index < arr.length - 1 ? arr[index + 1] : null;
+                                                const isGroupEnd = !nextMsg || nextMsg.sender !== log.sender || nextMsg.sender === 'SYSTEM';
+                                                const marginClass = log.sender === 'SYSTEM' ? 'my-2' : isGroupEnd ? 'mb-4' : 'mb-1';
+                                                const isMe = log.isMe || log.sender === myName;
+
+                                                if (log.sender === 'SYSTEM') {
+                                                    return (
+                                                        <div key={log.id} className="flex justify-center my-1">
+                                                            <div className="bg-primary/5 px-2.5 py-0.5 border border-dashed border-border/30 rounded text-[9px] uppercase font-bold text-main-text/50 text-center">
+                                                                {log.text}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div key={log.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${marginClass}`}>
+                                                        <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? 'flex-row justify-end ml-auto' : 'flex-row'}`}>
+                                                            {!isMe && (
+                                                                <div className="w-5 h-5 flex-shrink-0 flex items-end order-first mb-0.5">
+                                                                    {isGroupEnd && (
+                                                                        <div className="w-5 h-5 retro-border flex items-center justify-center text-[8px] bg-secondary text-secondary-text font-black">
+                                                                            {roomProfiles?.[partnerId]?.emoji || '☕'}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            <div className={`relative flex flex-col p-2 retro-border retro-shadow-dark ${isMe ? 'bg-primary text-white border-primary opacity-85' : 'bg-window text-main-text opacity-85'}`}>
+                                                                {log.replyTo && (
+                                                                    <div className="border-l border-white/20 bg-white/5 p-1 mb-1 text-[8px] rounded-sm">
+                                                                        <p className="font-black opacity-60">{log.replyTo.sender}</p>
+                                                                        <p className="truncate italic text-[9px]">{log.replyTo.text}</p>
+                                                                    </div>
+                                                                )}
+                                                                <span className="break-words text-[10px] font-bold leading-normal [word-break:break-word]">{log.text}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 custom-scrollbar">
+                                    {sessions.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-full py-12 text-center opacity-40 text-main-text">
+                                            <Film size={28} className="mb-2" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest">No watch sessions archived yet.</p>
+                                        </div>
+                                    ) : (
+                                        [...sessions].reverse().map(sess => (
+                                            <div 
+                                                key={sess.id}
+                                                className="p-3 bg-window border-[3px] border-border shadow-sm flex flex-col gap-2 relative group"
+                                            >
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-xs font-black uppercase tracking-wider text-primary truncate leading-tight">{sess.title}</h4>
+                                                        <p className="text-[8px] font-bold opacity-60 uppercase tracking-widest mt-0.5">
+                                                            {new Date(sess.startTime).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 font-black text-[7px] tracking-wider uppercase border ${sess.completed ? 'bg-green-100 text-green-700 border-green-300' : 'bg-amber-100 text-amber-700 border-amber-300'}`}>
+                                                        {sess.completed ? 'Completed' : 'Watching'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex gap-2 justify-end mt-1 border-t border-dashed border-border/20 pt-2">
+                                                    <button 
+                                                        onClick={() => { playAudio('click', sfx); setSelectedHistorySession(sess); }}
+                                                        className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-main/50 retro-border hover:bg-main hover:text-primary transition-all active:translate-y-[1px]"
+                                                    >
+                                                        View Chat
+                                                    </button>
+                                                    {sess.completed && (
+                                                        <button 
+                                                            onClick={() => {
+                                                                playAudio('click', sfx);
+                                                                setSelectedHistorySession(sess);
+                                                                setShowTicketsModal(true);
+                                                            }}
+                                                            className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-green-700 text-white border-green-700 hover:brightness-110 transition-all flex items-center gap-1 active:translate-y-[1px]"
+                                                        >
+                                                            <Download size={10} /> Tickets
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
             </div>
+        </div>
+
+            <TicketsModal 
+                isOpen={showTicketsModal} 
+                onClose={() => setShowTicketsModal(false)} 
+                session={selectedHistorySession || activeSession}
+                myName={myName}
+                partnerName={partnerName}
+                sfx={sfx}
+            />
         </RetroWindow>
     );
 }
+
+function TicketsModal({ isOpen, onClose, session, myName, partnerName, sfx }) {
+    const ticketRef = useRef(null);
+    const [downloading, setDownloading] = useState(false);
+    const [watchDate, setWatchDate] = useState('');
+    
+    useEffect(() => {
+        if (isOpen) {
+            const updateTime = () => {
+                const now = new Date();
+                setWatchDate(now.toLocaleDateString([], { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                }) + ' ' + now.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }));
+            };
+            updateTime();
+            const interval = setInterval(updateTime, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [isOpen]);
+    
+    if (!isOpen || !session) return null;
+        
+    const handleDownload = async () => {
+        playAudio('click', sfx);
+        setDownloading(true);
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const element = ticketRef.current;
+            if (element) {
+                const canvas = await html2canvas(element, {
+                    backgroundColor: null,
+                    scale: 3,
+                    useCORS: true
+                });
+                const imgData = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `${session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_watch_tickets.png`;
+                link.href = imgData;
+                link.click();
+            }
+        } catch (e) {
+            console.error('Download tickets error:', e);
+        } finally {
+            setDownloading(false);
+        }
+    };
+    
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 animate-in fade-in duration-200">
+            <div className="bg-window p-4 sm:p-6 retro-border retro-shadow-dark max-w-xl w-full flex flex-col gap-4 text-main-text relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+                
+                <button 
+                    onClick={onClose}
+                    className="absolute top-3 right-3 p-1 text-main-text hover:text-primary transition-colors focus:outline-none"
+                >
+                    <X size={18} />
+                </button>
+                
+                <div className="text-center border-b-[3px] border-dashed border-border pb-3">
+                    <h2 className="text-lg font-black uppercase tracking-wider text-primary">🎉 Watch Party Completed!</h2>
+                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-1">Here are your commemorative digital movie tickets</p>
+                </div>
+                
+                <div className="p-4 bg-main/50 retro-border flex justify-center overflow-x-auto select-none">
+                    <div 
+                        ref={ticketRef} 
+                        className="flex flex-row gap-4 p-4 bg-main/20 rounded-lg justify-center items-center shrink-0"
+                        style={{ fontFamily: 'monospace' }}
+                    >
+                        {/* TICKET 1: ME */}
+                        <div className="w-56 h-[340px] bg-[#fdfaf5] border-[3px] border-black text-black relative flex flex-col p-4 shadow-lg overflow-hidden justify-between rounded-lg select-none">
+                            <div className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-main border-[3px] border-black border-r-transparent border-t-transparent -rotate-45" />
+                            <div className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-main border-[3px] border-black border-l-transparent border-b-transparent -rotate-45" />
+                            
+                            <div className="flex flex-col items-center text-center">
+                                <div className="text-[8px] font-black lowercase tracking-widest opacity-60 border-b border-black/20 pb-0.5 w-full">attic • admit one</div>
+                                <h3 className="text-xs font-black uppercase tracking-widest text-[#d946ef] mt-2 mb-1">YOU</h3>
+                                <div className="text-sm font-extrabold uppercase leading-tight line-clamp-2 px-1 break-words w-full h-10 flex items-center justify-center">{session.title}</div>
+                            </div>
+                            
+                            <div className="border-t border-dashed border-black/40 my-1 w-full" />
+                            
+                            <div className="flex flex-col text-[9px] font-bold gap-1 pl-1">
+                                <div><span className="opacity-65">DATE:</span> {watchDate}</div>
+                                <div><span className="opacity-65">SEAT:</span> ROW A, SEAT 08</div>
+                                <div><span className="opacity-65">VENUE:</span> SYNCWATCHER #7</div>
+                            </div>
+                            
+                            <div className="border-t border-dashed border-black/40 my-1 w-full" />
+                            
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex justify-center items-end h-8 w-full px-2">
+                                    {[1, 3, 1, 2, 4, 1, 2, 3, 1, 2, 1, 4, 1, 2, 3, 1, 2, 1].map((w, idx) => (
+                                        <div key={idx} className="h-full bg-black" style={{ width: `${w}px`, marginRight: idx % 3 === 0 ? '2px' : '1px' }} />
+                                    ))}
+                                </div>
+                                <div className="text-[7px] tracking-[3px] font-black opacity-60">#00{session.id.slice(-6).toUpperCase()}</div>
+                            </div>
+                        </div>
+
+                        {/* TICKET 2: PARTNER */}
+                        <div className="w-56 h-[340px] bg-[#fdfaf5] border-[3px] border-black text-black relative flex flex-col p-4 shadow-lg overflow-hidden justify-between rounded-lg select-none">
+                            <div className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-main border-[3px] border-black border-r-transparent border-t-transparent -rotate-45" />
+                            <div className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-main border-[3px] border-black border-l-transparent border-b-transparent -rotate-45" />
+                            
+                            <div className="flex flex-col items-center text-center">
+                                <div className="text-[8px] font-black lowercase tracking-widest opacity-60 border-b border-black/20 pb-0.5 w-full">attic • admit one</div>
+                                <h3 className="text-xs font-black uppercase tracking-widest text-[#06b6d4] mt-2 mb-1">{partnerName.toUpperCase()}</h3>
+                                <div className="text-sm font-extrabold uppercase leading-tight line-clamp-2 px-1 break-words w-full h-10 flex items-center justify-center">{session.title}</div>
+                            </div>
+                            
+                            <div className="border-t border-dashed border-black/40 my-1 w-full" />
+                            
+                            <div className="flex flex-col text-[9px] font-bold gap-1 pl-1">
+                                <div><span className="opacity-65">DATE:</span> {watchDate}</div>
+                                <div><span className="opacity-65">SEAT:</span> ROW A, SEAT 09</div>
+                                <div><span className="opacity-65">VENUE:</span> SYNCWATCHER #7</div>
+                            </div>
+                            
+                            <div className="border-t border-dashed border-black/40 my-1 w-full" />
+                            
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="flex justify-center items-end h-8 w-full px-2">
+                                    {[1, 3, 1, 2, 4, 1, 2, 3, 1, 2, 1, 4, 1, 2, 3, 1, 2, 1].map((w, idx) => (
+                                        <div key={idx} className="h-full bg-black" style={{ width: `${w}px`, marginRight: idx % 3 === 0 ? '2px' : '1px' }} />
+                                    ))}
+                                </div>
+                                <div className="text-[7px] tracking-[3px] font-black opacity-60">#00{session.id.slice(-6).toUpperCase()}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="flex gap-2 justify-end mt-2">
+                    <RetroButton onClick={onClose} className="px-4 py-2 text-xs font-bold shadow-sm">
+                        Close
+                    </RetroButton>
+                    <RetroButton 
+                        variant="primary" 
+                        onClick={handleDownload} 
+                        disabled={downloading}
+                        className="px-5 py-2 text-xs font-black flex items-center gap-2 bg-primary text-white border-primary hover:brightness-110 shadow-sm"
+                    >
+                        {downloading ? 'Downloading...' : 'Download Tickets'}
+                    </RetroButton>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const RETRO_CLASSIC_SUGGESTIONS = [
+    {
+        title: "Pulp Fiction",
+        year: 1994,
+        genres: ["Crime", "Thriller"],
+        cast: ["John Travolta", "Samuel L. Jackson", "Uma Thurman", "Bruce Willis"],
+        director: "Quentin Tarantino",
+        poster: "https://image.tmdb.org/t/p/w300/d5iil4xe79av6S4x1YgOObfsRgs.jpg",
+        type: "movie"
+    },
+    {
+        title: "The Matrix",
+        year: 1999,
+        genres: ["Action", "Sci-Fi"],
+        cast: ["Keanu Reeves", "Laurence Fishburne", "Carrie-Anne Moss"],
+        director: "Lana Wachowski",
+        poster: "https://image.tmdb.org/t/p/w300/f89U3wzqrjFmZ94eC4o0ldyILOf.jpg",
+        type: "movie"
+    },
+    {
+        title: "Fight Club",
+        year: 1999,
+        genres: ["Drama", "Thriller"],
+        cast: ["Brad Pitt", "Edward Norton", "Helena Bonham Carter"],
+        director: "David Fincher",
+        poster: "https://image.tmdb.org/t/p/w300/b8QCuZ75gbsO55OIro7LzBhv0yR.jpg",
+        type: "movie"
+    },
+    {
+        title: "Goodfellas",
+        year: 1990,
+        genres: ["Crime", "Drama"],
+        cast: ["Robert De Niro", "Ray Liotta", "Joe Pesci"],
+        director: "Martin Scorsese",
+        poster: "https://image.tmdb.org/t/p/w300/aKuFi0vlfg5711HgJEA3jXEWR6A.jpg",
+        type: "movie"
+    },
+    {
+        title: "The Shawshank Redemption",
+        year: 1994,
+        genres: ["Drama"],
+        cast: ["Tim Robbins", "Morgan Freeman", "Bob Gunton"],
+        director: "Frank Darabont",
+        poster: "https://image.tmdb.org/t/p/w300/9cqN6GOU7z8w42h3vfw5rmdBTa1.jpg",
+        type: "movie"
+    },
+    {
+        title: "Se7en",
+        year: 1995,
+        genres: ["Crime", "Mystery", "Thriller"],
+        cast: ["Brad Pitt", "Morgan Freeman", "Gwyneth Paltrow"],
+        director: "David Fincher",
+        poster: "https://image.tmdb.org/t/p/w300/69xm6261IP2GDwi16Jg36Z7OI19.jpg",
+        type: "movie"
+    },
+    {
+        title: "Jurassic Park",
+        year: 1993,
+        genres: ["Adventure", "Sci-Fi"],
+        cast: ["Sam Neill", "Laura Dern", "Jeff Goldblum"],
+        director: "Steven Spielberg",
+        poster: "https://image.tmdb.org/t/p/w300/o0goEqt7vXn1ph46Yr4W2YgZ6i0.jpg",
+        type: "movie"
+    },
+    {
+        title: "Forrest Gump",
+        year: 1994,
+        genres: ["Drama", "Romance"],
+        cast: ["Tom Hanks", "Robin Wright", "Gary Sinise"],
+        director: "Robert Zemeckis",
+        poster: "https://image.tmdb.org/t/p/w300/arw2vUYvzn31I61q5k6tfsr7584.jpg",
+        type: "movie"
+    },
+    {
+        title: "The Silence of the Lambs",
+        year: 1991,
+        genres: ["Crime", "Drama", "Thriller"],
+        cast: ["Jodie Foster", "Anthony Hopkins", "Scott Glenn"],
+        director: "Jonathan Demme",
+        poster: "https://image.tmdb.org/t/p/w300/uS1Skvl43vufA0ui0gdI29d8g79.jpg",
+        type: "movie"
+    },
+    {
+        title: "Blade Runner",
+        year: 1982,
+        genres: ["Sci-Fi", "Thriller"],
+        cast: ["Harrison Ford", "Rutger Hauer", "Sean Young"],
+        director: "Ridley Scott",
+        poster: "https://image.tmdb.org/t/p/w300/636652G1c5c56784d56784g.jpg",
+        type: "movie"
+    },
+    {
+        title: "Back to the Future",
+        year: 1985,
+        genres: ["Adventure", "Comedy", "Sci-Fi"],
+        cast: ["Michael J. Fox", "Christopher Lloyd", "Lea Thompson"],
+        director: "Robert Zemeckis",
+        poster: "https://image.tmdb.org/t/p/w300/fNwbv6V2X6z4WhXu5V43t4w.jpg",
+        type: "movie"
+    },
+    {
+        title: "The Godfather",
+        year: 1972,
+        genres: ["Crime", "Drama"],
+        cast: ["Marlon Brando", "Al Pacino", "James Caan"],
+        director: "Francis Ford Coppola",
+        poster: "https://image.tmdb.org/t/p/w300/3bhkrj67V2ekhh70F2uCGhblR7V.jpg",
+        type: "movie"
+    },
+    {
+        title: "Terminator 2: Judgment Day",
+        year: 1991,
+        genres: ["Action", "Sci-Fi"],
+        cast: ["Arnold Schwarzenegger", "Linda Hamilton", "Edward Furlong"],
+        director: "James Cameron",
+        poster: "https://image.tmdb.org/t/p/w300/5M7wLh5vJ5PyEX72eeGgSbb65Sg.jpg",
+        type: "movie"
+    },
+    {
+        title: "Alien",
+        year: 1979,
+        genres: ["Horror", "Sci-Fi"],
+        cast: ["Sigourney Weaver", "Tom Skerritt", "John Hurt"],
+        director: "Ridley Scott",
+        poster: "https://image.tmdb.org/t/p/w300/vfrQk5IP3oOI7cw8n31I6bd8g79.jpg",
+        type: "movie"
+    },
+    {
+        title: "Star Wars: A New Hope",
+        year: 1977,
+        genres: ["Adventure", "Sci-Fi"],
+        cast: ["Mark Hamill", "Harrison Ford", "Carrie Fisher"],
+        director: "George Lucas",
+        poster: "https://image.tmdb.org/t/p/w300/6FfCtAuVA66qJFiQvslNu64t2R0.jpg",
+        type: "movie"
+    }
+];
+
