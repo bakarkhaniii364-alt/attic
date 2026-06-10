@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor, Zap, LogOut, Sparkles } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Mail, Heart, Hand, Gamepad2, MessageSquare, Brush, Pen, Clock, Calendar as CalendarIcon, Image as ImageIcon, Settings as SettingsIcon, ListTodo, Flame, Moon, MessageCircle, FileText, Grid3x3, Volume2, Monitor, Zap, LogOut, Sparkles, Bell } from 'lucide-react';
 import { RetroWindow, RetroButton, AppIcon, ConfirmDialog, useToast, SkeletonText } from '../components/UI.jsx';
 import { DashboardRadio } from '../components/LofiPlayer.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
@@ -15,6 +16,8 @@ import { supabase } from '../lib/supabase.js';
 import { useDashboardLogic } from '../hooks/useDashboardLogic.js';
 import { useLastSeen } from '../hooks/useLastSeen.js';
 import { useMobile } from '../hooks/useMobile.js';
+import { useNotificationHistory } from '../hooks/useNotificationHistory.js';
+import { NotificationHistoryModal } from '../components/Modals/NotificationHistoryModal.jsx';
 import {
   recordVisit,
   getDaysSinceLastVisit,
@@ -39,6 +42,10 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const coupleData = globalState?.couple_data || { petName: 'pet', petSkin: '/assets/cat_1_9', petHappy: 60 };
   const streaks = globalState?.user_streaks?.[userId] || { count: 0 };
   const dailyAnswers = globalState?.daily_answers || {};
+  
+  const { history, unreadCount, markAllRead, clearHistory, lastReadAt } = useNotificationHistory(userId);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const [modalLastRead, setModalLastRead] = useState(0);
   
   const partnerName = coupleData.nicknames?.[partnerId] || (partnerProfile.name && partnerProfile.name !== 'You' ? partnerProfile.name : 'Partner');
   const partnerNameNode = isInitialized ? partnerName : <SkeletonText className="w-16 h-3" />;
@@ -110,8 +117,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const petSkin = coupleData.petSkin || '/assets/cat_1_9';
   const petHappy = coupleData.petHappy ?? 60;
   const petName = coupleData.petName || 'pet';
-
-  // Mobile nav pivot removed as it's now handled globally in App.jsx
 
   const draftKey = `attic_chat_draft_${userId}`;
   const hasDraft = !!localStorage.getItem(draftKey);
@@ -204,7 +209,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     <RetroWindow title="welcome.exe" className={`w-full md:col-span-8 h-auto min-h-[14rem] order-1 md:order-none`}>
       <div className="flex flex-col h-full justify-between gap-2 p-1">
         {isMobile ? (
-          // Mobile layout: Greeting & Kiss button in row 1, Partner status split in row 2 (prevents horizontal scroll)
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center w-full">
               <div className="flex items-center gap-2.5">
@@ -280,9 +284,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             </div>
           </div>
         ) : (
-          // Desktop layout
           <div className="flex flex-col w-full gap-3">
-            {/* Top row: user's greeting */}
             <div className="flex items-center gap-3">
               {profile.pfp ? <img src={profile.pfp} alt={`${myDisplayName} profile`} className="w-12 h-12 retro-border retro-shadow-dark object-cover bg-white" /> : <div className="w-12 h-12 retro-border retro-bg-accent flex items-center justify-center text-2xl" aria-hidden="true">{profile.emoji}</div>}
               <h1 className="text-xl font-black leading-none lowercase flex items-center gap-2">
@@ -290,7 +292,6 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               </h1>
             </div>
 
-            {/* Bottom row: partner status on the left, kiss button on the right */}
             <div className="flex justify-between items-center gap-3 w-full">
               <div className="bg-black/5 p-1.5 retro-border border-dashed flex items-center gap-2">
                 <div className="relative">
@@ -320,11 +321,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                           if (partnerStatusData.activity) return partnerStatusData.activity;
                           if (partnerStatusData.status === 'offline') {
                             const parts = [];
-                            // 1. Last Seen
                             if (partnerStatusData.label !== 'Offline') parts.push(partnerStatusData.label);
-                            // 2. Played Last
                             if (partnerStatusData.lastActivity) parts.push(`Played ${partnerStatusData.lastActivity.game}`);
-                            // 3. Prompt / "Miss you" logic
                             const lastSeenAt = partnerProfile.last_online_at || partnerProfile.updated_at;
                             if (lastSeenAt) {
                               const hoursAway = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
@@ -376,8 +374,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           </div>
         )}
 
-        {/* Dynamic, Smart Info Feed — shows only the single most important alert */}
-        <div className="pt-2 border-t border-dashed border-border/40 mt-2">
+        <div className="pt-2 border-t border-dashed border-border/40 mt-2 flex items-stretch gap-2">
+          <div className="flex-1">
           {(() => {
             const item = quickActionItem || fallbackItem;
             return (
@@ -418,6 +416,27 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
               </div>
             );
           })()}
+          </div>
+          
+          <Link 
+            to="/notifications"
+            className="aspect-square h-auto rounded-none retro-border retro-shadow-dark bg-window flex items-center justify-center shrink-0 relative transition-transform hover:-translate-y-0.5 active:translate-y-0 text-main-text"
+            onClick={(e) => {
+              e.preventDefault();
+              playAudio('click', sfxEnabled);
+              setModalLastRead(lastReadAt);
+              setShowNotifModal(true);
+              markAllRead();
+            }}
+            aria-label="Notification History"
+          >
+            <Bell size={18} className={unreadCount > 0 ? "animate-pulse text-primary" : ""} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--color-destructive)] rounded-full border border-white flex items-center justify-center text-[8px] font-black text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Link>
         </div>
 
         {((partnerWeather && isMobile) || !isMobile) && (
@@ -568,6 +587,16 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
           onConfirm={logout}
           onCancel={() => setShowLogoutConfirm(false)}
           sfx={sfxEnabled}
+        />
+      )}
+
+      {showNotifModal && (
+        <NotificationHistoryModal 
+          notifications={history} 
+          lastReadAt={modalLastRead}
+          onClose={() => setShowNotifModal(false)} 
+          onClear={() => { playAudio('click', sfxEnabled); clearHistory(); }}
+          sfxEnabled={sfxEnabled}
         />
       )}
     </div>

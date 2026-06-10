@@ -67,6 +67,7 @@ const ActivitiesHub = lazyWithRetry(() => import('./games/index.jsx').then(m => 
 import SyncWatcher from './games/SyncWatcher.jsx';
 const ResetPasswordView = lazyWithRetry(() => import('./views/ResetPasswordView.jsx').then(m => ({ default: m.ResetPasswordView })));
 const SpaceHub = lazyWithRetry(() => import('./views/SpaceHub.jsx').then(m => ({ default: m.SpaceHub })));
+const NotificationView = lazyWithRetry(() => import('./views/NotificationView.jsx').then(m => ({ default: m.NotificationView })));
 
 import { ProtectedRoute, PublicRoute } from './components/AuthGuards.jsx';
 import { SeoManager } from './components/SeoManager.jsx';
@@ -537,6 +538,7 @@ export default function App() {
               </Route>
 
               {/* Standalone sub-app routes */}
+              <Route path="/notifications" element={<ProtectedRoute><NotificationView onClose={() => navigateTo('dashboard')} sfxEnabled={sfxEnabled} /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute>{chatElement}</ProtectedRoute>} />
               <Route path="/doodle" element={<ProtectedRoute><DoodleApp onClose={()=>{navigateTo('dashboard');}} sfx={sfxEnabled} onSendDoodle={handleSendDoodle} /></ProtectedRoute>} />
               <Route path="/shared-canvas" element={<ProtectedRoute><PersistentDoodleApp onClose={()=>navigateTo('dashboard')} sfx={sfxEnabled} userId={userId} roomId={roomId} /></ProtectedRoute>} />

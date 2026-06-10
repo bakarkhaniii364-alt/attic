@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { playAudio } from '../utils/audio.js';
 import { sendNativeNotification } from '../utils/notifications.js';
+import { useNotificationHistory } from './useNotificationHistory.js';
 
 export function useAppLogic({
   user,
@@ -27,6 +28,8 @@ export function useAppLogic({
   const [watchpartyInvite, setWatchpartyInvite] = useState(null);
   const [showKiss, setShowKiss] = useState(false);
   const [partnerOnlineModal, setPartnerOnlineModal] = useState(false);
+  
+  const { addNotification } = useNotificationHistory(userId);
   
   const processedInvites = useRef(new Set());
   const prevPartnerOnline = useRef(false);
@@ -79,6 +82,7 @@ export function useAppLogic({
         setPartnerOnlineModal(true);
         playAudio('notif', sfxEnabled);
         sendNativeNotification(`${partnerName || 'Partner'} is online!`, { body: 'They just opened Attic.' });
+        addNotification(`${partnerName || 'Partner'} is online!`, 'info');
         setTimeout(() => setPartnerOnlineModal(false), 4000);
       }
       
@@ -110,11 +114,20 @@ export function useAppLogic({
         }
       }
     }
-  }, [chatHistory, partnerId, sfxEnabled, gameInvite?.id, notificationsEnabled, location.pathname]);
+    
+    // Auto-dismiss invite if we navigated to the game
+    if (gameInvite && location.pathname.includes(gameInvite.gameId)) {
+      setGameInvite(null);
+    }
+  }, [chatHistory, partnerId, sfxEnabled, gameInvite, notificationsEnabled, location.pathname]);
 
   useEffect(() => {
-    if (lobbyState?.gameId && (lobbyState?.players || []).includes(partnerId) && lobbyState?.status === 'waiting') {
-      if (!(lobbyState?.players || []).includes(userId) && gameInvite?.id !== lobbyState.gameId) {
+    if (lobbyState?.gameId) {
+      const partnerInLobby = (lobbyState?.players || []).includes(partnerId);
+      const isWaiting = lobbyState?.status === 'waiting';
+      const userInLobby = (lobbyState?.players || []).includes(userId);
+
+      if (partnerInLobby && isWaiting && !userInLobby && gameInvite?.id !== lobbyState.gameId) {
         if (!location.pathname.includes(lobbyState.gameId)) {
           setGameInvite({
             id: lobbyState.gameId,
@@ -123,9 +136,17 @@ export function useAppLogic({
             metadata: { gameId: lobbyState.gameId }
           });
         }
+      } else if (gameInvite?.gameId === lobbyState.gameId) {
+        // If the lobby for the current invite is no longer waiting or partner left, nullify
+        if (!partnerInLobby || !isWaiting || userInLobby) {
+          setGameInvite(null);
+        }
       }
+    } else if (gameInvite && lobbyState && Object.keys(lobbyState).length === 0) {
+       // if lobbyState is empty, clear invite
+       setGameInvite(null);
     }
-  }, [lobbyState, partnerId, userId, gameInvite?.id, location.pathname]);
+  }, [lobbyState, partnerId, userId, gameInvite, location.pathname]);
 
   // Chat Notifications
   useEffect(() => {
@@ -137,6 +158,7 @@ export function useAppLogic({
         const msgText = msg.type === 'text' ? msg.text : `Sent a ${msg.type}`;
         toast(`💬 ${partnerName}: ${msgText}`, 'info');
         sendNativeNotification(`New message from ${partnerName || 'Partner'}`, { body: msgText });
+        addNotification(`New message from ${partnerName}: ${msgText}`, 'info');
       }
     });
     prevChatLength.current = chatHistory.length;
@@ -149,6 +171,7 @@ export function useAppLogic({
         setShowKiss(true);
         toast(`💋 ${partnerName} sent you a kiss!`, 'success');
         playAudio('notif', sfxEnabled);
+        addNotification(`${partnerName} sent you a kiss! 💋`, 'success');
         if (notificationsEnabled) sendNativeNotification(`${partnerName} sent you a kiss! 💋`);
         setTimeout(() => setShowKiss(false), 4500);
       }
@@ -161,6 +184,7 @@ export function useAppLogic({
         }]);
         toast(`🎨 ${partnerName} sent you a new doodle!`, 'info');
         playAudio('notif', sfxEnabled);
+        addNotification(`${partnerName} sent you a doodle! 🎨`, 'info');
         if (notificationsEnabled) sendNativeNotification(`${partnerName} sent you a doodle! 🎨`);
       }
       if (payload.action === 'invite' && payload.sender !== userId) {
@@ -169,6 +193,7 @@ export function useAppLogic({
            setGameInvite(payload);
            toast(`🎮 ${partnerName} invited you to play!`, 'actionable');
            playAudio('notif', sfxEnabled);
+           addNotification(`${partnerName} invited you to play a game! 🎮`, 'actionable');
            if (notificationsEnabled) sendNativeNotification(`${partnerName} invited you to play! 🎮`);
         }
       }
@@ -180,6 +205,7 @@ export function useAppLogic({
         setWatchpartyInvite(payload);
         const titleStr = payload.title ? ` to watch "${payload.title}"` : '';
         toast(`🍿 ${partnerName} invited you to watch${titleStr}!`, 'actionable');
+        addNotification(`${partnerName} invited you to a watch party${titleStr}! 🍿`, 'actionable');
         if (notificationsEnabled) sendNativeNotification(`${partnerName} invited you to watch${titleStr}! 🍿`);
       }
       if (event === 'force_reset' && payload.sender !== userId) {
