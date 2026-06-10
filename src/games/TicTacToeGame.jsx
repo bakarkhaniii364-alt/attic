@@ -101,7 +101,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
   // Initialize multiplayer game state on session startup
   const didResetRef = useRef(false);
   useEffect(() => {
-    if (isMultiplayer && isHost && !didResetRef.current) {
+    if (isMultiplayer && isHost && !didResetRef.current && syncedState === null) {
       didResetRef.current = true;
       updateGameState({
         board: Array(size * size).fill(null),
@@ -113,7 +113,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
         status: 'playing'
       });
     }
-  }, [isMultiplayer, isHost, size]);
+  }, [isMultiplayer, isHost, size, syncedState]);
 
   const calculateWinner = (squares) => {
     const minReq = size === 3 ? 3 : 4;
@@ -285,12 +285,7 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
     }
   };
 
-  if (gameOverOverlay) {
-    const overallWinner = p1Wins >= winsRequired ? p1 : p2;
-    return ( 
-        <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Tic-Tac-Toe (${config.mode})`} stats={{ Series: `Best of ${matchType}`, Result: `${overallWinner} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }} onClose={() => {performLocalReset(); onBack();}} onRematch={resetSeries} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined} /> 
-    );
-  }
+
 
   const renderWinLine = () => {
     if (!winLine || size > 3) return null; // Simplified CSS line for 3x3. For 4x4 and 5x5, dynamic strike lines are complex.
@@ -402,6 +397,20 @@ export function TicTacToe({ config, setScores, onBack, sfx, onWin, onShareToChat
           setShowPartnerRestartModal(false);
         }}
         sfx={sfx}
+      />
+    )}
+
+    {gameOverOverlay && (
+      <ShareOutcomeOverlay
+        isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
+        gameName={`Tic-Tac-Toe (${config.mode})`}
+        stats={{ Series: `Best of ${matchType}`, Result: `${p1Wins >= winsRequired ? p1 : p2} takes the crown!`, "Final Score": `${p1Wins} - ${p2Wins}`, "Life Wins": stats.wins, "Life Losses": stats.losses }}
+        onClose={() => {performLocalReset(); onBack();}}
+        onRematch={resetSeries}
+        onShareToChat={onShareToChat}
+        onSaveToScrapbook={onSaveToScrapbook}
+        sfx={sfx}
+        partnerNickname={config.mode === 'vs_ai' ? 'AI' : undefined}
       />
     )}
     </>

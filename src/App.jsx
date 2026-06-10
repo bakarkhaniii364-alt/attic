@@ -518,7 +518,7 @@ export default function App() {
                     playAudio('click', sfxEnabled);
                     setGameInvite(null);
                     const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-                    navigate(`/activities/${gId}`, { state: { autoJoin: true } });
+                    navigate(`/activities/${gId}/lobby`, { state: { autoJoin: true } });
                   }} 
                   className="flex-1 sm:flex-initial px-4 py-1.5 text-xs font-black bg-accent text-accent-text retro-border hover:brightness-110 active:translate-y-[1px]"
                 >

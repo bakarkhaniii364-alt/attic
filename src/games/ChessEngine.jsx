@@ -290,11 +290,10 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
 
   const fmtTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
-  if (gameOverResult) {
-      return ( <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName="Chess" stats={{ Result: gameOverResult, "Moves Played": history.length, "Mode": config.mode==='vs_ai'?'VS AI':'Local 1v1' }} onClose={() => { loadFen(INITIAL_FEN); setGameOverResult(null); onBack();}} onRematch={() => { loadFen(INITIAL_FEN); setGameOverResult(null); }} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
-  }
+
 
   return (
+    <>
     <RetroWindow title={isMultiplayer ? "Chess — " + (myName || 'You') + " vs " + (partnerName || 'Partner') : "Chess — vs AI"} className="w-full max-w-5xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 flex-shrink-0 relative overflow-hidden">
@@ -371,5 +370,20 @@ export function ChessEngine({ config, setScores, onBack, sfx, onWin, onShareToCh
 
       </div>
     </RetroWindow>
+
+    {gameOverResult && (
+      <ShareOutcomeOverlay
+        isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
+        partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
+        gameName="Chess"
+        stats={{ Result: gameOverResult, "Moves Played": history.length, "Mode": config.mode==='vs_ai'?'VS AI':'Local 1v1' }}
+        onClose={() => { loadFen(INITIAL_FEN); setGameOverResult(null); onBack();}}
+        onRematch={() => { loadFen(INITIAL_FEN); setGameOverResult(null); }}
+        onShareToChat={onShareToChat}
+        onSaveToScrapbook={onSaveToScrapbook}
+        sfx={sfx}
+      />
+    )}
+    </>
   );
 }

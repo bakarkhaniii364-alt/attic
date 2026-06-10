@@ -150,29 +150,10 @@ export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShare
     });
   };
 
-  if (showOverlay) {
-    const iWon = winner === userId;
-    return (
-      <ShareOutcomeOverlay
-        isSolo={false}
-        gameName="20 Questions"
-        outcome={iWon ? 'win' : 'loss'}
-        stats={{
-          'Secret Word': secretWord,
-          'Questions Asked': questions.length,
-          'Role': isSetter ? 'Setter' : 'Guesser',
-          'Result': iWon ? '🏆 You Won!' : '🥈 Partner Won!'
-        }}
-        onClose={() => { restart(); onBack(); }}
-        onRematch={restart}
-        onShareToChat={onShareToChat}
-        sfx={sfx}
-        profile={profile}
-      />
-    );
-  }
+
 
   return (
+    <>
     <RetroWindow title="20_questions.exe" className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm shrink-0">
         <span><HelpCircle size={14} className="inline mr-1"/> Questions: {questions.length} / 20</span>
@@ -291,5 +272,28 @@ export function TwentyQuestions({ config, setScores, onBack, sfx, onWin, onShare
         )}
       </div>
     </RetroWindow>
+
+    {showOverlay && (() => {
+      const iWon = winner === userId;
+      return (
+        <ShareOutcomeOverlay
+          isSolo={false}
+          gameName="20 Questions"
+          outcome={iWon ? 'win' : 'loss'}
+          stats={{
+            'Secret Word': secretWord,
+            'Questions Asked': questions.length,
+            'Role': isSetter ? 'Setter' : 'Guesser',
+            'Result': iWon ? '🏆 You Won!' : '🥈 Partner Won!'
+          }}
+          onClose={() => { restart(); onBack(); }}
+          onRematch={restart}
+          onShareToChat={onShareToChat}
+          sfx={sfx}
+          profile={profile}
+        />
+      );
+    })()}
+    </>
   );
 }

@@ -129,26 +129,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
   const iWon = endTime && (!isMultiplayer || syncState?.winner === userId);
   const partnerWon = isMultiplayer && syncState?.winner === partnerId;
 
-  if (showOverlay) {
-    return (
-      <ShareOutcomeOverlay
-        isSolo={!isMultiplayer}
-        gameName="Typing Race"
-        outcome={isMultiplayer ? (iWon ? 'win' : 'loss') : undefined}
-        stats={{
-          WPM: wpm,
-          Accuracy: `${accuracy}%`,
-          Time: endTime && startTime ? `${((endTime - startTime) / 1000).toFixed(1)}s` : '—',
-          ...(isMultiplayer ? { 'Partner WPM': partnerProgress.wpm, Result: iWon ? '🏆 You Won!' : '🥈 Partner Won!' } : {})
-        }}
-        onClose={() => { restart(); onBack(); }}
-        onRematch={restart}
-        onShareToChat={onShareToChat}
-        sfx={sfx}
-        profile={profile}
-      />
-    );
-  }
+
 
   // Waiting for host to initialize passage
   if (isMultiplayer && !syncState?.passage) {
@@ -161,6 +142,7 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
   }
 
   return (
+    <>
     <RetroWindow title="typing_race.exe" className="w-full max-w-2xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm">
         <span><Keyboard size={14} className="inline mr-1"/> WPM: {wpm}</span>
@@ -214,5 +196,25 @@ export function TypingRace({ config, setScores, onBack, sfx, onWin, onShareToCha
         </div>
       </div>
     </RetroWindow>
+
+    {showOverlay && (
+      <ShareOutcomeOverlay
+        isSolo={!isMultiplayer}
+        gameName="Typing Race"
+        outcome={isMultiplayer ? (iWon ? 'win' : 'loss') : undefined}
+        stats={{
+          WPM: wpm,
+          Accuracy: `${accuracy}%`,
+          Time: endTime && startTime ? `${((endTime - startTime) / 1000).toFixed(1)}s` : '—',
+          ...(isMultiplayer ? { 'Partner WPM': partnerProgress.wpm, Result: iWon ? '🏆 You Won!' : '🥈 Partner Won!' } : {})
+        }}
+        onClose={() => { restart(); onBack(); }}
+        onRematch={restart}
+        onShareToChat={onShareToChat}
+        sfx={sfx}
+        profile={profile}
+      />
+    )}
+    </>
   );
 }

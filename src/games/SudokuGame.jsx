@@ -160,18 +160,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
     }
   };
 
-  if (gameOverOverlay) {
-    const formatTimeStr = (s) => s >= 9999 ? 'N/A' : `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-    const outcomeStats = {
-      "Difficulty": config.diff,
-      "Time": formatTimeStr(time),
-      "Mistakes": mistakes,
-      "Best (Easy)": formatTimeStr(stats.bestTimeEasy),
-      "Best (Medium)": formatTimeStr(stats.bestTimeMedium),
-      "Best (Hard)": formatTimeStr(stats.bestTimeHard),
-    };
-    return <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Sudoku`} stats={outcomeStats} onClose={() => { initSudoku(); onBack(); }} onRematch={initSudoku} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
-  }
+
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
   let filled = 0; if (board.length) { for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (board[r][c].val) filled++; }
@@ -184,6 +173,7 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
   const selectedNum = selectedVal !== null ? selectedVal : null;
 
   return (
+    <>
     <RetroWindow title={`sudoku_${config.diff}.exe`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
 
       {mistakesOverlay && <div className="absolute inset-0 bg-[var(--color-destructive)]/20 z-[100] pointer-events-none mix-blend-overlay"></div>}
@@ -314,5 +304,32 @@ export function Sudoku({ config, setScores, onBack, sfx, onWin, onShareToChat, o
         </div>
       </div>
     </RetroWindow>
+
+    {gameOverOverlay && (() => {
+      const formatTimeStr = (s) => s >= 9999 ? 'N/A' : `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+      const outcomeStats = {
+        "Difficulty": config.diff,
+        "Time": formatTimeStr(time),
+        "Mistakes": mistakes,
+        "Best (Easy)": formatTimeStr(stats.bestTimeEasy),
+        "Best (Medium)": formatTimeStr(stats.bestTimeMedium),
+        "Best (Hard)": formatTimeStr(stats.bestTimeHard),
+      };
+      return (
+        <ShareOutcomeOverlay
+          isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
+          gameName={`Sudoku`}
+          stats={outcomeStats}
+          onClose={() => { initSudoku(); onBack(); }}
+          onRematch={initSudoku}
+          onShareToChat={onShareToChat}
+          onSaveToScrapbook={onSaveToScrapbook}
+          sfx={sfx}
+          profile={profile}
+          partnerNickname={profile?.partnerNickname}
+        />
+      );
+    })()}
+    </>
   );
 }

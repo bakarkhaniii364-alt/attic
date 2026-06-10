@@ -190,7 +190,7 @@ export function SyncProvider({ children }) {
       
       // Instant Broadcast
       const channelId = `room_sync_${roomId}`;
-      if (channelsRef.current[channelId] && isSubscribedRef.current) {
+      if (channelsRef.current[channelId]) {
         channelsRef.current[channelId].send({
           type: 'broadcast',
           event: 'state_update',
@@ -238,7 +238,7 @@ export function SyncProvider({ children }) {
 
       // 2. Broadcast the sub-update immediately
       const channelId = `room_sync_${roomId}`;
-      if (channelsRef.current[channelId] && isSubscribedRef.current) {
+      if (channelsRef.current[channelId]) {
         channelsRef.current[channelId].send({
           type: 'broadcast',
           event: 'state_update',
@@ -282,7 +282,7 @@ export function SyncProvider({ children }) {
 
       // Broadcast
       const channelId = `room_sync_${roomId}`;
-      if (channelsRef.current[channelId] && isSubscribedRef.current) {
+      if (channelsRef.current[channelId]) {
         channelsRef.current[channelId].send({
           type: 'broadcast',
           event: 'state_update',
@@ -313,7 +313,7 @@ export function SyncProvider({ children }) {
 
   const broadcast = useCallback((eventName, payload) => {
     const channelId = `room_sync_${roomId}`;
-    if (channelsRef.current[channelId] && isSubscribedRef.current) {
+    if (channelsRef.current[channelId]) {
       channelsRef.current[channelId].send({
         type: 'broadcast',
         event: eventName,

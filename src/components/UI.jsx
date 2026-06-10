@@ -365,7 +365,7 @@ export function ShareOutcomeOverlay({ gameName, stats, resultImage, customElemen
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-overlay)] bg-black/70 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--z-overlay)] bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col animate-in zoom-in-95 duration-200">
         <RetroWindow
           title={`result_${gameName.toLowerCase().replace(/ /g, '_')}.exe`}

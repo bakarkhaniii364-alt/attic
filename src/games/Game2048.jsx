@@ -100,11 +100,10 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
 
   const restart = () => { setGrid(createGrid()); setScore(0); setGameOver(false); setWon(false); setShowOverlay(false); };
 
-  if (showOverlay) {
-    return <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName="2048" stats={{ Score: score, "Best": best, Result: won ? '🏆 You hit 2048!' : 'Game Over' }} onClose={() => { restart(); onBack(); }} onRematch={restart} onShareToChat={onShareToChat} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} />;
-  }
+
 
   return (
+    <>
     <RetroWindow title="2048.exe" className="w-full max-w-lg h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 px-4 flex justify-between font-bold text-sm">
         <span>Score: {score}</span><span>Best: {best}</span>
@@ -125,5 +124,20 @@ export function Game2048({ config, setScores, onBack, sfx, onWin, onShareToChat,
         <RetroButton variant="secondary" onClick={restart} className="px-6 py-2 text-sm"><RotateCcw size={14} className="inline mr-2"/>Restart</RetroButton>
       </div>
     </RetroWindow>
+
+    {showOverlay && (
+      <ShareOutcomeOverlay
+        isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
+        gameName="2048"
+        stats={{ Score: score, "Best": best, Result: won ? '🏆 You hit 2048!' : 'Game Over' }}
+        onClose={() => { restart(); onBack(); }}
+        onRematch={restart}
+        onShareToChat={onShareToChat}
+        sfx={sfx}
+        profile={profile}
+        partnerNickname={profile?.partnerNickname}
+      />
+    )}
+    </>
   );
 }

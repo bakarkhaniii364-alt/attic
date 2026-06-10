@@ -177,21 +177,13 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
       setMousePos({ x, y });
   };
 
-  if (gameOverOverlay) {
-      const stats = {
-          "Time": `${Math.floor(time/60)}:${(time%60).toString().padStart(2, '0')}`,
-          "Total Moves": moves,
-          "Max Combo": `${combo}x`
-      };
-      if (config.mode === 'competitive') { stats["Final Score"] = `${p1Score} - ${p2Score}`; stats.Winner = p1Score > p2Score ? 'P1 Wins!' : p2Score > p1Score ? 'P2 Wins!' : 'Draw!'; }
-      else { stats.Result = "Team Victory!"; }
-      return <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} gameName={`Memory Match`} stats={stats} onClose={() => {shuffleCards(); onBack();}} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} profile={profile} partnerNickname={profile?.partnerNickname} onRematch={shuffleCards} />;
-  }
+
 
   const gridCols = config.diff === 'easy' ? 'grid-cols-4' : config.diff === 'medium' ? 'grid-cols-4 sm:grid-cols-6' : 'grid-cols-4 sm:grid-cols-8';
   const cardSize = config.diff === 'easy' ? 'w-16 h-20 sm:w-20 sm:h-24 text-3xl sm:text-4xl' : config.diff === 'medium' ? 'w-12 h-16 sm:w-16 sm:h-20 text-2xl sm:text-3xl' : 'w-10 h-14 sm:w-14 sm:h-16 text-xl sm:text-2xl';
 
   return (
+    <>
     <RetroWindow title={`memory_${config.mode || 'solo'}.exe`} className="w-full max-w-4xl h-[calc(100dvh-4rem)] max-h-[850px] relative" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       
       <div className="bg-[var(--border)] text-[var(--bg-window)] p-2 flex justify-between items-center font-bold px-4 z-10 relative">
@@ -258,5 +250,30 @@ export function MemoryGame({ config, setScores, onBack, sfx, onWin, onShareToCha
       </div>
 
     </RetroWindow>
+
+    {gameOverOverlay && (() => {
+      const outcomeStats = {
+          "Time": `${Math.floor(time/60)}:${(time%60).toString().padStart(2, '0')}`,
+          "Total Moves": moves,
+          "Max Combo": `${combo}x`
+      };
+      if (config.mode === 'competitive') { outcomeStats["Final Score"] = `${p1Score} - ${p2Score}`; outcomeStats.Winner = p1Score > p2Score ? 'P1 Wins!' : p2Score > p1Score ? 'P2 Wins!' : 'Draw!'; }
+      else { outcomeStats.Result = "Team Victory!"; }
+      return (
+        <ShareOutcomeOverlay
+          isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
+          gameName={`Memory Match`}
+          stats={outcomeStats}
+          onClose={() => {shuffleCards(); onBack();}}
+          onShareToChat={onShareToChat}
+          onSaveToScrapbook={onSaveToScrapbook}
+          sfx={sfx}
+          profile={profile}
+          partnerNickname={profile?.partnerNickname}
+          onRematch={shuffleCards}
+        />
+      );
+    })()}
+    </>
   );
 }

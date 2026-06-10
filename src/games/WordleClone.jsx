@@ -204,43 +204,12 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
       }
   };
 
-  if (showStats) {
-       const outcomeStats = {
-           Result: gameStatus === 'surrendered' ? `Word was ${targetWord}` : gameStatus === 'won' ? `Guessed in ${boardState.findIndex(g=>g==="")}` : `Word was ${targetWord}`,
-           Score: gameStatus === 'surrendered' ? 'X/6 (quit)' : gameStatus === 'won' ? `${boardState.findIndex(g=>g==="")}/6` : 'X/6',
-           "Win Rate": `${stats.played === 0 ? 0 : Math.round((stats.won/stats.played)*100)}%`,
-           "Current Streak": stats.streak,
-           "Max Streak": stats.maxStreak
-       };
-       const emojiLines = generateEmojiBox();
-       const customNode = (
-           <div className="flex flex-col gap-[2px] items-center bg-gray-50/50 p-4 rounded shadow-inner border border-black/10">
-               {emojiLines.map((line, i) => <div key={i} className="text-2xl sm:text-3xl tracking-widest">{line}</div>)}
-           </div>
-       );
 
-       return ( <ShareOutcomeOverlay isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")} partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined} gameName={`Retro Word (${config.mode})`} stats={outcomeStats} customElement={customNode} onClose={() => { setShowStats(false); onBack(); }} onRematch={() => {
-             setBoardState(Array(maxGuesses).fill(""));
-             setCurrentGuess("");
-             setGameStatus("playing");
-             setTurn(1);
-             setAnimatingRow(-1);
-             setShakingRow(-1);
-             setKeyColors({});
-             setHintUsed(false);
-             setPerfectWin(false);
-             setShowStats(false);
-             if (config.category === 'custom' && config.customWord) {
-                 setTargetWord(config.customWord.toUpperCase());
-             } else {
-                 fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { setTargetWord(w.toUpperCase()) }); 
-             }
-        }} onShareToChat={(msg) => onShareToChat(msg + "\n\n" + emojiLines.join('\n'))} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} /> );
-  }
 
   const currentRowIndex = boardState.findIndex(g => g === "");
 
   return (
+    <>
     <RetroWindow title={`retro_word_${config.mode}.exe`} className="w-full max-w-md h-[calc(100dvh-4rem)] max-h-[850px] flex flex-col" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       {perfectWin && <Confetti active={true} />}
       {showCountdown && <ScoreboardCountdown onComplete={() => setShowCountdown(false)} sfx={sfx} />}
@@ -360,5 +329,53 @@ export function WordleClone({ config, setScores, onBack, sfx, onWin, onShareToCh
       )}
 
     </RetroWindow>
+
+    {showStats && (() => {
+      const outcomeStats = {
+          Result: gameStatus === 'surrendered' ? `Word was ${targetWord}` : gameStatus === 'won' ? `Guessed in ${boardState.findIndex(g=>g==="")}` : `Word was ${targetWord}`,
+          Score: gameStatus === 'surrendered' ? 'X/6 (quit)' : gameStatus === 'won' ? `${boardState.findIndex(g=>g==="")}/6` : 'X/6',
+          "Win Rate": `${stats.played === 0 ? 0 : Math.round((stats.won/stats.played)*100)}%`,
+          "Current Streak": stats.streak,
+          "Max Streak": stats.maxStreak
+      };
+      const emojiLines = generateEmojiBox();
+      const customNode = (
+          <div className="flex flex-col gap-[2px] items-center bg-gray-50/50 p-4 rounded shadow-inner border border-black/10">
+              {emojiLines.map((line, i) => <div key={i} className="text-2xl sm:text-3xl tracking-widest">{line}</div>)}
+          </div>
+      );
+
+      return (
+        <ShareOutcomeOverlay
+          isSolo={(typeof config !== "undefined" && config?.mode === "solo") || (typeof mode !== "undefined" && mode === "solo") || (typeof gameMode !== "undefined" && gameMode === "solo") || (typeof config !== "undefined" && config?.mode === "practice")}
+          partnerNickname={(typeof config !== "undefined" && config?.mode === "vs_ai") || (typeof mode !== "undefined" && mode === "vs_ai") || (typeof gameMode !== "undefined" && gameMode === "vs_ai") ? "AI" : undefined}
+          gameName={`Retro Word (${config.mode})`}
+          stats={outcomeStats}
+          customElement={customNode}
+          onClose={() => { setShowStats(false); onBack(); }}
+          onRematch={() => {
+            setBoardState(Array(maxGuesses).fill(""));
+            setCurrentGuess("");
+            setGameStatus("playing");
+            setTurn(1);
+            setAnimatingRow(-1);
+            setShakingRow(-1);
+            setKeyColors({});
+            setHintUsed(false);
+            setPerfectWin(false);
+            setShowStats(false);
+            if (config.category === 'custom' && config.customWord) {
+                setTargetWord(config.customWord.toUpperCase());
+            } else {
+                fetchDynamicWord(wordLen, WORDS_FALLBACK[config.diff] || WORDS_FALLBACK.easy).then(w => { setTargetWord(w.toUpperCase()) }); 
+            }
+          }}
+          onShareToChat={(msg) => onShareToChat(msg + "\n\n" + emojiLines.join('\n'))}
+          onSaveToScrapbook={onSaveToScrapbook}
+          sfx={sfx}
+        />
+      );
+    })()}
+    </>
   );
 }

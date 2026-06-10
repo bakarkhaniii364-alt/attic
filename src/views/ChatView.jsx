@@ -765,8 +765,8 @@ export function ChatView({ onClose, sfx }) {
         status: newPlayers.length >= 2 ? 'ready' : 'waiting'
       };
     });
-    // Navigate to activity
-    navigate(`/activities/${inviteMsg.gameId}`, { state: { autoJoin: true } });
+    // Navigate to activity lobby
+    navigate(`/activities/${inviteMsg.gameId}/lobby`, { state: { autoJoin: true } });
   };
 
   const handleSend = (e) => {

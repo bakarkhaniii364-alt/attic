@@ -96,9 +96,10 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMobile();
-  // Extract gameRoute directly from location.pathname to be robust under persistent layouts
-  const match = location.pathname.match(/^\/activities\/(.+)$/);
-  const gameRoute = match ? match[1] : undefined;
+  // Extract gameRoute and subRoute from location.pathname to support dedicated sub-routing
+  const pathParts = location.pathname.split('/').filter(Boolean); // ['activities', 'ludo', 'setup']
+  const gameRoute = pathParts[1]; // 'ludo'
+  const subRoute = pathParts[2]; // 'setup' | 'lobby' | 'play'
   
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showPartnerLeftModal, setShowPartnerLeftModal] = useState(false);
@@ -110,7 +111,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
-  const { session: arcadeSession, joinSession, setReady, leaveSession, updateGameState } = useArcadeSession(syncedRoomId, gameRoute, userId);
+  const { session: arcadeSession, joinSession, setReady, leaveSession, updateGameState, resetSession } = useArcadeSession(syncedRoomId, gameRoute, userId);
   const { setCurrentActivity, updateSyncStateAtomic, updateSyncState } = useSync();
 
   const game = GAME_CATALOG[gameRoute];
@@ -118,24 +119,88 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // Determine current active phase (MUST be defined before useEffects)
   let currentPhase = 'menu';
   if (gameRoute && game) {
+    if (subRoute === 'setup') {
+      currentPhase = 'details';
+    } else if (subRoute === 'lobby') {
+      currentPhase = 'lobby';
+    } else if (subRoute === 'play') {
       if (localPlayConfig) {
-          currentPhase = 'playing_local';
-        } else if (isNavigatingLobby) {
-          // If navigating, always show the lobby (Phase 3)
-          // We handle the null session inside Phase 3 gracefully.
-          if (arcadeSession?.status === 'playing') {
-              currentPhase = 'playing_remote';
-          } else {
-              currentPhase = 'lobby';
-          }
+        currentPhase = 'playing_local';
       } else if (arcadeSession && arcadeSession.status === 'playing') {
-          // If refreshing mid-game, go straight back to active board
-          currentPhase = 'playing_remote';
+        currentPhase = 'playing_remote';
       } else {
-          // Default: Always show the setup page (solo vs partner)
-          currentPhase = 'details';
+        // If they navigate directly to play but no game is active, fallback to details setup
+        currentPhase = 'details';
       }
+    } else {
+      // Legacy route fallback (e.g. /activities/ludo)
+      if (localPlayConfig) {
+        currentPhase = 'playing_local';
+      } else if (isNavigatingLobby || (arcadeSession && arcadeSession.status !== 'playing')) {
+        currentPhase = 'lobby';
+      } else if (arcadeSession && arcadeSession.status === 'playing') {
+        currentPhase = 'playing_remote';
+      } else {
+        currentPhase = 'details';
+      }
+    }
   }
+
+  // Redirect plain game URLs (e.g. /activities/ludo) to their correct state-based sub-route
+  useEffect(() => {
+    if (gameRoute && game && !subRoute) {
+      if (localPlayConfig) {
+        navigate(`/activities/${gameRoute}/play`, { replace: true });
+      } else if (isNavigatingLobby || (arcadeSession && arcadeSession.status !== 'playing')) {
+        navigate(`/activities/${gameRoute}/lobby`, { replace: true });
+      } else if (arcadeSession && arcadeSession.status === 'playing') {
+        navigate(`/activities/${gameRoute}/play`, { replace: true });
+      } else {
+        navigate(`/activities/${gameRoute}/setup`, { replace: true });
+      }
+    }
+  }, [gameRoute, game, subRoute, localPlayConfig, isNavigatingLobby, arcadeSession, navigate]);
+
+  // If subRoute is 'play' but no active game session or config exists, send back to setup
+  useEffect(() => {
+    if (gameRoute && game && subRoute === 'play' && !localPlayConfig && (!arcadeSession || arcadeSession.status !== 'playing')) {
+      navigate(`/activities/${gameRoute}/setup`, { replace: true });
+    }
+  }, [gameRoute, game, subRoute, localPlayConfig, arcadeSession, navigate]);
+
+  // Clear game state on entering setup screen to ensure a clean slate
+  useEffect(() => {
+    if (currentPhase === 'details' && gameRoute && syncedRoomId) {
+      console.log(`[SETUP] Entering setup for ${gameRoute}. Wiping any stale sync states.`);
+      const gameStateKeys = {
+        tictactoe: `tictactoe_${syncedRoomId}`,
+        pictionary: 'pictionary_state',
+        memory: `memory_${syncedRoomId}`,
+        chess: `chess_${syncedRoomId}`,
+        othello: `othello_${syncedRoomId}`,
+        pool: [`pool_${syncedRoomId}`, `pool_players_${syncedRoomId}`],
+        uno: `uno_${syncedRoomId}`,
+        bluff: `bluff_${syncedRoomId}`,
+        typing: `typing_${syncedRoomId}`,
+        wyr: `wyr_${syncedRoomId}`,
+        twentyq: `twentyq_${syncedRoomId}`,
+        quiz: `quiz_${syncedRoomId}`,
+        wordle: `wordle_${syncedRoomId}`,
+        ludo: `ludo_${syncedRoomId}`,
+      };
+      const stateKey = gameStateKeys[gameRoute];
+      if (stateKey) {
+        if (Array.isArray(stateKey)) {
+          stateKey.forEach(k => updateSyncState(k, null));
+        } else {
+          updateSyncState(stateKey, null);
+        }
+      }
+      if (resetSession) {
+        resetSession();
+      }
+    }
+  }, [currentPhase, gameRoute, syncedRoomId, updateSyncState, resetSession]);
 
   useEffect(() => {
     if (currentPhase === 'playing_remote' && arcadeSession) {
@@ -229,8 +294,11 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       }
     } else if (arcadeSession?.status === 'playing') {
       setLobbyPhase('PLAYING');
+      if (subRoute === 'lobby') {
+        navigate(`/activities/${gameRoute}/play`, { replace: true });
+      }
     }
-  }, [arcadeSession?.status, userId, syncedRoomId, gameRoute]);
+  }, [arcadeSession?.status, userId, syncedRoomId, gameRoute, subRoute, navigate]);
 
   // Solo Bypass Handshake Listener
   useEffect(() => {
@@ -333,6 +401,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const handleStartLocal = (mode) => {
       playAudio('click', sfx);
       setLocalPlayConfig({ mode: mode.id, diff: selectedDiff, ...selectedOptions });
+      navigate(`/activities/${gameRoute}/play`);
   };
 
   const buildRemoteGameConfig = (mode) => ({
@@ -355,7 +424,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           memory: `memory_${syncedRoomId}`,
           chess: `chess_${syncedRoomId}`,
           othello: `othello_${syncedRoomId}`,
-          pool: `pool_${syncedRoomId}`,
+          pool: [`pool_${syncedRoomId}`, `pool_players_${syncedRoomId}`],
           uno: `uno_${syncedRoomId}`,
           bluff: `bluff_${syncedRoomId}`,
           typing: `typing_${syncedRoomId}`,
@@ -363,10 +432,15 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
           twentyq: `twentyq_${syncedRoomId}`,
           quiz: `quiz_${syncedRoomId}`,
           wordle: `wordle_${syncedRoomId}`,
+          ludo: `ludo_${syncedRoomId}`,
         };
         const stateKey = gameStateKeys[gameRoute];
         if (stateKey) {
-          updateSyncState(stateKey, null);
+          if (Array.isArray(stateKey)) {
+            stateKey.forEach(k => updateSyncState(k, null));
+          } else {
+            updateSyncState(stateKey, null);
+          }
         }
 
         const gameConfig = buildRemoteGameConfig(mode);
@@ -374,6 +448,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         await updateGameState(gameConfig);
         console.log("🚦 [LOBBY] Session created with config:", gameConfig);
         onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute, type: 'game_invite_modal' });
+        navigate(`/activities/${gameRoute}/lobby`);
       } catch (e) {
         console.error("Failed to create lobby:", e);
         setIsNavigatingLobby(false);
@@ -386,6 +461,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       try {
         setIsNavigatingLobby(true);
         await joinSession();
+        navigate(`/activities/${gameRoute}/lobby`);
       } catch (e) {
         console.error("Failed to join lobby:", e);
       }
@@ -517,7 +593,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                           </div>
                       </div>
                       <RetroButton variant="white" className="text-black px-4 py-1.5 text-xs whitespace-nowrap" onClick={() => {
-                        navigate(`/activities/${partnerLobby?.game_id}`);
+                        navigate(`/activities/${partnerLobby?.game_id}/lobby`);
                       }}>View Lobby</RetroButton>
                   </div>
                 );
@@ -549,7 +625,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
               .map(([id, g]) => (
               <button 
                 key={id} 
-                onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}`); }}
+                onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}/setup`); }}
                 data-testid={`game-card-${id}`}
                 className="game-card flex flex-col items-start p-6 bg-[var(--bg-window)] border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
               >
@@ -611,7 +687,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       const activeModeObj = game.modes.find(m => m.id === selectedModeId) || game.modes[0];
 
       return (
-        <div className={`${isMobile ? 'absolute p-0' : 'fixed p-4'} inset-0 z-[var(--z-modal)] bg-black/35 flex items-center justify-center animate-in fade-in duration-200 overflow-y-auto`}>
+        <div className="w-full min-h-full flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
           <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)]" noPadding>
           <div className="flex flex-col bg-[var(--bg-window)] text-[var(--text-main)]">
              <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
@@ -721,8 +797,8 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     const amIReady = isPlayerA ? arcadeSession?.player_a_ready : arcadeSession?.player_b_ready;
 
     return (
-      <>
-        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-4xl h-[calc(100dvh-56px)] md:h-[calc(100dvh-4rem)] max-h-[800px] flex flex-col border-none md:border-solid rounded-none relative overflow-hidden bg-[var(--bg-window)]" noPadding>
+      <div className="w-full min-h-full flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+        <RetroWindow title={`lobby_${gameRoute}.exe`} onClose={handleLeaveClick} className="w-full max-w-md flex flex-col bg-[var(--bg-window)]" noPadding>
            <div className="flex-1 overflow-y-auto w-full custom-scrollbar flex flex-col items-center justify-center p-8 text-center bg-[var(--bg-window)]">
               <h2 className="text-3xl font-black uppercase mb-2 text-[var(--primary)]">Arcade Lobby</h2>
               
@@ -818,13 +894,17 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
             </RetroWindow>
           </div>
         )}
-      </>
+      </div>
     );
   }
 
   // 4. Active Game Phase
   if (currentPhase === 'playing_local' || currentPhase === 'playing_remote') {
-      return renderActiveGame();
+      return (
+        <div className="w-full min-h-full flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
+           {renderActiveGame()}
+        </div>
+      );
   }
 
   return null;

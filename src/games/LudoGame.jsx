@@ -180,6 +180,20 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
   
   const turnOrder = is2ColorsMode ? ['red', 'blue', 'yellow', 'green'] : ['red', 'yellow'];
 
+  const getNextTurnIndex = (currIdx, currentTokens) => {
+    let nextIdx = currIdx;
+    for (let i = 0; i < turnOrder.length; i++) {
+      nextIdx = (nextIdx + 1) % turnOrder.length;
+      const nextColor = turnOrder[nextIdx];
+      const colorTokens = currentTokens.filter(t => t.color === nextColor);
+      const finishedCount = colorTokens.filter(t => t.pos === 105).length;
+      if (colorTokens.length > 0 && finishedCount < colorTokens.length) {
+        return nextIdx;
+      }
+    }
+    return nextIdx;
+  };
+
   const [localGameState, setLocalGameState] = useState(() => ({
     tokens: INITIAL_TOKENS.filter(t => p1Colors.includes(t.color) || p2Colors.includes(t.color)),
     turnIndex: 0,
@@ -231,11 +245,11 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
 
   const didResetRef = useRef(false);
   useEffect(() => {
-    if (isMultiplayer && isHost && !didResetRef.current) {
+    if (isMultiplayer && isHost && !didResetRef.current && syncedState === null) {
       didResetRef.current = true;
       performLocalReset();
     }
-  }, [isMultiplayer, isHost]);
+  }, [isMultiplayer, isHost, syncedState]);
 
   const gameState = localGameState;
   const { tokens, turnIndex, diceValue, diceRolled, rolling, status, msg } = gameState;
@@ -295,9 +309,8 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
         return;
     }
 
-    let nextIdx = (turnIndex + 1) % turnOrder.length;
+    let nextIdx = getNextTurnIndex(turnIndex, tokens);
     let nextColor = turnOrder[nextIdx];
-    
     let nextUpdates = {
       ...currentUpdates,
       turnIndex: nextIdx,
@@ -411,7 +424,7 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
         if (!newMsg) updates.msg = "Extra turn!";
         else if (val === 6 && !extraTurn) updates.msg = newMsg + " | Extra turn for rolling 6!";
       } else {
-        let nextIdx = (turnIndex + 1) % turnOrder.length;
+        let nextIdx = getNextTurnIndex(turnIndex, newTokens);
         updates.turnIndex = nextIdx;
         updates.msg = `${turnOrder[nextIdx]}'s turn to roll`;
       }
@@ -426,8 +439,27 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
       processedWinRef.current = true;
       setGameOverOverlay(true);
       playAudio('win', sfx);
+
+      // Point system integration
+      if (setScores) {
+        const p1Finished = tokens.filter(t => p1Colors.includes(t.color) && t.pos === 105).length;
+        const p2Finished = tokens.filter(t => p2Colors.includes(t.color) && t.pos === 105).length;
+        
+        let didIWin = false;
+        if (isMultiplayer) {
+          if (p1Finished === p1WinsReq && myPlayerId === 'p1') didIWin = true;
+          if (p2Finished === p1WinsReq && myPlayerId === 'p2') didIWin = true;
+        } else {
+          if (p1Finished === p1WinsReq) didIWin = true;
+        }
+
+        if (didIWin) {
+          setScores(prev => incrementUserScore(prev, userId, 'ludo', 1, myName || profile?.name || 'You'));
+          if (onWin) onWin();
+        }
+      }
     }
-  }, [status, sfx]);
+  }, [status, sfx, setScores, tokens, isMultiplayer, myPlayerId, userId, myName, profile, onWin, p1Colors, p2Colors, p1WinsReq]);
 
   const performLocalReset = () => {
     updateGameState({
@@ -679,12 +711,7 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
 
   const getFinishedCount = (color) => tokens.filter(t => t.color === color && t.pos === 105).length;
 
-  if (gameOverOverlay) {
-    const winner = gameState.p1Wins > gameState.p2Wins ? 'Player 1' : 'Player 2';
-    return (
-      <ShareOutcomeOverlay isSolo={!isMultiplayer} gameName="Ludo" stats={{Result: `${winner} wins!`}} onClose={() => {performLocalReset(); onBack();}} onRematch={() => setShowMyRestartModal(true)} onShareToChat={onShareToChat} onSaveToScrapbook={onSaveToScrapbook} sfx={sfx} partnerNickname={partnerName} />
-    );
-  }
+
 
   // Determine dice position based on turn
   const dicePositionMap = {
@@ -805,6 +832,26 @@ export function LudoGame({ config, setScores, onBack, sfx, onWin, onShareToChat,
             setShowPartnerRestartModal(false);
           }}
           sfx={sfx}
+        />
+      )}
+
+      {gameOverOverlay && (
+        <ShareOutcomeOverlay
+          isSolo={!isMultiplayer}
+          gameName="Ludo"
+          stats={{Result: `${gameState.p1Wins > gameState.p2Wins ? 'Player 1' : 'Player 2'} wins!`}}
+          onClose={() => {performLocalReset(); onBack();}}
+          onRematch={() => {
+            if (isMultiplayer) {
+              setShowMyRestartModal(true);
+            } else {
+              performLocalReset();
+            }
+          }}
+          onShareToChat={onShareToChat}
+          onSaveToScrapbook={onSaveToScrapbook}
+          sfx={sfx}
+          partnerNickname={partnerName}
         />
       )}
     </>

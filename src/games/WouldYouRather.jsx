@@ -68,10 +68,11 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile, us
     const myAnswer = myAnswers[idx];
     const matchPct = myAnswers.length > 0 ? Math.round((myAnswers.filter((a, i) => a === theirAnswers[i]).length / myAnswers.length) * 100) : 0;
 
-    if (showOverlay) return <ShareOutcomeOverlay isSolo gameName="Would You Rather" stats={{ Questions: QUESTIONS.length, 'Match %': `${matchPct}%` }} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} />;
+
     const answer = (choice) => { playAudio('click', sfx); const next = [...myAnswers, choice]; setMyAnswers(next); setSoloShowResult(true); };
     const next = () => { playAudio('click', sfx); setSoloShowResult(false); if (idx + 1 >= QUESTIONS.length) { setShowOverlay(true); return; } setIdx(idx + 1); };
     return (
+      <>
       <RetroWindow title="would_you_rather.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
         <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm"><span>Q {idx + 1}/{QUESTIONS.length}</span><span className="flex items-center gap-1"><Heart size={14}/> {matchPct}% match</span></div>
         <div className="w-full h-2 bg-main"><div className="h-full bg-primary transition-all" style={{ width: `${((idx + 1) / QUESTIONS.length) * 100}%` }}></div></div>
@@ -91,6 +92,8 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile, us
           )}
         </div>
       </RetroWindow>
+      {showOverlay && <ShareOutcomeOverlay isSolo gameName="Would You Rather" stats={{ Questions: QUESTIONS.length, 'Match %': `${matchPct}%` }} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} />}
+      </>
     );
   }
 
@@ -135,22 +138,10 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile, us
     }
   };
 
-  if (showOverlay || syncState.phase === 'done') {
-    const finalMatches = syncState.matches || 0;
-    const pct = Math.round((finalMatches / total) * 100);
-    return (
-      <ShareOutcomeOverlay
-        gameName="Would You Rather"
-        stats={{ Questions: total, Matches: finalMatches, 'Match %': `${pct}%`, Verdict: pct > 70 ? '💕 Perfect Match!' : pct > 40 ? '💛 Good Match' : '🌶️ Opposites Attract!' }}
-        onClose={() => { setSyncState(null); onBack(); }}
-        onRematch={() => { setSyncState(null); setShowOverlay(false); }}
-        onShareToChat={onShareToChat}
-        sfx={sfx}
-      />
-    );
-  }
+
 
   return (
+    <>
     <RetroWindow title="wyr_live.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm">
         <span>Q {idx + 1}/{total}</span>
@@ -210,5 +201,20 @@ export function WouldYouRather({ config, onBack, sfx, onShareToChat, profile, us
         )}
       </div>
     </RetroWindow>
+    {(showOverlay || syncState?.phase === 'done') && (() => {
+      const finalMatches = syncState.matches || 0;
+      const pct = Math.round((finalMatches / total) * 100);
+      return (
+        <ShareOutcomeOverlay
+          gameName="Would You Rather"
+          stats={{ Questions: total, Matches: finalMatches, 'Match %': `${pct}%`, Verdict: pct > 70 ? '💕 Perfect Match!' : pct > 40 ? '💛 Good Match' : '🌶️ Opposites Attract!' }}
+          onClose={() => { setSyncState(null); onBack(); }}
+          onRematch={() => { setSyncState(null); setShowOverlay(false); }}
+          onShareToChat={onShareToChat}
+          sfx={sfx}
+        />
+      );
+    })()}
+    </>
   );
 }

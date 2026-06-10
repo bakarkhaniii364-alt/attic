@@ -60,9 +60,7 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
     const current = questions[localIdx];
     const myAnswer = myAnswers[localIdx];
     const matchCount = myAnswers.filter((a, i) => a === theirAnswers[i]).length;
-    if (showOverlay) {
-      return <ShareOutcomeOverlay isSolo gameName="Couples Quiz" stats={{ Questions: questions.length, Matches: matchCount, 'Match %': `${Math.round((matchCount/myAnswers.length)*100)}%` }} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} />;
-    }
+
     const answerLocal = (choice) => {
       playAudio('click', sfx);
       const next = [...myAnswers, choice];
@@ -71,6 +69,7 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
       else setLocalIdx(i => i + 1);
     };
     return (
+      <>
       <RetroWindow title="quiz.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
         <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
           <div className="text-xs font-black uppercase opacity-50">{localIdx + 1} / {questions.length}</div>
@@ -81,6 +80,8 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
           </div>
         </div>
       </RetroWindow>
+      {showOverlay && <ShareOutcomeOverlay isSolo gameName="Couples Quiz" stats={{ Questions: questions.length, Matches: matchCount, 'Match %': `${Math.round((matchCount/myAnswers.length)*100)}%` }} onClose={onBack} onShareToChat={onShareToChat} sfx={sfx} />}
+      </>
     );
   }
 
@@ -129,25 +130,12 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
     }
   };
 
-  if (showOverlay || phase === 'done') {
-    const totalMatch = scores[userId] || 0;
-    const pct = questions?.length > 0 ? Math.round((totalMatch / questions.length) * 100) : 0;
-    return (
-      <ShareOutcomeOverlay
-        gameName="Couples Quiz"
-        stats={{ Category: config?.category || 'random', 'Final Score': `${totalMatch} / ${questions?.length}`, 'Match %': `${pct}%`, Verdict: pct > 70 ? '💕 Perfect Match!' : pct > 40 ? '💛 Good Match' : '🌶️ Opposites Attract!' }}
-        onClose={() => { setSyncState(null); onBack(); }}
-        onRematch={() => { setSyncState(null); setShowOverlay(false); }}
-        onShareToChat={onShareToChat}
-        onSaveToScrapbook={onSaveToScrapbook}
-        sfx={sfx}
-      />
-    );
-  }
+
 
   const progress = questions ? ((idx) / questions.length) * 100 : 0;
 
   return (
+    <>
     <RetroWindow title="quiz_live.exe" className="w-full max-w-xl h-[calc(100dvh-4rem)] max-h-[700px]" onClose={onBack} confirmOnClose sfx={sfx} noPadding>
       <div className="bg-border text-window p-2 px-4 flex justify-between font-bold text-sm">
         <span>Q {idx + 1}/{questions?.length || 5}</span>
@@ -214,5 +202,21 @@ export function CouplesQuiz({ onBack, sfx, onWin, onShareToChat, onSaveToScrapbo
         )}
       </div>
     </RetroWindow>
+    {(showOverlay || phase === 'done') && (() => {
+      const totalMatch = scores[userId] || 0;
+      const pct = questions?.length > 0 ? Math.round((totalMatch / questions.length) * 100) : 0;
+      return (
+        <ShareOutcomeOverlay
+          gameName="Couples Quiz"
+          stats={{ Category: config?.category || 'random', 'Final Score': `${totalMatch} / ${questions?.length}`, 'Match %': `${pct}%`, Verdict: pct > 70 ? '💕 Perfect Match!' : pct > 40 ? '💛 Good Match' : '🌶️ Opposites Attract!' }}
+          onClose={() => { setSyncState(null); onBack(); }}
+          onRematch={() => { setSyncState(null); setShowOverlay(false); }}
+          onShareToChat={onShareToChat}
+          onSaveToScrapbook={onSaveToScrapbook}
+          sfx={sfx}
+        />
+      );
+    })()}
+    </>
   );
 }
