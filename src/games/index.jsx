@@ -26,7 +26,7 @@ import { OthelloGame } from './OthelloGame.jsx';
 import { PoolGame } from './PoolGame.jsx';
 import { BluffGame } from './BluffGame.jsx';
 import { TwentyQuestions } from './TwentyQuestions.jsx';
-
+import { LudoGame } from './LudoGame.jsx';
 const GAME_CATALOG = {
   pictionary: { title: 'Pictionary', desc: 'Draw and guess the hidden word.', color: 'var(--game-peach)', modes: [
     { id: 'coop_remote', label: 'Play with Partner', type: 'remote', desc: 'One draws, the other guesses in real-time.', diffs: ['easy', 'hard'], options: [{key: 'genre', label: 'Word Genre', choices: ['General', 'Animals', 'Movies', 'Food']}, {key: 'rounds', label: 'Rounds', choices: [1, 2, 3, 5]}] }
@@ -85,6 +85,10 @@ const GAME_CATALOG = {
   ]},
   twentyq: { title: '20 Questions', desc: 'Guess the secret word.', color: 'var(--game-teal)', modes: [
     { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'One sets the word, the other guesses.' }
+  ]},
+  ludo: { title: 'Ludo', desc: 'Classic board game.', color: 'var(--game-red)', modes: [
+    { id: 'vs_ai', label: 'Play vs AI', type: 'local', desc: 'Play against AI.', options: [{key: 'colorsMode', label: 'Tokens', choices: ['2_colors', '1_color']}] },
+    { id: '1v1_remote', label: 'Vs Partner (Online)', type: 'remote', desc: 'Online 1v1 match.', options: [{key: 'colorsMode', label: 'Tokens', choices: ['2_colors', '1_color']}] }
   ]}
 };
 
@@ -440,6 +444,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         case 'pool': return <PoolGame {...commonProps} />;
         case 'bluff': return <BluffGame {...commonProps} />;
         case 'twentyq': return <TwentyQuestions {...commonProps} />;
+        case 'ludo': return <LudoGame {...commonProps} />;
         default: return <div className="p-8 text-center font-bold">Game Engine Offline</div>;
       }
     })();
