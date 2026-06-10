@@ -332,6 +332,13 @@ export default function App() {
       weather={weather} setWeather={setWeather} 
       radioState={radioState} setRadioState={setRadioState} 
       setShowKiss={setShowKiss} 
+      gameInvite={gameInvite}
+      onDeclineInvite={() => setGameInvite(null)}
+      onAcceptInvite={() => {
+        setGameInvite(null);
+        const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
+        navigate(`/arcade/${gId}/lobby`, { state: { autoJoin: true } });
+      }}
     />
   );
 
@@ -491,43 +498,6 @@ export default function App() {
             )}
 
         <SeoManager />
-        {!isOnboarding && gameInvite && (
-          <div className="w-full max-w-4xl px-4 sm:px-0 mb-4 shrink-0 z-50 animate-in slide-in-from-top duration-300">
-            <div className="bg-window text-main-text retro-border p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.15)] animate-pulse">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-primary/20 rounded-none retro-border flex items-center justify-center flex-shrink-0 text-primary">
-                  <Gamepad2 size={18} className="animate-bounce" />
-                </div>
-                <div className="text-left">
-                  <h4 className="text-xs font-black uppercase tracking-wider leading-none mb-1 text-primary">Activity Invite</h4>
-                  <p className="text-[11px] font-bold opacity-80">{roomProfiles?.[gameInvite.sender]?.name || partnerName || 'Partner'} invited you to play a game!</p>
-                </div>
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button 
-                  onClick={() => {
-                    playAudio('click', sfxEnabled);
-                    setGameInvite(null);
-                  }} 
-                  className="flex-1 sm:flex-initial px-4 py-1.5 text-xs font-bold bg-window text-main-text retro-border hover:brightness-110 active:translate-y-[1px]"
-                >
-                  Decline
-                </button>
-                <button 
-                  onClick={async () => {
-                    playAudio('click', sfxEnabled);
-                    setGameInvite(null);
-                    const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-                    navigate(`/arcade/${gId}/lobby`, { state: { autoJoin: true } });
-                  }} 
-                  className="flex-1 sm:flex-initial px-4 py-1.5 text-xs font-black bg-accent text-accent-text retro-border hover:brightness-110 active:translate-y-[1px]"
-                >
-                  Accept
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <div className="app-glitch-wrapper flex-1 w-full flex flex-col items-center" data-hawkins={theme === 'hawkins'}>
           <Suspense fallback={<AppLoader />}>
             <Routes>

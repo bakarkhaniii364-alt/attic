@@ -26,7 +26,7 @@ const ChatView = React.lazy(() => import('./ChatView.jsx').then(m => ({ default:
 const SettingsView = React.lazy(() => import('./SettingsView.jsx').then(m => ({ default: m.SettingsView })));
 
 
-export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, radioState, setRadioState, setShowKiss }) {
+export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled, notificationsEnabled, setNotificationsEnabled, weather, setWeather, radioState, setRadioState, setShowKiss, gameInvite, onDeclineInvite, onAcceptInvite }) {
   const { userId, partnerId, roomId, logout, user } = useAuth();
   const sync = useSync();
   const { globalState, isInitialized, updateSyncState, updateSyncStateAtomic, mergeSyncState, broadcast: syncBroadcast, onlineUsers } = sync;
@@ -117,7 +117,33 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
   const hasDraft = !!localStorage.getItem(draftKey);
   let quickActionItem = null;
 
-  if (hasDraft) {
+  if (gameInvite) {
+    quickActionItem = {
+      id: 'game-invite',
+      icon: <Gamepad2 size={14} className="text-primary shrink-0 animate-bounce" fill="currentColor" />,
+      text: `${partnerName} invited you to play a game!`,
+      bgClass: 'bg-primary/15 border-primary/30 text-main-text shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]',
+      actions: [
+        {
+          label: 'Decline',
+          onClick: () => {
+            playAudio('click', sfxEnabled);
+            if (onDeclineInvite) onDeclineInvite();
+          },
+          variant: 'white',
+          className: 'bg-window text-main-text opacity-70 hover:opacity-100'
+        },
+        {
+          label: 'Play',
+          onClick: () => {
+            playAudio('click', sfxEnabled);
+            if (onAcceptInvite) onAcceptInvite();
+          },
+          className: 'bg-accent text-accent-text'
+        }
+      ]
+    };
+  } else if (hasDraft) {
     quickActionItem = {
       id: 'draft',
       icon: <Pen size={14} className="text-primary shrink-0" fill="currentColor" />,
@@ -362,7 +388,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                   <span className="feed-icon-pulse shrink-0">{item.icon}</span>
                   <span className="lowercase break-words whitespace-normal flex-1">{item.text}</span>
                 </div>
-                {item.action && (
+                {item.action && !item.actions && (
                   <RetroButton
                     type="button"
                     variant="primary"
@@ -372,6 +398,22 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
                   >
                     {item.action.label}
                   </RetroButton>
+                )}
+                {item.actions && (
+                  <div className="flex gap-2 shrink-0">
+                    {item.actions.map((act, i) => (
+                      <RetroButton
+                        key={i}
+                        type="button"
+                        variant={act.variant || "primary"}
+                        size="sm"
+                        className={`shrink-0 ${act.className || "bg-window text-main-text"}`}
+                        onClick={act.onClick}
+                      >
+                        {act.label}
+                      </RetroButton>
+                    ))}
+                  </div>
                 )}
               </div>
             );
