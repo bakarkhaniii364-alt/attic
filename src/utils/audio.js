@@ -10,10 +10,14 @@
  */
 
 import { Howl, Howler } from 'howler';
+import { playSound, setSoundEnabled } from 'react-sounds';
 
-// ── Global Howler Volume ────────────────────────────────────────────────────
+// ── Global SFX Volume ────────────────────────────────────────────────────
 export function setSfxVolume(enabled) {
-  try { Howler.volume(enabled ? 1 : 0); } catch (_) {}
+  try { 
+    Howler.volume(enabled ? 1 : 0);
+    setSoundEnabled(enabled);
+  } catch (_) {}
 }
 
 // ── Synthesized SFX (Web Audio API) ────────────────────────────────────────
@@ -54,83 +58,25 @@ export function playAudio(type, enabled) {
   synth((ctx, now) => {
     switch (type) {
 
-      // ── UI ──────────────────────────────────────────────────────────────
-      case 'click': {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
-        g.gain.setValueAtTime(0.08, now);
-        g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.start(now); osc.stop(now + 0.1);
+      // ── UI & Notifications (via react-sounds) ───────────────────────────
+      case 'click':
+        playSound('ui/button_soft');
         break;
-      }
-
-      case 'notif': {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1000, now);
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
-        osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
-        g.gain.setValueAtTime(0.1, now);
-        g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-        osc.start(now); osc.stop(now + 0.22);
+      case 'notif':
+        playSound('notification/notification');
         break;
-      }
-
-      case 'send': {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(500, now);
-        osc.frequency.setValueAtTime(800, now + 0.08);
-        g.gain.setValueAtTime(0.1, now);
-        g.gain.linearRampToValueAtTime(0.001, now + 0.2);
-        osc.start(now); osc.stop(now + 0.2);
+      case 'send':
+        playSound('ui/send');
         break;
-      }
-
-      case 'receive': {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.setValueAtTime(1200, now + 0.08);
-        g.gain.setValueAtTime(0.1, now);
-        g.gain.linearRampToValueAtTime(0.001, now + 0.2);
-        osc.start(now); osc.stop(now + 0.2);
+      case 'receive':
+        playSound('notification/message');
         break;
-      }
-
-      case 'win': {
-        // Triumphant ascending triad
-        [400, 500, 600, 800].forEach((freq, i) => {
-          const osc = ctx.createOscillator(); const g = ctx.createGain();
-          osc.connect(g); g.connect(ctx.destination);
-          osc.type = 'sine';
-          osc.frequency.value = freq;
-          const t = now + i * 0.1;
-          g.gain.setValueAtTime(0, t);
-          g.gain.linearRampToValueAtTime(0.2, t + 0.05);
-          g.gain.linearRampToValueAtTime(0, t + 0.3);
-          osc.start(t); osc.stop(t + 0.35);
-        });
+      case 'win':
+        playSound('arcade/level_up');
         break;
-      }
-
-      case 'success': {
-        [600, 800].forEach((freq, i) => {
-          const osc = ctx.createOscillator(); const g = ctx.createGain();
-          osc.connect(g); g.connect(ctx.destination);
-          osc.type = 'sine'; osc.frequency.value = freq;
-          const t = now + i * 0.12;
-          g.gain.setValueAtTime(0.15, t); g.gain.linearRampToValueAtTime(0.001, t + 0.25);
-          osc.start(t); osc.stop(t + 0.25);
-        });
+      case 'success':
+        playSound('notification/success');
         break;
-      }
 
       // ── Drawing / Chalk SFX ─────────────────────────────────────────────
       case 'chalk': {

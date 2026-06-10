@@ -23,6 +23,7 @@ import { useAppLogic } from './hooks/useAppLogic.js';
 import { DesktopOnly } from './components/MobileOnly.jsx';
 import { MobileBottomNav } from './components/Navigation/MobileBottomNav.jsx';
 import { SwipeNavigationWrapper } from './components/Navigation/SwipeNavigationWrapper.jsx';
+import { setSoundEnabled } from 'react-sounds';
 
 import { LandingView, AuthView, HandshakeView } from './views/Onboarding.jsx';
 import { LegalView } from './views/LegalView.jsx';
@@ -147,6 +148,11 @@ export default function App() {
   }, [roomId, coupleData, mergeSyncState, setLocalStoredWeather]);
 
   const [sfxEnabled, setSfxEnabled] = useLocalStorage('sfx_enabled', true); 
+  
+  useEffect(() => {
+    setSoundEnabled(sfxEnabled);
+  }, [sfxEnabled]);
+
   const [notificationsEnabled, setNotificationsEnabled] = useLocalStorage('notifications_enabled', true);
   const [triggerShake] = useState(false); 
   const [confetti, setConfetti] = useState(false);
