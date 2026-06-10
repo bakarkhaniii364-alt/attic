@@ -19,7 +19,7 @@ test.describe('Arcade Gameplay Synchronization Suite', () => {
 
     // Step 1: User A invites User B to Pictionary
     console.log("User A opening games catalog...");
-    await pageA.getByTestId('app-icon-arcade').click().catch(() => pageA.goto(`http://localhost:5173/activities?test_mode=true&user=userA_${testId}`));
+    await pageA.getByTestId('app-icon-arcade').click().catch(() => pageA.goto(`http://localhost:5173/arcade?test_mode=true&user=userA_${testId}`));
     
     console.log("Waiting for Hub to load...");
     await expect(pageA.getByText(/activities_hub\.exe/i)).toBeVisible({ timeout: 20000 });
@@ -44,7 +44,7 @@ test.describe('Arcade Gameplay Synchronization Suite', () => {
         await acceptBtn.click();
     } else {
         // Try clicking the game directly if invite missed
-        await pageB.goto(`http://localhost:5173/activities/pictionary?test_mode=true&user=userB_${testId}`);
+        await pageB.goto(`http://localhost:5173/arcade/pictionary?test_mode=true&user=userB_${testId}`);
     }
     
     // User B joins lobby
@@ -115,7 +115,7 @@ test.describe('Arcade Gameplay Synchronization Suite', () => {
 
     // Step 1: User A invites User B to Uno
     console.log("User A opening games catalog...");
-    await pageA.getByTestId('app-icon-arcade').click().catch(() => pageA.goto(`http://localhost:5173/activities?test_mode=true&user=userA_${testId}`));
+    await pageA.getByTestId('app-icon-arcade').click().catch(() => pageA.goto(`http://localhost:5173/arcade?test_mode=true&user=userA_${testId}`));
 
     console.log("Waiting for Hub to load...");
     await expect(pageA.getByText(/activities_hub\.exe/i)).toBeVisible({ timeout: 20000 });
@@ -138,7 +138,7 @@ test.describe('Arcade Gameplay Synchronization Suite', () => {
     if (await acceptBtn.isVisible()) {
         await acceptBtn.click();
     } else {
-        await pageB.goto(`http://localhost:5173/activities/uno?test_mode=true&user=userB_${testId}`);
+        await pageB.goto(`http://localhost:5173/arcade/uno?test_mode=true&user=userB_${testId}`);
     }
     
     // User B joins lobby

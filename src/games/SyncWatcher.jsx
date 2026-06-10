@@ -504,6 +504,14 @@ export default function SyncWatcher({ onBack, sfx, userId, onShareToChat }) {
         return () => document.removeEventListener('fullscreenchange', handleFsChange);
     }, []);
 
+    useEffect(() => {
+        if (syncedTitle) {
+            document.title = `Watch ${syncedTitle} | Attic`;
+        } else {
+            document.title = 'Watch SyncWatcher | Attic';
+        }
+    }, [syncedTitle]);
+
 
 
 

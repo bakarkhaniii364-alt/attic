@@ -84,7 +84,7 @@ function SwipeLayout({
   let activeTab = 'dashboard';
   if (location.pathname.startsWith('/space')) {
     activeTab = 'space';
-  } else if (location.pathname.startsWith('/activities')) {
+  } else if (location.pathname.startsWith('/arcade')) {
     activeTab = 'arcade';
   } else if (location.pathname.startsWith('/settings')) {
     activeTab = 'settings';
@@ -443,7 +443,7 @@ export default function App() {
               userId={userId} roomId={roomId} isCalling={!!calling}
               onGoChat={() => navigateTo('chat')}
               onGoDashboard={() => navigateTo('dashboard')}
-              onGoArcade={() => navigateTo('activities')}
+              onGoArcade={() => navigateTo('arcade')}
               onReadLater={handleReadLater}
               onMarkSeen={handleMarkSeen}
               partnerName={partnerName}
@@ -478,7 +478,7 @@ export default function App() {
               onDeafenToggle={toggleDeafen}
               onScreenShare={startScreenShare}
               onGoChat={() => navigateTo('chat')}
-              onGoArcade={() => navigateTo('activities')}
+              onGoArcade={() => navigateTo('arcade')}
             />
 
             {partnerOnlineModal && (
@@ -518,7 +518,7 @@ export default function App() {
                     playAudio('click', sfxEnabled);
                     setGameInvite(null);
                     const gId = gameInvite.metadata?.gameId || gameInvite.gameId;
-                    navigate(`/activities/${gId}/lobby`, { state: { autoJoin: true } });
+                    navigate(`/arcade/${gId}/lobby`, { state: { autoJoin: true } });
                   }} 
                   className="flex-1 sm:flex-initial px-4 py-1.5 text-xs font-black bg-accent text-accent-text retro-border hover:brightness-110 active:translate-y-[1px]"
                 >
@@ -554,8 +554,8 @@ export default function App() {
                 </ProtectedRoute>
               }>
                 <Route path="/dashboard" element={<Outlet />} />
-                <Route path="/activities" element={<Outlet />} />
-                <Route path="/activities/*" element={<Outlet />} />
+                <Route path="/arcade" element={<Outlet />} />
+                <Route path="/arcade/*" element={<Outlet />} />
                 <Route path="/space" element={<Outlet />} />
                 <Route path="/settings" element={<Outlet />} />
               </Route>

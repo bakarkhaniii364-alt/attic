@@ -481,7 +481,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
     <RetroWindow title="applications" className={`w-full md:col-span-12 ${isMobile ? 'hidden' : 'flex'}`}>
       <div className={`grid ${isMobile ? 'grid-cols-3 gap-8' : 'grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-6 sm:gap-8'} p-4`}>
         <AppIcon icon={<MessageSquare size={28} />} label="Chat"     color="#3b82f6" onClick={() => nav('chat')} badge={unreadChatCount > 0 ? unreadChatCount : null} />
-        <AppIcon icon={<Gamepad2     size={28} />} label="Arcade"   color="#a855f7" onClick={() => nav('activities')} />
+        <AppIcon icon={<Gamepad2     size={28} />} label="Arcade"   color="#a855f7" onClick={() => nav('arcade')} />
         <AppIcon icon={<Monitor      size={28} />} label="Watch"    color="#f472b6" onClick={() => nav('watch')} />
         <AppIcon icon={<Pen          size={28} />} label="Doodle"   color="#ec4899" onClick={() => nav('doodle')} />
         <AppIcon icon={<Brush        size={28} />} label="Pixels"   color="#f97316" onClick={() => nav('pixelart')} />

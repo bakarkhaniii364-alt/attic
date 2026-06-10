@@ -97,7 +97,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const location = useLocation();
   const isMobile = useMobile();
   // Extract gameRoute and subRoute from location.pathname to support dedicated sub-routing
-  const pathParts = location.pathname.split('/').filter(Boolean); // ['activities', 'ludo', 'setup']
+  const pathParts = location.pathname.split('/').filter(Boolean); // ['arcade', 'ludo', 'setup']
   const gameRoute = pathParts[1]; // 'ludo'
   const subRoute = pathParts[2]; // 'setup' | 'lobby' | 'play'
   
@@ -146,17 +146,17 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     }
   }
 
-  // Redirect plain game URLs (e.g. /activities/ludo) to their correct state-based sub-route
+  // Redirect plain game URLs (e.g. /arcade/ludo) to their correct state-based sub-route
   useEffect(() => {
     if (gameRoute && game && !subRoute) {
       if (localPlayConfig) {
-        navigate(`/activities/${gameRoute}/play`, { replace: true });
+        navigate(`/arcade/${gameRoute}/play`, { replace: true });
       } else if (isNavigatingLobby || (arcadeSession && arcadeSession.status !== 'playing')) {
-        navigate(`/activities/${gameRoute}/lobby`, { replace: true });
+        navigate(`/arcade/${gameRoute}/lobby`, { replace: true });
       } else if (arcadeSession && arcadeSession.status === 'playing') {
-        navigate(`/activities/${gameRoute}/play`, { replace: true });
+        navigate(`/arcade/${gameRoute}/play`, { replace: true });
       } else {
-        navigate(`/activities/${gameRoute}/setup`, { replace: true });
+        navigate(`/arcade/${gameRoute}/setup`, { replace: true });
       }
     }
   }, [gameRoute, game, subRoute, localPlayConfig, isNavigatingLobby, arcadeSession, navigate]);
@@ -164,7 +164,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   // If subRoute is 'play' but no active game session or config exists, send back to setup
   useEffect(() => {
     if (gameRoute && game && subRoute === 'play' && !localPlayConfig && (!arcadeSession || arcadeSession.status !== 'playing')) {
-      navigate(`/activities/${gameRoute}/setup`, { replace: true });
+      navigate(`/arcade/${gameRoute}/setup`, { replace: true });
     }
   }, [gameRoute, game, subRoute, localPlayConfig, arcadeSession, navigate]);
 
@@ -295,7 +295,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
     } else if (arcadeSession?.status === 'playing') {
       setLobbyPhase('PLAYING');
       if (subRoute === 'lobby') {
-        navigate(`/activities/${gameRoute}/play`, { replace: true });
+        navigate(`/arcade/${gameRoute}/play`, { replace: true });
       }
     }
   }, [arcadeSession?.status, userId, syncedRoomId, gameRoute, subRoute, navigate]);
@@ -401,7 +401,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
   const handleStartLocal = (mode) => {
       playAudio('click', sfx);
       setLocalPlayConfig({ mode: mode.id, diff: selectedDiff, ...selectedOptions });
-      navigate(`/activities/${gameRoute}/play`);
+      navigate(`/arcade/${gameRoute}/play`);
   };
 
   const buildRemoteGameConfig = (mode) => ({
@@ -448,7 +448,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         await updateGameState(gameConfig);
         console.log("🚦 [LOBBY] Session created with config:", gameConfig);
         onShareToChat(`Join me for ${game.title} (${mode.label})!`, null, { gameId: gameRoute, type: 'game_invite_modal' });
-        navigate(`/activities/${gameRoute}/lobby`);
+        navigate(`/arcade/${gameRoute}/lobby`);
       } catch (e) {
         console.error("Failed to create lobby:", e);
         setIsNavigatingLobby(false);
@@ -461,7 +461,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       try {
         setIsNavigatingLobby(true);
         await joinSession();
-        navigate(`/activities/${gameRoute}/lobby`);
+        navigate(`/arcade/${gameRoute}/lobby`);
       } catch (e) {
         console.error("Failed to join lobby:", e);
       }
@@ -496,7 +496,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
         isHost, isMultiplayer, myPlayerId, oppPlayerId,
         onBack: () => {
              setLocalPlayConfig(null);
-             navigate('/activities');
+             navigate('/arcade');
         }, 
         onShareToChat, onSaveToScrapbook, profile,
         myName, partnerName, roomProfiles,
@@ -593,7 +593,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
                           </div>
                       </div>
                       <RetroButton variant="white" className="text-black px-4 py-1.5 text-xs whitespace-nowrap" onClick={() => {
-                        navigate(`/activities/${partnerLobby?.game_id}/lobby`);
+                        navigate(`/arcade/${partnerLobby?.game_id}/lobby`);
                       }}>View Lobby</RetroButton>
                   </div>
                 );
@@ -625,7 +625,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
               .map(([id, g]) => (
               <button 
                 key={id} 
-                onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/activities/${id}/setup`); }}
+                onClick={() => { try{playAudio('click', sfx);}catch(e){} navigate(`/arcade/${id}/setup`); }}
                 data-testid={`game-card-${id}`}
                 className="game-card flex flex-col items-start p-6 bg-[var(--bg-window)] border-2 border-[var(--border)] shadow-[4px_4px_0px_0px_var(--border)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all text-left"
               >
@@ -652,7 +652,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
       setShowLeaveConfirm(false);
       setIsNavigatingLobby(false);
       setLobbyPhase('IDLE');
-      navigate('/activities');
+      navigate('/arcade');
   };
   const handleLeaveClick = () => {
       const partnerInLobby = !!arcadeSession?.player_a_id && !!arcadeSession?.player_b_id;
@@ -688,7 +688,7 @@ export function ActivitiesHub({ onClose, sfx, setConfetti, onShareToChat, broadc
 
       return (
         <div className="w-full min-h-full flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200">
-          <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/activities')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)]" noPadding>
+          <RetroWindow title={`${gameRoute}_setup.exe`} onClose={() => navigate('/arcade')} className="w-full max-w-md flex flex-col bg-[var(--bg-window)]" noPadding>
           <div className="flex flex-col bg-[var(--bg-window)] text-[var(--text-main)]">
              <div className="p-6 border-b-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center text-center shrink-0">
                  <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-widest" style={{ color: game.color || 'var(--primary)' }}>{game.title}</h1>

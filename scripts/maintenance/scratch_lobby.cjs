@@ -28,7 +28,7 @@ const leaveLogic = `
           return { ...prev, players: newPlayers };
       });
       setShowLeaveConfirm(false);
-      navigate('/activities');
+      navigate('/arcade');
   };
 
   const handleLeaveClick = () => {

@@ -12,7 +12,7 @@ const tabIndices = {
 const indexRoutes = [
   '/dashboard',
   '/space',
-  '/activities',
+  '/arcade',
   '/settings'
 ];
 
@@ -30,8 +30,8 @@ export function SwipeNavigationWrapper({ children, activeTab, sfxEnabled }) {
   const isSwipeNavigating = useRef(false);
 
   const isSwipeDisabled = location.pathname !== '/dashboard' &&
-                          location.pathname !== '/activities' &&
-                          location.pathname !== '/activities/' &&
+                          location.pathname !== '/arcade' &&
+                          location.pathname !== '/arcade/' &&
                           location.pathname !== '/space' &&
                           location.pathname !== '/settings';
 

@@ -36,7 +36,7 @@ const PRIVATE_VIEWS = [
     { name: '19_space', path: '/space', explore: true },
     { name: '20_settings', path: '/settings', specialInteract: 'settings' },
     { name: '21_legal', path: '/legal' },
-    { name: '22_activities', path: '/activities', specialInteract: 'arcade' }
+    { name: '22_activities', path: '/arcade', specialInteract: 'arcade' }
 ];
 
 const GAMES = [
@@ -313,7 +313,7 @@ test('UI Auto Rater & Screener', async ({ page }) => {
     // 3. ARCADE GAME SETUP VIEWS (15 Games)
     console.log(`👾 Visiting all Arcade game lobby and setup screens...`);
     for (const gameId of GAMES) {
-        const gamePath = `/activities/${gameId}`;
+        const gamePath = `/arcade/${gameId}`;
         console.log(`🕹️ Visiting game: ${gameId}`);
         await page.goto(`${CONFIG.START_URL}${gamePath}?test_mode=true&user=${CONFIG.TEST_USER}`, { waitUntil: 'networkidle' }).catch(() => {});
         await page.waitForTimeout(1500);

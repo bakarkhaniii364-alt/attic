@@ -8,7 +8,7 @@ Disallow: /dashboard
 Disallow: /chat
 Disallow: /handshake
 Disallow: /settings
-Disallow: /activities
+Disallow: /arcade
 Disallow: /doodle
 Disallow: /scrapbook
 Disallow: /notes

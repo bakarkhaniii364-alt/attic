@@ -19,7 +19,7 @@ export function MobileBottomNav({ sfxEnabled }) {
   const tabs = [
     { id: 'home', path: '/dashboard', label: 'Dashboard', icon: Heart },
     { id: 'space', path: '/space', label: 'Spaces', icon: Grid3x3 },
-    { id: 'arcade', path: '/activities', label: 'Arcade', icon: Gamepad2 },
+    { id: 'arcade', path: '/arcade', label: 'Arcade', icon: Gamepad2 },
     { id: 'settings', path: '/settings', label: 'Control panel', isAvatar: true }
   ];
 

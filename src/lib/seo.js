@@ -52,6 +52,7 @@ const PRIVATE_PREFIXES = [
   '/handshake',
   '/settings',
   '/doodle',
+  '/arcade',
   '/activities',
   '/scrapbook',
   '/notes',
@@ -66,9 +67,63 @@ const PRIVATE_PREFIXES = [
   '/pixelart',
 ];
 
+const EXACT_PRIVATE_TITLES = {
+  '/chat': 'Chat',
+  '/settings': 'Settings',
+  '/doodle': 'Doodle',
+  '/scrapbook': 'Scrapbook',
+  '/notes': 'Notes',
+  '/watch': 'Watch SyncWatcher',
+  '/capsule': 'Time Capsule',
+  '/lists': 'Shared Lists',
+  '/calendar': 'Calendar',
+  '/dreams': 'Dream Journal',
+  '/daily-q': 'Daily Question',
+  '/resume': 'Our Story',
+  '/shared-canvas': 'Shared Canvas',
+  '/pixelart': 'Pixel Art',
+};
+
 export function getSeoForPath(pathname) {
   const exact = ROUTE_SEO[pathname];
   if (exact) return exact;
+
+  if (EXACT_PRIVATE_TITLES[pathname]) {
+    return {
+      title: EXACT_PRIVATE_TITLES[pathname],
+      description: DEFAULT_DESCRIPTION,
+      index: false,
+    };
+  }
+
+  if (pathname.startsWith('/arcade') || pathname.startsWith('/activities')) {
+    const parts = pathname.split('/').filter(Boolean); // ['arcade', 'ludo', 'play']
+    const gameRoute = parts[1];
+    const gameTitles = {
+      pictionary: 'Pictionary',
+      tictactoe: 'Tic-Tac-Toe',
+      memory: 'Memory Match',
+      wordle: 'Retro Word',
+      sudoku: 'Sudoku',
+      chess: 'Chess',
+      quiz: 'Couples Quiz',
+      '2048': '2048',
+      typing: 'Typing Race',
+      wyr: 'Would You Rather',
+      uno: 'Retro Uno',
+      othello: 'Othello',
+      pool: '8-Ball Pool',
+      bluff: 'Cheat (Bluff)',
+      twentyq: '20 Questions',
+      ludo: 'Ludo',
+    };
+    const gameTitle = gameTitles[gameRoute];
+    return {
+      title: gameTitle || 'Arcade',
+      description: DEFAULT_DESCRIPTION,
+      index: false,
+    };
+  }
 
   if (PRIVATE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return {

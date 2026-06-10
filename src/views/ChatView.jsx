@@ -766,7 +766,7 @@ export function ChatView({ onClose, sfx }) {
       };
     });
     // Navigate to activity lobby
-    navigate(`/activities/${inviteMsg.gameId}/lobby`, { state: { autoJoin: true } });
+    navigate(`/arcade/${inviteMsg.gameId}/lobby`, { state: { autoJoin: true } });
   };
 
   const handleSend = (e) => {
