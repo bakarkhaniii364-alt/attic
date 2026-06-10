@@ -424,9 +424,7 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
             onClick={(e) => {
               e.preventDefault();
               playAudio('click', sfxEnabled);
-              setModalLastRead(lastReadAt);
               setShowNotifModal(true);
-              markAllRead();
             }}
             aria-label="Notification History"
           >
@@ -592,10 +590,8 @@ export function Dashboard({ setView, theme, setTheme, sfxEnabled, setSfxEnabled,
 
       {showNotifModal && (
         <NotificationHistoryModal 
-          notifications={history} 
-          lastReadAt={modalLastRead}
+          userId={userId}
           onClose={() => setShowNotifModal(false)} 
-          onClear={() => { playAudio('click', sfxEnabled); clearHistory(); }}
           sfxEnabled={sfxEnabled}
         />
       )}

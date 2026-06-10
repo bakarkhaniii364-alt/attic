@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => ({
         'top-level-await': true,
       },
     },
+    exclude: ['dashjs'],
   },
   plugins: [
     react(),
@@ -42,7 +43,11 @@ export default defineConfig(({ mode }) => ({
   build: {
     sourcemap: mode !== 'production',
     chunkSizeWarningLimit: 1000,
-      rollupOptions: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'COMMONJS_VARIABLE_IN_ESM' && warning.id && warning.id.includes('dashjs')) return;
+        warn(warning);
+      },
       output: {
         manualChunks(id) {
           if (!id) return;
