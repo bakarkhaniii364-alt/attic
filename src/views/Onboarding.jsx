@@ -91,6 +91,7 @@ export function AuthView({ mode }) {
   const widgetIdRef = useRef(null);
   const timeoutRef = useRef(null);
 
+  /* Captcha temporarily disabled
   useEffect(() => {
     // Add Turnstile script if not already present
     if (!document.getElementById('turnstile-script')) {
@@ -162,6 +163,7 @@ export function AuthView({ mode }) {
       setCaptchaToken(null);
     };
   }, [mode]);
+  */
 
   const onBack = () => navigate('/');
 
@@ -178,10 +180,6 @@ export function AuthView({ mode }) {
 
   const startAuthFlow = (e) => {
     e.preventDefault();
-    if (!captchaToken && !import.meta.env.DEV) {
-      addToast("Please complete the captcha (disable adblocker if missing)", "error");
-      return;
-    }
     // Terms agreement is only required for new accounts
     if (mode === 'signup' && !termsAgreed) {
         setShowLegal(true);
@@ -196,7 +194,7 @@ export function AuthView({ mode }) {
     try {
       if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({ 
-            email, password, options: { data: { name }, captchaToken } 
+            email, password, options: { data: { name } } 
         });
         if (error) {
            if (error.message.toLowerCase().includes('already registered')) {
@@ -219,7 +217,7 @@ export function AuthView({ mode }) {
         navigate('/dashboard');
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ 
-            email, password, options: { captchaToken } 
+            email, password
         });
         if (error) {
            if (error.message.includes('Email not confirmed')) {
