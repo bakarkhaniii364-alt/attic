@@ -87,6 +87,9 @@ export function AuthView({ mode }) {
   const [linkSent, setLinkSent] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(null);
   const addToast = useToast();
+  const turnstileContainerRef = useRef(null);
+  const widgetIdRef = useRef(null);
+  const timeoutRef = useRef(null);
 
   useEffect(() => {
     // Add Turnstile script if not already present
@@ -101,30 +104,60 @@ export function AuthView({ mode }) {
   }, []);
 
   useEffect(() => {
-    // Render the Turnstile widget
-    let widgetId;
+    let retries = 0;
     const renderWidget = () => {
-       if (window.turnstile && document.getElementById('turnstile-container')) {
-         try {
-           const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY || (import.meta.env.DEV ? '1x00000000000000000000AA' : '0x4AAAAAADdzhyrg4kvhvTW3');
-           widgetId = window.turnstile.render('#turnstile-container', {
-              sitekey,
-              callback: (token) => {
-                setCaptchaToken(token);
-              },
-           });
-         } catch (e) {
-           console.error("Turnstile render error", e);
-         }
-       } else {
-         setTimeout(renderWidget, 200);
-       }
+      if (window.turnstile && turnstileContainerRef.current) {
+        if (widgetIdRef.current !== null) {
+          try {
+            window.turnstile.remove(widgetIdRef.current);
+          } catch (e) {}
+          widgetIdRef.current = null;
+        }
+        if (turnstileContainerRef.current) {
+          turnstileContainerRef.current.innerHTML = '';
+        }
+
+        try {
+          const isLocal = typeof window !== 'undefined' && 
+            (window.location.hostname === 'localhost' || 
+             window.location.hostname === '127.0.0.1' || 
+             window.location.hostname.startsWith('192.168.'));
+
+          const sitekey = isLocal 
+            ? '1x00000000000000000000AA' 
+            : (import.meta.env.VITE_TURNSTILE_SITEKEY || '0x4AAAAAADdzhyrg4kvhvTW3');
+          
+          const el = document.createElement('div');
+          turnstileContainerRef.current.appendChild(el);
+
+          widgetIdRef.current = window.turnstile.render(el, {
+            sitekey,
+            callback: (token) => {
+              setCaptchaToken(token);
+            },
+          });
+        } catch (e) {
+          console.error("Turnstile render error", e);
+        }
+      } else if (retries < 50) {
+        retries++;
+        timeoutRef.current = setTimeout(renderWidget, 100);
+      } else {
+        console.warn("Turnstile failed to load after 5 seconds");
+      }
     };
+
     renderWidget();
-    
+
     return () => {
-      if (window.turnstile && widgetId !== undefined) {
-        window.turnstile.remove(widgetId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (window.turnstile && widgetIdRef.current !== null) {
+        try {
+          window.turnstile.remove(widgetIdRef.current);
+        } catch (e) {}
+        widgetIdRef.current = null;
       }
       setCaptchaToken(null);
     };
@@ -333,7 +366,7 @@ export function AuthView({ mode }) {
                 By creating an account, you agree to the <button type="button" onClick={() => setShowLegal(true)} className="text-primary underline cursor-pointer">Sanctuary Promise</button> and acknowledge the privacy rules.
               </p>
 
-              <div id="turnstile-container" className="flex justify-center mt-2"></div>
+              <div ref={turnstileContainerRef} className="flex justify-center mt-2"></div>
 
               <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-2">
                 {loading ? <Loader className="animate-spin" /> : 'create account'}
@@ -377,7 +410,7 @@ export function AuthView({ mode }) {
                 </div>
               </div>
 
-              <div id="turnstile-container" className="flex justify-center mt-2"></div>
+              <div ref={turnstileContainerRef} className="flex justify-center mt-2"></div>
 
               <RetroButton size="lg" type="submit" disabled={loading} className="w-full mt-4">
                 {loading ? <Loader className="animate-spin" /> : 'enter attic'}
